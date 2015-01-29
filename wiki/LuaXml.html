@@ -1,0 +1,1337 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Xml</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaXml&amp;body=1" title="List pages referring to LuaXml">Lua Xml</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following is some sample code for handling XML. It is divided into four sections:
+<UL>
+<li> toolkits;
+<li> XML parsers which are Lua only;
+<li> XML parsers which contain C code and a binding;
+<li> modules for handling XML-based protocols such as XML-RPC and SOAP.
+</UL>
+<p>
+Credit to the authors is mentioned where appropriate.
+<p>
+<H2>Toolkits</H2>
+<p>
+<a href="../wiki/LazyKit.html" >LazyKit</a> is a collection of XML processing tools.  Its primary purpose is to provoke
+discussion of XML tools in Lua.
+<p>
+<a href="../wiki/PenlightLibraries.html" >PenlightLibraries</a> provides an XML module <a href="http://stevedonovan.github.com/Penlight/api/topics/06-data.md.html#XML">[See Docs]</a> which uses the LOM
+defined by LuaExpat<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaExpat" >?</a> and provides pretty-printing, template matching and Orbit-style 'htmlfication'. It will use LuaExpat<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaExpat" >?</a> if available,
+otherwise falls back on a pure Lua parser based on Roberto's (see below).
+<p>
+<H2>Lua-only XML parsers</H2>
+<p>
+<H3>Lua XML Parser</H3>
+<p>
+LuaXML-0.0.0, From Paul Chakravarti <a href="http://www.passtheaardvark.com/lua/LuaXML-0.0.0.tgz">[1]</a> 
+(original link broken; see: <a href="http://web.archive.org/web/20040703165638/http://www.passtheaardvark.com/lua/LuaXML-0.0.0.tgz">[2]</a>)
+(Lua 5 version available at <a href="http://manoelcampos.com/files/LuaXML-0.0.1-(lua5).tar.gz">[3]</a>)
+<p>
+There is a bug with parsing DTD. Replace the line with 
+<DL>
+<dt><dd>self:_parseDTD(string,pos) 
+<dt><dd>to 
+<dt><dd>self:_parseDTD(str,pos)
+</DL>
+<p>
+The module implements a non-validating XML stream parser with a handler based event api (conceptually similar to SAX) which can be used to post-process the event data as required (eg into a tree).
+<p>
+The current functionality is - 
+<p>
+<UL>
+<li> Tokenises well-formed XML (relatively robustly)
+<li> Flexible handler based event api (
+<li> Parses/generates events all XML elements - ie.
+<UL>
+<li> Tags
+<li> Text
+<li> Comments
+<li> CDATA
+<li> XML Decl
+<li> Processing Instructions
+<li> DOCTYPE declarations
+</UL>
+<li> Provides limited well-formedness checking (checks for basic syntax &amp; balanced tags only)
+<li> Flexible whitespace handling (selectable)
+<li> Entity Handling (selectable) 
+</UL>
+<p>
+The limitations are - 
+<p>
+<UL>
+<li> Non-validating
+<li> No charset handling
+<li> No namespace support
+<li> Shallow well-formedness checking only (fails to detect most semantic errors) 
+</UL>
+<p>
+The distribution also includes sample event handlers to convert
+the SAX event stream into a Lua table - 
+<p>
+<UL>
+<li> <em>domHandler</em> generates a DOM-like node tree  structure and is capable of representing any valid XML document
+<li> <em>simpleTreeHandler</em> attempts to generate a more 'natural' table based structure which supports many common XML formats and is generally more useful (there are some restrictions dealing with mixed content however)
+</UL>
+<p>
+<H3>SLAXML</H3>
+<p>
+Another pure-Lua non-validating SAX-like streaming processor. It also includes an implementation of a simple DOM parser (parse to hierarchy of tables).
+<p>
+<a href="https://github.com/Phrogz/SLAXML">https://github.com/Phrogz/SLAXML</a>
+<p>
+Features:
+<p>
+<UL>
+<li> Pure Lua in a single file (two files if you use the DOM parser).
+<li> Streaming parser does a single pass through the input and reports what it sees along the way.
+<li> Supports elements, attributes, comments, text, CDATA, and processing instructions. (Does not support DTD or XML Declaration as a non-processing instruction).
+<li> Supports namespaces
+<li> Supports syntactically-valid XML such as <code>cond="7 &gt; 5"</code> (but also incorrectly "supports" certain invalid XML, such as <code>&lt;foo&gt;&lt;/bar&gt;</code> or <code>&lt;a&gt;5 &lt; 7</code>)
+<li> Unescapes named XML entities (<code>&amp;lt; &amp;gt; &amp;amp; &amp;quot; &amp;apos;</code>) and numeric entities (e.g. <code>&amp;#10;</code>) in attributes and text nodes (butproperlynot in comments or CDATA). Properly handles edge cases like <code>&amp;#38;amp;</code>.
+<li> Optionally ignore whitespace-only text nodes (as appear when indenting XML markup).
+<li> Includes a DOM parser that is a both a convenient way to pull in XML to use as well as a nice example of using the streaming parser.
+<li> Does not add any keys to the global namespace. Use the pattern <code>local SLAXML = require 'slaxml'</code> to use it.
+</UL>
+<p>
+<p>
+<H3>Classic Lua-only version</H3>
+<p>
+<em>From: Roberto Ierusalimschy </em>
+<p>
+I have this basic skeleton that parses the "main" part of an XML string (it
+does not handle meta-data like "<code>&lt;?</code>" and "<code>&lt;!</code>"...).
+-- Roberto
+<p>
+<DL>
+<dt><dd><em>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  It does not run as is under Lua 5.</em>
+<dt><dd><em>[!] This implementation apparently does not correctly parse colons (:), as used for XML namespaces. See below for a proposed fix.</em>
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> parseargs (s)
+
+  <span class="keyword">local</span> arg = {}
+
+  gsub(s, <span class="string">"(%w+)=([\"'])(.-)%2"</span>, <span class="keyword">function</span> (w, _, a)
+
+    %arg[w] = a
+
+  <span class="keyword">end</span>)
+
+  <span class="keyword">return</span> arg
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> collect (s)
+
+  <span class="keyword">local</span> stack = {n=0}
+
+  <span class="keyword">local</span> top = {n=0}
+
+  tinsert(stack, top)
+
+  <span class="keyword">local</span> ni,c,label,args, empty
+
+  <span class="keyword">local</span> i, j = 1, 1
+
+  <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+    ni,j,c,label,args, empty = strfind(s, <span class="string">"&lt;(%/?)([%w:]+)(.-)(%/?)&gt;"</span>, i)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> ni <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    <span class="keyword">local</span> text = strsub(s, i, ni-1)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> strfind(text, <span class="string">"^%s*$"</span>) <span class="keyword">then</span>
+
+      tinsert(top, text)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> empty == <span class="string">"/"</span> <span class="keyword">then</span>  <span class="comment">-- empty element tag</span>
+
+      tinsert(top, {n=0, label=label, args=parseargs(args), empty=1})
+
+    <span class="keyword">elseif</span> c == <span class="string">""</span> <span class="keyword">then</span>   <span class="comment">-- start tag</span>
+
+      top = {n=0, label=label, args=parseargs(args)}
+
+      tinsert(stack, top)   <span class="comment">-- new level</span>
+
+    <span class="keyword">else</span>  <span class="comment">-- end tag</span>
+
+      <span class="keyword">local</span> toclose = tremove(stack)  <span class="comment">-- remove top</span>
+
+      top = stack[stack.n]
+
+      <span class="keyword">if</span> stack.n &lt; 1 <span class="keyword">then</span>
+
+        <span class="library">error</span>(<span class="string">"nothing to close with "</span>..label)
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> toclose.label ~= label <span class="keyword">then</span>
+
+        <span class="library">error</span>(<span class="string">"trying to close "</span>..toclose.label..<span class="string">" with "</span>..label)
+
+      <span class="keyword">end</span>
+
+      tinsert(top, toclose)
+
+    <span class="keyword">end</span> 
+
+    i = j+1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> text = strsub(s, i)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> strfind(text, <span class="string">"^%s*$"</span>) <span class="keyword">then</span>
+
+    tinsert(stack[stack.n], text)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> stack.n &gt; 1 <span class="keyword">then</span>
+
+    <span class="library">error</span>(<span class="string">"unclosed "</span>..stack[stack.n].label)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> stack[1]
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- example</span>
+
+
+
+x = collect<span class="string">[[
+
+     &lt;methodCall kind="xuxu"&gt;
+
+      &lt;methodName&gt;examples.getStateName&lt;/methodName&gt;
+
+      &lt;params&gt;
+
+         &lt;param&gt;
+
+            &lt;value&gt;&lt;i4&gt;41&lt;/i4&gt;&lt;/value&gt;
+
+            &lt;/param&gt;
+
+         &lt;/params&gt;
+
+      &lt;/methodCall&gt;
+
+]]</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+<hr>updated for 5.1
+<hr><em>[!] This implementation apparently does not correctly parse colons (:), as used for XML namespaces. See below for a proposed fix.</em>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> parseargs(s)
+
+  <span class="keyword">local</span> arg = {}
+
+  <span class="library">string.gsub</span>(s, <span class="string">"([%-%w]+)=([\"'])(.-)%2"</span>, <span class="keyword">function</span> (w, _, a)
+
+    arg[w] = a
+
+  <span class="keyword">end</span>)
+
+  <span class="keyword">return</span> arg
+
+<span class="keyword">end</span>
+
+    
+
+<span class="keyword">function</span> collect(s)
+
+  <span class="keyword">local</span> stack = {}
+
+  <span class="keyword">local</span> top = {}
+
+  <span class="library">table.insert</span>(stack, top)
+
+  <span class="keyword">local</span> ni,c,label,xarg, empty
+
+  <span class="keyword">local</span> i, j = 1, 1
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    ni,j,c,label,xarg, empty = <span class="library">string.find</span>(s, <span class="string">"&lt;(%/?)([%w:]+)(.-)(%/?)&gt;"</span>, i)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> ni <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    <span class="keyword">local</span> text = <span class="library">string.sub</span>(s, i, ni-1)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> <span class="library">string.find</span>(text, <span class="string">"^%s*$"</span>) <span class="keyword">then</span>
+
+      <span class="library">table.insert</span>(top, text)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> empty == <span class="string">"/"</span> <span class="keyword">then</span>  <span class="comment">-- empty element tag</span>
+
+      <span class="library">table.insert</span>(top, {label=label, xarg=parseargs(xarg), empty=1})
+
+    <span class="keyword">elseif</span> c == <span class="string">""</span> <span class="keyword">then</span>   <span class="comment">-- start tag</span>
+
+      top = {label=label, xarg=parseargs(xarg)}
+
+      <span class="library">table.insert</span>(stack, top)   <span class="comment">-- new level</span>
+
+    <span class="keyword">else</span>  <span class="comment">-- end tag</span>
+
+      <span class="keyword">local</span> toclose = <span class="library">table.remove</span>(stack)  <span class="comment">-- remove top</span>
+
+      top = stack[#stack]
+
+      <span class="keyword">if</span> #stack &lt; 1 <span class="keyword">then</span>
+
+        <span class="library">error</span>(<span class="string">"nothing to close with "</span>..label)
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> toclose.label ~= label <span class="keyword">then</span>
+
+        <span class="library">error</span>(<span class="string">"trying to close "</span>..toclose.label..<span class="string">" with "</span>..label)
+
+      <span class="keyword">end</span>
+
+      <span class="library">table.insert</span>(top, toclose)
+
+    <span class="keyword">end</span>
+
+    i = j+1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> text = <span class="library">string.sub</span>(s, i)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> <span class="library">string.find</span>(text, <span class="string">"^%s*$"</span>) <span class="keyword">then</span>
+
+    <span class="library">table.insert</span>(stack[#stack], text)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> #stack &gt; 1 <span class="keyword">then</span>
+
+    <span class="library">error</span>(<span class="string">"unclosed "</span>..stack[#stack].label)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> stack[1]
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<hr>Colon parsing fix (proposal)
+<hr>The code above uses (%w+) to capture tag names and parameter names. However, in XML namespaces are frequently used which introduces a colon (:) in the name of the tag/parameter.
+To make this implementation able to handle these colons, try replacing the "(%w+)" part in the function parseargs with "([%w:]+)".
+<p>
+<p>
+<H3>Original version</H3>
+<p>
+<em>From: Yutaka Ueno</em>
+<p>
+That is my test program, which is now revised <a href="http://www.etl.go.jp/~ueno/lua/test/">[4]</a> <em>(link broken)</em>
+But it is only tested for a few XML files used in biology. Probably Roberto's code provides a better skelton than mine, but there is a difference in xml-tag descriptions with Lua tables.
+<p>
+<DL>
+<dt><dd><pre>
+
+XML :           &lt;methodCall kind="xuxu"&gt;
+
+Lua by Roberto: { label="methodCall", args={kind="xuxu"} }
+
+Lua by Ueno:    { xml="methodCall", kind="xuxu" }
+
+</pre>
+</DL>
+<p>
+Because the property name "xml" never appears in XML. This method is a bit better for terribly deep XML tags proposed in biology.
+<p>
+<hr><H2>C bindings</H2>
+<p>
+<H3>Kino</H3>
+<p>
+<em>From: Eckhart Koeppen </em>
+<p>
+Well, there is something I programmed which might help, the Kino XML
+processor. It has wrappers for Tcl and Lua via SWIG. A Xt and an
+experimental Gtk widget for displaying XML with CSS are also available.
+Take a look at it at: <a href="http://nestroy.wi-inf.uni-essen.de/Koeppen/Kino/">[5]</a> <em>(link broken)</em>
+<p>
+It is under constant development but tries to stick to the DOM, so I hope
+that the interface changes remain small.
+<p>
+<H3>libxml</H3>
+<p>
+<a href="http://luagnome.free.fr/">[luagnome]</a> (link broken, use <a href="http://web.archive.org/web/20021122152029/http://luagnome.free.fr/">[6]</a>) includes the wrapping of libxml-1.8.x, as it is considered as a part of Gnome. It allows to parse and to generate XML files, with a simple api (object oriented).
+<p>
+<a href="http://asbradbury.org/projects/lua-xmlreader/">[lua-xmlreader]</a> is an implementation of the <code>XmlReader</code> API using libxml2.
+<p>
+<H3>Expat</H3>
+<p>
+For Lua 5.0/5.1, use <a href="http://www.keplerproject.org/luaexpat/">[LuaExpat]</a>, which is full-featured.
+<p>
+For Lua 4.0:
+<p>
+<em>From: Jay Carlson</em>
+<p>
+I've put a simple binding of expat, James Clark's C stream-based XML parser
+up at <a href="http://www.place.org/~nop/lxp.tar.gz">[7]</a>.  No, not everything is bound,
+but it should be obvious how to bind more stuff to it.
+<p>
+<H3>LuaXML</H3>
+<p>
+<a href="http://viremo.eludi.net/LuaXML">[LuaXML]</a> is a lean yet complete module for the direct mapping between XML data and Lua tables.
+<p>
+<H3>XML-DOM parser</H3>
+<p>
+PugXML is a C++ small, fast, non-validating DOM XML parser, contained in a single header, having no dependencies other than the standard C libraries, and &lt;iostream&gt; (KERNEL32.DLL with WIN32). This XML parser segments a given string in situ (like strtok), performing scanning/tokenization, and parsing in a single pass.
+<p>
+Here is an example of the parser use in Lua:
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- create xml_parser object</span>
+
+parser = pug.xml_parser( pug.xml_parser.parse_default, <span class="keyword">true</span>, 4);
+
+
+
+<span class="comment">-- parse string</span>
+
+xml_string = <span class="string">'&lt;xml&gt;&lt;child&gt;some data &lt;/child&gt;&lt;child2 attr="value"/&gt;&lt;/xml&gt;'</span>;
+
+<span class="library">print</span>(<span class="string">'parsing string: '</span> .. xml_string );
+
+parser:parse(xml_string, pug.xml_parser.parse_noset);
+
+<span class="library">print</span>( <span class="library">tostring</span>(parser:document()) );
+
+
+
+<span class="comment">-- Testing xml_node</span>
+
+<span class="comment">-- getting root</span>
+
+root=parser:document();
+
+
+
+<span class="comment">-- add a element child</span>
+
+child=root:append_child( pug.xml_node_type.element );
+
+<span class="library">print</span>( <span class="library">tostring</span>(root) );
+
+
+
+<span class="comment">-- rename child to child</span>
+
+child:name(<span class="string">'child'</span>);
+
+<span class="library">print</span>(<span class="string">'child name is '</span> .. child:name() );
+
+<span class="library">print</span>( <span class="library">tostring</span>(root) );
+
+
+
+<span class="comment">-- adding attributes</span>
+
+child:append_attribute(<span class="string">'attribute'</span>,<span class="string">'value'</span>);
+
+child:append_attribute(<span class="string">'attribute2'</span>,<span class="string">'value2'</span>);
+
+
+
+<span class="comment">-- adding on children</span>
+
+child2=child:append_child( pug.xml_node_type.element );
+
+child2:name(<span class="string">'child2'</span>);
+
+<span class="library">print</span>( <span class="library">tostring</span>(root) );
+
+</pre>
+
+</DL>
+<p>
+A wrapper around this parser has been written with <a href="http://luabind.sourceforge.net">[LuaBind]</a> and is available at <a href="http://eauminerale.syldavie.csam.ucl.ac.be/peli/pugxml_lua">[8]</a> <em>(link broken)</em>.
+The original article about PugXML is located at <a href="http://www.codeproject.com/soap/pugxml.asp">[9]</a>.
+<p>
+<p>
+<H3>TinyXML</H3>
+<p>
+For Lua 5.0:
+<p>
+<em>From: Robert Noll</em>
+<p>
+Just a plain "Parse File to lua array" function in c++, using the <a href="http://sourceforge.net/projects/tinyxml/">[TinyXML]</a> (2.4.3) lib.
+<p>
+<DL>
+<dt><dd><pre>
+
+// header
+
+
+
+class lua_State;
+
+	
+
+/// register parser functions to lua
+
+void	RegisterLuaXML (lua_State *L);
+
+
+
+
+
+// sourcefile
+
+
+
+#include "tinyxml.h"
+
+
+
+extern "C" {
+
+	#include "lua.h"
+
+	#include "lauxlib.h"
+
+	#include "lualib.h"
+
+}
+
+
+
+void LuaXML_ParseNode (lua_State *L,TiXmlNode* pNode) { PROFILE
+
+	if (!pNode) return;
+
+	// resize stack if neccessary
+
+	luaL_checkstack(L, 5, "LuaXML_ParseNode : recursion too deep");
+
+	
+
+	TiXmlElement* pElem = pNode-&gt;ToElement();
+
+	if (pElem) {
+
+		// element name
+
+		lua_pushstring(L,"name");
+
+		lua_pushstring(L,pElem-&gt;Value());
+
+		lua_settable(L,-3);
+
+		
+
+		// parse attributes
+
+		TiXmlAttribute* pAttr = pElem-&gt;FirstAttribute();
+
+		if (pAttr) {
+
+			lua_pushstring(L,"attr");
+
+			lua_newtable(L);
+
+			for (;pAttr;pAttr = pAttr-&gt;Next()) {
+
+				lua_pushstring(L,pAttr-&gt;Name());
+
+				lua_pushstring(L,pAttr-&gt;Value());
+
+				lua_settable(L,-3);
+
+				
+
+			}
+
+			lua_settable(L,-3);
+
+		}
+
+	}
+
+	
+
+	// children
+
+	TiXmlNode *pChild = pNode-&gt;FirstChild();
+
+	if (pChild) {
+
+		int iChildCount = 0;
+
+		for(;pChild;pChild = pChild-&gt;NextSibling()) {
+
+			switch (pChild-&gt;Type()) {
+
+				case TiXmlNode::DOCUMENT: break;
+
+				case TiXmlNode::ELEMENT: 
+
+					// normal element, parse recursive
+
+					lua_newtable(L);
+
+					LuaXML_ParseNode(L,pChild);
+
+					lua_rawseti(L,-2,++iChildCount);
+
+				break;
+
+				case TiXmlNode::COMMENT: break;
+
+				case TiXmlNode::TEXT: 
+
+					// plaintext, push raw
+
+					lua_pushstring(L,pChild-&gt;Value());
+
+					lua_rawseti(L,-2,++iChildCount);
+
+				break;
+
+				case TiXmlNode::DECLARATION: break;
+
+				case TiXmlNode::UNKNOWN: break;
+
+			};
+
+		}
+
+		lua_pushstring(L,"n");
+
+		lua_pushnumber(L,iChildCount);
+
+		lua_settable(L,-3);
+
+	}
+
+}
+
+
+
+static int LuaXML_ParseFile (lua_State *L) { PROFILE
+
+	const char* sFileName = luaL_checkstring(L,1);
+
+	TiXmlDocument doc(sFileName);
+
+	doc.LoadFile();
+
+	lua_newtable(L);
+
+	LuaXML_ParseNode(L,&amp;doc);
+
+	return 1;
+
+}
+
+
+
+void	RegisterLuaXML (lua_State *L) {
+
+	lua_register(L,"LuaXML_ParseFile",LuaXML_ParseFile);
+
+}
+
+</pre>
+</DL>
+<p>
+<H3>pugilua</H3>
+a binding to the neat <a href="http://pugixml.org/">[pugixml]</a>, supporting DOM and XPath 1.0.
+The binding is made using <a href="https://github.com/vinniefalco/LuaBridge">[LuaBridge]</a>
+<p>
+<a href="https://github.com/d-led/pugilua">https://github.com/d-led/pugilua</a>
+<p>
+Example:
+<pre class="code">
+<span class="library">require</span> <span class="string">'pugilua'</span>
+
+
+
+
+
+<span class="comment">---- reading ----</span>
+
+<span class="keyword">local</span> doc=pugi.xml_document()
+
+<span class="keyword">local</span> res=doc:load_file <span class="string">[[..\..\scripts\pugilua\pugilua.vcxproj]]</span>
+
+
+
+<span class="library">print</span>(res.description)
+
+
+
+<span class="keyword">local</span> node1=doc:root():child(<span class="string">'Project'</span>)
+
+<span class="keyword">local</span> query1=doc:root():select_nodes(<span class="string">'Project/PropertyGroup'</span>)
+
+
+
+<span class="keyword">local</span> n=query1.size
+
+<span class="keyword">for</span> i=0,n-1 <span class="keyword">do</span>
+
+	<span class="keyword">local</span> node=query1:get(i):node()
+
+	<span class="keyword">local</span> attribute=query1:get(i):attribute()
+
+	<span class="library">print</span>(node.valid,node.path)
+
+	<span class="keyword">local</span> a=node:first_attribute()
+
+	<span class="keyword">while</span> a.valid <span class="keyword">do</span>
+
+		<span class="library">print</span>(a.name)
+
+		a=a:next_attribute()
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">---- creating ----</span>
+
+doc:reset()
+
+<span class="comment">--- from the tutorial</span>
+
+<span class="comment">-- add node with some name</span>
+
+<span class="keyword">local</span> node = doc:root():append_child(<span class="string">"node"</span>)
+
+
+
+<span class="comment">-- add description node with text child</span>
+
+<span class="keyword">local</span> descr = node:append_child(<span class="string">"description"</span>)
+
+descr:append(pugi.node_pcdata):set_value(<span class="string">"Simple node"</span>)
+
+
+
+<span class="comment">-- add param node before the description</span>
+
+<span class="keyword">local</span> param = node:insert_child_before(<span class="string">"param"</span>, descr)
+
+
+
+<span class="comment">-- add attributes to param node</span>
+
+param:append_attribute(<span class="string">"name"</span>):set_value(<span class="string">"version"</span>)
+
+param:append_attribute(<span class="string">"value"</span>):set_value(1.1)
+
+param:insert_attribute_after(<span class="string">"type"</span>, param:attribute(<span class="string">"name"</span>)):set_value(<span class="string">"float"</span>)
+
+
+
+doc:save_file(<span class="string">"tutorial.xml"</span>)
+
+</pre>
+
+<p>
+<H3>xerceslua</H3>
+<p>
+As a supplement to pugilua there's an effort to provide a minimal binding to [xerces.apache.org/xerces-c/ Xerces-C++] to be able to validate xml documents:
+<p>
+<a href="https://github.com/d-led/xerceslua">https://github.com/d-led/xerceslua</a>
+<p>
+assert(require 'xerceslua')
+<p>
+Example:
+<pre class="code">
+<span class="keyword">local</span> parser=xerces.XercesDOMParser()
+
+parser:loadGrammar(<span class="string">"Employee.dtd"</span>,xerces.GrammarType.DTDGrammarType)
+
+parser:setValidationScheme(xerces.ValSchemes.Val_Auto)
+
+<span class="keyword">local</span> log=parser:parse(<span class="string">"Employeexy.xml"</span>)
+
+<span class="library">print</span>(log.Ok)
+
+<span class="keyword">if</span> <span class="keyword">not</span> log.Ok <span class="keyword">then</span>
+
+    <span class="library">print</span>(log.Count)
+
+    <span class="keyword">for</span> i=0,log.Count-1 <span class="keyword">do</span>
+
+        <span class="keyword">local</span> err=log:GetLogEntry(i)
+
+        <span class="library">print</span>(err.SystemId..<span class="string">', l:'</span>..err.LineNumber..<span class="string">', c:'</span>..err.ColumnNumber..<span class="string">', e:'</span>..err.Message,err.LogType)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<hr><H2>XML-based protocols</H2>
+<p>
+<H3>XML-RPC</H3>
+<p>
+For Lua 5.0/5.1, use <a href="http://www.keplerproject.org/luaxmlrpc/">[LuaXMLRPC]</a> library developed by <a href="http://www.keplerproject.org/">[The Kepler Project]</a>.
+<p>
+For Lua 4.0:
+<p>
+<em>From: Jay Carlson</em>
+<p>
+I've put an initial release of client/server bindings for Lua for XML-RPC at
+<a href="http://www.place.org/~nop/luaxmlrpc-0.0.tar.gz">[10]</a>. It contains my lxp expat
+binding, and uses LuaSocket for client transport.
+<p>
+For more information on XML-RPC, see <a href="http://www.xmlrpc.org/">[11]</a>.
+<p>
+Although the packaging and documentation are scant, this package
+successfully passes the validation tests at <a href="http://validator.xmlrpc.com/">[12]</a>.
+<p>
+<p>
+<H3>SOAP</H3>
+<p>
+<a href="http://www.keplerproject.org/luasoap/">[LuaSOAP]</a> is a Lua library to ease the use of SOAP.
+<p>
+<p>
+<H3>Lua only XmlParser<a href="/cgi-bin/wiki.pl?action=edit&amp;id=XmlParser" >?</a></H3>
+<p>
+For Lua 5.1:
+<p>
+<em>From: Alexander Makeev</em>
+<p>
+This XmlParser<a href="/cgi-bin/wiki.pl?action=edit&amp;id=XmlParser" >?</a> allows build object like C# XmlDocument<a href="/cgi-bin/wiki.pl?action=edit&amp;id=XmlDocument" >?</a> with XmlNodes<a href="/cgi-bin/wiki.pl?action=edit&amp;id=XmlNodes" >?</a>. See example for details.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-----------------------------------------------------------------------------------------</span>
+
+<span class="comment">-- LUA only XmlParser from Alexander Makeev</span>
+
+<span class="comment">-----------------------------------------------------------------------------------------</span>
+
+XmlParser = {};
+
+
+
+<span class="keyword">function</span> XmlParser:ToXmlString(value)
+
+	value = <span class="library">string.gsub</span> (value, <span class="string">"&amp;"</span>, <span class="string">"&amp;amp;"</span>);		<span class="comment">-- '&amp;' -&gt; "&amp;amp;"</span>
+
+	value = <span class="library">string.gsub</span> (value, <span class="string">"&lt;"</span>, <span class="string">"&amp;lt;"</span>);		<span class="comment">-- '&lt;' -&gt; "&amp;lt;"</span>
+
+	value = <span class="library">string.gsub</span> (value, <span class="string">"&gt;"</span>, <span class="string">"&amp;gt;"</span>);		<span class="comment">-- '&gt;' -&gt; "&amp;gt;"</span>
+
+	<span class="comment">--value = string.gsub (value, "'", "&amp;apos;");	-- '\'' -&gt; "&amp;apos;"</span>
+
+	value = <span class="library">string.gsub</span> (value, <span class="string">"\""</span>, <span class="string">"&amp;quot;"</span>);	<span class="comment">-- '"' -&gt; "&amp;quot;"</span>
+
+	<span class="comment">-- replace non printable char -&gt; "&amp;#xD;"</span>
+
+   	value = <span class="library">string.gsub</span>(value, <span class="string">"([^%w%&amp;%;%p%\t% ])"</span>,
+
+       	<span class="keyword">function</span> (c) 
+
+       		<span class="keyword">return</span> <span class="library">string.format</span>(<span class="string">"&amp;#x%X;"</span>, <span class="library">string.byte</span>(c)) 
+
+       		<span class="comment">--return string.format("&amp;#x%02X;", string.byte(c)) </span>
+
+       		<span class="comment">--return string.format("&amp;#%02d;", string.byte(c)) </span>
+
+       	<span class="keyword">end</span>);
+
+	<span class="keyword">return</span> value;
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> XmlParser:FromXmlString(value)
+
+  	value = <span class="library">string.gsub</span>(value, <span class="string">"&amp;#x([%x]+)%;"</span>,
+
+      	<span class="keyword">function</span>(h) 
+
+      		<span class="keyword">return</span> <span class="library">string.char</span>(<span class="library">tonumber</span>(h,16)) 
+
+      	<span class="keyword">end</span>);
+
+  	value = <span class="library">string.gsub</span>(value, <span class="string">"&amp;#([0-9]+)%;"</span>,
+
+      	<span class="keyword">function</span>(h) 
+
+      		<span class="keyword">return</span> <span class="library">string.char</span>(<span class="library">tonumber</span>(h,10)) 
+
+      	<span class="keyword">end</span>);
+
+	value = <span class="library">string.gsub</span> (value, <span class="string">"&amp;quot;"</span>, <span class="string">"\""</span>);
+
+	value = <span class="library">string.gsub</span> (value, <span class="string">"&amp;apos;"</span>, <span class="string">"'"</span>);
+
+	value = <span class="library">string.gsub</span> (value, <span class="string">"&amp;gt;"</span>, <span class="string">"&gt;"</span>);
+
+	value = <span class="library">string.gsub</span> (value, <span class="string">"&amp;lt;"</span>, <span class="string">"&lt;"</span>);
+
+	value = <span class="library">string.gsub</span> (value, <span class="string">"&amp;amp;"</span>, <span class="string">"&amp;"</span>);
+
+	<span class="keyword">return</span> value;
+
+<span class="keyword">end</span>
+
+   
+
+<span class="keyword">function</span> XmlParser:ParseArgs(s)
+
+  <span class="keyword">local</span> arg = {}
+
+  <span class="library">string.gsub</span>(s, <span class="string">"(%w+)=([\"'])(.-)%2"</span>, <span class="keyword">function</span> (w, _, a)
+
+    	arg[w] = self:FromXmlString(a);
+
+  	<span class="keyword">end</span>)
+
+  <span class="keyword">return</span> arg
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> XmlParser:ParseXmlText(xmlText)
+
+  <span class="keyword">local</span> stack = {}
+
+  <span class="keyword">local</span> top = {Name=<span class="keyword">nil</span>,Value=<span class="keyword">nil</span>,Attributes={},ChildNodes={}}
+
+  <span class="library">table.insert</span>(stack, top)
+
+  <span class="keyword">local</span> ni,c,label,xarg, empty
+
+  <span class="keyword">local</span> i, j = 1, 1
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    ni,j,c,label,xarg, empty = <span class="library">string.find</span>(xmlText, <span class="string">"&lt;(%/?)([%w:]+)(.-)(%/?)&gt;"</span>, i)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> ni <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    <span class="keyword">local</span> text = <span class="library">string.sub</span>(xmlText, i, ni-1);
+
+    <span class="keyword">if</span> <span class="keyword">not</span> <span class="library">string.find</span>(text, <span class="string">"^%s*$"</span>) <span class="keyword">then</span>
+
+      top.Value=(top.Value <span class="keyword">or</span> <span class="string">""</span>)..self:FromXmlString(text);
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> empty == <span class="string">"/"</span> <span class="keyword">then</span>  <span class="comment">-- empty element tag</span>
+
+      <span class="library">table.insert</span>(top.ChildNodes, {Name=label,Value=<span class="keyword">nil</span>,Attributes=self:ParseArgs(xarg),ChildNodes={}})
+
+    <span class="keyword">elseif</span> c == <span class="string">""</span> <span class="keyword">then</span>   <span class="comment">-- start tag</span>
+
+      top = {Name=label, Value=<span class="keyword">nil</span>, Attributes=self:ParseArgs(xarg), ChildNodes={}}
+
+      <span class="library">table.insert</span>(stack, top)   <span class="comment">-- new level</span>
+
+      <span class="comment">--log("openTag ="..top.Name);</span>
+
+    <span class="keyword">else</span>  <span class="comment">-- end tag</span>
+
+      <span class="keyword">local</span> toclose = <span class="library">table.remove</span>(stack)  <span class="comment">-- remove top</span>
+
+      <span class="comment">--log("closeTag="..toclose.Name);</span>
+
+      top = stack[#stack]
+
+      <span class="keyword">if</span> #stack &lt; 1 <span class="keyword">then</span>
+
+        <span class="library">error</span>(<span class="string">"XmlParser: nothing to close with "</span>..label)
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> toclose.Name ~= label <span class="keyword">then</span>
+
+        <span class="library">error</span>(<span class="string">"XmlParser: trying to close "</span>..toclose.Name..<span class="string">" with "</span>..label)
+
+      <span class="keyword">end</span>
+
+      <span class="library">table.insert</span>(top.ChildNodes, toclose)
+
+    <span class="keyword">end</span>
+
+    i = j+1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> text = <span class="library">string.sub</span>(xmlText, i);
+
+  <span class="keyword">if</span> <span class="keyword">not</span> <span class="library">string.find</span>(text, <span class="string">"^%s*$"</span>) <span class="keyword">then</span>
+
+      stack[#stack].Value=(stack[#stack].Value <span class="keyword">or</span> <span class="string">""</span>)..self:FromXmlString(text);
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> #stack &gt; 1 <span class="keyword">then</span>
+
+    <span class="library">error</span>(<span class="string">"XmlParser: unclosed "</span>..stack[stack.n].Name)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> stack[1].ChildNodes[1];
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> XmlParser:ParseXmlFile(xmlFileName)
+
+	<span class="keyword">local</span> hFile,err = <span class="library">io.open</span>(xmlFileName,<span class="string">"r"</span>);
+
+	<span class="keyword">if</span> (<span class="keyword">not</span> err) <span class="keyword">then</span>
+
+		<span class="keyword">local</span> xmlText=hFile:read(<span class="string">"*a"</span>); <span class="comment">-- read file content</span>
+
+		<span class="library">io.close</span>(hFile);
+
+        <span class="keyword">return</span> self:ParseXmlText(xmlText),<span class="keyword">nil</span>;
+
+	<span class="keyword">else</span>
+
+		<span class="keyword">return</span> <span class="keyword">nil</span>,err;
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">------------------------------------------------------------------------------------------</span>
+
+</pre>
+
+</DL>
+<p>
+example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> dump(_class, no_func, depth)
+
+	<span class="keyword">if</span>(<span class="keyword">not</span> _class) <span class="keyword">then</span> 
+
+		log(<span class="string">"nil"</span>);
+
+		<span class="keyword">return</span>;
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="keyword">if</span>(depth==<span class="keyword">nil</span>) <span class="keyword">then</span> depth=0; <span class="keyword">end</span>
+
+	<span class="keyword">local</span> str=<span class="string">""</span>;
+
+	<span class="keyword">for</span> n=0,depth,1 <span class="keyword">do</span>
+
+		str=str..<span class="string">"\t"</span>;
+
+	<span class="keyword">end</span>
+
+    
+
+	log(str..<span class="string">"["</span>..<span class="library">type</span>(_class)..<span class="string">"]"</span>);
+
+	log(str..<span class="string">"{"</span>);
+
+    
+
+	<span class="keyword">for</span> i,field <span class="keyword">in</span> <span class="library">pairs</span>(_class) <span class="keyword">do</span>
+
+		<span class="keyword">if</span>(<span class="library">type</span>(field)==<span class="string">"table"</span>) <span class="keyword">then</span>
+
+			log(str..<span class="string">"\t"</span>..<span class="library">tostring</span>(i)..<span class="string">" ="</span>);
+
+			dump(field, no_func, depth+1);
+
+		<span class="keyword">else</span> 
+
+			<span class="keyword">if</span>(<span class="library">type</span>(field)==<span class="string">"number"</span>) <span class="keyword">then</span>
+
+				log(str..<span class="string">"\t"</span>..<span class="library">tostring</span>(i)..<span class="string">"="</span>..field);
+
+			<span class="keyword">elseif</span>(<span class="library">type</span>(field) == <span class="string">"string"</span>) <span class="keyword">then</span>
+
+				log(str..<span class="string">"\t"</span>..<span class="library">tostring</span>(i)..<span class="string">"="</span>..<span class="string">"\""</span>..field..<span class="string">"\""</span>);
+
+			<span class="keyword">elseif</span>(<span class="library">type</span>(field) == <span class="string">"boolean"</span>) <span class="keyword">then</span>
+
+				log(str..<span class="string">"\t"</span>..<span class="library">tostring</span>(i)..<span class="string">"="</span>..<span class="string">"\""</span>..<span class="library">tostring</span>(field)..<span class="string">"\""</span>);
+
+			<span class="keyword">else</span>
+
+				<span class="keyword">if</span>(<span class="keyword">not</span> no_func)<span class="keyword">then</span>
+
+					<span class="keyword">if</span>(<span class="library">type</span>(field)==<span class="string">"function"</span>)<span class="keyword">then</span>
+
+						log(str..<span class="string">"\t"</span>..<span class="library">tostring</span>(i)..<span class="string">"()"</span>);
+
+					<span class="keyword">else</span>
+
+						log(str..<span class="string">"\t"</span>..<span class="library">tostring</span>(i)..<span class="string">"&lt;userdata=["</span>..<span class="library">type</span>(field)..<span class="string">"]&gt;"</span>);
+
+					<span class="keyword">end</span>
+
+				<span class="keyword">end</span>
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	log(str..<span class="string">"}"</span>);
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--local obj,err = XmlParser:ParseXmlFile("test.xml");</span>
+
+<span class="comment">--if(not err) then</span>
+
+<span class="comment">--	dump(obj);</span>
+
+<span class="comment">--else</span>
+
+<span class="comment">--	log("ERROR: "..err);		</span>
+
+<span class="comment">--end</span>
+
+
+
+<span class="keyword">local</span> xmlTree=XmlParser:ParseXmlText(<span class="string">[[&lt;?xml version="1.0" encoding="utf-8"?&gt;
+
+&lt;Config&gt;
+
+	&lt;EntityList&gt;
+
+		&lt;Entity value="1&amp;quot;2&amp;quot;3"&gt;innerText&lt;/Entity&gt;	
+
+		&lt;Entity value="456"/&gt;
+
+	&lt;/EntityList&gt;
+
+&lt;/Config&gt;
+
+]]</span>)
+
+<span class="keyword">for</span> i,xmlNode <span class="keyword">in</span> <span class="library">pairs</span>(xmlTree.ChildNodes) <span class="keyword">do</span>
+
+	<span class="keyword">if</span>(xmlNode.Name==<span class="string">"EntityList"</span>) <span class="keyword">then</span>
+
+		<span class="keyword">for</span> i,subXmlNode <span class="keyword">in</span> <span class="library">pairs</span>(xmlNode.ChildNodes) <span class="keyword">do</span>
+
+			<span class="keyword">if</span>(subXmlNode.Name==<span class="string">"Entity"</span>) <span class="keyword">then</span>
+
+				log(<span class="string">"Entity value=\""</span>..subXmlNode.Attributes.value..<span class="string">"\""</span>);
+
+				<span class="keyword">if</span>(subXmlNode.Value) <span class="keyword">then</span>
+
+					log(<span class="string">"   Content=\""</span>..subXmlNode.Value..<span class="string">"\""</span>);
+
+				<span class="keyword">end</span>
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+dump(xmlTree)
+
+</pre>
+
+</DL>
+<p>
+result:
+<DL>
+<dt><dd><pre>
+
+&lt;log&gt;Entity value="1"2"3"
+
+&lt;log&gt;   Content="innerText"
+
+&lt;log&gt;Entity value="456"
+
+&lt;log&gt;	[table]
+
+&lt;log&gt;	{
+
+&lt;log&gt;		Attributes =
+
+&lt;log&gt;		[table]
+
+&lt;log&gt;		{
+
+&lt;log&gt;		}
+
+&lt;log&gt;		Name="Config"
+
+&lt;log&gt;		ChildNodes =
+
+&lt;log&gt;		[table]
+
+&lt;log&gt;		{
+
+&lt;log&gt;			1 =
+
+&lt;log&gt;			[table]
+
+&lt;log&gt;			{
+
+&lt;log&gt;				Attributes =
+
+&lt;log&gt;				[table]
+
+&lt;log&gt;				{
+
+&lt;log&gt;				}
+
+&lt;log&gt;				Name="EntityList"
+
+&lt;log&gt;				ChildNodes =
+
+&lt;log&gt;				[table]
+
+&lt;log&gt;				{
+
+&lt;log&gt;					1 =
+
+&lt;log&gt;					[table]
+
+&lt;log&gt;					{
+
+&lt;log&gt;						Value="innerText"
+
+&lt;log&gt;						Attributes =
+
+&lt;log&gt;						[table]
+
+&lt;log&gt;						{
+
+&lt;log&gt;							value="1"2"3"
+
+&lt;log&gt;						}
+
+&lt;log&gt;						Name="Entity"
+
+&lt;log&gt;						ChildNodes =
+
+&lt;log&gt;						[table]
+
+&lt;log&gt;						{
+
+&lt;log&gt;						}
+
+&lt;log&gt;					}
+
+&lt;log&gt;					2 =
+
+&lt;log&gt;					[table]
+
+&lt;log&gt;					{
+
+&lt;log&gt;						Attributes =
+
+&lt;log&gt;						[table]
+
+&lt;log&gt;						{
+
+&lt;log&gt;							value="456"
+
+&lt;log&gt;						}
+
+&lt;log&gt;						Name="Entity"
+
+&lt;log&gt;						ChildNodes =
+
+&lt;log&gt;						[table]
+
+&lt;log&gt;						{
+
+&lt;log&gt;						}
+
+&lt;log&gt;					}
+
+&lt;log&gt;				}
+
+&lt;log&gt;			}
+
+&lt;log&gt;		}
+
+&lt;log&gt;	}
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaXml" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaXml" >history</a><br>Last edited February 17, 2014 12:27 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaXml" >(diff)</a>
+</body>
+</html>

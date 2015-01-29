@@ -1,0 +1,116 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Pack</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaPack&amp;body=1" title="List pages referring to LuaPack">Lua Pack</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<hr><DL>
+<dt><dd><strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  It does not run as is under Lua 5.</strong>
+</DL>
+<hr><H2>Description</H2>
+<p>
+This is a simple Lua module for packing and unpacking binary data. <code>packlib</code> is based on Luiz Henrique de Figueiredo's pack library <a href="/lists/lua-l/2002-09/msg00107.html">[1]</a>. I just changed the template format to fit my own needs and converted it into a Lua module (see <a href="../wiki/LuaBinaryModules.html" >LuaBinaryModules</a>).
+<p>
+It exports two functions: bpack and bunpack.
+<p>
+bpack is called as follows: bpack(F,x1,x2,...), where F is a string describing
+how the value x1, x2, ... are to be interpreted and formatted. Each letter in 
+F consumes one of the values. The letter codes understood by bpack are:
+<p>
+<UL>
+<li> A: lua string packed as (len, string)
+<li> c: Signed char value
+<li> C: Unsigned char value
+<li> s: Signed short value
+<li> S: Unsigned short value
+<li> i: Signed integer value
+<li> I: Unsigned integer value
+<li> l: Signed long value
+<li> L: Unsigned long value
+<li> f: Single-precision float in the native format
+<li> d: Double-precision float in the native format
+<li> n: lua_Number
+<li> _: Separator (ignore)
+</UL>
+<p>
+bpack returns a (binary) string containing the values packed as described in F.
+<p>
+bunpack is called as follows: bunpack(s,F,[init]), where s is a (binary) string
+containing data packed by pack, F is a string describing what is to
+be read from s, and the optional init marks where in s to read the values.
+<p>
+bunpack returns one value per letter in F (the letters codes are the same as
+for bpack); bpack also returns the position of the next unread
+position in s, which can be used as the init position in a subsequent call
+to bunpack. If the position returned by bunpack is beyond the end of s, then
+bunpack should not be called again, of course, or an error will be raised.
+<p>
+<H3>Examples</H3>
+<p>
+The following code reads the header of a tga file:
+<DL>
+<dt><dd><pre>
+
+header = read( file, 18 )
+
+
+
+id_length, colormap_type, image_type,
+
+colormap_index, colormap_length,
+
+colormap_size, 
+
+x_origin, y_origin, width, height,
+
+pixel_size, attributes, num = bunpack( header, 'CCCSSCSSSSCC' )
+
+</pre>
+</DL>
+<p>
+<H2>Downloads</H2>
+<p>
+<H3>Binaries</H3>
+<p>
+<a href="http://castano.ludicon.com/files/lua/packlib/luapacklib.dll">[Win32 DLL]</a> |
+<a href="http://tulrich.com/geekstuff/lua_binary_modules/linux-i386/libluapacklib.so">[GNU/Linux-i386 .so]</a>
+<p>
+Note: the win32 binaries have been built using the <a href="http://www.mingw.org/">[MinGW]</a> gcc compiler.
+<p>
+Note: <em>The win32 binaries have been updated to use the lua-4.0.dll instead of statically linking it</em>.
+<p>
+<H3>Sources</H3>
+<p>
+<a href="http://castano.ludicon.com/files/lua/packlib/packlib.zip">[packlib.zip]</a>
+<p>
+<a href="http://tulrich.com/geekstuff/lua_binary_modules/packlib/packlib.tar.gz">[packlib.tar.gz]</a>
+<p>
+Updated Source (for 5.0 and 5.1) can be found at: <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/">[http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/]</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaPack" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaPack" >history</a><br>Last edited October 31, 2007 7:43 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaPack" >(diff)</a>
+</body>
+</html>

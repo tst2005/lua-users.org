@@ -1,0 +1,160 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Mining Lua Code</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MiningLuaCode&amp;body=1" title="List pages referring to MiningLuaCode">Mining Lua Code</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here's some examples of content analysis [1] of Lua source code...
+<p>
+<H3>What's the least popular string function?</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- usage: clone LuaDist repo [1] and then do lua findescape.lua `find /tmp/Repository -name '*.lua'`</span>
+
+<span class="comment">-- [1] github.com/LuaDist/Repository</span>
+
+<span class="comment">-- DavidManura</span>
+
+ 
+
+lexer = <span class="library">require</span> <span class="string">'lxsh.lexers.lua'</span>  <span class="comment">-- https://github.com/xolox/lua-lxsh</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> readfile(filename)
+
+  <span class="keyword">local</span> fh = <span class="library">io.open</span>(filename, <span class="string">'r'</span>)
+
+  <span class="keyword">local</span> text; <span class="keyword">if</span> fh <span class="keyword">then</span> text = fh:read<span class="string">'*a'</span>:gsub(<span class="string">'\r'</span>,<span class="string">'\n'</span>) <span class="keyword">end</span>
+
+  fh:close()
+
+  <span class="keyword">return</span> text
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> counts = {}
+
+
+
+<span class="keyword">for</span> _, filename <span class="keyword">in</span> <span class="library">ipairs</span>{...} <span class="keyword">do</span>
+
+  <span class="comment">--print(filename)</span>
+
+  <span class="keyword">local</span> text = readfile(filename)
+
+
+
+  <span class="keyword">for</span> kind, text <span class="keyword">in</span> lexer.gmatch(text) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> kind ~= <span class="string">'comment'</span> <span class="keyword">and</span> kind ~= <span class="string">'whitespace'</span> <span class="keyword">and</span> kind ~= <span class="string">"string"</span> <span class="keyword">and</span> kind ~= <span class="string">"number"</span> <span class="keyword">then</span>
+
+      counts[text] = (counts[text] <span class="keyword">or</span> 0) + 1
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> names = {}
+
+<span class="keyword">for</span> name, count <span class="keyword">in</span> <span class="library">pairs</span>(counts) <span class="keyword">do</span> names[#names+1] = {name, count} <span class="keyword">end</span>
+
+<span class="library">table.sort</span>(names, <span class="keyword">function</span>(a,b) <span class="keyword">return</span> a[2] &lt; b[2] <span class="keyword">end</span>)
+
+<span class="keyword">for</span> _, pair <span class="keyword">in</span> <span class="library">ipairs</span>(names) <span class="keyword">do</span>
+
+  <span class="library">print</span>(pair[1], pair[2])
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+lua test.lua `find /tmp/Repository/ -name '*.lua'`|grep '^string\.'
+
+...
+
+string.gfind	27
+
+string.dump	35
+
+string.lower	41
+
+string.upper	41
+
+string.gmatch	46
+
+string.char	83
+
+string.match	106
+
+string.byte	139
+
+string.rep	148
+
+string.len	159
+
+string.sub	332
+
+string.find	400
+
+string.gsub	492
+
+string.format	722
+
+</pre>
+</DL>
+<p>
+It's string.reverse.
+<p>
+(Caveat: the above ignores string method calls.)
+<p>
+<H3>What percent of source files misuse string escape sequences?</H3>
+<p>
+See <a href="/lists/lua-l/2010-10/msg00449.html">LuaList:2010-10/msg00449.html</a> .
+<p>
+<H3>See Also</H3>
+<p>
+<UL>
+<li> [1] <a href="http://en.wikipedia.org/wiki/Content_analysis.html">http://en.wikipedia.org/wiki/Content_analysis</a>
+<li> <a href="/lists/lua-l/2010-10/msg00710.htm">LuaList:2010-10/msg00710.htm</a> - Mining Code Repositories for Language Design
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MiningLuaCode" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MiningLuaCode" >history</a><br>Last edited July 6, 2011 3:01 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MiningLuaCode" >(diff)</a>
+</body>
+</html>

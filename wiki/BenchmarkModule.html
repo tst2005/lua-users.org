@@ -1,0 +1,517 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Benchmark Module</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BenchmarkModule&amp;body=1" title="List pages referring to BenchmarkModule">Benchmark Module</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<p>
+Now, here is my benchmarking module. I wrote it to find out, which is the fastest way to do some things in Lua.  It requires "<a href="../wiki/HiResTimer.html" >HiResTimer</a>".
+<p>
+<H2><code>Benchmark.lua</code></H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">---------------------------</span>
+
+<span class="comment">--- Benchmark provides a set of functions, which measures and compares execution time of different code fragments</span>
+
+<span class="comment">---------------------------</span>
+
+
+
+<span class="library">module</span>(<span class="string">"Benchmark"</span>,<span class="library">package.seeall</span>)
+
+<span class="keyword">local</span> hrt=<span class="library">require</span><span class="string">"HiResTimer"</span>
+
+
+
+
+
+<span class="keyword">local</span> bench_results={}
+
+<span class="keyword">local</span> total_diff=0.0
+
+
+
+<span class="comment">---------------------------</span>
+
+<span class="comment">--- Call a function for several times and measure execution time.</span>
+
+<span class="comment">-- @param name (string) literal to identify test in result table</span>
+
+<span class="comment">-- @param func (function) function to be benchmarked</span>
+
+<span class="comment">-- @param loops (number) how often this function should be called</span>
+
+<span class="comment">----------------------------</span>
+
+<span class="keyword">function</span> Bench(name,func,loops)
+
+	loops=loops <span class="keyword">or</span> 1000
+
+	<span class="keyword">local</span> q0=hrt.clock()
+
+	<span class="keyword">for</span> i=1,loops <span class="keyword">do</span>
+
+		func()
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">local</span> q1=hrt.clock()
+
+	<span class="keyword">local</span> result=bench_results[name] <span class="keyword">or</span> {count=0,diff=0}
+
+	<span class="keyword">local</span> diff=(q1-q0)
+
+	result.count=result.count+loops
+
+	result.diff=result.diff+diff
+
+	total_diff=total_diff+diff
+
+	bench_results[name]=result
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">---------------------------</span>
+
+<span class="comment">--- Do Benchmark over a table of functions</span>
+
+<span class="comment">-- @param functions (table) table of functions to check</span>
+
+<span class="comment">-- @param loops (number) how often to call the function (optional, default 1000)</span>
+
+<span class="comment">---------------------------</span>
+
+<span class="keyword">function</span> BenchTable(functions,loops)
+
+	loops=loops <span class="keyword">or</span> 1000
+
+	<span class="keyword">for</span> name,func <span class="keyword">in</span> <span class="library">pairs</span>(functions) <span class="keyword">do</span>
+
+		Bench(name,func,loops)
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">----------------------------</span>
+
+<span class="comment">--- Printout benchmark results.</span>
+
+<span class="comment">-- @param Output (function) to receive values (optional, default=io.write)</span>
+
+<span class="comment">----------------------------</span>
+
+<span class="keyword">function</span> Results(Output)
+
+
+
+	<span class="comment">--</span>
+
+	<span class="comment">-- prepare the output</span>
+
+	<span class="comment">--</span>
+
+	Output=Output <span class="keyword">or</span> <span class="library">io.write</span>
+
+	<span class="keyword">local</span> <span class="keyword">function</span> printf(form,...)
+
+		Output(<span class="library">string.format</span>(form,...))
+
+	<span class="keyword">end</span>
+
+
+
+	<span class="comment">--</span>
+
+	<span class="comment">-- calculate mean values</span>
+
+	<span class="comment">-- create a table of names</span>
+
+	<span class="comment">--</span>
+
+	<span class="keyword">local</span> names={}
+
+	<span class="keyword">local</span> namlen=0
+
+	<span class="keyword">for</span> name,result <span class="keyword">in</span> <span class="library">pairs</span>(bench_results) <span class="keyword">do</span>
+
+		result.mean=result.diff/result.count
+
+<span class="comment">--~ 		printf("diff=%8.3g cnt=%d mean=%8.3g\n",result.diff,result.count,result.mean)</span>
+
+		names[#names+1]=name
+
+		<span class="keyword">if</span> #name&gt;namlen <span class="keyword">then</span> namlen=#name <span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+
+
+	<span class="comment">--</span>
+
+	<span class="comment">-- sort table by mean value</span>
+
+	<span class="comment">--</span>
+
+	<span class="keyword">local</span> <span class="keyword">function</span> comp(na,nb)
+
+		<span class="keyword">return</span> bench_results[na].mean&lt;bench_results[nb].mean
+
+	<span class="keyword">end</span>
+
+	<span class="library">table.sort</span>(names,comp)
+
+
+
+	<span class="comment">--</span>
+
+	<span class="comment">-- derive some reasonable output scaling</span>
+
+	<span class="comment">--</span>
+
+	<span class="keyword">local</span> max=bench_results[names[#names]].mean
+
+	<span class="keyword">local</span> fac,unit=1,<span class="string">"sec"</span>
+
+	<span class="keyword">if</span> max&lt;0.001 <span class="keyword">then</span>
+
+		fac,unit=1000000,<span class="string">"µs"</span>
+
+	<span class="keyword">elseif</span> max&lt;1.0 <span class="keyword">then</span>
+
+		fac,unit=1000,<span class="string">"ms"</span>
+
+	<span class="keyword">end</span>
+
+
+
+	<span class="comment">--</span>
+
+	<span class="comment">-- create a format string (due "%-*s" is missing in string.format)</span>
+
+	<span class="comment">--</span>
+
+	<span class="keyword">local</span> form=<span class="library">string.gsub</span>(<span class="string">"-- %-#s : %8.3f %s = %6d loops/s [%6.2f %%] %5.3f times faster\n"</span>,<span class="string">"#"</span>,<span class="library">tostring</span>(namlen))
+
+
+
+	<span class="comment">--</span>
+
+	<span class="comment">-- now print the result</span>
+
+	<span class="comment">--</span>
+
+	printf(<span class="string">"-----------------------------------\n"</span>)
+
+	printf(<span class="string">"-- MAX = %8.3f %s\n"</span>,max*fac,unit)
+
+	<span class="keyword">for</span> i=1,#names <span class="keyword">do</span>
+
+		<span class="keyword">local</span> name=names[i]
+
+		result=bench_results[name]
+
+		<span class="keyword">local</span> ratio=result.mean*100/max
+
+		<span class="keyword">local</span> times=max/result.mean
+
+		<span class="keyword">local</span> loops=1/result.mean
+
+		printf(form,name,result.mean*fac,unit,loops,ratio,times)
+
+	<span class="keyword">end</span>
+
+	printf(<span class="string">"-----------------------------------\n"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> Benchmark
+
+
+
+</pre>
+
+</DL>
+<p>
+<H2>Example : string concatenation</H2>
+<p>
+The question is, how to combine some literals and some variables to a string.
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span><span class="string">"Benchmark"</span>
+
+
+
+<span class="keyword">local</span> sf=<span class="library">string.format</span>
+
+
+
+<span class="keyword">local</span> TestCases=
+
+{
+
+
+
+	TextConcat=<span class="keyword">function</span>()
+
+		<span class="keyword">local</span> t,a,s=<span class="string">'A'</span>,<span class="string">'#'</span>,5
+
+		<span class="keyword">local</span> n=<span class="string">""</span>
+
+		<span class="keyword">for</span> i=1,1000 <span class="keyword">do</span>
+
+			n=<span class="string">"\symbol{circled"</span>..s..<span class="string">"}="</span>..t..a..i
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>,
+
+
+
+	<span class="comment">-- extreme slow</span>
+
+	TableConcat=<span class="keyword">function</span>()
+
+		<span class="keyword">local</span> t,a,s=<span class="string">'A'</span>,<span class="string">'#'</span>,5
+
+		<span class="keyword">local</span> n=<span class="string">""</span>
+
+		<span class="keyword">for</span> i=1,1000 <span class="keyword">do</span>
+
+			n=<span class="library">table.concat</span>{<span class="string">"\symbol{circled"</span>,s,<span class="string">"}="</span>,t,a,i}
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>,
+
+
+
+	StringFormat=<span class="keyword">function</span> ()
+
+		<span class="keyword">local</span> t,a,s=<span class="string">'A'</span>,<span class="string">'#'</span>,5
+
+		<span class="keyword">local</span> n=<span class="string">""</span>
+
+		<span class="keyword">for</span> i=1,1000 <span class="keyword">do</span>
+
+			n=<span class="library">string.format</span>(<span class="string">"\symbol{circled%d}=%s%s%d"</span>,s,t,a,i)
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>,
+
+
+
+	FunctionLocalStringFormat=<span class="keyword">function</span>()
+
+		<span class="keyword">local</span> t,a,s=<span class="string">'A'</span>,<span class="string">'#'</span>,5
+
+		<span class="keyword">local</span> n=<span class="string">""</span>
+
+		<span class="keyword">local</span> sf=<span class="library">string.format</span>
+
+		<span class="keyword">for</span> i=1,1000 <span class="keyword">do</span>
+
+			n=sf(<span class="string">"\symbol{circled%d}=%s%s%d"</span>,s,t,a,i)
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>,
+
+
+
+	ModuleLocalStringFormat=<span class="keyword">function</span>()
+
+		<span class="keyword">local</span> t,a,s=<span class="string">'A'</span>,<span class="string">'#'</span>,5
+
+		<span class="keyword">local</span> n=<span class="string">""</span>
+
+		<span class="keyword">for</span> i=1,1000 <span class="keyword">do</span>
+
+			n=sf(<span class="string">"\symbol{circled%d}=%s%s%d"</span>,s,t,a,i)
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+}
+
+Benchmark.BenchTable(TestCases,100)
+
+Benchmark.Results()
+
+
+
+</pre>
+
+</DL>
+<p>
+<H3>Result</H3>
+surprisingly <code>string.format</code> does it best. Localizing it gives just a little speedup then.
+<DL>
+<dt><dd><pre>
+
+-----------------------------------
+
+-- MAX =    4.951 ms
+
+-- ModuleLocalStringFormat   :    1.665 ms =    600 loops/s [ 33.63 %] 2.974 times faster
+
+-- FunctionLocalStringFormat :    1.696 ms =    589 loops/s [ 34.26 %] 2.919 times faster
+
+-- StringFormat              :    1.728 ms =    578 loops/s [ 34.90 %] 2.865 times faster
+
+-- TextConcat                :    2.754 ms =    363 loops/s [ 55.64 %] 1.797 times faster
+
+-- TableConcat               :    4.951 ms =    201 loops/s [100.00 %] 1.000 times faster
+
+-----------------------------------
+
+</pre>
+</DL>
+<p>
+<H2>Example loop over array</H2>
+Often diskussed for <code>i=1,#array</code> vs. <code>for i,v in ipairs</code>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-----------------------------------</span>
+
+<span class="comment">-- setup test data</span>
+
+<span class="comment">-----------------------------------</span>
+
+
+
+<span class="keyword">local</span> array={}
+
+
+
+<span class="keyword">for</span> i=1,100 <span class="keyword">do</span>
+
+	<span class="keyword">local</span> x={}
+
+	<span class="keyword">for</span> j=1,100 <span class="keyword">do</span>
+
+		x[j]=<span class="library">tostring</span>(i)..<span class="library">tostring</span>(j)
+
+	<span class="keyword">end</span>
+
+	array[i]=x
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> TestCases=
+
+{
+
+	for_i_array=<span class="keyword">function</span>()
+
+		<span class="keyword">local</span> count=0
+
+		<span class="keyword">for</span> i=1,#array <span class="keyword">do</span>
+
+			<span class="keyword">local</span> x=array[i]
+
+			<span class="keyword">for</span> j=1,#x <span class="keyword">do</span>
+
+				<span class="keyword">local</span> y=x[j]
+
+				<span class="comment">-- do something with y</span>
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>
+
+		<span class="keyword">return</span> count
+
+	<span class="keyword">end</span>,
+
+
+
+	for_ipairs=<span class="keyword">function</span>()
+
+		<span class="keyword">local</span> count=0
+
+		<span class="keyword">for</span> i,x <span class="keyword">in</span> <span class="library">ipairs</span>(array) <span class="keyword">do</span>
+
+			<span class="keyword">for</span> j,y <span class="keyword">in</span> <span class="library">ipairs</span>(x) <span class="keyword">do</span>
+
+				<span class="comment">-- do something with y</span>
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>
+
+		<span class="keyword">return</span> count
+
+	<span class="keyword">end</span>
+
+}
+
+
+
+<span class="keyword">local</span> Benchmark=<span class="library">require</span><span class="string">"Benchmark"</span>
+
+Benchmark.BenchTable(TestCases,1000)
+
+Benchmark.Results()
+
+</pre>
+
+</DL>
+<H3>Result</H3>
+for i=1,#array is the winner
+<DL>
+<dt><dd><pre>
+
+-----------------------------------
+
+-- MAX =    1.127 ms
+
+-- for_i_array :    0.689 ms =   1451 loops/s [ 61.12 %] 1.636 times faster
+
+-- for_ipairs  :    1.127 ms =    887 loops/s [100.00 %] 1.000 times faster
+
+-----------------------------------
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BenchmarkModule" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BenchmarkModule" >history</a><br>Last edited August 30, 2010 3:33 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BenchmarkModule" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Programming In Lua Exercises</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ProgrammingInLuaExercises&amp;body=1" title="List pages referring to ProgrammingInLuaExercises">Programming In Lua Exercises</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+These are community contributed solutions to some of the PiL3 exercises.
+<p>
+<H2>Chapter 3</H2>
+<p>
+<H3>Exercise 3.4</H3>
+<p>
+<pre class="code">
+<span class="comment">-- Recursive solution; the basic idea is to keep factoring out x until</span>
+
+<span class="comment">-- we reach a 0 level polynomial:</span>
+
+<span class="comment">--</span>
+
+<span class="comment">--   3x^3 + 2x^2 + x + 3</span>
+
+<span class="comment">-- = (3x^2 + 2x + 1) * x + 3</span>
+
+<span class="comment">-- = (((3x + 2) * x) + 1) * x + 3</span>
+
+<span class="comment">-- = ((((3 * x) + 2) * x) + 1) * x + 3</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- N.b. this algorithm requires that there be no gaps in the series of</span>
+
+<span class="comment">-- coefficients. If there is no exponent for a particular power then the</span>
+
+<span class="comment">-- coefficients list must contain a 0.</span>
+
+
+
+<span class="keyword">function</span> poly (coefficients, x)
+
+    size = #coefficients
+
+    <span class="keyword">if</span> size &lt; 0 <span class="keyword">then</span>
+
+	<span class="library">print</span> (<span class="string">"Error: algorithm requires positive coefficients"</span>)
+
+    <span class="keyword">elseif</span> size == 0 <span class="keyword">then</span> 
+
+        <span class="keyword">return</span> 0
+
+    <span class="keyword">else</span>
+
+	c = coefficients[size]
+
+	coefficients[size] = <span class="keyword">nil</span>
+
+        <span class="keyword">return</span> c + x * poly(coefficients, x) 
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span> (poly({4,3,0,1}, 10))	<span class="comment">-- gives 4301</span>
+
+</pre>
+
+<p>
+<H3>Exercise 3.5</H3>
+<p>
+<pre class="code">
+<span class="comment">-- The key is on p.22: lua returns false for comparisons between different</span>
+
+<span class="comment">-- types, so only a boolean (or a nil) will return true when compared to true</span>
+
+<span class="comment">-- or to false. </span>
+
+
+
+<span class="keyword">function</span> test (candidate)
+
+    <span class="library">print</span> (candidate == <span class="keyword">true</span> <span class="keyword">or</span> candidate == <span class="keyword">false</span>)
+
+<span class="keyword">end</span>
+
+
+
+candidates = {5, 0, <span class="string">"hello"</span>, {2,3,4}, <span class="keyword">true</span>, <span class="keyword">false</span>}
+
+
+
+<span class="comment">-- gives false, false, false, false, true, true</span>
+
+<span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">pairs</span>(candidates) <span class="keyword">do</span>
+
+    <span class="library">print</span> (test(v))
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+<p>
+<H2>Chapter 8</H2>
+<p>
+<H3>Exercise 8.4</H3>
+<p>
+Can you find any value for f such that the call pcall(pcall,f) returns false as its first result?
+<p>
+Using the debug library (<a href="http://lua-users.org/lists/lua-l/2013-01/msg00577.html">[source]</a>):
+<p>
+<pre class="code">
+<span class="keyword">local</span> f = <span class="keyword">function</span>()
+
+  <span class="keyword">local</span> h = <span class="keyword">function</span>()
+
+    <span class="keyword">if</span> c <span class="keyword">then</span> <span class="library">debug.sethook</span>(<span class="keyword">nil</span>,<span class="string">"r"</span>) <span class="keyword">end</span>
+
+    c = <span class="keyword">not</span> c
+
+    <span class="library">error</span>()
+
+  <span class="keyword">end</span>
+
+  <span class="library">debug.sethook</span>(h,<span class="string">"r"</span>)
+
+<span class="keyword">end</span>
+
+<span class="library">pcall</span>(<span class="library">pcall</span>,f)
+
+</pre>
+
+<p>
+Another idea is to have the extra "true" added by the inner pcall overflow the call stack (<a href="http://lua-users.org/lists/lua-l/2013-01/msg00596.html">[source]</a>).
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ProgrammingInLuaExercises" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ProgrammingInLuaExercises" >history</a><br>Last edited March 6, 2013 7:00 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ProgrammingInLuaExercises" >(diff)</a>
+</body>
+</html>

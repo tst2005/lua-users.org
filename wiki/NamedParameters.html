@@ -1,0 +1,165 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Named Parameters</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=NamedParameters&amp;body=1" title="List pages referring to NamedParameters">Named Parameters</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua supports named parameters by passing a table to a function.  PiL Chap 5 describes this <a href="http://www.lua.org/pil/5.3.html">[1]</a>.  Therefore, the following function and call with positional arguments:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> pipe(input, output)
+
+  output:write(input:read<span class="string">'*a'</span>)
+
+<span class="keyword">end</span>
+
+pipe(<span class="library">io.stdin</span>, <span class="library">io.stdout</span>)
+
+</pre>
+
+</DL>
+<p>
+may be written in a named parameter style as
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> pipe(t)
+
+  <span class="keyword">local</span> input  = <span class="library">assert</span>(t.input)
+
+  <span class="keyword">local</span> output = <span class="library">assert</span>(t.output)
+
+  output:write(input:read<span class="string">'*a'</span>)
+
+<span class="keyword">end</span>
+
+pipe({input=<span class="library">io.stdin</span>, output=<span class="library">io.stdout</span>})
+
+pipe{input=<span class="library">io.stdin</span>, output=<span class="library">io.stdout</span>}  <span class="comment">-- the following shorter syntax is equivalent and preferrred</span>
+
+</pre>
+
+</DL>
+<p>
+Optionally, some type of argument checking is performed, which in the most rudimentary form involves the <code>assert</code>'s above must could get more complicated like <a href="../wiki/StructuralPatternMatching.html" >StructuralPatternMatching</a>.  It may be possible for a function to support both named and positional calling conventions:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> pipe(...)
+
+  <span class="keyword">local</span> input, output
+
+  <span class="keyword">if</span> <span class="library">type</span>(...) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> t = ...
+
+    input, output = <span class="library">assert</span>(t.input <span class="keyword">or</span> t[1]), <span class="library">assert</span>(t.output <span class="keyword">or</span> t[2])
+
+  <span class="keyword">else</span>
+
+    input, output = ...
+
+  <span class="keyword">end</span>
+
+  output:write(input:read<span class="string">'*a'</span>)
+
+<span class="keyword">end</span>
+
+pipe(<span class="library">io.stdin</span>, <span class="library">io.stdout</span>)               <span class="comment">-- positional form</span>
+
+pipe{input=<span class="library">io.stdin</span>, output=<span class="library">io.stdout</span>}  <span class="comment">-- named form</span>
+
+pipe{<span class="library">io.stdin</span>, output=<span class="library">io.stdout</span>}        <span class="comment">-- mixed form (positional and named)</span>
+
+pipe{<span class="library">io.stdin</span>, <span class="library">io.stdout</span>}               <span class="comment">-- mixed form (using only positional)</span>
+
+</pre>
+
+</DL>
+<p>
+Optional/default parameters can also be supported via
+<p>
+<DL>
+<dt><dd><pre class="code">
+input, output = <span class="library">assert</span>(t.input <span class="keyword">or</span> t[1] <span class="keyword">or</span> <span class="library">io.stdin</span>), <span class="library">assert</span>(t.output <span class="keyword">or</span> t[2] <span class="keyword">or</span> <span class="library">io.stdout</span>)
+
+</pre>
+
+</DL>
+<p>
+To avoid ambiguity, the above assumes, however, that the first positional parameter can never be a table, or at least that if it is a table then it can be distinguished from a table of named parameters.
+<p>
+The programmer must remember to change the parenthesis from '()' to '{}' when using the named or mixed parameter forms.
+<p>
+One disadvantage of the named form is that the table construction does have some amount of overhead due to the table allocation.  Benchmarking can determine how significant this is in practice.  In a tight computationally intensive loop, it might be an issue.
+<p>
+Error handling in the named form is also somewhat more complicated and the code more verbose/ugly, but the same issues occur if a positional parameter has a nested structure that must be checked.
+<p>
+The named form does not preserve trailing <code>nil</code>'s because trailing <code>nil</code>'s are ignored in table constructors.  Therefore, the following calls are indistinguishable:
+<p>
+<DL>
+<dt><dd><pre class="code">
+f{a,b,<span class="keyword">nil</span>,d=d}
+
+f{a,b,d=d}
+
+</pre>
+
+</DL>
+<p>
+Here's some other, less conventional, possible ways to do named parameters:
+<p>
+<DL>
+<dt><dd><pre class="code">
+f(a, b, {c=c})
+
+f(<span class="string">'a'</span>,a, <span class="string">'b'</span>,b, <span class="string">'c'</span>,c)  <span class="comment">-- note: Perl supports a syntactic sugar for this: `a=&gt;$a` is `'a',$a`</span>
+
+f(params().a(a).b(b).c(c)) <span class="comment">-- C++ chained method call style.</span>
+
+f(<span class="string">'c,b,a'</span>, c,b,a)  <span class="comment">-- note: parameter resolution can be memoized (see link below)</span>
+
+f<span class="string">'c=$(c),b=$(b),a=$(a)'</span> <span class="comment">-- variant of above with StringInterpolation [1] syntax sugar for f('c=$(c),b=$(b),a=$(a)',c,b,c)</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>See Also</H3>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2011-02/msg01415.html">LuaList:2011-02/msg01415.html</a> - "named parameter optimization proposal" suggests making <code>sum(z=3*i, y=2*i, i)</code> syntactic sugar for <code>sum['z,y'](3*i, 2*i, i)</code> so that the named parameter resolution can be memoized.  Effects of named parameters on <a href="../wiki/LuaJit.html" >LuaJit</a> optimizations are also explored.
+<li> <a href="http://www.luafaq.org/#T1.25">[Lua Unofficial FAQ entry on named parameters]</a>
+<li> <a href="http://rosettacode.org/wiki/Named_parameters#Lua.html">[Lua entry for named parameters on rosettacode.org]</a>
+<li> <a href="http://en.wikipedia.org/wiki/Named_parameter.html">[Wikipedia:Named parameter]</a>
+<li> [1] <a href="../wiki/StringInterpolation.html" >StringInterpolation</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=NamedParameters" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=NamedParameters" >history</a><br>Last edited March 13, 2012 3:17 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=NamedParameters" >(diff)</a>
+</body>
+</html>

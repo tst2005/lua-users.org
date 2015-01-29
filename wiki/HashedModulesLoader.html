@@ -1,0 +1,135 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Hashed Modules Loader</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=HashedModulesLoader&amp;body=1" title="List pages referring to HashedModulesLoader">Hashed Modules Loader</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here is an example of a module loader that verifies the hash of the module before loading it. It's based on Lua<code></code>Crypto <a href="http://luacrypto.luaforge.net/">[1]</a>. It's not really secure, it has been created just as an illustration to show how to add new module loaders. (<a href="../wiki/JeromeVuarand.html" >JeromeVuarand</a>)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">module</span>(..., <span class="library">package.seeall</span>)
+
+
+
+<span class="keyword">local</span> crypto = <span class="library">require</span> <span class="string">'crypto'</span>
+
+
+
+<span class="keyword">local</span> dtypes = {<span class="string">"md5"</span>, <span class="string">"md4"</span>, <span class="string">"md2"</span>, <span class="string">"sha1"</span>, <span class="string">"sha"</span>, <span class="string">"sha256"</span>, <span class="string">"sha512"</span>}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> <span class="library">load</span>(modulename)
+
+  <span class="comment">-- Find source</span>
+
+  <span class="keyword">local</span> filename
+
+  <span class="keyword">local</span> file,hashfile,hashtype
+
+  <span class="keyword">local</span> errmsg = <span class="string">""</span>
+
+  <span class="keyword">for</span> path <span class="keyword">in</span> <span class="library">string.gmatch</span>(<span class="library">package.path</span>..<span class="string">";"</span>, <span class="string">"([^;]*);"</span>) <span class="keyword">do</span>
+
+    filename = <span class="library">string.gsub</span>(path, <span class="string">"%?"</span>, (<span class="library">string.gsub</span>(modulename, <span class="string">"%."</span>, <span class="string">"\\"</span>)))
+
+    file = <span class="library">io.open</span>(filename, <span class="string">"rb"</span>)
+
+    <span class="comment">-- If we found a module check if it has a hash file</span>
+
+    <span class="keyword">if</span> file <span class="keyword">then</span>
+
+      <span class="keyword">for</span> _,dtype <span class="keyword">in</span> <span class="library">ipairs</span>(dtypes) <span class="keyword">do</span>
+
+        hashfile = <span class="library">io.open</span>(filename..<span class="string">"."</span>..dtype, <span class="string">"rb"</span>)
+
+        <span class="keyword">if</span> hashfile <span class="keyword">then</span>
+
+          hashtype = dtype
+
+          <span class="keyword">break</span>
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> hashfile <span class="keyword">then</span>
+
+      <span class="keyword">break</span>
+
+    <span class="keyword">end</span>
+
+    errmsg = errmsg..<span class="string">"\n\tno file '"</span>..filename..<span class="string">"' (signed)"</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> file <span class="keyword">then</span>
+
+    <span class="keyword">return</span> errmsg
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- Read source file</span>
+
+  <span class="keyword">local</span> source = file:read(<span class="string">"*a"</span>)
+
+  <span class="comment">-- Read saved hash</span>
+
+  <span class="keyword">local</span> hash = hashfile:read(<span class="string">"*a"</span>):gsub(<span class="string">"[^%x]"</span>, <span class="string">""</span>)
+
+  <span class="comment">-- Check that the saved hash match the file hash</span>
+
+  <span class="library">assert</span>(crypto.evp.digest(hashtype, source)==hash,
+
+    <span class="string">"module "</span>..modulename..<span class="string">" (from file '"</span>..filename..<span class="string">"')"</span>
+
+    ..<span class="string">" does not match its "</span>..hashtype..<span class="string">" hash"</span>)
+
+  <span class="comment">-- Compile and return the module</span>
+
+  <span class="keyword">return</span> <span class="library">assert</span>(<span class="library">loadstring</span>(source, filename))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Install the loader so that it's called just before the normal Lua loader</span>
+
+<span class="library">table.insert</span>(<span class="library">package.loaders</span>, 2, <span class="library">load</span>)
+
+</pre>
+
+</DL>
+<p>
+You can find that code with sample modules and a test script in <a href="/files/wiki_insecure/SampleCode/hashedmodules-200705100234.zip">[hashedmodules-200705100234.zip]</a>.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=HashedModulesLoader" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=HashedModulesLoader" >history</a><br>Last edited February 27, 2008 4:36 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=HashedModulesLoader" >(diff)</a>
+</body>
+</html>

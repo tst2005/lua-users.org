@@ -1,0 +1,289 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Ordered Table</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=OrderedTable&amp;body=1" title="List pages referring to OrderedTable">Ordered Table</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following code demonstrates how to iterate over tables in the order of key insertion. Other iteration techniques have been moved (see below).
+<p>
+<H3>New version</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Ordered Table</span>
+
+<span class="comment">-- Written by Rici Lake. The author disclaims all rights and responsibilities,</span>
+
+<span class="comment">-- and relinquishes the software below to the public domain.</span>
+
+<span class="comment">-- Have fun with it.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- The function Ordered creates a table which can iterate in order of its</span>
+
+<span class="comment">-- entries. You'll need to modify pairs as indicated on the Lua wiki</span>
+
+<span class="comment">-- (GeneralizedPairsAndIpairs) in order to use this feature.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Since stock Lua does not have constructors, you cannot "seed" the</span>
+
+<span class="comment">-- table with an initializer. A patch for this is forthcoming; this function</span>
+
+<span class="comment">-- was extracted from the tests for that patch.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- The table does not allow deletion, so it might not be appropriate</span>
+
+<span class="comment">-- for all cases. You can set a key to nil, which removes it from</span>
+
+<span class="comment">-- the iteration, but the key is actually permanently in the table,</span>
+
+<span class="comment">-- and setting it to a new value will restore it to its original place</span>
+
+<span class="comment">-- in the table. Obviously, that's not ideal, but it was simple and</span>
+
+<span class="comment">-- efficient, and it is always possible to compact a table by copying it.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Rather than use what seems to be the classic implementation, with</span>
+
+<span class="comment">-- three tables: &lt;key-&gt;ordinal, ordinal-&gt;key, ordinal-&gt;value&gt;, we</span>
+
+<span class="comment">-- use a regular key-&gt;value table, with an auxiliary linked list</span>
+
+<span class="comment">-- key-&gt;nextkey.</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- The advantage of this setup is that we don't need to invoke a</span>
+
+<span class="comment">-- metamethod for any case other than setting a new key (or a key</span>
+
+<span class="comment">-- which has been previously set to nil), which is a significant</span>
+
+<span class="comment">-- speed-up. It also makes it easy to implement the stability</span>
+
+<span class="comment">-- guarantee. The disadvantage is that there is effectively a</span>
+
+<span class="comment">-- memory-leak.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- The table is fully stable; during an iteration, you can perform</span>
+
+<span class="comment">-- an arbitrary modification (since keys are not ever actually deleted).</span>
+
+ 
+
+<span class="keyword">local</span> <span class="keyword">function</span> Ordered()
+
+  <span class="comment">-- nextkey and firstkey are used as markers; nextkey[firstkey] is</span>
+
+  <span class="comment">-- the first key in the table, and nextkey[nextkey] is the last key.</span>
+
+  <span class="comment">-- nextkey[nextkey[nextkey]] should always be nil.</span>
+
+ 
+
+  <span class="keyword">local</span> key2val, nextkey, firstkey = {}, {}, {}
+
+  nextkey[nextkey] = firstkey
+
+ 
+
+  <span class="keyword">local</span> <span class="keyword">function</span> onext(self, key)
+
+    <span class="keyword">while</span> key ~= <span class="keyword">nil</span> <span class="keyword">do</span>
+
+      key = nextkey[key]
+
+      <span class="keyword">local</span> val = self[key]
+
+      <span class="keyword">if</span> val ~= <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> key, val <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+ 
+
+  <span class="comment">-- To save on tables, we use firstkey for the (customised)</span>
+
+  <span class="comment">-- metatable; this line is just for documentation</span>
+
+  <span class="keyword">local</span> selfmeta = firstkey
+
+ 
+
+  <span class="comment">-- record the nextkey table, for routines lacking the closure</span>
+
+  selfmeta.__nextkey = nextkey
+
+ 
+
+  <span class="comment">-- setting a new key (might) require adding the key to the chain</span>
+
+  <span class="keyword">function</span> selfmeta:__newindex(key, val)
+
+    <span class="library">rawset</span>(self, key, val)
+
+    <span class="keyword">if</span> nextkey[key] == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="comment">-- adding a new key</span>
+
+      nextkey[nextkey[nextkey]] = key
+
+      nextkey[nextkey] = key
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+ 
+
+  <span class="comment">-- if you don't have the __pairs patch, use this:</span>
+
+  <span class="comment">-- local _p = pairs; function pairs(t, ...)</span>
+
+  <span class="comment">--    return (getmetatable(t).__pairs or _p)(t, ...) end</span>
+
+  <span class="keyword">function</span> selfmeta:__pairs() <span class="keyword">return</span> onext, self, firstkey <span class="keyword">end</span>
+
+ 
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>(key2val, selfmeta)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Iterating in the order of key insertion (old version)</H3>
+<p>
+The old version requires that keys not be numeric, although it doesn't check that. It also does not permit deletion. The constructor takes a table argument which is used as the base of the orderedTable.  Entries in the preexisting table are not indexed, which means that they do not get iterated over by the provided iterator. This is often useful.  The example shows just one application of this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> orderedTable(t)
+
+  <span class="keyword">local</span> currentIndex = 1
+
+  <span class="keyword">local</span> metaTable = {}
+
+    
+
+  <span class="keyword">function</span> metaTable:__newindex(key,value)
+
+    <span class="library">rawset</span>(self, key, value)
+
+    <span class="library">rawset</span>(self, currentIndex, key)
+
+    currentIndex = currentIndex + 1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>(t <span class="keyword">or</span> {}, metaTable)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> ordered(t)
+
+  <span class="keyword">local</span> currentIndex = 0
+
+  <span class="keyword">local</span> <span class="keyword">function</span> iter(t)
+
+    currentIndex = currentIndex + 1
+
+    <span class="keyword">local</span> key = t[currentIndex]
+
+    <span class="keyword">if</span> key <span class="keyword">then</span> <span class="keyword">return</span> key, t[key] <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> iter, t
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> show(t)
+
+  <span class="library">print</span> (t.__name .. <span class="string">":"</span>)
+
+  <span class="keyword">for</span> k, v <span class="keyword">in</span> ordered(t) <span class="keyword">do</span> <span class="library">print</span>(k, v) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+tab = orderedTable {__name = <span class="string">"table 1"</span>}
+
+tab.firstName = <span class="string">"Rici"</span>
+
+tab.lastName = <span class="string">"Lake"</span>
+
+tab.maternalLastName = <span class="string">"Papert"</span>
+
+show(tab)
+
+</pre>
+
+</DL>
+<p>
+<H3>Other implementations of key-insertion order iteration</H3>
+<p>
+Both of the following versions do allow key deletion but will fail if a key is deleted during iteration. Also, they use <code>table.remove</code> to remove
+keys and values, which can lead to quadratic slow-down.
+<p>
+<UL>
+<li> <a href="../wiki/MakingLuaLikePhp.html" >MakingLuaLikePhp</a> (Section on PHP tables)
+<li> Beginning Lua Programming, p. 262 (see <a href="../wiki/LuaBooks.html" >LuaBooks</a>).  The code is online via the download link at <a href="http://www.wrox.com/WileyCDA/WroxTitle/productCd-0470069171,descCd-download_code.html">[1]</a> (see Chapter 08/orderedtbl.lua).  Note, however, that this code requires a correction (noted on p. 306) to make <code> {__mode = "k"} </code> the metatable for the <code>RealTbls</code>, <code>NumToKeys</code>, and <code>KeyToNums</code> tables.
+</UL>
+<p>
+<H3>Other iterations, including iteration sorted by key</H3>
+<p>
+<UL>
+<li> <a href="../wiki/OrderedAssociativeTable.html" >OrderedAssociativeTable</a>
+<li> <a href="../wiki/SortedIteration.html" >SortedIteration</a>
+<li> <a href="../wiki/OrderedTableSimple.html" >OrderedTableSimple</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=OrderedTable" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=OrderedTable" >history</a><br>Last edited June 11, 2007 11:38 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=OrderedTable" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Inspect</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaInspect&amp;body=1" title="List pages referring to LuaInspect">Lua Inspect</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua<code></code>Inspect is a tool that does Lua code analysis.  The result of this analysis can also be rendered as HTML.  A plugin is also included for the SciTE text editor for real-time source code analysis, intelligent highlighting, and refactoring.  The code is in working condition but still preliminary.
+<p>
+The tool operates by both static and dynamic analysis, using the AST converted via <a href="../wiki/MetaLua.html" >MetaLua</a> (pure Lua portions).
+<p>
+<H3>Examples</H3>
+<p>
+<DL>
+<dt><dd><a href="http://math2.org/download/lua-inspect/test.html">[sputnik-9.03.16/lua/sputnik/init.lua]</a> (HTML)
+<dt><dd><a href="http://math2.org/download/luainspectscite1.htm">[video of SciTE plugin]</a> (1 minute, Flash) (old version lacking many of the new features)
+<dt><dd>Usage example for HTML output: <code>lua luainspectlib/luainspect/command.lua examples.lua &gt; test-output/examples.html</code>
+</DL>
+<p>
+<H3>Features</H3>
+<p>
+<pre>
+
+    * analysis:
+
+        * identifies global (red) and local variables (blue), including locals that are
+
+	   function arguments (dark blue) and upvalues (light blue)
+
+        * identifies unused local variables: e.g. `do local x=1 end` (white-on-blue)
+
+        * identifies local variables masking other locals (same name): e.g. `local x=1; local x=2`
+
+	   (strikethrough and squiggle line)
+
+        * identifies local variables that have non-constant binding (`local x = 1; x = 2`) (italic)
+
+        * identifies unknown global variables (white-on-red) and table fields (red), inferred by
+
+	   static and dynamic evaluation.
+
+        * infers values of variables (e.g. `local sum = math.pi + 2` is 5.14.
+
+           and defined-ness of members of imported modules
+
+          (`local mt = require "math"; math.sqrtt(2) -- undefined`)
+
+        * infers signatures of functions (including local, global, and module functions)
+
+        * checks number of function arguments against signatures (SciTE only)
+
+        * cross-references variables (locals and module fields) with their definitions and uses
+
+	  (pink highlight), identifies range of lines/scope where the local is defined
+
+	   (currently SciTE only), and supports jump-to-definition and jump-to-uses (SciTE only)
+
+        * identifies all keywords in selected block (underline)
+
+        * evaluate special comments (prefixed by '!') to inject semantic information into analysis
+
+           (similar to luaanalyze / lint).
+
+    * refactoring:
+
+        * command to rename all occurrences of selected variable (SciTE only)
+
+    * browsing:
+
+        * inspect members of selected table.
+
+        * select statement or comment containing current cursor selection (SciTE only)
+
+        * display real-time annotations of all local variables, like an Excel/Mathcad worksheet
+
+          (experimental feature via ANNOTATE_ALL_LOCALS) (currently SciTE only)
+
+    * auto-complete typing support (SciTE only) (experimental)
+
+    * interfaces: SciTE plugin, VIM plugin, and HTML output.
+
+</pre>
+<p>
+Features not implemented (but probably should be):
+<p>
+<UL>
+<li> static analysis enhancements:
+<UL>
+<li> check argument types in standard libraries when possible: e.g. <code>local x = "foo"; math.sqrt(x)</code>
+<li> support block folding
+<li> highlight poor style, such as pathological indenting and other <a href="../wiki/LuaStyleGuide.html" >LuaStyleGuide</a> faults.
+<li> check commenting style, e.g. Lua<code></code>Doc comment consistency.
+<li> check packaging conventions in project folder, like <code>.rockspec</code> files in <a href="../wiki/LuaRocks.html" >LuaRocks</a>, README, COPYRIGHT, library naming conventions, etc.
+</UL>
+<li> improve performance more
+<li> improve syntax highlighting on code currently being typed that is not yet syntactically valid.  For example, when typing something like <code>math.sqrt(2)</code>, prior to typing the final <code>(2)</code> to make it a valid statement, an error displays and syntax highlighting is lacking.
+<li> provide access to more refactoring routines: fixing code intention, <a href="../wiki/SourceOptimizer.html" >SourceOptimizer</a>, localization (e.g. <code>math.sqrt(2) --&gt; local math_sqrt = math.sqrt ..... math_sqrt(2)</code>), and others
+<li> dynamic analysis: incorporate more information by dynamic analysis (e.g. <a href="../wiki/ProfilingLuaCode.html" >ProfilingLuaCode</a> and coverage <a href="http://luacov.luaforge.net/">[LuaCov]</a>) including type/value/definition information not obtainable by static analysis
+<li> fixes in Metalua
+</UL>
+<p>
+<H3>Download</H3>
+<p>
+The latest version is available on <a href="http://github.com/davidm/lua-inspect">[github]</a>.
+<p>
+Note: A patched version of <a href="../wiki/SciteExtMan.html" >SciteExtMan</a> is bundled (the older 2006-11-10 version on <a href="../wiki/SciteExtMan.html" >SciteExtMan</a> won't work fully).
+<p>
+<H3>Dependencies</H3>
+<p>
+Tested with SciTE version 2.12 (older versions might not work) and <a href="../wiki/SciteExtMan.html" >SciteExtMan</a> (as of 2010-07-20).  ctagsdx.lua from the full <a href="../wiki/SciteExtMan.html" >SciteExtMan</a> is optional (allows "goto mark" command to return to previous location following a "go to definition").
+<p>
+<H3>Ideas</H3>
+<p>
+This could be used on the lua-users wiki and on <a href="http://snippets.luacode.org">[snippets.luacode.org]</a> to display Lua code.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="http://peterodding.com/code/vim/lua-inspect/">[luainspect.vim]</a> uses Lua<code></code>Inspect to perform semantic highlighting for Lua in Vim
+<li> <a href="http://code.google.com/p/scite-for-lua/">[scite-for-lua]</a> bundles Lua<code></code>Inspect.
+<li> <a href="http://studio.zerobrane.com/">[ZeroBraneStudio]</a> - Lua IDE that contains Lua<code></code>Inspect <a href="http://notebook.kulchenko.com/zerobrane/live-coding-in-lua-bret-victor-style">[screencast]</a>
+<li> <a href="../wiki/MetaLua.html" >MetaLua</a> - this project reuses some libraries from it
+<li> Lua for Jet<code></code>Brains IntelliJ IDEA <a href="/lists/lua-l/2010-06/msg00231.html">[1]</a>
+<li> <a href="http://luaparse.luaforge.net/">[luaparse]</a> does some things similar
+<li> <a href="../wiki/SourceOptimizer.html" >SourceOptimizer</a> - based on similar techniques
+<li> <a href="../wiki/LuaFish.html" >LuaFish</a> - (see luaanalyze on bottom of page) - earlier work based on similar techniques
+<li> <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>
+<li> <a href="https://github.com/TrollEdit/TrollEdit">[TrollEdit]</a> - experimental Qt based text editor with AST analysis
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaInspect" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaInspect" >history</a><br>Last edited November 15, 2012 6:20 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaInspect" >(diff)</a>
+</body>
+</html>

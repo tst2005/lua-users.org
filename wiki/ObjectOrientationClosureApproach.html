@@ -1,0 +1,1211 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Object Orientation Closure Approach</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ObjectOrientationClosureApproach&amp;body=1" title="List pages referring to ObjectOrientationClosureApproach">Object Orientation Closure Approach</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Caveat</H2>
+<p>
+This is comparing a closures for objects approach with an extremely naive table based object approach. In most cases it would be considered idiomatic to make the methods for mariner objects part of a metatable so that each mariner instance would not require a hash for all the functions. This key design point means the memory comparisons below are not useful at all. The memory overhead for the closure approach will clearly be much less favorable compared to the sane method for implementing objects with tables.
+<p>
+<H2>Intro</H2>
+<p>
+This page describes alternative to <a href="../wiki/ObjectOrientationTutorial.html" >ObjectOrientationTutorial</a>
+<p>
+Please read the page mentioned above first to understand the differences of alternative method.
+<p>
+The most common OOP way in Lua would look like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+mariner = {}
+
+
+
+<span class="keyword">function</span> mariner.new ()
+
+   <span class="keyword">local</span> self = {}
+
+
+
+   self.maxhp = 200
+
+   self.hp = self.maxhp
+
+
+
+   <span class="keyword">function</span> self:heal (deltahp)
+
+      self.hp = <span class="library">math.min</span> (self.maxhp, self.hp + deltahp)
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self:sethp (newhp)
+
+      self.hp = <span class="library">math.min</span> (self.maxhp, newhp)
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Application:                                                           </span>
+
+<span class="keyword">local</span> m1 = mariner.new ()
+
+<span class="keyword">local</span> m2 = mariner.new ()
+
+m1:sethp (100)
+
+m1:heal (13)
+
+m2:sethp (90)
+
+m2:heal (5)
+
+<span class="library">print</span> (<span class="string">"Mariner 1 has got "</span>..m1.hp..<span class="string">" hit points"</span>)
+
+<span class="library">print</span> (<span class="string">"Mariner 2 has got "</span>..m2.hp..<span class="string">" hit points"</span>)
+
+</pre>
+
+</DL>
+<p>
+And the output:
+<p>
+<DL>
+<dt><dd><pre>
+
+Mariner 1 has got 113 hit points
+
+Mariner 2 has got 95 hit points
+
+</pre>
+</DL>
+<p>
+We actually use the colon here to pass the object ('self' table) to function. But do we have to?
+<p>
+<H2>Simple case</H2>
+<p>
+We can get quite the same functionality in different manner:
+<p>
+<DL>
+<dt><dd><pre class="code">
+mariner = {}
+
+
+
+<span class="keyword">function</span> mariner.new ()
+
+   <span class="keyword">local</span> self = {}
+
+
+
+   <span class="keyword">local</span> maxhp = 200
+
+   <span class="keyword">local</span> hp = maxhp
+
+
+
+   <span class="keyword">function</span> self.heal (deltahp)
+
+      hp = <span class="library">math.min</span> (maxhp, hp + deltahp)
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self.sethp (newhp)
+
+      hp = <span class="library">math.min</span> (maxhp, newhp)
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self.gethp ()
+
+      <span class="keyword">return</span> hp
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Application:                                                           </span>
+
+<span class="keyword">local</span> m1 = mariner.new ()
+
+<span class="keyword">local</span> m2 = mariner.new ()
+
+m1.sethp (100)
+
+m1.heal (13)
+
+m2.sethp (90)
+
+m2.heal (5)
+
+<span class="library">print</span> (<span class="string">"Mariner 1 has got "</span>..m1.gethp ()..<span class="string">" hit points"</span>)
+
+<span class="library">print</span> (<span class="string">"Mariner 2 has got "</span>..m2.gethp ()..<span class="string">" hit points"</span>)
+
+</pre>
+
+</DL>
+<p>
+Here we've got not only variables `maxhp` and `hp` encapsulated,
+but also reference to `self` (note `function self.heal` instead of `function self:heal` - no more `self` sugar). This forks because each time `mariner.new ()` is invoked new independent closure is constructed. It is hard not to notice the performance improvement in all methods except access to private variables `hp` (`self.hp` in first case is faster then `self.gethp ()` in second). But lets see the next example.
+<p>
+<H2>Complex case</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--------------------</span>
+
+<span class="comment">-- 'mariner module':</span>
+
+<span class="comment">--------------------</span>
+
+mariner = {}
+
+
+
+<span class="comment">-- Global private variables:</span>
+
+<span class="keyword">local</span> idcounter = 0
+
+<span class="keyword">local</span> defaultmaxhp = 200
+
+<span class="keyword">local</span> defaultshield = 10
+
+
+
+<span class="comment">-- Global private methods</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> printhi ()
+
+   <span class="library">print</span> (<span class="string">"HI"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Access to global private variables</span>
+
+<span class="keyword">function</span> mariner.setdefaultmaxhp (value)
+
+   defaultmaxhp = value
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Global public variables:</span>
+
+mariner.defaultarmorclass = 0
+
+
+
+<span class="keyword">function</span> mariner.new ()
+
+   <span class="keyword">local</span> self = {}
+
+
+
+   <span class="comment">-- Private variables:</span>
+
+   <span class="keyword">local</span> maxhp = defaultmaxhp
+
+   <span class="keyword">local</span> hp = maxhp
+
+   <span class="keyword">local</span> armor
+
+   <span class="keyword">local</span> armorclass = mariner.defaultarmorclass
+
+   <span class="keyword">local</span> shield = defaultshield
+
+
+
+   <span class="comment">-- Public variables:</span>
+
+   self.id = idcounter
+
+   idcounter = idcounter + 1
+
+
+
+   <span class="comment">-- Private methods:</span>
+
+   <span class="keyword">local</span> <span class="keyword">function</span> updatearmor ()
+
+      armor = armorclass*5 + shield*13
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="comment">-- Public methods:</span>
+
+   <span class="keyword">function</span> self.heal (deltahp)
+
+      hp = <span class="library">math.min</span> (maxhp, hp + deltahp)
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self.sethp (newhp)
+
+      hp = <span class="library">math.min</span> (maxhp, newhp)
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self.gethp ()
+
+      <span class="keyword">return</span> hp
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self.setarmorclass (value)
+
+      armorclass = value
+
+      updatearmor ()
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self.setshield (value)
+
+      shield = value
+
+      updatearmor ()
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self.dumpstate ()
+
+      <span class="keyword">return</span> <span class="library">string.format</span> (<span class="string">"maxhp = %d\nhp = %d\narmor = %d\narmorclass = %d\nshield = %d\n"</span>,
+
+			    maxhp, hp, armor, armorclass, shield)
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="comment">-- Apply some private methods</span>
+
+   updatearmor ()
+
+
+
+   <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-----------------------------</span>
+
+<span class="comment">-- 'infested_mariner' module:</span>
+
+<span class="comment">-----------------------------</span>
+
+
+
+<span class="comment">-- Polymorphism sample</span>
+
+
+
+infested_mariner = {}
+
+
+
+<span class="keyword">function</span> infested_mariner.bless (self)
+
+   <span class="comment">-- No need for 'local self = self' stuff :)</span>
+
+
+
+   <span class="comment">-- New private variables:</span>
+
+   <span class="keyword">local</span> explosion_damage = 700
+
+
+
+   <span class="comment">-- New methods:</span>
+
+   <span class="keyword">function</span> self.set_explosion_damage (value)
+
+      explosion_damage = value
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self.explode ()
+
+      <span class="library">print</span> (<span class="string">"EXPLODE for "</span>..explosion_damage..<span class="string">" damage!!\n"</span>)
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="comment">-- Some inheritance:</span>
+
+   <span class="keyword">local</span> mariner_dumpstate = self.dumpstate <span class="comment">-- Save parent function (not polluting global 'self' space)</span>
+
+   <span class="keyword">function</span> self.dumpstate ()
+
+      <span class="keyword">return</span> mariner_dumpstate ()..<span class="library">string.format</span> (<span class="string">"explosion_damage = %d\n"</span>, explosion_damage)
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> infested_mariner.new ()
+
+   <span class="keyword">return</span> infested_mariner.bless (mariner.new ())
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">---------------</span>
+
+<span class="comment">-- Application:</span>
+
+<span class="comment">---------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> printstate (m)
+
+   <span class="library">print</span> (<span class="string">"Mariner [ID: '"</span>..m.id..<span class="string">"']:"</span>)
+
+   <span class="library">print</span> (m.dumpstate ())
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> m1 = mariner.new ()
+
+<span class="keyword">local</span> m2 = mariner.new ()
+
+m1.sethp (100)
+
+m1.heal (13)
+
+m2.sethp (90)
+
+m2.heal (5)
+
+printstate (m1)
+
+printstate (m2)
+
+<span class="library">print</span> (<span class="string">"UPGRADES!!\n"</span>)
+
+mariner.setdefaultmaxhp (400) <span class="comment">-- We've got some upgrades here</span>
+
+<span class="keyword">local</span> m3 = mariner.new ()
+
+printstate (m3)
+
+
+
+<span class="keyword">local</span> im1 = infested_mariner.new ()
+
+<span class="keyword">local</span> im2 = infested_mariner.bless (m1)
+
+
+
+printstate (im1)
+
+printstate (im2)
+
+
+
+im2.explode ()
+
+</pre>
+
+</DL>
+<p>
+The output:
+<p>
+<DL>
+<dt><dd><pre>
+
+Mariner [ID: '0']:
+
+maxhp = 200
+
+hp = 113
+
+armor = 130
+
+armorclass = 0
+
+shield = 10
+
+
+
+Mariner [ID: '1']:
+
+maxhp = 200
+
+hp = 95
+
+armor = 130
+
+armorclass = 0
+
+shield = 10
+
+
+
+UPGRADES!!
+
+
+
+Mariner [ID: '2']:
+
+maxhp = 400
+
+hp = 400
+
+armor = 130
+
+armorclass = 0
+
+shield = 10
+
+
+
+Mariner [ID: '3']:
+
+maxhp = 400
+
+hp = 400
+
+armor = 130
+
+armorclass = 0
+
+shield = 10
+
+explosion_damage = 700
+
+
+
+Mariner [ID: '0']:
+
+maxhp = 200
+
+hp = 113
+
+armor = 130
+
+armorclass = 0
+
+shield = 10
+
+explosion_damage = 700
+
+
+
+EXPLODE for 700 damage!!
+
+</pre>
+</DL>
+<p>
+It's all quite self-explained. We've got all the common OOP tricks in pretty clean and fast manner.
+<p>
+<H2>Gain or loose?</H2>
+<p>
+Time for battle. The arena is 'Intel(R) Core(TM)2 Duo CPU     T5550  @ 1.83GHz'. The competitors are:
+<p>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Table approach</span>
+
+
+
+<span class="comment">--------------------</span>
+
+<span class="comment">-- 'mariner module':</span>
+
+<span class="comment">--------------------</span>
+
+mariner = {}
+
+
+
+<span class="comment">-- Global private variables:</span>
+
+<span class="keyword">local</span> idcounter = 0
+
+<span class="keyword">local</span> defaultmaxhp = 200
+
+<span class="keyword">local</span> defaultshield = 10
+
+
+
+<span class="comment">-- Global private methods</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> printhi ()
+
+   <span class="library">print</span> (<span class="string">"HI"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Access to global private variables</span>
+
+<span class="keyword">function</span> mariner.setdefaultmaxhp (value)
+
+   defaultmaxhp = value
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Global public variables:</span>
+
+mariner.defaultarmorclass = 0
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> mariner_updatearmor (self)
+
+   self.armor = self.armorclass*5 + self.shield*13
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> mariner_heal (self, deltahp)
+
+   self.hp = <span class="library">math.min</span> (self.maxhp, self.hp + deltahp)
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> mariner_sethp (self, newhp)
+
+   self.hp = <span class="library">math.min</span> (self.maxhp, newhp)
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> mariner_setarmorclass (self, value)
+
+   self.armorclanss = value
+
+   self:updatearmor ()
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> mariner_setshield (self, value)
+
+   self.shield = value
+
+   self:updatearmor ()
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> mariner_dumpstate (self)
+
+   <span class="keyword">return</span> <span class="library">string.format</span> (<span class="string">"maxhp = %d\nhp = %d\narmor = %d\narmorclass = %d\nshield = %d\n"</span>,
+
+			 self.maxhp, self.hp, self.armor, self.armorclass, self.shield)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">function</span> mariner.new ()
+
+   <span class="keyword">local</span> self = {
+
+      id = idcounter,
+
+      maxhp = defaultmaxhp,
+
+      armorclass = mariner.defaultarmorclass,
+
+      shield = defaultshield,
+
+      updatearmor = mariner_updatearmor,
+
+      heal = mariner_heal,
+
+      sethp = mariner_sethp,
+
+      setarmorclass = mariner_setarmorclass,
+
+      setshield = mariner_setshield,
+
+      dumpstate = mariner_dumpstate,
+
+   }
+
+   self.hp = self.maxhp
+
+
+
+   idcounter = idcounter + 1
+
+
+
+   self:updatearmor ()
+
+
+
+   <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-----------------------------</span>
+
+<span class="comment">-- 'infested_mariner' module:</span>
+
+<span class="comment">-----------------------------</span>
+
+
+
+<span class="comment">-- Polymorphism sample</span>
+
+
+
+infested_mariner = {}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> infested_mariner_set_explosion_damage (self, value)
+
+   self.explosion_damage = value
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> infested_mariner_explode (self)
+
+   <span class="library">print</span> (<span class="string">"EXPLODE for "</span>..self.explosion_damage..<span class="string">" damage!!\n"</span>)
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> infested_mariner_dumpstate (self)
+
+   <span class="keyword">return</span> self:mariner_dumpstate ()..<span class="library">string.format</span> (<span class="string">"explosion_damage = %d\n"</span>, self.explosion_damage)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> infested_mariner.bless (self)
+
+   self.explosion_damage = 700
+
+   self.set_explosion_damage = infested_mariner_set_explosion_damage
+
+   self.explode = infested_mariner_explode
+
+
+
+   <span class="comment">-- Uggly stuff:</span>
+
+   self.mariner_dumpstate = self.dumpstate
+
+   self.dumpstate = infested_mariner_dumpstate
+
+
+
+   <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> infested_mariner.new ()
+
+   <span class="keyword">return</span> infested_mariner.bless (mariner.new ())
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+and
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Closure approach</span>
+
+
+
+<span class="comment">--------------------</span>
+
+<span class="comment">-- 'mariner module':</span>
+
+<span class="comment">--------------------</span>
+
+mariner = {}
+
+
+
+<span class="comment">-- Global private variables:</span>
+
+<span class="keyword">local</span> idcounter = 0
+
+<span class="keyword">local</span> defaultmaxhp = 200
+
+<span class="keyword">local</span> defaultshield = 10
+
+
+
+<span class="comment">-- Global private methods</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> printhi ()
+
+   <span class="library">print</span> (<span class="string">"HI"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Access to global private variables</span>
+
+<span class="keyword">function</span> mariner.setdefaultmaxhp (value)
+
+   defaultmaxhp = value
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Global public variables:</span>
+
+mariner.defaultarmorclass = 0
+
+
+
+<span class="keyword">function</span> mariner.new ()
+
+   <span class="keyword">local</span> self = {}
+
+
+
+   <span class="comment">-- Private variables:</span>
+
+   <span class="keyword">local</span> maxhp = defaultmaxhp
+
+   <span class="keyword">local</span> hp = maxhp
+
+   <span class="keyword">local</span> armor
+
+   <span class="keyword">local</span> armorclass = mariner.defaultarmorclass
+
+   <span class="keyword">local</span> shield = defaultshield
+
+
+
+   <span class="comment">-- Public variables:</span>
+
+   self.id = idcounter
+
+   idcounter = idcounter + 1
+
+
+
+   <span class="comment">-- Private methods:</span>
+
+   <span class="keyword">local</span> <span class="keyword">function</span> updatearmor ()
+
+      armor = armorclass*5 + shield*13
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="comment">-- Public methods:</span>
+
+   <span class="keyword">function</span> self.heal (deltahp)
+
+      hp = <span class="library">math.min</span> (maxhp, hp + deltahp)
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self.sethp (newhp)
+
+      hp = <span class="library">math.min</span> (maxhp, newhp)
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self.gethp ()
+
+      <span class="keyword">return</span> hp
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self.setarmorclass (value)
+
+      armorclass = value
+
+      updatearmor ()
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self.setshield (value)
+
+      shield = value
+
+      updatearmor ()
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self.dumpstate ()
+
+      <span class="keyword">return</span> <span class="library">string.format</span> (<span class="string">"maxhp = %d\nhp = %d\narmor = %d\narmorclass = %d\nshield = %d\n"</span>,
+
+			    maxhp, hp, armor, armorclass, shield)
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="comment">-- Apply some private methods</span>
+
+   updatearmor ()
+
+
+
+   <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-----------------------------</span>
+
+<span class="comment">-- 'infested_mariner' module:</span>
+
+<span class="comment">-----------------------------</span>
+
+
+
+<span class="comment">-- Polymorphism sample</span>
+
+
+
+infested_mariner = {}
+
+
+
+<span class="keyword">function</span> infested_mariner.bless (self)
+
+   <span class="comment">-- No need for 'local self = self' stuff :)</span>
+
+
+
+   <span class="comment">-- New private variables:</span>
+
+   <span class="keyword">local</span> explosion_damage = 700
+
+
+
+   <span class="comment">-- New methods:</span>
+
+   <span class="keyword">function</span> self.set_explosion_damage (value)
+
+      explosion_damage = value
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">function</span> self.explode ()
+
+      <span class="library">print</span> (<span class="string">"EXPLODE for "</span>..explosion_damage..<span class="string">" damage!!\n"</span>)
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="comment">-- Some inheritance:</span>
+
+   <span class="keyword">local</span> mariner_dumpstate = self.dumpstate <span class="comment">-- Save parent function (not polluting global 'self' space)</span>
+
+   <span class="keyword">function</span> self.dumpstate ()
+
+      <span class="keyword">return</span> mariner_dumpstate ()..<span class="library">string.format</span> (<span class="string">"explosion_damage = %d\n"</span>, explosion_damage)
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> infested_mariner.new ()
+
+   <span class="keyword">return</span> infested_mariner.bless (mariner.new ())
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Speed test code for table approach:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">assert</span> (<span class="library">loadfile</span> (<span class="string">"tables.lua"</span>)) ()
+
+
+
+<span class="keyword">local</span> mariners = {}
+
+
+
+<span class="keyword">local</span> m = mariner.new ()
+
+
+
+<span class="keyword">for</span> i = 1, 1000000 <span class="keyword">do</span>
+
+   <span class="keyword">for</span> j = 1, 50 <span class="keyword">do</span>
+
+      <span class="comment">-- Poor mariner...</span>
+
+      m:sethp (100)
+
+      m:heal (13)
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Speed test code for closures approach:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">assert</span> (<span class="library">loadfile</span> (<span class="string">"closures.lua"</span>)) ()
+
+
+
+<span class="keyword">local</span> mariners = {}
+
+
+
+<span class="keyword">local</span> m = mariner.new ()
+
+
+
+<span class="keyword">for</span> i = 1, 1000000 <span class="keyword">do</span>
+
+   <span class="keyword">for</span> j = 1, 50 <span class="keyword">do</span>
+
+      <span class="comment">-- Poor mariner...</span>
+
+      m.sethp (100)
+
+      m.heal (13)
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The result:
+<p>
+<DL>
+<dt><dd><pre>
+
+tables:
+
+real    0m47.164s
+
+user    0m46.944s
+
+sys     0m0.006s
+
+
+
+closures:
+
+real    0m38.163s
+
+user    0m38.132s
+
+sys     0m0.007s
+
+</pre>
+</DL>
+<p>
+Memory usage test code for table approach:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">assert</span> (<span class="library">loadfile</span> (<span class="string">"tables.lua"</span>)) ()
+
+
+
+<span class="keyword">local</span> mariners = {}
+
+
+
+<span class="keyword">for</span> i = 1, 100000 <span class="keyword">do</span>
+
+   mariners[i] = mariner.new ()
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span> (<span class="string">"Memory in use: "</span>..<span class="library">collectgarbage</span> (<span class="string">"count"</span>)..<span class="string">" Kbytes"</span>)
+
+</pre>
+
+</DL>
+<p>
+Memory usage test code for closures approach:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">assert</span> (<span class="library">loadfile</span> (<span class="string">"closures.lua"</span>)) ()
+
+
+
+<span class="keyword">local</span> mariners = {}
+
+
+
+<span class="keyword">for</span> i = 1, 100000 <span class="keyword">do</span>
+
+   mariners[i] = mariner.new ()
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span> (<span class="string">"Memory in use: "</span>..<span class="library">collectgarbage</span> (<span class="string">"count"</span>)..<span class="string">" Kbytes"</span>)
+
+</pre>
+
+</DL>
+<p>
+The result:
+<p>
+<DL>
+<dt><dd><pre>
+
+tables:
+
+Memory in use: 48433.325195312 Kbytes
+
+
+
+closures:
+
+Memory in use: 60932.615234375 Kbytes
+
+</pre>
+</DL>
+<p>
+No winners, no loosers. Let's see what we've got here after all...
+<p>
+<H2>Outro</H2>
+<p>
+<pre>
+
++---------------------------------------+---------------------------+-------------------------------------------------+
+
+| Subject                               | Tables approach           | Closured approach                               |
+
++---------------------------------------+---------------------------+-------------------------------------------------+
+
+| Speed test results                    | 47 sec.                   | 38 sec.                                         |
+
+| Memory usage test results             | 48433 Kbytes              | 60932 Kbytes                                    |
+
+| Methods declaration form              | Messy                     | More clean                                      |
+
+| Private methods                       | Fine                      | Fine                                            |
+
+| Public methods                        | Fine                      | Fine                                            |
+
+| Private variables                     | Not available             | Fine                                            |
+
+| Public variables                      | Fine                      | Fine                                            |
+
+| Polymorphism                          | Fine                      | Fine                                            |
+
+| Function overriding                   | Ugly (namespace flooding) | Fine (if we grant access only to direct parent) |
+
+| Whole class definition (at my taste)  | Pretty messy              | Kinda clean                                     |
+
++---------------------------------------+---------------------------+-------------------------------------------------+
+
+</pre>
+<p>
+As you can see, both approaches are pretty similar by functionality but
+have significant differences by representation.
+The choice of approach mostly depends on aesthetic preferences of programmer.
+I personally would prefer to use closure approach for big objects and
+tables with data only (no function references) for small things.
+BTW, don't forget about metatables.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/ObjectBenchmarkTests.html" >ObjectBenchmarkTests</a>
+<li> <a href="../wiki/ObjectOrientationClassClosureExample.html" >ObjectOrientationClassClosureExample</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ObjectOrientationClosureApproach" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ObjectOrientationClosureApproach" >history</a><br>Last edited October 25, 2011 6:43 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ObjectOrientationClosureApproach" >(diff)</a>
+</body>
+</html>

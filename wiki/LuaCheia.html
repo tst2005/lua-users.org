@@ -1,0 +1,118 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Cheia</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaCheia&amp;body=1" title="List pages referring to LuaCheia">Lua Cheia</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<hr><DL>
+<dt><dd><strong><a href="../wiki/VersionNotice.html" >VersionNotice</a>:</strong> The <a href="../wiki/LuaCheia.html" >LuaCheia</a> project is apparently dead.  That is the suggestion from these two mail list posts: <a href="http://sourceforge.net/mailarchive/forum.php?thread_id=9561570&amp;forum_id=28380">[1]</a> <a href="http://groups.google.com/group/linux.debian.bugs.dist/browse_thread/thread/54a268b27d8a8513/80c46ec1986f641a?lnk=st&amp;q=luacheia&amp;rnum=2#80c46ec1986f641a">[2]</a>  There doesn't seem to be any activity either (since version 4 or 5).  This is page is maintained here for historical reference (e.g. the book Beginning Lua Programming mentions <a href="../wiki/LuaCheia.html" >LuaCheia</a>).
+</DL>
+<hr><H3><a href="../wiki/LuaCheia.html" >LuaCheia</a> Directory</H3>
+<UL>
+<li> <a href="../wiki/LuaCheiaArchitecture.html" >LuaCheiaArchitecture</a>
+<li> <a href="../wiki/LuaCheiaLicensing.html" >LuaCheiaLicensing</a>
+<li> <a href="../wiki/LuaCheiaSummaries.html" >LuaCheiaSummaries</a> - not currently maintained - (looking for a volunteer to write up summaries)
+<li> <a href="http://luacheia.lua-users.org/doc/">[Reference Manual]</a> - (as far as it is done) 
+</UL>
+<p>
+Other resources:
+<UL>
+<li> <a href="http://sourceforge.net/projects/luacheia/">[Project Page]</a> at Source Forge 
+<li> <a href="http://sourceforge.net/mail/?group_id=73737">[Mailing List]</a> at Source Forge - open to subscribers 
+<li> <a href="http://sourceforge.net/project/showfiles.php?group_id=73737">[Downloads]</a>
+<li> <a href="http://sourceforge.net/project/stats/?group_id=73737">[SF stats]</a>
+<li> <a href="irc://irc.freenode.net/luacheia">[IRC-Channel]</a>
+</UL>
+<hr><H3>What is <a href="../wiki/LuaCheia.html" >LuaCheia</a>?</H3>
+<p>
+Lua is a great programming language that prides itself on ANSI C portability, small size, simplicity and ease of embedding.  Due to these goals, the official Lua distribution cannot provide features common to popular stand-alone scripting languages.  With the <a href="../wiki/LuaCheia.html" >LuaCheia</a> project, we wish to make a full-featured language based on Lua that makes it more usable as a stand-alone language.  <em>Lua cheia</em> is Portuguese for full moon.
+<p>
+The key features of <a href="../wiki/LuaCheia.html" >LuaCheia</a> are:
+<p>
+<UL>
+<li>Portable and ported to Apple OS X, POSIX/X Window System and Microsoft Windows platforms.  Use GNU autoconf to support automatic building on a wide variety of systems.
+<li>Standard binary distributions for the supported platforms.  One-stop shopping for users interested in experimenting with Lua, or using it for general-purpose scripting.
+<li>Modularity.  Only a very small core is mandatory, which is essentially the stock official Lua 5 distribution with bug patches.  <a href="../wiki/LuaCheia.html" >LuaCheia</a> is implemented as a wrapper and bootscript around the normal stand-alone Lua executable.  The wrapper can easily be pointed at a modified Lua interpreter if you like to experiment with the core itself.
+<li>Incorporate many different useful libraries.
+<li>Libraries are loaded dynamically so the core stays small.
+<li>Ample, standardized documentation (partly TODO).
+</UL>
+<p>
+<H3>Who does what?</H3>
+<p>
+See the <a href="http://luacheia.lua-users.org/doc/credits.html">[Credits]</a> section of the <a href="http://luacheia.lua-users.org/doc/">[manual]</a>.
+<p>
+<p>
+<H3>Module list</H3>
+The following libraries are included, or being considered for 
+inclusion in <a href="../wiki/LuaCheia.html" >LuaCheia</a>:
+<p>
+<UL>
+<li><a href="../wiki/LuaBinaryModules.html" >LuaBinaryModules</a>: as basis for loading Lua extensions. (working)
+<li>GluaX: Dynamic loading of libraries. (working)
+<li>SDL: Has threading, graphics support, and is useful for gaming applications of Lua. (working, but no thread support, correct?)
+<li>wxWindows as the primary heavyweight GUI library, possibly FLTK as a lightweight alternative.  (semi-working on Win32, not enabled by default)
+<li>SQLite: Lightweight SQL without server. (working)
+<li>Lua sockets.  (working)
+<li>PCRE -- Perl Compatible Regular Expressions. (working, disabled by default in favor of rex)
+<li>rex -- POSIX &amp; PCRE regex library by <a href="../wiki/ReubenThomas.html" >ReubenThomas</a>. (working)
+<li>bit -- bit manipulation library by <a href="../wiki/ReubenThomas.html" >ReubenThomas</a>. (working)
+<li>pack -- binary structure packing/unpacking based on lhf's packlib. (working)
+<li>posix -- POSIX wrapper library by lhf. (working)
+<li>cgi -- Assistance for CGI, web-based programming. (working)
+<li>XML handling. expat would be a commomn choice, but expat is not a really complete XML lib (no validation etc.) Libraries like libxml2 would be more powerfull (DOM, XSLT, XPath) and are under MIT license but are slightly large, maybe also Sablotron (lighter)?
+<li>mapm -- arbitrary precision math (based on lhf's binding of MAPM) (working)
+<li>Directory handling, filesystem manipulation. (TODO)
+<li>Zlib compression support. Needed for SDL_image/libpng. (TODO)
+<li>Lua script repository that facilitates common tasks such as OOP/inheritance programming.  (<a href="../wiki/StandardLibraryProposal.html" >StandardLibraryProposal</a>?)
+<li>IUP for cross-platform GUI looks like a nice possibility. (TODO)
+<li>LuaSQL for interfacing with SQL databases. (TODO)
+</UL>
+<p>
+<hr><H3>Todo</H3>
+These are the major unfinished tasks:
+<p>
+<UL>
+<li> Get a comprehensive cross-platform GUI module working.  wxLua is partly working.  IUP is a candidate as well.
+<li> Documentation -- write more of it.
+<li> More modules
+<li> GUI debugger based on future GUI module (wxLua has a pretty nice one already)
+</UL>
+<p>
+<H3>Requests</H3>
+<UL>
+<li> Module to facilitate Windows registry editing. A must have for Windows scripting.
+</UL><DL>
+<dt><dd><em>maybe you are looking for LuaCOM?</em> --<a href="../wiki/MartinSpernau.html" >MartinSpernau</a>
+</DL><UL>
+<li> precompiled Tk binaries originated from Tcl/Tk 8.4. Useful for Tcl/Tk programmers who want to switch to Lua. Alas, Tklua is not maintained a couple of years (Rob Maris).
+<li> intergrate a image library like <a href="http://www.enlightenment.org/Libraries/Imlib.html">[imlib]</a> or the <a href="http://freeimage.sourceforge.net/">[FreeImage]</a>.  (<em>FreeImage<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FreeImage" >?</a> is dual licensed under the GPL and its own odd license.</em>), or also <a href="http://www.boutell.com/gd">[GD]</a> or <a href="http://lua-gd.luaforge.net/">[Lua-GD]</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaCheia" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaCheia" >history</a><br>Last edited May 2, 2009 1:46 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaCheia" >(diff)</a>
+</body>
+</html>

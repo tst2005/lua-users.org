@@ -1,0 +1,566 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Classes With Metatable</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaClassesWithMetatable&amp;body=1" title="List pages referring to LuaClassesWithMetatable">Lua Classes With Metatable</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page shows how to implement classes in Lua using metatables.  The examples below work in both Lua 5.0 and 5.1.
+<p>
+Lua has matured from an application extension language into a wonderfully
+flexible scripting language.
+Lua 5.0 is not an object oriented language like Java or Ruby.
+Instead, Lua gives you the ability to implement classes however you wish.
+This is both a bonus and a bane.  Power users love the freedom, but newbies
+are sometimes baffled.
+<p>
+Metatables are Lua's way of adding magic to tables.  Let us assume that
+<code>t</code> is a regular table like so:
+<p>
+<DL>
+<dt><dd><pre class="code">
+Lua 5.0.3  Copyright (C) 1994-2006 Tecgraf, PUC-Rio
+
+&gt; t = { 11, 22, 33, you=<span class="string">'one'</span>, me=<span class="string">'two'</span> }
+
+&gt; <span class="library">table.foreach</span>(t,<span class="library">print</span>)
+
+1       11
+
+2       22
+
+3       33
+
+me      two
+
+you     one
+
+&gt; 
+
+&gt; = t[2]
+
+22
+
+&gt; = t.me
+
+two
+
+&gt; = t.fred
+
+<span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+<p>
+Indexing the table with a valid index returns the value stored at that index.
+<p>
+Indexing the table with an undefined index returns <code>nil</code>.
+If we add some magic,
+we can try indexing another table instead of returning <code>nil</code>.
+We can even provide our own function to handle the undefined indexes
+however we wish.
+<p>
+These functions that customize certain Lua behaviour were called
+<em>fallbacks</em> in the first versions of Lua. In Lua 4.0 they were called <em>tag methods</em>. Now in Lua 5.0 (thanks largely to Edgar Toernig) these function are called <em>metamethods</em> and they are stored in tables called <em>metatables</em>.
+<p>
+The behaviours that we can customize have special names and are referred to
+as <em>events</em>.  Adding a new index to a table is called the <em>newindex</em>
+event.  Attempting to read an undefined index from a table is called 
+the <em>index</em> event.
+<p>
+To see what happens when we access an undefined index,
+lets print out the arguments which are passed to the metamethod
+for the <em>index</em> event.
+<p>
+<DL>
+<dt><dd><pre class="code">
+Lua 5.0.3  Copyright (C) 1994-2006 Tecgraf, PUC-Rio
+
+&gt; t = { 11, 22, 33, you=<span class="string">'one'</span>, me=<span class="string">'two'</span> }
+
+&gt; mt = { __index = <span class="library">print</span> }
+
+&gt; = t.you 
+
+one
+
+&gt; = t.fred
+
+<span class="keyword">nil</span>
+
+&gt; <span class="library">setmetatable</span>(t, mt)
+
+&gt; x = t.fred
+
+<span class="library">table</span>: 0x8075e80        fred
+
+&gt; = x
+
+<span class="keyword">nil</span>
+
+&gt; = t
+
+<span class="library">table</span>: 0x8075e80
+
+&gt; 
+
+</pre>
+
+</DL>
+<p>
+Notice that the first argument is the table <code>t</code> and the second argument is 
+the index <code>fred</code>.
+<p>
+If we do the same for the <em>newindex</em> event, we see that there is a third
+argument which is the new value to be stored at the index.
+<p>
+<DL>
+<dt><dd><pre class="code">
+Lua 5.0.3  Copyright (C) 1994-2006 Tecgraf, PUC-Rio
+
+&gt; t = { 11, 22, 33, you=<span class="string">'one'</span>, me=<span class="string">'two'</span> }
+
+&gt; mt = { __newindex = <span class="library">print</span> }
+
+&gt; <span class="library">setmetatable</span>(t, mt)
+
+&gt; t[4] = <span class="string">'rat'</span>
+
+<span class="library">table</span>: 0x8075e80        4       rat
+
+&gt; 
+
+</pre>
+
+</DL>
+<p>
+As mentioned earlier, we can specify a table instead of a function, and that
+table will be accessed instead.
+<p>
+<DL>
+<dt><dd><pre class="code">
+Lua 5.0.3  Copyright (C) 1994-2006 Tecgraf, PUC-Rio
+
+&gt; t = { 11, 22, 33, you=<span class="string">'one'</span>, me=<span class="string">'two'</span> }
+
+&gt; s = { }
+
+&gt; mt = { __newindex = s, __index = <span class="library">_G</span> }
+
+&gt; <span class="library">setmetatable</span>(t, mt)
+
+&gt; = t.you
+
+one
+
+&gt; x = <span class="string">'wow'</span>
+
+&gt; = t.x
+
+wow
+
+&gt; t[5] = 99
+
+&gt; <span class="library">table.foreach</span>(s, <span class="library">print</span>)
+
+5       99
+
+&gt; 
+
+</pre>
+
+</DL>
+<p>
+<p>
+The following shows how to implement a class of vectors. We have one table for the methods, and one metatable. There is an additional table for each object. All object share the same table of methods and the same metatable.
+<p>
+Remember that <code>v1:mag()</code> is like <code>v1.mag(v1)</code>, so Lua tries
+to lookup <code>mag</code> in <code>v1</code>, which will trigger the <code>index</code> event, which 
+then lookups <code>mag</code> in the table <code>Vector</code>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+Lua 5.0.3  Copyright (C) 1994-2006 Tecgraf, PUC-Rio
+
+&gt; Vector = {}
+
+&gt; Vector_mt = { __index = Vector }
+
+&gt; 
+
+&gt; <span class="keyword">function</span> Vector:new(x,y)
+
+&gt;&gt;   <span class="keyword">return</span> <span class="library">setmetatable</span>( {x=x, y=y}, Vector_mt)
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt; 
+
+&gt; <span class="keyword">function</span> Vector:mag()
+
+&gt;&gt;   <span class="keyword">return</span> <span class="library">math.sqrt</span>(self:dot(self))
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt; 
+
+&gt; <span class="keyword">function</span> Vector:dot(v)
+
+&gt;&gt;   <span class="keyword">return</span> self.x * v.x + self.y * v.y
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt; 
+
+&gt; v1 = Vector:new(3,4)
+
+&gt; <span class="library">table.foreach</span>(v1,<span class="library">print</span>)
+
+y       4
+
+x       3
+
+&gt; = v1:mag()
+
+5
+
+&gt; v2 = Vector:new(2,1)
+
+&gt; = v2:dot(v1)
+
+10
+
+&gt; 
+
+&gt; = Vector
+
+<span class="library">table</span>: 0x8076028
+
+&gt; <span class="library">table.foreach</span>(Vector,<span class="library">print</span>)
+
+mag     <span class="keyword">function</span>: 0x8078008
+
+dot     <span class="keyword">function</span>: 0x8078b58
+
+new     <span class="keyword">function</span>: 0x80773e8
+
+&gt; = v1, v2
+
+<span class="library">table</span>: 0x8079110        <span class="library">table</span>: 0x8079a80
+
+&gt; = Vector_mt, <span class="library">getmetatable</span>(v1), <span class="library">getmetatable</span>(v2)
+
+<span class="library">table</span>: 0x80763b8        <span class="library">table</span>: 0x80763b8        <span class="library">table</span>: 0x80763b8
+
+&gt; <span class="library">table.foreach</span>(Vector_mt,<span class="library">print</span>)
+
+__index <span class="library">table</span>: 0x8076028
+
+&gt; 
+
+</pre>
+
+</DL>
+<p>
+<p>
+If you want a default constructor and a copy constructor, you can create a
+file called <code>Class.lua</code> as follows:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> Class(members)
+
+  members = members <span class="keyword">or</span> {}
+
+  <span class="keyword">local</span> mt = {
+
+    __metatable = members;
+
+    __index     = members;
+
+  }
+
+  <span class="keyword">local</span> <span class="keyword">function</span> new(_, init)
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>(init <span class="keyword">or</span> {}, mt)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> copy(obj, ...)
+
+    <span class="keyword">local</span> newobj = obj:new(<span class="library">unpack</span>(arg))
+
+    <span class="keyword">for</span> n,v <span class="keyword">in</span> <span class="library">pairs</span>(obj) <span class="keyword">do</span> newobj[n] = v <span class="keyword">end</span>
+
+    <span class="keyword">return</span> newobj
+
+  <span class="keyword">end</span>
+
+  members.new  = members.new  <span class="keyword">or</span> new
+
+  members.copy = members.copy <span class="keyword">or</span> copy
+
+  <span class="keyword">return</span> mt
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Then put our Vector class in a file called <code>Vec.lua</code>:
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span><span class="string">'Class'</span>
+
+
+
+Vector = {}
+
+
+
+<span class="keyword">local</span> Vector_mt = Class(Vector)
+
+
+
+<span class="keyword">function</span> Vector:new(x,y)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>( {x=x, y=y}, Vector_mt)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Vector:mag()
+
+  <span class="keyword">return</span> <span class="library">math.sqrt</span>(self:dot(self))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Vector:dot(v)
+
+  <span class="keyword">return</span> self.x * v.x + self.y * v.y
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Then test it as follows:
+<p>
+<DL>
+<dt><dd><pre class="code">
+$ lua -lVec -i -v
+
+Lua 5.0.3  Copyright (C) 1994-2006 Tecgraf, PUC-Rio
+
+&gt; v1 = Vector:new(3,4)
+
+&gt; <span class="library">table.foreach</span>(v1,<span class="library">print</span>)
+
+y       4
+
+x       3
+
+&gt; = v1:mag()
+
+5
+
+&gt; v2 = Vector:new(2,1)
+
+&gt; = v2:dot(v1)
+
+10
+
+&gt;
+
+&gt; <span class="library">table.foreach</span>(Vector,<span class="library">print</span>)
+
+copy    <span class="keyword">function</span>: 0x80692c0
+
+dot     <span class="keyword">function</span>: 0x8069300
+
+mag     <span class="keyword">function</span>: 0x80692e0
+
+new     <span class="keyword">function</span>: 0x8069398
+
+&gt;
+
+&gt; v3 = v1:copy()
+
+&gt; = v1, v2, v3
+
+<span class="library">table</span>: 0x80779d0        <span class="library">table</span>: 0x8078428        <span class="library">table</span>: 0x807a050
+
+&gt; <span class="library">table.foreach</span>(v1,<span class="library">print</span>)
+
+y       4
+
+x       3
+
+&gt; <span class="library">table.foreach</span>(v3,<span class="library">print</span>)
+
+y       4
+
+x       3
+
+&gt; 
+
+</pre>
+
+</DL>
+<p>
+If we apply the <code>Class</code> function to Lua's table lib, we can create table
+objects.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span><span class="string">'Class'</span>
+
+
+
+Class(<span class="library">table</span>)
+
+
+
+<span class="keyword">function</span> <span class="library">table</span>:push(x)
+
+  <span class="library">assert</span>( x ~= <span class="keyword">nil</span>, <span class="string">'will not push nil into table'</span>)
+
+  self:insert(x)
+
+  <span class="keyword">return</span> self, x
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> <span class="library">table</span>:map(func, ...)
+
+  <span class="keyword">local</span> R = <span class="library">table</span>:new{}
+
+  <span class="keyword">for</span> name,value <span class="keyword">in</span> <span class="library">pairs</span>(self) <span class="keyword">do</span> func(R,name,value,<span class="library">unpack</span>(arg)) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> R
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> <span class="library">table</span>:imap(func, ...)
+
+  <span class="keyword">local</span> R = <span class="library">table</span>:new{}
+
+  <span class="keyword">for</span> index,elem <span class="keyword">in</span> <span class="library">ipairs</span>(self) <span class="keyword">do</span> func(R,index,elem,<span class="library">unpack</span>(arg)) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> R
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Then you no longer have to type <code>table.foreach</code> or <code>table.getn(t)</code>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+$ lua -lTable -i -v
+
+Lua 5.0.3  Copyright (C) 1994-2006 Tecgraf, PUC-Rio
+
+&gt; t = <span class="library">table</span>:new{ 11, 22, 33, you=<span class="string">'one'</span>, me=<span class="string">'two'</span> }
+
+&gt; = t:getn()
+
+3
+
+&gt; t:foreach(<span class="library">print</span>)
+
+1       11
+
+2       22
+
+3       33
+
+me      two
+
+you     one
+
+&gt;
+
+&gt; = t:concat<span class="string">','</span>
+
+11,22,33
+
+&gt; = <span class="library">table</span>
+
+<span class="library">table</span>: 0x8067808
+
+&gt; = <span class="library">getmetatable</span>(t)
+
+<span class="library">table</span>: 0x8067808
+
+&gt;
+
+&gt; s = t:copy()
+
+&gt; s:foreach(<span class="library">print</span>)
+
+1       11
+
+2       22
+
+3       33
+
+me      two
+
+you     one
+
+&gt; = s, t
+
+<span class="library">table</span>: 0x8079a58        <span class="library">table</span>: 0x8077bb8
+
+&gt; 
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/ObjectOrientedProgramming.html" >ObjectOrientedProgramming</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaClassesWithMetatable" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaClassesWithMetatable" >history</a><br>Last edited October 18, 2008 10:32 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaClassesWithMetatable" >(diff)</a>
+</body>
+</html>

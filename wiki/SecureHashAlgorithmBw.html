@@ -1,0 +1,699 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Secure Hash Algorithm Bw</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SecureHashAlgorithmBw&amp;body=1" title="List pages referring to SecureHashAlgorithmBw">Secure Hash Algorithm Bw</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Implementation of secure hash functions SHA224/SHA256 in Lua 5.3, with bitwise operators. This implementation is based on the pseudo-code from Wikipedia (<a href="http://en.wikipedia.org/wiki/SHA-2.html">http://en.wikipedia.org/wiki/SHA-2</a>)
+<p>
+<pre class="code">
+<span class="comment">-- SHA-256 code in Lua 5.3; based on the pseudo-code from</span>
+
+<span class="comment">-- Wikipedia (http://en.wikipedia.org/wiki/SHA-2)</span>
+
+
+
+<span class="library">package.preload</span>.sha2 = <span class="keyword">function</span> (...)  <span class="comment">-- {</span>
+
+
+
+<span class="keyword">local</span> undumpint, dumpint = <span class="library">string.undumpint</span>, <span class="library">string.dumpint</span>
+
+
+
+<span class="keyword">local</span> <span class="library">string</span>, <span class="library">setmetatable</span>, <span class="library">assert</span> = <span class="library">string</span>, <span class="library">setmetatable</span>, <span class="library">assert</span>
+
+
+
+<span class="keyword">local</span> _ENV = <span class="keyword">nil</span>
+
+
+
+<span class="comment">-- Initialize table of round constants</span>
+
+<span class="comment">-- (first 32 bits of the fractional parts of the cube roots of the first</span>
+
+<span class="comment">-- 64 primes 2..311):</span>
+
+<span class="keyword">local</span> k = {
+
+   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+
+   0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+
+   0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+
+   0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+
+   0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+
+   0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+
+   0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+
+   0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+
+   0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+
+   0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+
+   0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
+
+   0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+
+   0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
+
+   0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+
+   0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+
+   0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+
+}
+
+
+
+
+
+<span class="comment">-- Lines marked with (1) can produce results with more than 32 bits.</span>
+
+<span class="comment">-- These values should be used only in other lines marked with (1), or</span>
+
+<span class="comment">-- in lines marked with (2), which trim their results to 32 bits.</span>
+
+
+
+
+
+<span class="comment">-- no need to trim at 32 bits (results will be trimmed later)</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> rrotate (x, n)
+
+  <span class="keyword">return</span> ((x &gt;&gt; n) | (x &lt;&lt; (32 - n)))    <span class="comment">-- (1)</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- transform a string of bytes in a string of hexadecimal digits</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> str2hexa (s)
+
+  <span class="keyword">local</span> h = <span class="library">string.gsub</span>(s, <span class="string">"."</span>, <span class="keyword">function</span>(c)
+
+              <span class="keyword">return</span> <span class="library">string.format</span>(<span class="string">"%02x"</span>, <span class="library">string.byte</span>(c))
+
+            <span class="keyword">end</span>)
+
+  <span class="keyword">return</span> h
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- transform number 'l' in a big-endian sequence of 'n' bytes</span>
+
+<span class="comment">-- (coded as a string)</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> num2s (l, n)
+
+  <span class="keyword">return</span> <span class="library">string.dumpint</span>(l, n, <span class="string">"b"</span>)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- append the bit '1' to the message</span>
+
+<span class="comment">-- append k bits '0', where k is the minimum number &gt;= 0 such that the</span>
+
+<span class="comment">-- resulting message length (in bits) is congruent to 448 (mod 512)</span>
+
+<span class="comment">-- append length of message (before pre-processing), in bits, as 64-bit</span>
+
+<span class="comment">-- big-endian integer</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> preproc (msg, len)
+
+  <span class="keyword">local</span> extra = 64 - ((len + 1 + 8) % 64)
+
+  len = num2s(8 * len, 8)    <span class="comment">-- original len in bits, coded</span>
+
+  msg = msg .. <span class="string">"\128"</span> .. <span class="library">string.rep</span>(<span class="string">"\0"</span>, extra) .. len
+
+  <span class="library">assert</span>(#msg % 64 == 0)
+
+  <span class="keyword">return</span> msg
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> initH224 (H)
+
+  <span class="comment">-- (second 32 bits of the fractional parts of the square roots of the</span>
+
+  <span class="comment">-- 9th through 16th primes 23..53)</span>
+
+  H[1] = 0xc1059ed8
+
+  H[2] = 0x367cd507
+
+  H[3] = 0x3070dd17
+
+  H[4] = 0xf70e5939
+
+  H[5] = 0xffc00b31
+
+  H[6] = 0x68581511
+
+  H[7] = 0x64f98fa7
+
+  H[8] = 0xbefa4fa4
+
+  <span class="keyword">return</span> H
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> initH256 (H)
+
+  <span class="comment">-- (first 32 bits of the fractional parts of the square roots of the</span>
+
+  <span class="comment">-- first 8 primes 2..19):</span>
+
+  H[1] = 0x6a09e667
+
+  H[2] = 0xbb67ae85
+
+  H[3] = 0x3c6ef372
+
+  H[4] = 0xa54ff53a
+
+  H[5] = 0x510e527f
+
+  H[6] = 0x9b05688c
+
+  H[7] = 0x1f83d9ab
+
+  H[8] = 0x5be0cd19
+
+  <span class="keyword">return</span> H
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> digestblock (msg, i, H)
+
+
+
+    <span class="comment">-- break chunk into sixteen 32-bit big-endian words w[1..16]</span>
+
+    <span class="keyword">local</span> w = {}
+
+    <span class="keyword">for</span> j = 1, 16 <span class="keyword">do</span>
+
+      w[j] = undumpint(msg, i, 4, <span class="string">"b"</span>) &amp; 0xffffffff
+
+      i = i + 4   <span class="comment">-- index for next block</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- Extend the sixteen 32-bit words into sixty-four 32-bit words:</span>
+
+    <span class="keyword">for</span> j = 17, 64 <span class="keyword">do</span>
+
+      <span class="keyword">local</span> v = w[j - 15]
+
+      <span class="keyword">local</span> s0 = rrotate(v, 7) ~ rrotate(v, 18) ~ (v &gt;&gt; 3)      <span class="comment">-- (1)</span>
+
+      v = w[j - 2]
+
+      <span class="keyword">local</span> s1 = rrotate(v, 17) ~ rrotate(v, 19) ~ (v &gt;&gt; 10)    <span class="comment">-- (1)</span>
+
+      w[j] = (w[j - 16] + s0 + w[j - 7] + s1) &amp; 0xffffffff      <span class="comment">-- (2)</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- Initialize hash value for this chunk:</span>
+
+    <span class="keyword">local</span> a, b, c, d, e, f, g, h =
+
+        H[1], H[2], H[3], H[4], H[5], H[6], H[7], H[8]
+
+
+
+    <span class="comment">-- Main loop:</span>
+
+    <span class="keyword">for</span> i = 1, 64 <span class="keyword">do</span>
+
+      <span class="keyword">local</span> s0 = rrotate(a, 2) ~ rrotate(a, 13) ~ rrotate(a, 22)   <span class="comment">-- (1)</span>
+
+      <span class="keyword">local</span> maj = (a &amp; b) ~ (a &amp; c) ~ (b &amp; c)
+
+      <span class="keyword">local</span> t2 = s0 + maj                                          <span class="comment">-- (1)</span>
+
+      <span class="keyword">local</span> s1 = rrotate(e, 6) ~ rrotate(e, 11) ~ rrotate(e, 25)   <span class="comment">-- (1)</span>
+
+      <span class="keyword">local</span> ch = (e &amp; f) ~ (~e &amp; g)
+
+      <span class="keyword">local</span> t1 = h + s1 + ch + k[i] + w[i]                         <span class="comment">-- (1)</span>
+
+
+
+      h = g
+
+      g = f
+
+      f = e
+
+      e = (d + t1) &amp; 0xffffffff                                    <span class="comment">-- (2)</span>
+
+      d = c
+
+      c = b
+
+      b = a
+
+      a = (t1 + t2) &amp; 0xffffffff                                   <span class="comment">-- (2)</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- Add (mod 2^32) this chunk's hash to result so far:</span>
+
+    H[1] = (H[1] + a) &amp; 0xffffffff
+
+    H[2] = (H[2] + b) &amp; 0xffffffff
+
+    H[3] = (H[3] + c) &amp; 0xffffffff
+
+    H[4] = (H[4] + d) &amp; 0xffffffff
+
+    H[5] = (H[5] + e) &amp; 0xffffffff
+
+    H[6] = (H[6] + f) &amp; 0xffffffff
+
+    H[7] = (H[7] + g) &amp; 0xffffffff
+
+    H[8] = (H[8] + h) &amp; 0xffffffff
+
+
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> finalresult224 (H)
+
+  <span class="comment">-- Produce the final hash value (big-endian):</span>
+
+  <span class="keyword">return</span>
+
+    str2hexa(num2s(H[1], 4)..num2s(H[2], 4)..num2s(H[3], 4)..num2s(H[4], 4)..
+
+             num2s(H[5], 4)..num2s(H[6], 4)..num2s(H[7], 4))
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> finalresult256 (H)
+
+  <span class="comment">-- Produce the final hash value (big-endian):</span>
+
+  <span class="keyword">return</span>
+
+    str2hexa(num2s(H[1], 4)..num2s(H[2], 4)..num2s(H[3], 4)..num2s(H[4], 4)..
+
+             num2s(H[5], 4)..num2s(H[6], 4)..num2s(H[7], 4)..num2s(H[8], 4))
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">----------------------------------------------------------------------</span>
+
+<span class="keyword">local</span> HH = {}    <span class="comment">-- to reuse</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> hash224 (msg)
+
+  msg = preproc(msg, #msg)
+
+  <span class="keyword">local</span> H = initH224(HH)
+
+
+
+  <span class="comment">-- Process the message in successive 512-bit (64 bytes) chunks:</span>
+
+  <span class="keyword">for</span> i = 1, #msg, 64 <span class="keyword">do</span>
+
+    digestblock(msg, i, H)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> finalresult224(H)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> hash256 (msg)
+
+  msg = preproc(msg, #msg)
+
+  <span class="keyword">local</span> H = initH256(HH)
+
+
+
+  <span class="comment">-- Process the message in successive 512-bit (64 bytes) chunks:</span>
+
+  <span class="keyword">for</span> i = 1, #msg, 64 <span class="keyword">do</span>
+
+    digestblock(msg, i, H)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> finalresult256(H)
+
+<span class="keyword">end</span>
+
+<span class="comment">----------------------------------------------------------------------</span>
+
+<span class="keyword">local</span> mt = {}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> new256 ()
+
+  <span class="keyword">local</span> o = {H = initH256({}), msg = <span class="string">""</span>, len = 0}
+
+  <span class="library">setmetatable</span>(o, mt)
+
+  <span class="keyword">return</span> o
+
+<span class="keyword">end</span>
+
+
+
+mt.__index = mt
+
+
+
+<span class="keyword">function</span> mt:add (m)
+
+  self.msg = self.msg .. m
+
+  self.len = self.len + #m
+
+  <span class="keyword">local</span> t = 0
+
+  <span class="keyword">while</span> #self.msg - t &gt;= 64 <span class="keyword">do</span>
+
+    digestblock(self.msg, t + 1, self.H)
+
+    t = t + 64 
+
+  <span class="keyword">end</span>
+
+  self.msg = self.msg:sub(t + 1, -1)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">function</span> mt:close ()
+
+  self.msg = preproc(self.msg, self.len)
+
+  self:add(<span class="string">""</span>)
+
+  <span class="keyword">return</span> finalresult256(self.H)
+
+<span class="keyword">end</span>
+
+<span class="comment">----------------------------------------------------------------------</span>
+
+
+
+<span class="keyword">return</span> {
+
+  hash224 = hash224,
+
+  hash256 = hash256,
+
+  new256 = new256,
+
+}
+
+
+
+<span class="keyword">end</span> <span class="comment">-- }</span>
+
+</pre>
+
+<p>
+The following script performs some basic tests over the previous implementation and shows how to use the library:
+<p>
+<pre class="code">
+
+
+<span class="comment">-- tests for SHA-2 in Lua 5.3</span>
+
+
+
+<span class="keyword">local</span> sha2 = <span class="library">require</span> <span class="string">'sha2'</span>
+
+
+
+<span class="comment">-- a few examples from the Web</span>
+
+
+
+<span class="library">assert</span>(sha2.hash224<span class="string">"The quick brown fox jumps over the lazy dog"</span> ==
+
+  <span class="string">"730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525"</span>)
+
+
+
+<span class="library">assert</span>(sha2.hash224<span class="string">""</span> ==
+
+  <span class="string">"d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f"</span>)
+
+
+
+<span class="library">assert</span>(sha2.hash256<span class="string">"The quick brown fox jumps over the lazy dog"</span> ==
+
+  <span class="string">"d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"</span>)
+
+
+
+<span class="library">assert</span>(sha2.hash256<span class="string">"The quick brown fox jumps over the lazy cog"</span> ==
+
+  <span class="string">"e4c4d8f3bf76b692de791a173e05321150f7a345b46484fe427f6acc7ecc81be"</span>)
+
+
+
+<span class="library">assert</span>(sha2.hash256<span class="string">""</span> ==
+
+  <span class="string">"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"</span>)
+
+
+
+<span class="library">assert</span>(sha2.new256():close() ==
+
+  <span class="string">"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"</span>)
+
+
+
+<span class="library">assert</span>(sha2.hash256<span class="string">"123456"</span> ==
+
+  <span class="string">"8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92"</span>)
+
+
+
+
+
+<span class="comment">-- most other examples here are checked against a "correct" answer</span>
+
+<span class="comment">-- given by 'sha224sum'/'sha256sum'</span>
+
+
+
+
+
+<span class="comment">-- border cases (sizes around 64 bytes)</span>
+
+
+
+<span class="library">assert</span>(sha2.hash256(<span class="library">string.rep</span>(<span class="string">'a'</span>, 62) .. <span class="string">'\n'</span>) ==
+
+  <span class="string">"290b30a68148b3ee27ab7b744c297a5d986c1011938a09e73058430593bf83f0"</span>)
+
+<span class="library">assert</span>(sha2.hash256(<span class="library">string.rep</span>(<span class="string">'a'</span>, 63) .. <span class="string">'\n'</span>) ==
+
+  <span class="string">"a229eaed30f4991d1fcdab77c70b604efd780502c82be0732b310811dc43b2b3"</span>)
+
+<span class="library">assert</span>(sha2.hash256(<span class="library">string.rep</span>(<span class="string">'a'</span>, 64) .. <span class="string">'\n'</span>) ==
+
+  <span class="string">"44c2336fedab8ff6a85c74c2b94165377b0981f526adb9487895ca6314165e86"</span>)
+
+<span class="library">assert</span>(sha2.hash256(<span class="library">string.rep</span>(<span class="string">'a'</span>, 65) .. <span class="string">'\n'</span>) ==
+
+  <span class="string">"574883a9977284a46845620eaa55c3fa8209eaa3ebffe44774b6eb2dba2cb325"</span>)
+
+
+
+<span class="keyword">local</span> x = sha2.new256()
+
+<span class="keyword">for</span> i = 1, 65 <span class="keyword">do</span> x:add(<span class="string">'a'</span>) <span class="keyword">end</span>
+
+x:add(<span class="string">'\n'</span>)
+
+<span class="library">assert</span>(x:close() ==
+
+  <span class="string">"574883a9977284a46845620eaa55c3fa8209eaa3ebffe44774b6eb2dba2cb325"</span>)
+
+
+
+
+
+<span class="comment">-- some large files</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> parts (s, j)
+
+  <span class="keyword">local</span> x = sha2.new256()
+
+  <span class="keyword">local</span> i = 1
+
+  <span class="keyword">while</span> i &lt;= #s <span class="keyword">do</span>
+
+    x:add(s:sub(i, i + j))
+
+    i = i + j + 1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> x:close()
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- 80 lines of 80 '0's each</span>
+
+<span class="keyword">local</span> s = <span class="library">string.rep</span>(<span class="string">'0'</span>, 80) .. <span class="string">'\n'</span>
+
+s = <span class="library">string.rep</span>(s, 80)
+
+<span class="library">assert</span>(parts(s, 70) ==
+
+  <span class="string">"736c7a8b17e2cfd44a3267a844db1a8a3e8988d739e3e95b8dd32678fb599139"</span>)
+
+<span class="library">assert</span>(parts(s, 7) ==
+
+  <span class="string">"736c7a8b17e2cfd44a3267a844db1a8a3e8988d739e3e95b8dd32678fb599139"</span>)
+
+<span class="library">assert</span>(parts(s, #s + 10) ==
+
+  <span class="string">"736c7a8b17e2cfd44a3267a844db1a8a3e8988d739e3e95b8dd32678fb599139"</span>)
+
+
+
+
+
+
+
+
+
+<span class="comment">-- read a file and prints its hash, if given a file name</span>
+
+
+
+<span class="keyword">if</span> arg[1] <span class="keyword">then</span>
+
+  <span class="keyword">local</span> file = <span class="library">assert</span>(<span class="library">io.open</span> (arg[1], <span class="string">'rb'</span>))
+
+  <span class="keyword">local</span> x = sha2.new256()
+
+  <span class="keyword">for</span> b <span class="keyword">in</span> file:lines(2^12) <span class="keyword">do</span>
+
+    x:add(b)
+
+  <span class="keyword">end</span>
+
+  file:close()
+
+  <span class="library">print</span>(x:close())
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span> <span class="string">"ok"</span>
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SecureHashAlgorithmBw" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SecureHashAlgorithmBw" >history</a><br>Last edited August 6, 2014 7:05 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SecureHashAlgorithmBw" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,541 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Building Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BuildingLua&amp;body=1" title="List pages referring to BuildingLua">Building Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here are some notes on building Lua on various platforms, including links to useful build packages. 
+You can find links to sites that provide compiled Lua code on <a href="../wiki/LuaBinaries.html" >LuaBinaries</a>. 
+<p>
+For detailed instructions, see also <a href="http://media.wiley.com/product_data/excerpt/71/04700691/0470069171.pdf">[Chapter 1]</a> of "Beginning Lua Programming".
+<p>
+<a href="../wiki/BuildingModules.html" >BuildingModules</a> explains how to build C extension modules for Lua.
+<p>
+<H3>Note on embedding Lua in C++ applications</H3>
+<p>
+Please note that Lua is a clean subset of ANSI C, and can be compiled as C or C++. Lua headers do not come with {#ifdef __cplusplus extern "C" {#endif ... Lua header ...#ifdef __cplusplus}#endif } in them so that lua can be compiled as C or C++ simply by changing the name of the files, without having to make any changes to the file contents.
+<p>
+<p>
+If lua was compiled as a C library, which is typical with pre-packaged binaries, in order to embed Lua in a C++ application (i.e. link C to C++) you will have to place <code>extern "C"</code> around the inclusion of the Lua headers in your C++ application, e.g.,
+<DL>
+<dt><dd><pre>
+
+extern "C" {
+
+#include "lua.h"
+
+}
+
+</pre> 
+</DL>
+<p>
+If you do not do this you may get <strong>link errors</strong> because of C++ name mangling.
+<p>
+Please do not complain about this on the mailing list. :-) Take the time to search the mailing list as this has been covered many times before.
+<p>
+It could be argued that if you are distributing a pre-packaged binaries of the libraries, then you have compiled the lua core as either C (most likely) or as C++, and if you compiled lua as C, you should modify the lua headers to indicate this. However, using prebuilt libraries for lua isn't recommended by the authors, they recommend directly incorporating the lua source into your application. See <a href="../wiki/BuildingModules.html" >BuildingModules</a> for a discussion (the end of the page).
+<p>
+By default if lua 5.1 or later is compiled as C++, it will use C++ exceptions to unwind the stack rather than longjmp/setjmp, though this is configurable (at compile time). See luaconf.h near <em>LUAI_THROW/LUAI_TRY</em> for a discussion of  this.
+<p>
+For 5.0, you may have to contact Alexey to find a patch that to use C++ exceptions rather than setjmp/longjmp, find his email on the page:<em></em>' <a href="../wiki/AlexeyVolynskov.html" >AlexeyVolynskov</a> 
+<p>
+<H3>(Unix) Autoconf</H3>
+<p>
+<UL>
+<li> <a href="../wiki/AutoConfig.html" >AutoConfig</a> - autoconfig macros for lua 5.0 and 5.1
+</UL>
+<p>
+<H3>(Unix/Windows/OS X) CMake</H3>
+<p>
+<UL>
+<li> <a href="../wiki/LuaDist.html" >LuaDist</a> - Build Lua and modules via CMake <a href="http://github.com/LuaDist/LuaDist/blob/master/dists/Lua/Interpreters/lua/CMakeLists.txt">[CMakeLists.txt]</a>
+<li> <a href="/lists/lua-l/2009-10/msg00024.html">LuaList:2009-10/msg00024.html</a> - CMakeLists.txt by Robert Jakabosky
+</UL>
+<p>
+<H3>Building on OS X</H3>
+<p>
+Be aware that as of lua 5.1.1, when building with LUA_USE_MACOSX defined, lua avoids the use of dlopen() and the other dlfcn APIs on OS X because dlopen() didn't used to be supported without using a 3rd party (open source) dlcompat library. However, as of OS X 10.3, dlopen() is provided, and as of OS X 10.4 dlopen() is the recommended way to dynamically load libraries (for non-objective-c code, at least). That means that the OS X specific module loading code is completely unnecessary if you don't want to target pre-10.3 versions of OS X. If you define  LUA_USE_DLOPEN it will take precedence over the LUA_USE_DL_DYLD.
+<p>
+See <a href="http://developer.apple.com/releasenotes/DeveloperTools/RN-dyld/index.html">http://developer.apple.com/releasenotes/DeveloperTools/RN-dyld/index.html</a> for more information.
+<p>
+<H3>(Windows/Unix)</H3>
+<p>
+<strong>Lua Build</strong> <a href="http://sourceforge.net/project/showfiles.php?group_id=32250&amp;package_id=115604">[1]</a> contains files to build <strong>lua</strong>, <strong>luac</strong> and libraries. 
+It works on the following platforms. It contains all of the necessary source code and build files. 
+<UL>
+<li> Visual C++ 6.0 (unzip, open <code>vc6/Lua.dsw</code> and do <code>Build</code>). 
+<li> Cygwin (<code>tar xvzf luabuild-x.x.tgz ; cd LuaX/unix; make all</code>) 
+<li> Posix: Makefiles are supplied so it should work with other unix based systems. 
+</UL>
+<p>
+Please contact <a href="../wiki/NickTrout.html" >NickTrout</a> if you would like to add another platform. 
+Currently only statically linked versions of Lua are built. 
+<p>
+<H3>(Windows) Borland (bcc)</H3>
+<p>
+Take everything in src and src/lua and do :
+- <pre>bcc *.c -olua.exe</pre> 
+<p>
+<H3>(Windows) Borland C++ 5.01 - Lua 5.0</H3>
+<p>
+All projects must be created within the Lua src directory ''1 Core.lib and 
+standard lib'' create a <strong>static library(for .dll)(.lib)</strong> for <strong>Win32</strong> Console or 
+GUI have no importance for the lib. 
+Add the required files mentionned in the Install file. 
+Add to the project include directory the lua include directory. 
+Setup the compiler to <strong>Pentium code</strong> and <strong>Word</strong> data alignment: 
+you will then be able to define USE_FASTROUND in luser_number.h. 
+Compile. 
+<p>
+<em>Alternative :</em>create a <strong>dynamic library(.dll)</strong> for <strong>Win32</strong> Console or 
+GUI have no importance for the lib. 
+Add the required files mentionned in the Install file. 
+Modify the lua.h and lualib.h files by defining: 
+LUA_API as __declspec(dllexport) and LUALIB_API as __declspec(dllexport). 
+Add to the project include directory the lua include directory. 
+Setup the compiler to <strong>Pentium code</strong> and <strong>Word</strong> data alignment: 
+you will then be able to define USE_FASTROUND in luser_number.h. 
+Compile. 
+<p>
+<em>Notes :</em> the compiler will complain and create warnings regarding inexistant structures (e.g. lua_State). 
+You can safely ignore them. If you want to USE_POPEN, you need to convert popen and pclose to _popen and _pclose. 
+You can define USE_TMPNAME to 1. <em>2 Lua interpreter and compiler</em> create an <strong>executable (.exe)</strong> for <strong>Win32</strong> and <strong>Console</strong>. 
+Include the <strong>Core</strong> and <strong>Standard</strong> libraries and the required files mentionned in the Install file. 
+Add to the project include directory the lua include directory. 
+Setup the compiler to <strong>Pentium</strong> code and <strong>Word</strong> data alignment. 
+Compile. 
+You are ready to go ! 
+<p>
+<em>Note :</em> If you use Lua DLLs instead of LIBs, don't forget to 
+define in lua.h and lualib.h LUA_API as __declspec(dllimport) and LUALIB_API as __declspec(dllimport). 
+<p>
+<H3>(Windows) Microsoft Visual Studio .Net 2003 ( version 7.1 ) Lua 5.x Solution</H3>
+<p>
+Briefly this includes a Visual Studio Solution and 3 projects. 
+A project to build Lua 5.x as a static lib, a project to test that the lib is working, 
+and a project to build luac. 
+Here are the details of what this is <a href="http://home.comcast.net/~vertigrated/lua/ReadMe.html">[Read Me]</a> 
+here are the files <a href="http://home.comcast.net/~vertigrated/lua/vs7.zip">[Visual Studio .Net 2003 ( version 7.1 ) Solution and Project files]</a> 
+<p>
+<UL>
+<li> Thanks to Nicolas Nobel for the help! 
+<li> Thanks to Leandro Candido for the help getting the luac project to work. 
+</UL>
+<p>
+<H3>(Windows) Microsoft Visual C++ 6 (VC6)</H3>
+<p>
+<UL>
+<li> You can take a look at the project files I (Philippe Lhoste) created to compile Lua 4.0 and 5.0 at: <a href="http://Phi.Lho.free.fr/softwares/PhiLhoSoft/Lua/index.html">[Philippe Lhoste (PhiLho) Web page about Lua]</a>. 
+</UL>
+<p>
+Note: Download files at <a href="http://Phi.Lho.free.fr/index.html#downloads">[Philippe Lhoste (PhiLho) French Web site]</a>, 
+I have to update the Lua page for direct downloads. 
+<p>
+They can be used with little changes for Lua 4.0.1 (specific project for this version is available too). 
+<p>
+Basically, I have set a .dsw file (workspace) at the root of the Lua tree, and several .dsp (projects) scattered on the hierarchy, 
+to produce either library files, DLLs or executables. 
+<p>
+To compile, you should do the libraries first (dependencies should take care of this). 
+<p>
+To do the DLLs, I had to create .def files, but for Lua 4.0.1, 
+I just used the make_def.lua script (supposing I already have a Lua binary, of course :-) ).
+<p>
+<em>You don't have to create .def files to make DLL's, just add <code>LUA_API=__declspec(dllexport)</code> or <code>LUALIB_API=__declspec(dllexport)</code> to your C compiler defines, worked perfectly for me.</em> 
+-- <a href="../wiki/JaenSaul.html" >JaenSaul</a> 
+<p>
+<em>Yes, but at Lua 4.0 time, this facility wasn't available, and I derivated the 5.0 projects from the 4.0 ones. Beside, I like .def files, it allows to see all the API functions at a glance...</em> -- <a href="../wiki/PhilippeLhoste.html" >PhilippeLhoste</a>
+<p>
+<em>Seems someone made a provision for this (at least as of 5.1) with the LUA_BUILD_AS_DLL define.</em> -- BobClown<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BobClown" >?</a>
+<p>
+I also created some resource files, to give nice icons and some version information. 
+<p>
+<H3>(Windows) mingw-msys (Lua 5.1.1)</H3>
+<p>
+Simply:
+<p>
+<DL>
+<dt><dd><pre>make mingw</pre>
+</DL>
+<p>
+But the lua executable that you will obtain will not support the dynamic
+loading of modules. If you want to enable this feature you should modify
+the target <code>mingw</code> to:
+<p>
+<DL>
+<dt><dd><pre>
+
+mingw:
+
+	$(MAKE) "LUA_A=lua51.dll" "LUA_T=lua.exe" \
+
+	"AR=$(CC) -shared -o" "RANLIB=strip --strip-unneeded" \
+
+	"MYCFLAGS='-DLUA_DL_DLL -DLUA_BUILD_AS_DLL'" "MYLIBS=" "MYLDFLAGS=-s" \
+
+        lua.exe
+
+	$(MAKE) "LUAC_T=luac.exe" luac.exe
+
+</pre>
+</DL>
+where we have added '-DLUA_DL_DLL' to the MYCFLAGS variable. 
+<p>
+For those willing to live dangerously (in the sense that extra symbols
+are exported from the DLL that are not official Lua APIs) you can build
+both lua.exe and luac.exe by changing the <code>mingw</code> target to:
+<p>
+<DL>
+<dt><dd><pre>
+
+mingw:
+
+    $(MAKE) "LUA_A=lua51.dll" "LUA_T=lua.exe" "LUAC_T=luac.exe" \
+
+    "AR=$(CC) -shared -Wl,--export-all-symbols -o" "RANLIB=strip --strip-unneeded" \
+
+    "MYCFLAGS=-DLUA_BUILD_AS_DLL" "MYLIBS=" "MYLDFLAGS=-s" all
+
+</pre>
+</DL>
+<p>
+Note that the official Lua distribution creates and uses <code>lua51.dll</code> whereas
+<a href="../wiki/LuaBinaries.html" >LuaBinaries</a> distributes <code>lua5.1.dll</code>. Both use the name <code>lua.exe</code> but that
+application is linked with one or the other DLL
+-- this can be the source of subtle bugs when both are installed (see below 'Creating a forward dll').
+<p>
+To install Lua properly, open the top-level Makefile and change:
+<UL>
+<li><code>TO_BIN= lua luac</code> to <code>TO_BIN= lua.exe luac.exe lua51.dll</code>
+<li><code>cd src &amp;&amp; $(INSTALL_DATA) $(TO_LIB) $(INSTALL_LIB)</code> to <code>#cd src &amp;&amp; $(INSTALL_DATA) $(TO_LIB) $(INSTALL_LIB)</code>
+</UL>
+<p>
+<em>Now for some older versions...</em>
+<p>
+Here are config <a href="/files/wiki_insecure/build/mingw-msys-502/config">[13]</a> and 
+Makefile <a href="/files/wiki_insecure/build/mingw-msys-502/Makefile">[14]</a> samples 
+used successfully to build Lua 5.0.2. No changes are necessary to the Makefiles in Lua's subdirectories. 
+Use the target dll (i.e., "make dll") to build everything with lua.exe and luac.exe using lua.dll and lualib.dll. 
+Copy everything in the lua-5.0.2/bin to MSYS/local/bin and copy liblualib.a and liblua.a to MSYS/local/lib. 
+Now you can compile dynamically loadable libraries by linking them with liblualib.a and liblua.a (-L /usr/local/lib -llua -llualib). 
+<p>
+Here are Makefile and luaconf.h examples <a href="/files/wiki_insecure/build/mingw-msys/lua51w5mingw.tar.gz">[15]</a> 
+for building lua-5.1-work5 as a pair of DLLs and a pair of applications. "make install" puts these
+files into the Mingw /usr/local subdirectories.
+<p>
+<H3>(Windows) mingw-cygwin 1.5 (Lua 5.1.1)</H3>
+<p>
+Warning: the following applies to the older (1.5) version of Cygwin.  Cygwin 1.7 no longer uses "-mno-cygwin" (someone: please update this section).
+<p>
+Unfortunately, the Lua 5.1.1 Makefile does not have an option for cleanly building from the version of MinGW included in Cygwin.
+<p>
+To easily build Lua for Windows using Cygwin without modifying the Makefiles:
+<p>
+<DL>
+<dt><dd><pre>make "CC=gcc -mno-cygwin" mingw</pre>
+</DL>
+<p>
+If you also want luac.exe:
+<p>
+<DL>
+<dt><dd><pre>make "CC=gcc -mno-cygwin" -C src LUAC_T=luac.exe luac.exe</pre>
+</DL>
+<p>
+These commands build lua.exe dynamically linked to lua51.dll and builds luac.exe statically linked to lua.  The reason we don't dynamically link luac.exe to lua51.dll is that luac.exe uses certain internal functions not exported by lua51.dll .  A possibly better approach would be to export those additional symbols from lua51.dll <a href="http://lua-users.org/lists/lua-l/2006-02/msg00422.html">[2]</a>, and preferably <em>only</em> adding those symbols.
+<p>
+Instead of the above two commands, it is also fairly straight-forward to modify the Lua Makefile.  Add the following to src/Makefile:
+<p>
+<DL>
+<dt><dd><pre>
+
+mingw-cygwin:
+
+	$(MAKE) "LUA_A=lua51.dll" "LUA_T=lua.exe" \
+
+	  "CC=gcc -mno-cygwin" \
+
+	  "AR=gcc -mno-cygwin -shared -o" "RANLIB=strip --strip-unneeded" \
+
+	  "MYCFLAGS=-DLUA_BUILD_AS_DLL" "MYLIBS=" "MYLDFLAGS=-s" lua.exe &amp;&amp; \
+
+	$(MAKE) "LUAC_T=luac.exe" "CC=gcc -mno-cygwin" luac.exe
+
+</pre>
+</DL>
+<p>
+then build with <code>make mingw-cygwin</code> .
+<p>
+To install, add "TO_LIB=lua51.dll" to the make command.  For example,
+<p>
+<DL>
+<dt><dd><pre>make TO_LIB=lua51.dll local</pre>
+</DL>
+<p>
+<H3>(Windows) Cygwin</H3>
+<p>
+The following describes building a Cygwin build of Lua (i.e. linked against cygwin1.dll [*3]).  For MinGW builds under Cygwin, see above instead.
+See also the Cygwin Lua package <a href="http://www.cygwin.com/ml/cygwin-announce/2009-06/msg00035.html">[3]</a><a href="http://cygwin.com/cgi-bin2/package-cat.cgi?file=lua%2Flua-5.1.4-11&amp;grep=lua">[4]</a><a href="http://mirrors.kernel.org/sourceware/cygwin/release/Lua/lua/">[5]</a>.
+<p>
+"make posix" will build a Cygwin Lua without shared library support or readline support.
+<p>
+"make linux" will build a Cygwin Lua without shared library support and with readline support.[*1]
+<p>
+"make mingw" will build a Cygwin Lua with shared library support, but it doesn't use "-DLUA_USE_LINUX" so it won't be ideal.
+<p>
+To build a Cygwin Lua with shared library support and readline support, you can use these build rules[*2]:
+<p>
+<DL>
+<dt><dd><pre>
+
+cygwin:
+
+	$(MAKE) "LUA_A=cyglua-5.1.dll" "LUA_T=lua.exe" \
+
+	"AR=$(CC) -shared -o" "RANLIB=strip --strip-unneeded" \
+
+	"MYCFLAGS=-DLUA_USE_LINUX -DLUA_BUILD_AS_DLL" \
+
+	"MYLIBS=-lreadline -lhistory" "MYLDFLAGS=-s" lua.exe
+
+</pre>
+</DL>
+<p>
+The above also works for Lua 5.2, just change the name of the DLL:
+<p>
+<DL>
+<dt><dd><pre>
+
+cygwin:
+
+	$(MAKE) "LUA_A=cyglua-5.2.dll" "LUA_T=lua.exe" \
+
+	"AR=$(CC) -shared -o" "RANLIB=strip --strip-unneeded" \
+
+	"MYCFLAGS=-DLUA_USE_LINUX -DLUA_BUILD_AS_DLL" \
+
+	"MYLIBS=-lreadline -lhistory" "MYLDFLAGS=-s" lua.exe
+
+</pre>
+</DL>
+<p>
+Note: Cygwin usually prefixes shared libraries by "cyg".  The Lua package in Cygwin uses "cyglua-5.1.dll", though you may still use the conventional Windows "lua51.dll" or "lua52.dll".
+<p>
+Unlike Linux, Cygwin doesn't require "-lncurses", although it doesn't hurt.
+<p>
+<code>LUA_USE_ULONGJMP</code>, which is part of <code>LUA_POSIX</code> and in turn <code>LUA_USE_LINUX</code>, used to cause a harmless warning in Cygwin 1.5 <a href="/lists/lua-l/2008-08/msg00275.html">[16]</a>.  In Cygwin 1.7, this appears to no longer occur because Cygwin 1.7 defines <code>_setjmp</code>.  Therefore, <code>LUA_POSIX</code> or <code>LUA_USE_LINUX</code> can now be used without warning in Cygwin.
+<p>
+The "MYLDFLAGS=-s" is optional: It strips symbols from the executables, which aren't needed, thereby reducing file size.  "RANLIB=strip --strip-unneeded" is optional too: this reduces the number of unnecessary symbols in the DLL.  The Lua Cygwin package uses "RANLIB=:" (i.e. do nothing), which can also be written "RANLIB=@:" (i.e. no output).  The Lua default "RANLIB=ranlib" is invalid to execute on a Windows DLL.
+<p>
+The Lua Cygwin package uses "AR=$(CC) -shared -Wl,--enable-auto-image-base -Wl,--enable-auto-import -Wl,--out-implib,liblua.dll.a -o".  The "-Wl,--out-implib,liblua.dll.a" generates an import library if you want one (actually optional in Windows-based gcc).  The "-Wl,--enable-auto-import" should be standard on Cygwin <a href="http://www.redhat.com/docs/manuals/enterprise/RHEL-4-Manual/gnu-linker/win32.html">[6]</a>.  The "-Wl,--enable-auto-image-base <a href="http://marc.info/?l=openssl-dev&amp;m=117516388618212">[7]</a><a href="http://www.cygwin.com/ml/cygwin-apps/2005-12/msg00101.html">[8]</a><a href="http://www.delorie.com/gnu/docs/binutils/ld_4.html">[9]</a><a href="http://www.mail-archive.com/libtool-patches@gnu.org/msg01205.html">[10]</a> is an optional improvement but apparently enabled by default now <a href="http://www.cygwin.com/ml/cygwin/2009-05/msg00532.html">[11]</a><a href="http://www.pubbs.net/200908/gcc/25956-patch-enable-auto-image-base-for-cygwin.html">[12]</a>.  Therefore, it looks like "-Wl,--enable-auto-image-base -Wl,--enable-auto-import" is no longer needed.
+<p>
+You may, like the Lua Cygwin package, wish to set LUA_CPATH_DEFAULT to use .dll rather than .so for the extension of Lua C modules, but this is optional.
+<p>
+For info on using <a href="../wiki/LuaRocks.html" >LuaRocks</a> under Cygwin, see [*4]
+<p>
+<UL>
+<li> [*1] <a href="/lists/lua-l/2008-02/msg00120.html">LuaList:2008-02/msg00120.html</a>
+<li> [*2] <a href="/lists/lua-l/2006-01/msg00680.html">LuaList:2006-01/msg00680.html</a>
+<li> [*3] <a href="/lists/lua-l/2006-01/msg00187.html">LuaList:2006-01/msg00187.html</a>
+<li> [*4] <a href="http://luaforge.net/mail/?group_id=220">http://luaforge.net/mail/?group_id=220</a>
+</UL>
+<p>
+<H3>(Windows) Dev-C++ (MinGW)</H3>
+<p>
+For a quick and clean (not dirty! :-)) Lua build with Dev-C++, use this .bat file:<a href="/files/wiki_insecure/build/compile.bat">[17]</a>. 
+You may have to alter your path before running this .bat with that 
+(SET PATH=C:\Dev-Cpp\Bin;C:\Dev-Cpp\lib\gcc-lib\mingw32\3.2;%PATH% please reflect with the directory of you Dev C++). 
+It builds lua.exe, luac.exe, lua5.dll and lualib5.dll. 
+Copy it to lua-5.0 directory and run. 
+I hate to say this, but this .bat has no warranty (it worked for _me_ on Windows XP and 2000), 
+i just hope it'll be useful (additionally, it's much easier to read than makefiles). 
+For building all with devCpp, use this .bat/.cmd <a href="/files/wiki_insecure/build/build_devcpp.cmd">[18]</a>. 
+You'll have to edit it if DevCPP is not in C:\Dev-Cpp\. 
+Copy the file to lua-5.0 directory and run it, it'll build liblua.a, liblualib.a, lua5.dll, lualib5.dll, lua.exe and luac.exe. 
+I've tested with dev-cpp 5 beta. 
+<p>
+<H3>(Windows) Dev-C++ native</H3>
+<p>
+Lua 5.0.2 (and most probably higher versions) can be built in Windows using these devcpp configurations. 
+1. Download the lua tar.gz and extract it to a folder of your choice. 
+2. Download and extract this file <a href="/files/wiki_insecure/build/lua5.0.2-devcpp.zip">[19]</a> into the lua-5.0.2 folder 
+so that you have a subfolder called <strong>devcpp</strong> 
+3. open the devcpp folder and double click on corelibs.dev etc. 
+<p>
+NOTE:
+Change -DLUA_API=__declspec(dllexport) to -DLUA_API='__declspec(dllexport)' 
+<p>
+Just hit the compile button and everything should be fine 
+<strong>Remark that there MUST NOT be any lua.dll's in you system path.</strong> 
+Otherwise the standard libs and lua.exe may have problems linking to the correct dll. 
+I don't know how to set this from the devcpp files directly.
+<p>
+<H3>(Windows) Creating a forward dll (5.1)</H3>
+<p>
+The default name for the Lua 5.1 DLL as specified in Lua makefile is lua51.dll. However there are several precompiled binaries out there using another convention. The real problems appear when you use an interpreter using one convention (for example lua51.dll) and try to load a module using another convention (lua5.1.dll). If both dll exist, both will be loaded resulting in code duplication, and potential bugs related to static variable duplication (for example freeing a block of memory in one dll while it was allocated in the other can lead to unpredictable results).
+<p>
+The solution is to make sure that the interpreter and all modules use the same dll. If they were linked with different dll names, you can create a kind of fake dll (called a proxy dll or forwarding dll), that forward all API calls to the good one. In the example above you could create a proxy dll called lua5.1.dll that forwards all calls to lua51.dll. That way both the interpreter and the modules will use the same copy of the dll (lua51.dll), avoiding problems mentionned above.
+<p>
+You can find scripts generating such a DLL there: <a href="../wiki/LuaProxyDllThree.html" >LuaProxyDllThree</a> and there: <a href="../wiki/LuaProxyDllTwo.html" >LuaProxyDllTwo</a>.
+<p>
+<H3>(Windows) Using CMake for version (5.2.2) CMakeLists.txt file follows</H3>
+<p>
+This is a minimal CMakeLists file 
+<p>
+<pre>
+
+PROJECT ( lua )
+
+
+
+IF( NOT WIN32 )
+
+    message( FATAL_ERROR "Written for window only" )
+
+ENDIF()
+
+
+
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+
+
+
+# remove warnings
+
+ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS ) 
+
+
+
+SET (HDR_LIBLUA
+
+src/lapi.h src/lauxlib.h src/lcode.h src/lctype.h src/ldebug.h src/ldo.h src/lfunc.h
+
+src/lgc.h src/llex.h src/llimits.h src/lmem.h src/lobject.h src/lopcodes.h src/lparser.h
+
+src/lstate.h src/lstring.h src/ltable.h src/ltm.h src/lua.h src/luaconf.h src/lualib.h
+
+src/lundump.h src/lvm.h src/lzio.h
+
+)
+
+
+
+#SET_SOURCE_FILES_PROPERTIES(${HDR_LIBLUA} PROPERTIES HEADER_FILE_ONLY TRUE)
+
+#include_directories(src)
+
+
+
+# Build Libraries
+
+SET (SRC_LIBLUA
+
+src/lapi.c src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcode.c src/lcorolib.c
+
+src/lctype.c src/ldblib.c src/ldebug.c src/ldo.c src/ldump.c src/lfunc.c src/lgc.c
+
+src/linit.c src/liolib.c src/llex.c src/lmathlib.c src/lmem.c src/loadlib.c src/lobject.c
+
+src/lopcodes.c src/loslib.c src/lparser.c src/lstate.c src/lstring.c src/lstrlib.c
+
+src/ltable.c src/ltablib.c src/ltm.c src/lundump.c src/lvm.c src/lzio.c
+
+)
+
+
+
+SET ( SRC_LUA src/lua.c )
+
+SET ( SRC_LUAC src/luac.c )
+
+
+
+# compile with C++ compiler
+
+set_source_files_properties(${SRC_LIBLUA} ${SRC_LUA} ${SRC_LUAC} PROPERTIES LANGUAGE CXX)
+
+
+
+# append headers to sources to make them show up in MSVC GUI
+
+LIST(APPEND SRC_LIBLUA ${HDR_LIBLUA})
+
+
+
+#Library
+
+ADD_LIBRARY ( lualib ${SRC_LIBLUA} )
+
+
+
+#DLL
+
+ADD_LIBRARY ( lua5.2 SHARED ${SRC_LIBLUA} )
+
+SET_TARGET_PROPERTIES (lua5.2 PROPERTIES DEFINE_SYMBOL  "LUA_BUILD_AS_DLL" )
+
+
+
+#exe
+
+ADD_EXECUTABLE ( lua    ${SRC_LUA}  )
+
+ADD_EXECUTABLE ( luac  ${SRC_LUAC} )
+
+
+
+#lua uses a DLL; luac uses a library
+
+TARGET_LINK_LIBRARIES ( lua lua5.2 )
+
+TARGET_LINK_LIBRARIES ( luac lualib )
+
+
+
+</pre>
+<p>
+copy and paste this into a CMakeLists.txt file in the root of 5.2.2
+<p>
+use a command like:
+<p>
+<pre>
+
+cmake  -G "Visual Studio 10"
+
+</pre>
+<p>
+depending in your version of dev studio.
+Use the lua.sln file to compile.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaCompileIssues.html" >LuaCompileIssues</a> - more info &amp; hints to compiling on several platforms 
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BuildingLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BuildingLua" >history</a><br>Last edited June 3, 2013 6:56 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BuildingLua" >(diff)</a>
+</body>
+</html>

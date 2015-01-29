@@ -1,0 +1,364 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Fast String Patch</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FastStringPatch&amp;body=1" title="List pages referring to FastStringPatch">Fast String Patch</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is an experimental patch against Lua 5.1-work6 to add support
+for "fast strings" to the Lua VM.
+<p>
+It's based on an idea by Rici Lake (briefly mentioned in the
+'Lua strings as "atoms"' mailing list thread in May 2005). It was
+further discussed and refined on irc #lua. I decided to do a
+prototype implementation to test the validity of the concept.
+<p>
+This patch is intended to gain feedback on the usefulness of fast
+strings for Lua applications. Any and all comments are welcome.
+Especially needed are benchmark comparisons for real applications
+that use many (different) small strings. Thank you!
+<p>
+To avoid any misunderstanding: the patch is *NOT* intended to be
+merged into the Lua 5.1 standard distribution nor would I
+recommend to do so (at this time). I leave it entirely up to the
+judgement of the Lua authors whether anything from this patch 
+is worthwhile to be included into any future Lua version.
+<p>
+Please send your comments to the Lua mailing list, since the Wiki
+is not well suited for discussions.
+<p>
+-- <a href="../wiki/MikePall.html" >MikePall</a>
+<p>
+License notice: I hereby declare that all work I contributed to
+the Lua core is to be governed under the same license as the
+Lua core itself.
+<p>
+<H2>Download</H2>
+<p>
+Click to download the
+<a href="/files/wiki_insecure/users/MikePall/lua51w6-fstring1.patch">[patch itself]</a>
+or a
+<a href="/files/wiki_insecure/users/MikePall/lua51w6-fstring1.tar.gz">[patched-up Lua 5.1-work6 distribution]</a>.
+<p>
+A number of fixes for the baseline have been included in the patch:
+MSVC number2int fix, *s performance improvement, remove undefined
+lua_checkpc assertion.
+<p>
+<H2>The Idea</H2>
+<p>
+Lua stores all objects in tagged value slots on the Lua stack or
+in Lua tables. These slots are usually 12 or 16 bytes long
+(depending on the architecture and the type of lua_Number).
+The size is dominated by the requirement to store properly aligned
+pointers and lua_Number's. The tag itself is a small integer and
+easily fits into a single byte. That leaves us either 11 or 15
+bytes of free space that can be put to good use.
+<p>
+The basic idea is to store fast strings (i.e. short strings of
+up to 11 or 15 bytes) directly into tagged value slots instead
+of allocating them on the heap.
+<p>
+This means that fast strings behave more like numbers in that
+they do not need to be allocated, garbage collected or freed.
+This significantly reduces VM overhead.
+<p>
+<H2>Compatibility</H2>
+<p>
+Neither the Lua API not the Lua/C API have been changed. There
+is no need to change anything in your Lua or C modules (but see
+below under "Caveats" for some notes about Lua/C API conformance).
+<p>
+Fast strings behave and look exactly like regular strings outside
+the Lua core. You do not need any special provisions for using
+them and there is no externally visible difference.
+<p>
+Yes, this means type() returns "string" and lua_type() returns
+LUA_TSTRING, no matter how the string is stored internally.
+You can use all Lua functions and all Lua/C API functions for
+strings without restrictions.
+<p>
+Of course your application may be faster and it may use less
+memory. So you may notice a difference after all. But that's
+kind of the point of this patch ...
+<p>
+<H2>Rationale</H2>
+<p>
+Many applications use short strings extensively. It's well known
+that there is a significant skew towards short strings in the
+distribution of string sizes used by typical applications
+(e.g. names, tags, identifiers, natural language words, ...).
+And many of these short strings have only a very limited lifetime
+(e.g. temporaries, used only in local scopes).
+<p>
+As a consequence, short strings usually incur a high overhead
+for memory management (allocate and free), for garbage collection
+(mark and sweep) and for managing a shared string hash table.
+There is additional overhead due to contention with other managed
+objects:
+<UL>
+<li> Allocating and freeing many small blocks interspersed with a few large blocks in more or less random order is the worst case for most memory allocators.
+<li> Garbage collection algorithms usually scale with the number of collectible objects and not the total size of all objects.
+<li> With a shared string hash table every created string object needs to be hashed at least once.
+</UL>
+<p>
+Fast strings avoid most of this overhead:
+<UL>
+<li> Creation of a fast string is as simple as copying a few bytes to a stack slot and setting the tag.
+<li> Deletion is implicit -- the stack slot is simply reused by overwriting it with some other object.
+<li> Hashing is only needed for table keys. It's not required for table values nor for fast strings that never leave the stack.
+<li> The garbage collector treats fast strings as incollectible and simply ignores them. There is no overhead for marking or sweeping fast strings.
+<li> Contention of the shared string table is significantly reduced because the hash table is no longer swamped with many short strings.
+</UL>
+<p>
+Two key advantages of a shared string table are that string
+equality and table lookup are cheap. The former needs a type
+plus pointer comparison, the latter can reuse the precomputed
+hash value (but it needs to be stored with the allocated string).
+<p>
+Equality checks on fast strings are equally cheap when done
+right: bulk comparison of a tagged value slot is fast and tag
+number comparison can be optimized, too (e.g. by holding the
+fast string length). Fast string hashing can use a fast bulk
+hash of the whole slot. Any remaining hash overhead can be
+reduced by avoiding the hash generation for lookups in small
+tables (a linear bulk comparison is faster).
+<p>
+<H2>Benchmarks</H2>
+<p>
+Obviously one can prove almost anything when selecting the proper
+benchmark. So I left out some targetted benchmarks like:
+<code>lua -e 'for i in io.lines() do end' &lt;/usr/share/dict/words</code>
+or excessive use of <code>string.gfind()</code> or <code>string.gsub()</code>.
+<p>
+These show tremendous speedups (anywhere from +60% to +200%
+depending on the architecture), but probably do not exercise
+typical application behaviour.
+<p>
+On the converse you won't see any difference on standard
+benchmarks that do not use short strings extensively (e.g.
+fibionacci numbers or matrix multiplication).
+<p>
+So I've just taken the obvious candidates from the "great
+computer language shootout" benchmarks and compared them on
+different architectures:
+<pre>
+
+Benchmark   |   x86      x64     PPC32    PPC64
+
+------------+----------------------------------
+
+hash        | +38.2%   +55.8%   +40.9%   +38.7%
+
+spellcheck  | +23.6%   +45.8%   +17.7%   +25.2%
+
+reversefile |  +6.2%   +22.7%   +10.2%   +13.6%
+
+wordfreq    |  +2.2%    +8.3%   +10.6%    +8.6%   
+
+</pre>
+Well ... not bad, huh?
+<p>
+But of course it would be best to see some benchmark results
+from real applications. Please share any insights you may have
+with the mailing list. Thank you!
+<p>
+<H2>Restrictions</H2>
+<p>
+<UL>
+<li> This patch has only been tested on 32 bit and 64 bit systems.
+</UL>
+<p>
+16 bit systems are not supported right now and you'll get a
+compiler error if you try. This is more a matter of testing
+and supporting 16 bit size_t's (note that some 16 bit systems
+use 32 bit size_t's, but the current implementation is not
+tuned for this and refuses to compile on any 16 bit system).
+<p>
+<UL>
+<li> It has only been tested with the standard lua_Number type (double). I do not expect problems with other types (this may affect the size and alignment of tagged value slots).
+</UL>
+<p>
+<UL>
+<li> The prototype implementation uses a fixed stack size (see LUAI_FIXEDSTACK in luaconf.h). This is only a simple workaround right now (see below). You may need to tweak this value if you have many coroutines or need deeply nested recursive functions.
+</UL>
+<p>
+<H2>Implementation Details</H2>
+<p>
+One important requirement for the implementation of fast strings
+was to not change the Lua/C API. This avoids the necessity to
+rewrite any C modules and helps with getting quick feedback
+for the prototype implementation.
+<p>
+However fast strings and regular strings need to coexist inside
+the Lua core and must be treated differently almost everywhere.
+But there should not be any visible difference between them
+from the outside and they should be treated the same. This
+necessitated a split between internal and external tag numbers.
+<p>
+Internal tag numbers are only visible inside the Lua core and
+are stored in all tagged value slots (stack and table slots)
+and GC objects. External tag numbers are only visible outside
+of the Lua/C API and are used by all C modules.
+<p>
+The internal tag numbers are defined in lobject.h. All of their
+names start with 'TT' (e.g. TTNIL, TTBOOLEAN, ...). They are
+stored in a single unsigned byte (tt in struct TValue). The
+tag number is split into a 4 bit major number and a 4 bit
+minor number. The major number holds the basic object type,
+the minor number holds additional details. The minor number
+is currently only used for booleans (to hold false (0)
+or true (1)) and fast strings (to hold the string length).
+<p>
+At the Lua/C API boundary all internal tag numbers are mapped
+to the external tag numbers defined in lua.h. Their names start
+with 'LUA_T' (E.g. LUA_TNIL, LUA_TBOOLEAN, ...) and keep the
+same meaning as in a standard Lua core. Both fast strings and
+regular strings map to the same external type (LUA_TSTRING).
+The same API calls work with both kinds of strings and well
+written C modules will never notice any difference (but see
+below under "Caveats").
+<p>
+Clever allocation of internal tag numbers helps to speed up many
+common checks. E.g. ttixstring() checks for both kinds of strings
+in one operation and with only one conditional. Dito for the
+performance sensitive l_isfalse() macro. The tag number for a
+fast string of maximum length is always zero (0x00) and serves as
+a terminator for C strings, too. This means that lua_tolstring()
+can simply return a pointer to the stack slot for fast strings.
+<p>
+Due to the string pointer stability guarantees given by the
+existing Lua/C API (see below) it's required to avoid stack
+reallocation. For the prototype implementation I decided to use
+a fixed stack size (see LUAI_FIXEDSTACK in luaconf.h). This is
+of course not desirable in the long term and several better
+solutions exist: stack chunking, lazy stack copying/freeing or
+changing/augmenting the the Lua/C API guarantees. However this
+was just not within the scope of this prototype implementation
+(sorry).
+<p>
+Apart from the changes needed for the internal type system, all
+places where strings are created or accessed needed to be changed
+to handle both variants. This is what the ttixstring(), xsvalue()
+and xslen() macros and the luaS_set* functions and macros are for.
+Object copying has been changed to copy the whole tagged value
+slot. Some changes for object comparisons and hash tables were
+needed, too. Dumping/undumping a function always stores the
+external type value in pre-compiled chunks.
+<p>
+The Lua compiler (llex.c, lparser.c, lcode.c) only deals with
+strings in the form of TString pointers. To avoid extensive
+modifications without any perceived benefit, this has not been
+changed. This means the compiler always uses regular strings
+internally (even for short strings). They are only converted to
+tagged values (regular or fast strings) when they are used as
+constants in function prototoypes. All strings used for debug
+information (like variable names) are still regular strings.
+This turns out not to be a problem because the debug API only
+returns string pointers, anyway.
+<p>
+The patch looks lengthy because of the many tiny changes. But it
+has little impact on the resulting code size: it adds only ~1.8K
+to the Lua core (with default settings on x86 + gcc 3.3).
+<p>
+There is one tunable (LUAI_FSTRINGWORDS in luaconf.h) that allows
+you to change the default maximum size of fast strings from 11
+to 15 characters on 32 bit systems. Note that 64 bit systems
+always use a limit of 15 characters (which is the maximum, too).
+Please read the description in luaconf.h carefully before setting
+this value.
+<p>
+This may be helpful when a significant percentage of your strings
+falls into the range of 12..15 characters. But I have not found
+any noticeable performance gains in my tests. So I've opted for
+smaller stack/table slots in the default configuration (leaving
+LUAI_FSTRINGWORDS undefined).
+<p>
+<H2>Caveats</H2>
+<p>
+Fast strings behave like regular strings when used from outside
+the Lua/C API boundary. But there are a few subtle differences
+that may affect programs that (maybe unknowingly) take advantage
+of a few implementation details of the standard Lua VM:
+<p>
+1. The specification for lua_tostring()/lua_tolstring() says:
+"Because Lua has garbage collection, there is no guarantee
+that the pointer returned by lua_tostring will be valid after
+the corresponding value is removed from the stack."
+<p>
+Previously you could sometimes get away with destroying the
+stack slot for regular strings and still reference the pointer
+(because the GC was not run immediately). However this is an
+API violation and may cause hard to find bugs.
+<p>
+Since fast strings return a pointer to the stack slot itself,
+non-conformant C modules *definitely* need to be fixed.
+<p>
+An additional restriction is that a fast string pointer may
+get stale if stack slots are moved (lua_insert()). However
+this is very rare and can be avoided easily.
+<p>
+2. The Lua/C API does not guarantee string _pointer_ equality for
+identical strings.
+<p>
+Some authors may have wrongly assumed that because all strings
+are shared, the same pointer is always returned for identical
+strings. This is not true in the general case. A string may
+have been deallocated and newly allocated if there was no
+reference to it anywhere in the Lua stack or in a table.
+<p>
+With fast strings you may get a different pointer for identical
+strings, depending on the referenced stack slot. And you may
+get the same pointer for different strings, if you happen to
+reuse the same stack slot.
+<p>
+Anyway, nowhere does the Lua/C API specification guarantee
+string _pointer_ equality. The only proper test for equality
+is to use the lua_equal() or lua_rawequal() API functions.
+<p>
+C modules making invalid assumptions about string pointer
+equality will *definitely* break with the fast string patch.
+<p>
+3. The Lua/C API specification makes no explicit statement about
+Lua stack reallocation. It is implied that string pointers
+retrieved from live stack slots are stable even when the Lua
+stack is reallocated (moved).
+<p>
+This is a pure necessity since almost any API call may
+reallocate the stack. Some C library calls (e.g. string.gsub())
+may break without this guarantee.
+<p>
+This is the motivation for the fixed stack size workaround in
+the prototype implementation (see above under "Implementation
+Details").
+<p>
+<p>
+<DL>
+<dt><dd><em>This approach sounds similar to the "small string optimization (SSO)" used in some C++ STL implementations of basic_string<a href="http://www.ddj.com/dept/cpp/184403784">[1]</a>. --<a href="../wiki/DavidManura.html" >DavidManura</a></em>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FastStringPatch" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FastStringPatch" >history</a><br>Last edited February 16, 2007 1:32 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FastStringPatch" >(diff)</a>
+</body>
+</html>

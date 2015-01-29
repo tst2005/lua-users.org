@@ -1,0 +1,855 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Serial Communication</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SerialCommunication&amp;body=1" title="List pages referring to SerialCommunication">Serial Communication</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here's various code and discussions relating to controlling the RS-232 serial communication port from Lua.
+<p>
+<H2>Mail List Posts</H2>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2008-06/msg00323.html">LuaList:2008-06/msg00323.html</a>
+<li> <a href="/lists/lua-l/2007-10/msg00588.html">LuaList:2007-10/msg00588.html</a>
+<li> <a href="/lists/lua-l/2007-09/msg00465.html">LuaList:2007-09/msg00465.html</a>
+<li> <a href="/lists/lua-l/2012-06/msg00494.html">LuaList:2012-06/msg00494.html</a>
+</UL>
+<p>
+<H2>Using Alien</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Lua serial communications library.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Note: currently only works on Win32.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- The implementation uses alien ( http://alien.luaforge.net/ ).</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Warning: not extensively tested.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Possible improvements:</span>
+
+<span class="comment">--   - decide more consistently when to raise or return on error</span>
+
+<span class="comment">--     (io.open/fh:read/fh:write return, but Lua</span>
+
+<span class="comment">--      Programming Gems, p.137 suggests we perhaps</span>
+
+<span class="comment">--      should raise)</span>
+
+<span class="comment">--   - add close() method on file handle, possibly</span>
+
+<span class="comment">--     via __gc on newproxy() so that it closes upon</span>
+
+<span class="comment">--     garbage collection</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- D.Manura. 2008-07</span>
+
+<span class="comment">-- S.Slobodov, 2009-01: fixed alien interface, fixed a typo,</span>
+
+<span class="comment">--    added COM10 and up, made non-blocking</span>
+
+<span class="comment">-- D.Manura, 2009-01: add close(); improve exception safety some</span>
+
+<span class="comment">-- S.Slobodov, 2009-01: added routines to set DTR and RTS and to query CTS, plus unbuffered transmission</span>
+
+<span class="comment">-- Licensed under the same terms as Lua itself (MIT license).</span>
+
+<span class="comment">-- Please post patches and improvements.</span>
+
+
+
+
+
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="keyword">local</span> alien = <span class="library">require</span> <span class="string">"alien"</span>
+
+
+
+<span class="comment">-- win32 values for CreateFile</span>
+
+<span class="keyword">local</span> GENERIC_READ = 0x80000000
+
+<span class="keyword">local</span> GENERIC_WRITE = 0x40000000
+
+<span class="keyword">local</span> OPEN_EXISTING = 3
+
+
+
+<span class="comment">-- win32 parity values</span>
+
+<span class="keyword">local</span> EVENPARITY = 2
+
+<span class="keyword">local</span> MARKPARITY = 3
+
+<span class="keyword">local</span> NOPARITY = 0
+
+<span class="keyword">local</span> ODDPARITY = 1
+
+<span class="keyword">local</span> SPACEPARITY = 4
+
+
+
+<span class="comment">-- win32 stop bit values</span>
+
+<span class="keyword">local</span> ONESTOPBIT = 0
+
+<span class="keyword">local</span> ONE5STOPBITS = 1
+
+<span class="keyword">local</span> TWOSTOPBITS = 2
+
+
+
+<span class="comment">-- maps parity name to win32 parity value</span>
+
+<span class="keyword">local</span> parity_to_win32 = {
+
+  even = EVENPARITY,
+
+  mark = MARKPARITY,
+
+  none = NOPARITY,
+
+  odd = ODDPARITY,
+
+  space = SPACEPARITY
+
+}
+
+
+
+<span class="comment">-- maps stop bits to win32 stop bits value</span>
+
+<span class="keyword">local</span> stopbits_to_win32 = {
+
+  [1]   = ONESTOPBIT,
+
+  [1.5] = ONE5STOPBITS,
+
+  [2]   = TWOSTOPBITS
+
+}
+
+
+
+<span class="keyword">local</span> kernel32 = alien.load<span class="string">"kernel32.dll"</span>
+
+
+
+<span class="comment">-- bitwise operators</span>
+
+<span class="comment">-- based on http://ricilake.blogspot.com/2007/10/iterating-bits-in-lua.html</span>
+
+<span class="comment">-- 1-based indexing</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> bit(p) <span class="keyword">return</span> 2 ^ (p - 1) <span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> hasbit(x, p) <span class="keyword">return</span> x % (p + p) &gt;= p <span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> setbit(x, p) <span class="keyword">return</span> hasbit(x, p) <span class="keyword">and</span> x <span class="keyword">or</span> x + p <span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> clearbit(x, p) <span class="keyword">return</span> hasbit(x, p) <span class="keyword">and</span> x - p <span class="keyword">or</span> x <span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> changebit(x, p, b) <span class="keyword">return</span> b <span class="keyword">and</span> setbit(x,p) <span class="keyword">or</span> clearbit(x,p) <span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> get_last_error()
+
+  <span class="keyword">local</span> FORMAT_MESSAGE_ALLOCATE_BUFFER = 0x00000100
+
+  <span class="keyword">local</span> FORMAT_MESSAGE_FROM_SYSTEM     = 0x00001000
+
+  <span class="keyword">local</span> FORMAT_MESSAGE_IGNORE_INSERTS  = 0x00000200
+
+
+
+  <span class="keyword">local</span> LANG_NEUTRAL    = 0x00
+
+  <span class="keyword">local</span> SUBLANG_DEFAULT = 0x01
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> MAKELANGID(p, s) <span class="keyword">return</span> s * 2^10 + p <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- C function declarations</span>
+
+  <span class="keyword">local</span> FormatMessage = <span class="library">assert</span>(kernel32.FormatMessageA)
+
+  FormatMessage:types{ret =<span class="string">'int'</span>, abi = <span class="string">'stdcall'</span>, <span class="string">'int'</span>,
+
+      <span class="string">'pointer'</span>, <span class="string">'int'</span>, <span class="string">'int'</span>, <span class="string">'pointer'</span>, <span class="string">'int'</span>, <span class="string">'pointer'</span>}
+
+  <span class="keyword">local</span> GetLastError = <span class="library">assert</span>(kernel32.GetLastError)
+
+  GetLastError:types{ret = <span class="string">'int'</span>, abi = <span class="string">'stdcall'</span>}
+
+  <span class="keyword">local</span> LocalFree = <span class="library">assert</span>(kernel32.LocalFree)
+
+  LocalFree:types{ret = <span class="string">'pointer'</span>, abi = <span class="string">'stdcall'</span>, <span class="string">'pointer'</span>}
+
+
+
+  <span class="keyword">local</span> buf = alien.buffer(4)
+
+  buf:set(0, buf2, <span class="string">'pointer'</span>)
+
+
+
+  <span class="keyword">local</span> ret = FormatMessage(
+
+    FORMAT_MESSAGE_ALLOCATE_BUFFER + FORMAT_MESSAGE_FROM_SYSTEM
+
+      + FORMAT_MESSAGE_IGNORE_INSERTS,
+
+    <span class="keyword">nil</span>,
+
+    GetLastError(),
+
+    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+
+    buf, <span class="comment">-- ref: msg_buf,</span>
+
+    0,
+
+    <span class="keyword">nil</span>
+
+  )
+
+  <span class="keyword">if</span> ret == 0 <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">"Unknown error."</span> <span class="keyword">end</span>
+
+  <span class="keyword">local</span> msg = alien.tostring(buf:get(1,<span class="string">'pointer'</span>))
+
+  LocalFree(buf:get(1, <span class="string">'pointer'</span>))
+
+
+
+  <span class="keyword">return</span> msg
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> config(h, t)
+
+  <span class="keyword">local</span> speed = t.speed
+
+  <span class="keyword">local</span> databits = t.databits
+
+  <span class="keyword">local</span> stopbits = t.stopbits
+
+  <span class="keyword">local</span> parity = t.parity
+
+  <span class="keyword">local</span> handshake = t.handshake
+
+
+
+  <span class="library">assert</span>(stopbits_to_win32[stopbits])
+
+  <span class="library">assert</span>(parity_to_win32[parity])
+
+  <span class="library">assert</span>(databits == 5 <span class="keyword">or</span> databits == 6 <span class="keyword">or</span> databits == 7 <span class="keyword">or</span> databits == 8)
+
+  <span class="library">assert</span>(<span class="library">type</span>(speed) == <span class="string">'number'</span> <span class="keyword">and</span> speed &gt; 0)
+
+
+
+  <span class="comment">-- C function declarations</span>
+
+  <span class="keyword">local</span> GetCommState = kernel32.GetCommState
+
+  GetCommState:types{ret = <span class="string">"int"</span>, abi = <span class="string">'stdcall'</span>, <span class="string">"pointer"</span>, <span class="string">"pointer"</span>}
+
+  <span class="keyword">local</span> SetCommState = <span class="library">assert</span>(kernel32.SetCommState)
+
+  SetCommState:types{ret = <span class="string">"int"</span>, abi = <span class="string">'stdcall'</span>, <span class="string">"pointer"</span>, <span class="string">"pointer"</span>}
+
+  <span class="keyword">local</span> SetCommTimeouts = <span class="library">assert</span>(kernel32.SetCommTimeouts)
+
+  SetCommTimeouts:types{ret = <span class="string">"int"</span>, abi = <span class="string">'stdcall'</span>, <span class="string">"pointer"</span>, <span class="string">"pointer"</span>}
+
+
+
+  <span class="keyword">local</span> buf = alien.buffer(4*3 + 3*2 + 3*1 + 5*3 + 2*1)
+
+  GetCommState(h, buf)
+
+
+
+  <span class="keyword">local</span> offset_DCBlength = 1
+
+  <span class="keyword">local</span> offset_BaudRate  = 1 + 1*4
+
+  <span class="keyword">local</span> offset_flags     = 1 + 2*4
+
+  <span class="keyword">local</span> offset_XonLim    = 1 + 3*4 + 1*2
+
+  <span class="keyword">local</span> offset_XoffLim   = 1 + 3*4 + 2*2
+
+  <span class="keyword">local</span> offset_ByteSize  = 1 + 3*4 + 3*2
+
+  <span class="keyword">local</span> offset_Parity    = 1 + 3*4 + 3*2 + 1
+
+  <span class="keyword">local</span> offset_StopBits  = 1 + 3*4 + 3*2 + 2
+
+  <span class="keyword">local</span> offset_XonChar   = 1 + 3*4 + 3*2 + 3
+
+  <span class="keyword">local</span> offset_XoffChar  = 1 + 3*4 + 3*2 + 4
+
+  <span class="keyword">local</span> offset_ErrorChar = 1 + 3*4 + 3*2 + 5
+
+  <span class="keyword">local</span> offset_EofChar   = 1 + 3*4 + 3*2 + 6
+
+  <span class="keyword">local</span> offset_EvtChar   = 1 + 3*4 + 3*2 + 7
+
+
+
+  buf:set(offset_BaudRate, speed, <span class="string">'int'</span>)
+
+
+
+  <span class="keyword">local</span> bits = buf:get(offset_flags, <span class="string">'int'</span>)
+
+  bits = changebit(bits, bit(1),  <span class="keyword">true</span>)  <span class="comment">-- fBinary</span>
+
+  bits = changebit(bits, bit(2),  parity ~= <span class="string">'none'</span>)  <span class="comment">-- fParity</span>
+
+  bits = changebit(bits, bit(3),  handshake == <span class="string">'hardware'</span>) <span class="comment">-- fOutxCtsFlow</span>
+
+  bits = changebit(bits, bit(4),  <span class="keyword">false</span>) <span class="comment">-- fOutxDsrFlow (ok?)</span>
+
+  bits = changebit(bits, bit(5),  <span class="keyword">false</span>) <span class="comment">-- fDtrControl[1] (ok?)</span>
+
+  bits = changebit(bits, bit(6),  <span class="keyword">false</span>) <span class="comment">-- fDtrControl[2] (ok?)</span>
+
+  bits = changebit(bits, bit(7),  <span class="keyword">false</span>) <span class="comment">-- fDsrSensitivity (ok?)</span>
+
+  bits = changebit(bits, bit(8),  <span class="keyword">false</span>) <span class="comment">-- fTXContinueOnXoff  (ok?)</span>
+
+  bits = changebit(bits, bit(9),  handshake == <span class="string">'xon/xoff'</span>) <span class="comment">-- fOutX</span>
+
+  bits = changebit(bits, bit(10), handshake == <span class="string">'xon/xoff'</span>) <span class="comment">-- fInX</span>
+
+  bits = changebit(bits, bit(11), <span class="keyword">false</span>) <span class="comment">-- fErrorChar (ok?)</span>
+
+  bits = changebit(bits, bit(12), <span class="keyword">false</span>) <span class="comment">-- fNull (ok?)</span>
+
+  bits = changebit(bits, bit(13), <span class="keyword">false</span>) <span class="comment">-- fRtsControl [1]</span>
+
+  bits = changebit(bits, bit(14), handshake == <span class="string">'xon/xoff'</span>) <span class="comment">-- fRtsControl [2]</span>
+
+  bits = changebit(bits, bit(15), <span class="keyword">false</span>) <span class="comment">-- fAbortOnError (ok?)</span>
+
+  buf:set(offset_flags, bits, <span class="string">'int'</span>)
+
+  buf:set(offset_ByteSize, databits, <span class="string">'byte'</span>)
+
+  buf:set(offset_Parity, parity_to_win32[parity], <span class="string">'byte'</span>)
+
+  buf:set(offset_StopBits, stopbits_to_win32[stopbits], <span class="string">'byte'</span>)
+
+
+
+  SetCommState(h, buf)
+
+
+
+  <span class="comment">-- timeout on receive immediately if no data pending</span>
+
+  <span class="comment">--	(so that you have a chance to do bigger an better things)</span>
+
+  <span class="comment">-- http://msdn.microsoft.com/en-us/library/aa363437(VS.85).aspx</span>
+
+  <span class="keyword">local</span> buf = alien.buffer(4*5)      <span class="comment">-- _COMMTIMEOUTS:</span>
+
+  buf:set(1, -1, <span class="string">"int"</span>)              <span class="comment">-- ReadIntervalTimeout</span>
+
+  buf:set(1+4*1, 0, <span class="string">"int"</span>)           <span class="comment">-- ReadTotalTimeoutMultiplier</span>
+
+  buf:set(1+4*2, 0, <span class="string">"int"</span>)           <span class="comment">-- ReadTotalTimeoutConstant</span>
+
+  buf:set(1+4*3, 0, <span class="string">"int"</span>)           <span class="comment">-- WriteTotalTimeoutMultiplier</span>
+
+  buf:set(1+4*4, 0, <span class="string">"int"</span>)           <span class="comment">-- WriteTotalTimeoutConstant</span>
+
+  SetCommTimeouts(h, buf)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> CloseHandle
+
+<span class="keyword">local</span> <span class="keyword">function</span> open(t)
+
+  <span class="keyword">local</span> port = t.port
+
+  <span class="library">assert</span>(<span class="library">type</span>(port) == <span class="string">'string'</span> <span class="keyword">and</span> port:match(<span class="string">'^COM[0-9]+$'</span>),
+
+    <span class="string">'invalid port name '</span>..port..<span class="string">'; expecting e.g. "COM1"'</span>)
+
+
+
+  <span class="keyword">local</span> portNum = port:match(<span class="string">"^COM([0-9]+)"</span>)
+
+  <span class="keyword">if</span> portNum+0 &gt;= 10 <span class="keyword">then</span> port = <span class="string">"\\\\.\\"</span>..port <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- C function declarations</span>
+
+  <span class="keyword">local</span> CreateFile = <span class="library">assert</span>(kernel32.CreateFileA)
+
+  CreateFile:types{ret = <span class="string">"pointer"</span>, abi = <span class="string">'stdcall'</span>, <span class="string">"string"</span>,
+
+      <span class="string">"int"</span>, <span class="string">"int"</span>, <span class="string">"pointer"</span>, <span class="string">"int"</span>, <span class="string">"int"</span>, <span class="string">"pointer"</span>}
+
+  CloseHandle = <span class="library">assert</span>(kernel32.CloseHandle)
+
+  CloseHandle:types{ret = <span class="string">'int'</span>, abi = <span class="string">'stdcall'</span>, <span class="string">"pointer"</span>}
+
+
+
+  <span class="keyword">local</span> n = (GENERIC_READ + GENERIC_WRITE) - 2^32 + 1
+
+  <span class="keyword">local</span> h = CreateFile(port, n, 0, <span class="keyword">nil</span>, OPEN_EXISTING, 0, <span class="keyword">nil</span>)
+
+
+
+  <span class="comment">-- convert handle to int</span>
+
+  <span class="keyword">local</span> tmp = alien.buffer(4)
+
+  tmp:set(1, h, <span class="string">'pointer'</span>)
+
+  <span class="keyword">local</span> hnum = tmp:get(1, <span class="string">'int'</span>)
+
+  <span class="keyword">if</span> hnum == -1 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span>, get_last_error() <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> ok, msg = <span class="library">pcall</span>(config, h, t)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> ok <span class="keyword">then</span>
+
+    CloseHandle(h)
+
+    <span class="keyword">return</span> <span class="keyword">nil</span>, msg
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> h
+
+<span class="keyword">end</span>
+
+M.open = open
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> close(h)
+
+  CloseHandle(h)
+
+<span class="keyword">end</span>
+
+M.close = close
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> send(h, s)
+
+  <span class="keyword">local</span> WriteFile = <span class="library">assert</span>(kernel32.WriteFile)
+
+  WriteFile:types{ret=<span class="string">"int"</span>, abi = <span class="string">'stdcall'</span>, <span class="string">"pointer"</span>, <span class="string">"string"</span>,
+
+      <span class="string">"int"</span>, <span class="string">"ref int"</span>, <span class="string">"pointer"</span>}
+
+
+
+  <span class="keyword">local</span> bytes_written_buf = alien.buffer(4)
+
+
+
+  <span class="keyword">local</span> ret, nwritten = WriteFile(h, s, #s, 0, <span class="keyword">nil</span> )
+
+  <span class="keyword">if</span> ret == 0 <span class="keyword">or</span> nwritten ~= #s <span class="keyword">then</span>
+
+    <span class="library">error</span>(<span class="string">"failed write: "</span> .. get_last_error())
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+M.send = send
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> receive(h)
+
+  <span class="comment">-- C function declarations</span>
+
+  <span class="keyword">local</span> ReadFile = <span class="library">assert</span>(kernel32.ReadFile)
+
+  ReadFile:types{ ret = <span class="string">'int'</span>, abi = <span class="string">'stdcall'</span>, <span class="string">"pointer"</span>,
+
+      <span class="string">"ref char"</span>, <span class="string">"int"</span>, <span class="string">"ref int"</span>, <span class="string">"pointer"</span>}
+
+
+
+  <span class="keyword">local</span> ret, char, nread = ReadFile(h, buffer_buf, 1, 0, <span class="keyword">nil</span> )
+
+  <span class="keyword">if</span> ret == 0 <span class="keyword">then</span>
+
+    <span class="library">error</span>(<span class="string">"failed read: "</span> .. get_last_error())
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> char &lt; 0 <span class="keyword">then</span> char = char+256 <span class="keyword">end</span>	<span class="comment">-- avoid negatives</span>
+
+  <span class="keyword">return</span> nread == 1 <span class="keyword">and</span> <span class="library">string.char</span>(char) <span class="keyword">or</span> <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+M.receive = receive
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> receive_all(h)
+
+  <span class="keyword">local</span> s = <span class="string">""</span>
+
+  <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+    <span class="keyword">local</span> c = receive(h)
+
+    <span class="keyword">if</span> c <span class="keyword">then</span>
+
+      s = s .. c
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">return</span> s
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+M.receive_all = receive_all
+
+
+
+<span class="keyword">local</span> buf = <span class="string">""</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> async_read_until(h, char)
+
+  <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+    <span class="keyword">local</span> c = receive(h)
+
+    <span class="keyword">if</span> c <span class="keyword">then</span>
+
+      buf = buf .. c
+
+      <span class="keyword">if</span> c == char <span class="keyword">then</span>
+
+        <span class="keyword">local</span> s = buf
+
+        buf = <span class="string">""</span>
+
+        <span class="keyword">return</span> s
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">return</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> SetDTR(h, set)
+
+	<span class="keyword">local</span> EscapeCommFunction = <span class="library">assert</span>(kernel32.EscapeCommFunction)
+
+	EscapeCommFunction:types{ret=<span class="string">"int"</span>, abi = <span class="string">'stdcall'</span>, <span class="string">"pointer"</span>, <span class="string">"int"</span>}
+
+	<span class="keyword">if</span> set <span class="keyword">then</span>
+
+		EscapeCommFunction(h, SETDTR)
+
+	<span class="keyword">else</span>
+
+		EscapeCommFunction(h, CLRDTR)
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+M.SetDTR = SetDTR
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> SetRTS(h, set)
+
+	<span class="keyword">local</span> EscapeCommFunction = <span class="library">assert</span>(kernel32.EscapeCommFunction)
+
+	EscapeCommFunction:types{ret=<span class="string">"int"</span>, abi = <span class="string">'stdcall'</span>, <span class="string">"pointer"</span>, <span class="string">"int"</span>}
+
+	<span class="keyword">if</span> set <span class="keyword">then</span>
+
+		EscapeCommFunction(h, SETRTS)
+
+	<span class="keyword">else</span>
+
+		EscapeCommFunction(h, CLRRTS)
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+M.SetRTS = SetRTS
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> GetCTS(h)
+
+	<span class="keyword">local</span> GetCommModemStatus = <span class="library">assert</span>(kernel32.GetCommModemStatus)
+
+	GetCommModemStatus:types{ret = <span class="string">"int"</span>, abi = <span class="string">"stdcall"</span>, <span class="string">"pointer"</span>, <span class="string">"ref int"</span>}
+
+	<span class="keyword">local</span> _, CTS = GetCommModemStatus(h, 0)
+
+	<span class="keyword">return</span> CTS == CTS_ON
+
+<span class="keyword">end</span>
+
+M.GetCTS = GetCTS
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> TransmitChar(h, c)
+
+	<span class="keyword">local</span> TransmitCommChar = <span class="library">assert</span>(kernel32.TransmitCommChar)
+
+	TransmitCommChar:types{ret=<span class="string">"int"</span>, abi = <span class="string">'stdcall'</span>, <span class="string">"pointer"</span>, <span class="string">"int"</span>}
+
+	<span class="keyword">if</span> <span class="keyword">not</span> TransmitCommChar(h, c) <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span>, get_last_error()
+
+	<span class="keyword">else</span> <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+M.TransmitChar = TransmitChar
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>Using serial</H2>
+<p>
+The following is a sample code that redirects all traffic between a serial port and a local socket port. It works for me, but YMMV. Run from Lua command prompt. The outer while loop is to allow repeated reconnects by an ip client without having to restart the script.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> s=<span class="library">require</span> <span class="string">"socket"</span>
+
+<span class="keyword">local</span> com=<span class="library">require</span> <span class="string">"serial"</span>
+
+
+
+<span class="keyword">if</span> arg[1] == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+	<span class="library">print</span>(<span class="string">"Usage: "</span>..arg[0]..<span class="string">" &lt;socket port&gt; "</span>..
+
+	      <span class="string">"[&lt;com port&gt; [&lt;speed&gt; [&lt;databits&gt; [&lt;parity&gt; [&lt;stopbits&gt;]]]]]"</span>)
+
+	<span class="library">print</span>(<span class="string">"Example: "</span>..arg[0]..<span class="string">" 10000 COM1 38400 8 none 1"</span>)
+
+	<span class="keyword">return</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> port = <span class="library">tonumber</span>(arg[1]) <span class="keyword">or</span> 10000
+
+<span class="keyword">local</span> comport = arg[2] <span class="keyword">or</span> <span class="string">"COM1"</span>
+
+<span class="keyword">local</span> speed = <span class="library">tonumber</span>(arg[3]) <span class="keyword">or</span> 38400
+
+<span class="keyword">local</span> databits = <span class="library">tonumber</span>(arg[4]) <span class="keyword">or</span> 8
+
+<span class="keyword">local</span> parity = arg[5] <span class="keyword">or</span> <span class="string">"none"</span>
+
+<span class="keyword">local</span> stopbits = <span class="library">tonumber</span>(arg[6]) <span class="keyword">or</span> 1
+
+
+
+<span class="keyword">local</span> sp, errmsg = <span class="library">assert</span>(com.open{port=comport, speed=speed,
+
+    databits=databits, stopbits=stopbits, parity=parity})
+
+
+
+<span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+	<span class="keyword">local</span> server = <span class="library">assert</span>(s.bind(<span class="string">"127.0.0.1"</span>, port ))
+
+	<span class="library">print</span>(<span class="string">"waiting for connection on port"</span>, port)
+
+	<span class="keyword">local</span> client = <span class="library">assert</span>(server:accept())
+
+	<span class="library">print</span>(<span class="string">"connected"</span>)
+
+	client:settimeout(0.1)
+
+	<span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+		<span class="keyword">local</span> data, errmsg, partial = client:receive()
+
+		<span class="keyword">if</span> errmsg == <span class="string">"closed"</span> <span class="keyword">then</span>
+
+			<span class="library">print</span>(<span class="string">"connection closed"</span>)
+
+			client:close()
+
+			server:close()
+
+			<span class="keyword">break</span>
+
+		<span class="keyword">elseif</span> errmsg == <span class="string">"timeout"</span> <span class="keyword">then</span> data = partial
+
+		<span class="keyword">elseif</span> errmsg <span class="keyword">then</span> <span class="library">error</span>(errmsg) <span class="keyword">end</span>
+
+		<span class="keyword">if</span> data <span class="keyword">and</span> data ~= <span class="string">""</span> <span class="keyword">then</span>
+
+			<span class="keyword">for</span> i = 1, #data <span class="keyword">do</span>
+
+				<span class="keyword">local</span> c = data:sub(i,i)
+
+				com.send(sp, c)
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>
+
+		data = com.receive_all(sp)
+
+		<span class="keyword">if</span> data <span class="keyword">and</span> data ~= <span class="string">""</span> <span class="keyword">then</span>
+
+			client:send(data)
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+-- Sergei Slobodov
+<p>
+<H2>Using librs232lua</H2>
+<p>
+<UL>
+<li> librs232lua<a href="http://github.com/ynezz/librs232/tree/master">[1]</a> is Lua bindings for librs232 library
+<UL>
+<li> librs232 is multiplatform library for serial communications over RS-232 (serial port)
+<li> As of today librs232 supports Windows, Windows CE and Linux
+<li> librs232 is released under MIT license [LGPL, according to the web - Sergei] [Which web? Mail me pls. Thanks - Petr]
+</UL>
+</UL><DL>
+<dt><dd>
+
+</DL><UL>
+<li> No binary packages available yet
+<li> Source code is available on github:
+</UL><DL>
+<DL>
+<dt><dd>git clone git://github.com/ynezz/librs232.git
+</DL>
+</DL><UL>
+<li> You can download TGZ or ZIP archive with sources here:
+</UL><DL>
+<DL>
+<dt><dd><a href="http://github.com/ynezz/librs232/downloads">http://github.com/ynezz/librs232/downloads</a>
+</DL>
+</DL>
+<p>
+-- Petr tetiar &lt;ynezz@true.cz&gt;
+<p>
+<H2>Lua<code></code>Sys</H2>
+<p>
+<UL>
+<li> <a href="http://luaforge.net/projects/luasys/">[LuaSys]</a> contains serial communication functions (portable Windows and non-Windows termious.h).
+</UL>
+<p>
+<H2>Others</H2>
+<p>
+<UL>
+<li> use serial port like a file -- <a href="/lists/lua-l/2012-06/msg00494.html">LuaList:2012-06/msg00494.html</a> (Stellos M)
+<li> termios posix API: <a href="http://lua-list.2524044.n2.nabble.com/termios-lua-a-binding-to-the-POSIX-APIs-for-terminal-and-serial-devices-td6926830.html">http://lua-list.2524044.n2.nabble.com/termios-lua-a-binding-to-the-POSIX-APIs-for-terminal-and-serial-devices-td6926830.html</a>
+<li> <a href="http://luaforge.net/projects/ulserial/">http://luaforge.net/projects/ulserial/</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SerialCommunication" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SerialCommunication" >history</a><br>Last edited June 21, 2012 7:41 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SerialCommunication" >(diff)</a>
+</body>
+</html>

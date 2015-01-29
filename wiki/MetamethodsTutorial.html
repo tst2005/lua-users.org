@@ -1,0 +1,231 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Metamethods Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MetamethodsTutorial&amp;body=1" title="List pages referring to MetamethodsTutorial">Metamethods Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a brief introduction to the concepts of Lua metamethods. 
+<p>
+<H2>Metamethods</H2>
+<p>
+Lua has a powerful extension mechanism which allows you to overload certain operations on Lua objects. Each overloaded object has a <em>metatable</em> of function <em>metamethods</em> associated with it; these are called when appropriate, similar to the concept of operator overloading from many other languages.
+<p>
+A metatable is a regular Lua table containing a set of metamethods, which are associated with <em>events</em> in Lua. Events occur when Lua executes certain operations, like addition, string concatenation, comparisons etc. Metamethods are regular Lua functions which are called when a specific event occurs. The events have names like "add" and "concat" (see manual section 2.8) which correspond with string keys in the metatable like "<code>__add</code>" and "<code>__concat</code>". In this case to add (<code>+</code>) or concatenate (<code>..</code>) two Lua objects.
+<p>
+<H2>Metatables</H2>
+<p>
+We use the function <code>setmetatable()</code> to make a table act as a metatable for a certain object.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> x = {value = 5} <span class="comment">-- creating local table x containing one key,value of value,5</span>
+
+
+
+<span class="keyword">local</span> mt = {
+
+  __add = <span class="keyword">function</span> (lhs, rhs) <span class="comment">-- "add" event handler</span>
+
+    <span class="keyword">return</span> { value = lhs.value + rhs.value }
+
+  <span class="keyword">end</span>
+
+}
+
+
+
+<span class="library">setmetatable</span>(x, mt) <span class="comment">-- use "mt" as the metatable for "x"</span>
+
+
+
+<span class="keyword">local</span> y = x + x
+
+
+
+<span class="library">print</span>(y.value) <span class="comment">--&gt; 10  -- Note: print(y) will just give us the table code i.e table: &lt;some tablecode&gt;</span>
+
+
+
+<span class="keyword">local</span> z = y + y <span class="comment">-- error, y doesn't have our metatable. this can be fixed by setting the metatable of the new object inside the metamethod</span>
+
+</pre>
+
+</DL>
+<p>
+When the addition operator finds that its operands aren't numbers, it tries checking if one of them has a metatable with an __add key. In this case it does, so it runs the function stored under that key in the metatable, equivalent to this:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> y = (<span class="library">getmetatable</span>(x).__add(x, x)) <span class="comment">-- x + x</span>
+
+</pre>
+
+</DL>
+<p>
+Metatables are still triggered with math operators if one of the operands is a number. And the left operand is always the first parameter to the function, and the right operand is always the second. This means that the table that has the metamethod might not necessarily be the first parameter to the metamethod.
+<p>
+<H2>More events</H2>
+<p>
+The following are notes on other of the metamethod events that Lua handles.  For a full list of metamethod events, see: <a href="../wiki/MetatableEvents.html" >MetatableEvents</a>.
+<p>
+<H3>__index</H3>
+<p>
+This is a very commonly used and versatile metamethod, it lets you run a custom function or use a "fallback" table if a key in a table doesn't exist. If a function is used, its first parameter will be the table that the lookup failed on, and the second parameter will be the key. If a fallback table is used, remember that it can trigger an __index metamethod on it if it has one, so you can create long chains of fallback tables.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> func_example = <span class="library">setmetatable</span>({}, {__index = <span class="keyword">function</span> (t, k)  <span class="comment">-- {} an empty table, and after the comma, a custom function failsafe</span>
+
+  <span class="keyword">return</span> <span class="string">"key doesn't exist"</span>
+
+<span class="keyword">end</span>})
+
+
+
+<span class="keyword">local</span> fallback_tbl = <span class="library">setmetatable</span>({   <span class="comment">-- some keys and values present, together with a fallback failsafe</span>
+
+  foo = <span class="string">"bar"</span>,
+
+  [123] = 456,
+
+}, {__index=func_example})
+
+
+
+<span class="keyword">local</span> fallback_example = <span class="library">setmetatable</span>({}, {__index=fallback_tbl})  <span class="comment">-- {} again an empty table, but this time with a fallback failsafe</span>
+
+
+
+<span class="library">print</span>(func_example[1]) <span class="comment">--&gt; key doesn't exist</span>
+
+<span class="library">print</span>(fallback_example.foo) <span class="comment">--&gt; bar</span>
+
+<span class="library">print</span>(fallback_example[123]) <span class="comment">--&gt; 456</span>
+
+<span class="library">print</span>(fallback_example[456]) <span class="comment">--&gt; key doesn't exist</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>__newindex</H3>
+<p>
+This metamethod is called when you try to assign to a key in a table, and that key doesn't exist (contains nil). If the key exists, the metamethod is not triggered.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> t = {}
+
+
+
+<span class="keyword">local</span> m = <span class="library">setmetatable</span>({}, {__newindex = <span class="keyword">function</span> (<span class="library">table</span>, key, value)
+
+  t[key] = value
+
+<span class="keyword">end</span>})
+
+
+
+m[123] = 456
+
+<span class="library">print</span>(m[123]) <span class="comment">--&gt; nil</span>
+
+<span class="library">print</span>(t[123]) <span class="comment">--&gt; 456</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Comparison operators</H3>
+<p>
+<code>__eq</code> is called when the <code>==</code> operator is used on two tables, the reference equality check failed, and both tables have the same <code>__eq</code> metamethod (!).
+<p>
+<code>__lt</code> is called to check if one object is "less than" another. Unlike __eq, it's not an error if the two objects have different <code>__lt</code> metamethods, the one on the left will be used.
+<p>
+That's all you need for all of the comparison operators to work with your object. But there will be some cases where both <code>__lt</code> and <code>__eq</code> will need to be called by the same operator. To avoid this, you can optionally add the <code>__le</code> (less than or equal to) metamethod. Now only one of the metamethods will be called with any of the comparison operators.
+<p>
+For example, we can improve the example at the top of the page like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> mt
+
+mt = {
+
+  __add = <span class="keyword">function</span> (lhs, rhs)
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>({value = lhs.value + rhs.value}, mt)
+
+  <span class="keyword">end</span>,
+
+  __eq = <span class="keyword">function</span> (lhs, rhs)
+
+    <span class="keyword">return</span> lhs.value == rhs.value
+
+  <span class="keyword">end</span>,
+
+  __lt = <span class="keyword">function</span> (lhs, rhs)
+
+    <span class="keyword">return</span> lhs.value &lt; rhs.value
+
+  <span class="keyword">end</span>,
+
+  __le = <span class="keyword">function</span> (lhs, rhs) <span class="comment">-- not really necessary, just improves "&lt;=" and "&gt;" performance</span>
+
+    <span class="keyword">return</span> lhs.value &lt;= rhs.value
+
+  <span class="keyword">end</span>,
+
+}
+
+</pre>
+
+</DL>
+<p>
+<H3>__metatable</H3>
+<p>
+<code>__metatable</code> is for protecting metatables. If you do not want a program
+to change the contents of a metatable, you set its __metatable field.
+With that, the program cannot access the metatable (and therefore cannot
+change it).
+<p>
+<H3>Metamethod manual</H3>
+<p>
+See <a href="http://www.lua.org/manual/5.2/manual.html#2.4">[1]</a> for a list of all metamethods and explanations of what they do.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/MetatableEvents.html" >MetatableEvents</a>
+<li> <a href="../wiki/ObjectOrientationTutorial.html" >ObjectOrientationTutorial</a>
+<li> <a href="../wiki/LuaClassesWithMetatable.html" >LuaClassesWithMetatable</a>
+<li> Section 2.8 of the Reference Manual <a href="http://www.lua.org/manual/5.1/manual.html#2.8">[2]</a> covers Metatables.
+<li> "Chapter 7: Effecting Large-Scale Change (with little trauma) using Metatables" by Sérgio Alvarez Maffra and <a href="../wiki/PedroMillerRabinovitch.html" >PedroMillerRabinovitch</a> in Lua Programming Gems (see <a href="../wiki/LuaBooks.html" >LuaBooks</a>) outlines some practical applications of metatables, particularly in illustrating how adding only a little metatable code can be used to make significant system-wide changes in a program.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MetamethodsTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MetamethodsTutorial" >history</a><br>Last edited August 16, 2014 6:47 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MetamethodsTutorial" >(diff)</a>
+</body>
+</html>

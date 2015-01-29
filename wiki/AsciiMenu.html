@@ -1,0 +1,415 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Ascii Menu</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=AsciiMenu&amp;body=1" title="List pages referring to AsciiMenu">Ascii Menu</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a simple console-based menu system.  It demonstrates some interesting syntactic possibilities in Lua for defining the menu.
+<p>
+<H2>Source</H2>
+<p>
+-- <a href="/files/wiki_insecure/users/rici/menu.lua">[Download]</a>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">------------------------------------------------------------------</span>
+
+<span class="comment">-- menu.lua</span>
+
+<span class="comment">------------------------------------------------------------------</span>
+
+
+
+<span class="keyword">do</span>
+
+
+
+  <span class="keyword">local</span> curriedMethod, method, meta = {}, {}, {}
+
+
+
+  <span class="comment">-- __index either executes a method from method or curries a method from</span>
+
+  <span class="comment">-- curriedMethod with its self argument. This allows all calls to be with</span>
+
+  <span class="comment">-- "." rather than ":" and also allows you to write obj.foo instead of</span>
+
+  <span class="comment">-- obj.foo() for methods which don't require arguments. It might</span>
+
+  <span class="comment">-- not be great design, but it is interesting. :)</span>
+
+  
+
+  <span class="keyword">function</span> meta:__index(key)
+
+    <span class="keyword">local</span> func = method[key]
+
+    <span class="keyword">if</span> func <span class="keyword">then</span>
+
+      <span class="keyword">return</span> func(self)
+
+     <span class="keyword">else</span>
+
+      func = curriedMethod[key]
+
+      <span class="keyword">if</span> func <span class="keyword">then</span>
+
+        <span class="keyword">local</span> rv = <span class="keyword">function</span>(a, b) <span class="keyword">return</span> func(self, a, b) <span class="keyword">end</span>
+
+        self[key] = rv
+
+        <span class="keyword">return</span> rv
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- quick and dirty display routine.</span>
+
+  <span class="keyword">local</span> DASHES = <span class="library">string.rep</span>(<span class="string">'-'</span>, 80)
+
+  <span class="keyword">local</span> DOUBLES = <span class="library">string.rep</span>(<span class="string">'='</span>, 80)
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> drawmenu(self)
+
+    <span class="keyword">local</span> maxsize = <span class="library">string.len</span>(self.name) + 2
+
+    <span class="keyword">local</span> item = 0
+
+    <span class="keyword">for</span> i = 1, self.n <span class="keyword">do</span>
+
+      <span class="keyword">local</span> sz = 6 + <span class="library">string.len</span>(self[1][i])
+
+      <span class="keyword">if</span> maxsize &lt; sz <span class="keyword">then</span> maxsize = sz <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> maxsize &gt; 75 <span class="keyword">then</span> maxsize = 75 <span class="keyword">end</span>
+
+    <span class="keyword">local</span> sepformat = <span class="string">"  +%-"</span>..maxsize..<span class="string">"."</span>..maxsize..<span class="string">"s+\n"</span>
+
+    <span class="keyword">local</span> nameformat = <span class="string">"  | %-"</span>..(maxsize - 2)..<span class="string">"."</span>..(maxsize-2)..<span class="string">"s |\n"</span>
+
+    <span class="keyword">local</span> itemformat = <span class="string">"  | %2i. %-"</span>..(maxsize - 6)..<span class="string">"."</span>..(maxsize-6)..<span class="string">"s |\n"</span>
+
+    <span class="keyword">local</span> sepline = <span class="library">string.format</span>(sepformat, DASHES)
+
+    <span class="library">io.write</span>(<span class="string">"\n"</span>, <span class="library">string.format</span>(sepformat, DOUBLES))
+
+    <span class="library">io.write</span>(<span class="library">string.format</span>(nameformat, self.name))
+
+    <span class="library">io.write</span>(<span class="library">string.format</span>(sepformat, DOUBLES))
+
+    <span class="keyword">for</span> i = 1, self.n <span class="keyword">do</span>
+
+      <span class="keyword">if</span> self[2][i] <span class="keyword">then</span>
+
+        item = item + 1
+
+        <span class="library">io.write</span>(<span class="library">string.format</span>(itemformat, item, self[1][i]))
+
+      <span class="keyword">else</span>
+
+        <span class="library">io.write</span>(sepline)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="library">io.write</span>(sepline)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- Equally quick and dirty menu execution. Tail calls the function</span>
+
+  <span class="comment">-- associated with the selected menu item.</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> domenu(self)
+
+    drawmenu(self)
+
+    <span class="library">io.write</span>(<span class="string">"\n\nSelect a menu item: "</span>)
+
+    <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+      <span class="keyword">local</span> choice = <span class="library">io.read</span>(<span class="string">"*l"</span>)
+
+      <span class="keyword">if</span> choice == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+      <span class="keyword">local</span> _, _, item = <span class="library">string.find</span>(choice, <span class="string">"^%s*(%d+)%s*$"</span>)
+
+      <span class="keyword">if</span> item <span class="keyword">then</span>
+
+
+
+        item = item + 0 <span class="comment">-- force numeric conversion</span>
+
+        <span class="keyword">for</span> i = 1, self.n <span class="keyword">do</span>
+
+          <span class="keyword">if</span> self[2][i] <span class="keyword">then</span>
+
+            <span class="keyword">if</span> item == 1 <span class="keyword">then</span> <span class="keyword">return</span> self[2][i]() <span class="keyword">end</span>
+
+            item = item - 1
+
+          <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+      <span class="library">io.write</span>(<span class="string">"\nSelection not valid. Try again: "</span>)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- Create a new menu with given name and back reference.</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> newmenu(name, back)
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>({
+
+      {}, {},  <span class="comment">-- [1] is the menu label, [2] is the associated function</span>
+
+      name = name,
+
+      back = back,
+
+      n = 0
+
+    },
+
+    meta)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- insert a label and a function at the end of a menu</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> put(self, name, action)
+
+    <span class="keyword">local</span> n = self.n + 1
+
+    self.n = n
+
+    self[1][n] = name
+
+    self[2][n] = action
+
+    <span class="keyword">return</span> self
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- Now the actual menu methods.</span>
+
+  <span class="comment">-- add(label, id)</span>
+
+  <span class="keyword">function</span> curriedMethod:add(name, id)
+
+    <span class="keyword">return</span> put(self, name, <span class="keyword">function</span>() <span class="keyword">return</span> id <span class="keyword">end</span>)
+
+  <span class="keyword">end</span>
+
+  
+
+  <span class="comment">-- I personally would use functions instead of ids</span>
+
+  curriedMethod.addf = put
+
+
+
+  <span class="comment">-- create and open a submenu with the given name</span>
+
+  <span class="keyword">function</span> curriedMethod:sub(name)
+
+    <span class="keyword">local</span> submenu = newmenu(self.name .. <span class="string">" / "</span> .. name, self)
+
+    put(self, name..<span class="string">" --&gt;"</span>, <span class="keyword">function</span>() <span class="keyword">return</span> domenu(submenu) <span class="keyword">end</span>)
+
+    <span class="keyword">return</span> submenu
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- create a new, unrelated menu. You cannot use super afterwards</span>
+
+  <span class="keyword">function</span> curriedMethod:new(name)
+
+    <span class="keyword">return</span> newmenu(name)
+
+  <span class="keyword">end</span>
+
+  
+
+  <span class="comment">-- go back to the previous level, after introducing the automatic Back label</span>
+
+  <span class="comment">-- unless this is a top-level menu</span>
+
+  <span class="keyword">function</span> method:super()
+
+    <span class="keyword">local</span> mom = self.back
+
+    <span class="keyword">if</span> mom <span class="keyword">then</span>
+
+      put(self, <span class="string">"-"</span>)
+
+      put(self, <span class="string">"&lt;-- Back"</span>, <span class="keyword">function</span>() <span class="keyword">return</span> domenu(self.back) <span class="keyword">end</span>)
+
+      <span class="keyword">return</span> self.back
+
+     <span class="keyword">else</span> <span class="keyword">return</span> self
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- insert a separator line</span>
+
+  <span class="keyword">function</span> method:sep()
+
+    <span class="keyword">return</span> put(self, <span class="string">"-"</span>)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- and a function to actually execute the thing</span>
+
+  curriedMethod.run = domenu
+
+
+
+  <span class="comment">-- Finally, we define the Menu "object"</span>
+
+  <span class="comment">-- This is a bit of a kludge, because all menus respond to "new"</span>
+
+  <span class="comment">-- in the same way. So you could actually just use Menu as your</span>
+
+  <span class="comment">-- top-level menu.</span>
+
+  Menu = newmenu(<span class="string">""</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- OK, let's give it a whirl</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> about_dialog()
+
+  <span class="library">io.write</span> <span class="string">[[
+
+  
+
+  Menu system written by RiciLake in order to demonstrate
+
+  some interesting syntactic possibilities in Lua
+
+
+
+  This program is released into the public domain. But if you find
+
+  it useful, you could certainly buy me a coffee sometime
+
+
+
+]]</span>
+
+  <span class="keyword">return</span> <span class="string">"About menu"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> ID_CAMPAIGN,   ID_RANDOMMAP,   ID_LOADGAME,   ID_EXIT =
+
+      <span class="string">"ID_CAMPAIGN"</span>, <span class="string">"ID_RANDOMMAP"</span>, <span class="string">"ID_LOADGAME"</span>, <span class="keyword">false</span>
+
+  
+
+mainMenu = Menu.new <span class="string">"Main"</span>
+
+    .sub <span class="string">"New"</span>
+
+        .add(<span class="string">"New Campaign"</span>, ID_CAMPAIGN)
+
+        .add(<span class="string">"New Random Map"</span>, ID_RANDOMMAP)
+
+        .super
+
+    .add(<span class="string">"Load Game"</span>, ID_LOADGAME)
+
+    .sep
+
+    .addf(<span class="string">"About"</span>, about_dialog)
+
+    .sep
+
+    .add(<span class="string">"Exit"</span>, ID_EXIT)
+
+
+
+<span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>  
+
+  <span class="keyword">local</span> selection = mainMenu.run()
+
+  <span class="keyword">if</span> <span class="keyword">not</span> selection <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+  <span class="library">print</span>(<span class="string">"Selected: "</span>, selection)
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/RiciLake.html" >RiciLake</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AsciiMenu" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=AsciiMenu" >history</a><br>Last edited December 8, 2007 5:01 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=AsciiMenu" >(diff)</a>
+</body>
+</html>

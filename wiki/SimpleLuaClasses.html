@@ -1,0 +1,436 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Simple Lua Classes</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SimpleLuaClasses&amp;body=1" title="List pages referring to SimpleLuaClasses">Simple Lua Classes</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>A Simplified Way to Declare Lua Classes</H3>
+<p>
+Out of the box, Lua does not have a class system, but its powerful metaprogramming facilities makes defining classic objects straightforward.  In fact, there's a number of ways of doing this;  together with the unfamiliar notation, this makes object-orientation in Lua seem a little intimidating at first.
+<p>
+The method described here is the most common and flexible method, using metatables.  A table's behavior can be customized by giving it a metatable.  For instance, if the metatable has an <code>__index</code> function, then any <em>failed</em> attempt to look up something in the table will be passed to <code>__index</code>. If <code>__index</code> is itself a table, the symbol will be looked up in that table. (Please see the excellent discussion in PiL <a href="http://www.lua.org/pil/16.1.html">[1]</a>) Here is the basic idea:
+<p>
+<DL>
+<dt><dd><pre class="code">
+Account = {}
+
+Account.__index = Account
+
+
+
+<span class="keyword">function</span> Account.create(balance)
+
+   <span class="keyword">local</span> acnt = {}             <span class="comment">-- our new object</span>
+
+   <span class="library">setmetatable</span>(acnt,Account)  <span class="comment">-- make Account handle lookup</span>
+
+   acnt.balance = balance      <span class="comment">-- initialize our object</span>
+
+   <span class="keyword">return</span> acnt
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Account:withdraw(amount)
+
+   self.balance = self.balance - amount
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- create and use an Account</span>
+
+acc = Account.create(1000)
+
+acc:withdraw(100)
+
+</pre>
+
+</DL>
+<p>
+Here, Account objects are represented by tables, which contain precisely one field, the balance. Lua tries to look up <code>withdraw</code> in acc, and cannot find it.  Because acc has a metatable that defines <code>__index</code>, it will then look up <code>withdraw</code> in that metatable.  So <code>acc:withdraw(100)</code> is actually the call <code>Account.withdraw(acc,100)</code>.  We could have actually put <code>withdraw</code> directly into <code>acc</code>, but this would be wasteful and inflexible - adding a new method would require a change to the <code>create</code> function, etc.
+<p>
+<H3>A simplified way of creating classes</H3>
+<p>
+I'll define a function <code>class</code> which does all this (and more) transparently.  
+<p>
+<DL>
+<dt><dd><pre class="code">
+Account = class(<span class="keyword">function</span>(acc,balance)
+
+              acc.balance = balance
+
+           <span class="keyword">end</span>)
+
+
+
+<span class="keyword">function</span> Account:withdraw(amount)
+
+   self.balance = self.balance - amount
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- can create an Account using call notation!</span>
+
+acc = Account(1000)
+
+acc:withdraw(100)
+
+</pre>
+
+</DL>
+<p>
+In this scheme, one supplies an initialization function to the new class, and a 'constructor' is automatically generated. 
+<p>
+Simple inheritance is supported. For example, here a base class <code>Animal</code> is defined, and several specific kinds of animals are declared.  All classes made using <code>class</code> have a <code>is_a</code> method, which you can use to find out the actual class at runtime:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- animal.lua</span>
+
+
+
+<span class="library">require</span> <span class="string">'class'</span>
+
+
+
+Animal = class(<span class="keyword">function</span>(a,name)
+
+   a.name = name
+
+<span class="keyword">end</span>)
+
+
+
+<span class="keyword">function</span> Animal:__tostring()
+
+  <span class="keyword">return</span> self.name..<span class="string">': '</span>..self:speak()
+
+<span class="keyword">end</span>
+
+
+
+Dog = class(Animal)
+
+
+
+<span class="keyword">function</span> Dog:speak()
+
+  <span class="keyword">return</span> <span class="string">'bark'</span>
+
+<span class="keyword">end</span>
+
+
+
+Cat = class(Animal, <span class="keyword">function</span>(c,name,breed)
+
+         Animal.init(c,name)  <span class="comment">-- must init base!</span>
+
+         c.breed = breed
+
+      <span class="keyword">end</span>)
+
+
+
+<span class="keyword">function</span> Cat:speak()
+
+  <span class="keyword">return</span> <span class="string">'meow'</span>
+
+<span class="keyword">end</span>
+
+
+
+Lion = class(Cat)
+
+
+
+<span class="keyword">function</span> Lion:speak()
+
+  <span class="keyword">return</span> <span class="string">'roar'</span>
+
+<span class="keyword">end</span>
+
+
+
+fido = Dog(<span class="string">'Fido'</span>)
+
+felix = Cat(<span class="string">'Felix'</span>,<span class="string">'Tabby'</span>)
+
+leo = Lion(<span class="string">'Leo'</span>,<span class="string">'African'</span>)
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+D:\Downloads\func&gt;lua -i animal.lua
+
+&gt; = fido,felix,leo
+
+Fido: bark      Felix: meow     Leo: roar
+
+&gt; = leo:is_a(Animal)
+
+true
+
+&gt; = leo:is_a(Dog)
+
+false
+
+&gt; = leo:is_a(Cat)
+
+true
+
+</pre>
+</DL>
+<p>
+All <code>Animal</code> does is define <code>__tostring</code>, which Lua will use whenever a string representation is needed of the object. In turn, this relies on <code>speak</code>, which is not defined. So it's what C++ people would call an abstract base class; the specific derived classes like <code>Dog</code> define <code>speak</code>. Please note that if derived classes have their own initialization functions, they must explicitly call <code>init</code> for their base class.
+<p>
+<H3>Implementation of class()</H3>
+<p>
+<code>class()</code> uses two tricks. It allows you to construct a class using the call notation (like <code>Dog('fido')</code> above) by giving the class itself a metatable which defines <code>__call</code>. It handles inheritance by <em>copying</em> the fields of the base class into the derived class.  This isn't the only way of doing inheritance; we could make <code>__index</code> a function which explicitly tries to look a function up in the base class(es). But this method will give better performance, at a cost of making the class objects somewhat fatter.  Each derived class does keep a field <code>_base</code> that contains the base class, but this is to implement <code>is_a</code>.
+<p>
+Note that modification of a base class at runtime will not affect its subclasses.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- class.lua</span>
+
+<span class="comment">-- Compatible with Lua 5.1 (not 5.0).</span>
+
+<span class="keyword">function</span> class(base, init)
+
+   <span class="keyword">local</span> c = {}    <span class="comment">-- a new class instance</span>
+
+   <span class="keyword">if</span> <span class="keyword">not</span> init <span class="keyword">and</span> <span class="library">type</span>(base) == <span class="string">'function'</span> <span class="keyword">then</span>
+
+      init = base
+
+      base = <span class="keyword">nil</span>
+
+   <span class="keyword">elseif</span> <span class="library">type</span>(base) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+    <span class="comment">-- our new class is a shallow copy of the base class!</span>
+
+      <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">pairs</span>(base) <span class="keyword">do</span>
+
+         c[i] = v
+
+      <span class="keyword">end</span>
+
+      c._base = base
+
+   <span class="keyword">end</span>
+
+   <span class="comment">-- the class will be the metatable for all its objects,</span>
+
+   <span class="comment">-- and they will look up their methods in it.</span>
+
+   c.__index = c
+
+
+
+   <span class="comment">-- expose a constructor which can be called by &lt;classname&gt;(&lt;args&gt;)</span>
+
+   <span class="keyword">local</span> mt = {}
+
+   mt.__call = <span class="keyword">function</span>(class_tbl, ...)
+
+   <span class="keyword">local</span> obj = {}
+
+   <span class="library">setmetatable</span>(obj,c)
+
+   <span class="keyword">if</span> init <span class="keyword">then</span>
+
+      init(obj,...)
+
+   <span class="keyword">else</span> 
+
+      <span class="comment">-- make sure that any stuff from the base class is initialized!</span>
+
+      <span class="keyword">if</span> base <span class="keyword">and</span> base.init <span class="keyword">then</span>
+
+      base.init(obj, ...)
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> obj
+
+   <span class="keyword">end</span>
+
+   c.init = init
+
+   c.is_a = <span class="keyword">function</span>(self, klass)
+
+      <span class="keyword">local</span> m = <span class="library">getmetatable</span>(self)
+
+      <span class="keyword">while</span> m <span class="keyword">do</span> 
+
+         <span class="keyword">if</span> m == klass <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+         m = m._base
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> <span class="keyword">false</span>
+
+   <span class="keyword">end</span>
+
+   <span class="library">setmetatable</span>(c, mt)
+
+   <span class="keyword">return</span> c
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Comments</H2>
+<p>
+<DL>
+<dt><dd>If this change is made:
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+--- class_orig.lua      2009-07-24 20:53:25.218750000 -0400
+
++++ class.lua   2009-07-24 20:53:49.734375000 -0400
+
+@@ -21,8 +21,8 @@
+
+   mt.__call = function(class_tbl,...)
+
+     local obj = {}
+
+     setmetatable(obj,c)
+
+-    if ctor then
+
+-       ctor(obj,...)
+
++    if class_tbl.init then
+
++       class_tbl.init(obj,...)
+
+     else
+
+     -- make sure that any stuff from the base class is initialized!
+
+        if base and base.init then
+
+</pre>
+</DL>
+<p>
+<DL>
+<dt><dd>then we alternately may declare classes in this way:
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+A = class()
+
+<span class="keyword">function</span> A:init(x)
+
+  self.x = x
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> A:test()
+
+  <span class="library">print</span>(self.x)
+
+<span class="keyword">end</span>
+
+
+
+B = class(A)
+
+<span class="keyword">function</span> B:init(x,y)
+
+  A.init(self,x)
+
+  self.y = y
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd>BTW, you may note that class.lua also works for operators:
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> A:__add(b)
+
+  <span class="keyword">return</span> A(self.x + b.x)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd>"init" may alternately be renamed "__init" since it is a private function like __add and resembling Python's __init__ <a href="http://www.penzilla.net/tutorials/python/classes/">[2]</a>.
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd>--<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+</DL>
+<p>
+<DL>
+<dt><dd>In the original version, the argument called 'ctor' is actually the init method, as shown by the (previous) statement <pre>c.init = ctor</pre>. I changed this argument's name to 'init'.  --<a href="../wiki/DeniSpir.html" >DeniSpir</a>
+</DL>
+<p>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/ObjectOrientedProgramming.html" >ObjectOrientedProgramming</a>
+</UL>
+<p>
+the nested constructor function is ugly, but otherwise this is helpful
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SimpleLuaClasses" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SimpleLuaClasses" >history</a><br>Last edited July 3, 2014 5:43 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SimpleLuaClasses" >(diff)</a>
+</body>
+</html>

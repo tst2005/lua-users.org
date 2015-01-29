@@ -1,0 +1,571 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Hamming Numbers</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=HammingNumbers&amp;body=1" title="List pages referring to HammingNumbers">Hamming Numbers</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Hamming Numbers are numbers whose only prime factors are 2, 3 and 5. They are named after <a href="http://en.wikipedia.org/wiki/Richard_Hamming.html">[Richard Hamming]</a> but became famous (or notorious) after <a href="http://en.wikipedia.org/wiki/Dijkstra.html">[Edsger Dijkstra]</a> posed the question of how to efficiently enumerate them in numeric order.
+<p>
+The problem is frequently trotted out to explain why "<em>x</em> Programming" is better (particularly for the values of <code>x</code>:  <code>functional</code> and <code>logic</code>). An <code>O(n)</code> solution (where <code>n</code> is the size of the sequence of numbers) is possible if you ignore the cost of manipulating large numbers. Buried deep in an interesting <a href="http://lambda-the-ultimate.org/node/view/608">[thread]</a> on <a href="http://lambda-the-ultimate.org/">[Lambda the Ultimate]</a> is an analysis which indicates that the cost might be <code>O(n^(4/3))</code>.
+<p>
+The Haskell solution to this problem is delightfully brief:
+<DL>
+<dt><dd><pre>
+
+-- Merges two infinite lists
+
+merge :: (Ord a) =&gt; [a] -&gt; [a] -&gt; [a]
+
+merge (x:xs)(y:ys)
+
+  | x == y    = x : merge xs ys
+
+  | x &lt;  y    = x : merge xs (y:ys)
+
+  | otherwise = y : merge (x:xs) ys
+
+
+
+-- Lazily produce the hamming sequence
+
+hamming :: [Integer]
+
+hamming 
+
+  = 1 : merge (map (2*) hamming) (merge (map (3*) hamming) (map (5*) hamming))
+
+</pre>
+</DL>
+<p>
+although even shorter ones exist. The essence of the above solution is that Haskell evaluates lazily, so the infinite sequence <code>hamming</code> can be self-referential. That's possible to do in Lua, using a sort of <em>promise</em>. The code below implements just enough of a bignum implementation to be able to do the multiplications by 2, 3 and 5, and to print out the results. (Hamming number 7305 is 2^52, so you'll need Bignum support if you want to compute more Hamming numbers than that. In practice, the bignum interface only adds about 33% to the cost of the computation; the interesting thing is that all of the code to implement Hamming is completely oblivious to the actual implementation of the numbers, provided that the implementation supports &lt;, ==, and multiply-by-a-small-integer.
+<p>
+I checked the performance of the program by computing <code>hamming(k)</code> for values of <code>k</code> from 50,000 to 1,000,000; the performance does appear to be roughly <code>O(n)</code> in both space and time, although I made no attempt to optimise and the space consumption is somewhat porcine.
+<p>
+<pre>
+
+                             usec    RSS
+
+       n     sec.       Mb     /n   kb/n   value
+
+ -------     ----    -----   ----   ----   --------------------------------------------------------------------
+
+   50000     1.99     3768   39.8   75.4   2379126835648701693226200858624
+
+  100000     4.41     5524   44.1   55.2   290142196707511001929482240000000000000
+
+  150000     6.87     6784   45.8   45.2   136551478823710021067381144334863695872000000
+
+  200000     9.42     7932   47.1   39.7   4479571262811807241115438439905203543080960000000
+
+  250000    11.99     8932   48.0   35.7   29168801439715713801701411811093381120000000000000000
+
+  300000    14.57     9944   48.6   33.1   62864273786544799804687500000000000000000000000000000000
+
+  350000    17.18    10768   49.1   30.8   60133943158606419031489628585123616917982648729600000000000
+
+  400000    20.06    14240   50.1   35.6   30774090693237851027531250000000000000000000000000000000000000
+
+  450000    23.10    16104   51.3   35.8   9544028161703913537712243143807801346335324481500000000000000000
+
+  500000    25.98    17392   52.0   34.8   1962938367679548095642112423564462631020433036610484123229980468750
+
+  550000    28.98    18724   52.7   34.0   286188649932207038880389529600000000000000000000000000000000000000000
+
+  600000    32.05    19256   53.4   32.1   31118367413797724237140050340541118674764220486395061016082763671875000
+
+  650000    35.27    20332   54.3   31.3   2624748786803793305341077210881955201024000000000000000000000000000000000
+
+  700000    38.13    21372   54.5   30.5   177288702931066945536000000000000000000000000000000000000000000000000000000
+
+  750000    41.34    21536   55.1   28.7   9844116074857088479400896102109753641824661421606444941755765750304761446400
+
+  800000    44.51    22280   55.6   27.9   458936503790258814279745536000000000000000000000000000000000000000000000000000
+
+  850000    47.59    23896   56.0   28.1   18286806033409508387421738007105886936187744140625000000000000000000000000000000
+
+  900000    50.64    23952   56.3   26.6   632306706993546185913146473467350006103515625000000000000000000000000000000000000
+
+  950000    54.02    26552   56.9   27.9   19221158232427643481897048859403926759149694825267200000000000000000000000000000000
+
+ 1000000    57.36    26800   57.4   26.8   519312780448388736089589843750000000000000000000000000000000000000000000000000000000
+
+</pre>
+<p>
+<p>
+So here's the code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span> 
+
+  <span class="keyword">local</span> meta = {}
+
+  <span class="keyword">function</span> meta:__index(k)
+
+    <span class="keyword">if</span> k == <span class="string">"tail"</span> <span class="keyword">then</span>
+
+      <span class="keyword">local</span> rv = self.gen(self)
+
+      self.tail, self.gen = rv, <span class="keyword">nil</span>
+
+      <span class="keyword">return</span> rv
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> Seq(h, gen)
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>({head = h, gen = gen}, meta)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> SMap(func, seq)
+
+  <span class="keyword">return</span> Seq(func(seq.head),
+
+             <span class="keyword">function</span>() <span class="keyword">return</span> SMap(func, seq.tail) <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> SMerge(seq1, seq2)
+
+  <span class="keyword">local</span> head1, head2 = seq1.head, seq2.head
+
+  <span class="keyword">local</span> step
+
+  <span class="keyword">if</span> head1 &lt; head2 <span class="keyword">then</span>
+
+    <span class="keyword">function</span> step() <span class="keyword">return</span> SMerge(seq1.tail, seq2) <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> head2 &lt; head1 <span class="keyword">then</span>
+
+    <span class="keyword">function</span> step() <span class="keyword">return</span> SMerge(seq1, seq2.tail) <span class="keyword">end</span>
+
+    head1 = head2
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">function</span> step() <span class="keyword">return</span> SMerge(seq1.tail, seq2.tail) <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> Seq(head1, step)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Times(k)
+
+  <span class="keyword">if</span> k <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> x * k <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x, y) <span class="keyword">return</span> x * y <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Hamming()
+
+  <span class="keyword">local</span> init = 1
+
+  <span class="keyword">if</span> Bignum <span class="keyword">then</span> init = Bignum(init) <span class="keyword">end</span>
+
+  <span class="keyword">local</span> seq = Seq(init)
+
+  <span class="keyword">local</span> seq2, seq3, seq5 =
+
+        SMap(Times(2), seq), SMap(Times(3), seq), SMap(Times(5), seq)  
+
+  <span class="keyword">function</span> seq.gen() <span class="keyword">return</span> SMerge(seq2, SMerge(seq3, seq5)) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> seq
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> SeqTail(seq, k)
+
+  <span class="keyword">for</span> i = 1, k <span class="keyword">do</span>
+
+    seq = seq.tail
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> seq
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">if</span> arg <span class="keyword">then</span>
+
+  <span class="keyword">local</span> start, finish, inc = <span class="library">tonumber</span>(arg[1]), <span class="library">tonumber</span>(arg[2]), <span class="library">tonumber</span>(arg[3])
+
+  <span class="keyword">if</span> <span class="keyword">not</span> start <span class="keyword">then</span> start, finish, inc = 1, 20, 1 <span class="keyword">end</span>
+
+  <span class="keyword">local</span> h = SeqTail(Hamming(), start-1)
+
+  <span class="library">print</span>(<span class="string">"hamming"</span>, start, h.head)
+
+  <span class="keyword">if</span> finish <span class="keyword">then</span>
+
+    <span class="keyword">while</span> start + inc &lt;= finish <span class="keyword">do</span>
+
+      start = start + inc
+
+      h = SeqTail(h, inc)
+
+      <span class="library">print</span>(<span class="string">"hamming"</span>, start, h.head)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Here are a few more interesting infinite sequence functions, including a Fibonacci generator (although I wouldn't recommend it in practice, it does run in constant space and more-or-less linear time.)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> SAlways(val)
+
+  <span class="keyword">return</span> Seq(val, <span class="keyword">function</span>(seq) <span class="keyword">return</span> seq <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> SDist(func, init, seq)
+
+  <span class="keyword">return</span> Seq(init, <span class="keyword">function</span>(self) <span class="keyword">return</span> SDist(func, func(self.head, seq.head), seq.tail) <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> SMap2(func, seq1, seq2)
+
+  <span class="keyword">return</span> Seq(func(seq1.head, seq2.head),
+
+             <span class="keyword">function</span>() <span class="keyword">return</span> SMap2(func, seq1.tail, seq2.tail) <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Plus(k)
+
+  <span class="keyword">if</span> k <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> x + k <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x, y) <span class="keyword">return</span> x + y <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+Iota = SDist(Plus(), 1, SAlways(1))
+
+
+
+<span class="keyword">function</span> Fib(i, j)
+
+  i, j = i <span class="keyword">or</span> 1, j <span class="keyword">or</span> 1
+
+  <span class="keyword">local</span> seq = Seq(Bignum(i))
+
+  seq.tail = SDist(Plus(), Bignum(j), seq)
+
+  <span class="keyword">return</span> seq
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+and here's the simple Bignum implementation (define this first if you want to test the above code):
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="comment">-- very limited bignum stuff; just enough for the examples here.</span>
+
+  <span class="comment">-- Please feel free to improve it.</span>
+
+  <span class="keyword">local</span> base = 1e15
+
+  <span class="keyword">local</span> fmt = <span class="string">"%015.0f"</span>
+
+  <span class="keyword">local</span> meta = {}
+
+  <span class="keyword">function</span> meta:__lt(other)
+
+    <span class="keyword">if</span> self.n ~= other.n <span class="keyword">then</span> <span class="keyword">return</span> self.n &lt; other.n <span class="keyword">end</span>
+
+    <span class="keyword">for</span> i = 1, self.n <span class="keyword">do</span>
+
+      <span class="keyword">if</span> self[i] ~= other[i] <span class="keyword">then</span> <span class="keyword">return</span> self[i] &lt; other[i] <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> meta:__eq(other)
+
+    <span class="keyword">if</span> self.n == other.n <span class="keyword">then</span>
+
+      <span class="keyword">for</span> i = 1, self.n <span class="keyword">do</span>
+
+        <span class="keyword">if</span> self[i] ~= other[i] <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> <span class="keyword">true</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> meta:__mul(k)
+
+    <span class="comment">-- If the base where a multiple of all possible multipliers, then</span>
+
+    <span class="comment">-- we could figure out the length of the result directly from the</span>
+
+    <span class="comment">-- first "digit". On the other hand, printing the numbers would be</span>
+
+    <span class="comment">-- difficult. So we accept the occasional overflow.</span>
+
+    <span class="keyword">local</span> offset = 0
+
+    <span class="keyword">if</span> self[1] * k &gt;= base <span class="keyword">then</span> offset = 1 <span class="keyword">end</span>
+
+    <span class="keyword">local</span> carry = 0
+
+    <span class="keyword">local</span> result = {}
+
+    <span class="keyword">local</span> n = self.n
+
+    <span class="keyword">for</span> i = n, 1, -1 <span class="keyword">do</span>
+
+      <span class="keyword">local</span> tmp = self[i] * k + carry
+
+      <span class="keyword">local</span> digit = tmp % base
+
+      carry = (tmp - digit) / base
+
+      result[offset + i] = digit
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> carry ~= 0 <span class="keyword">then</span>
+
+      n = n + 1
+
+      <span class="keyword">if</span> offset == 0 <span class="keyword">then</span>
+
+        <span class="keyword">for</span> i = n, 2, -1 <span class="keyword">do</span>
+
+          result[i] = result[i - 1]
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+      result[1] = carry
+
+    <span class="keyword">end</span>
+
+    result.n = n
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>(result, meta)
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- Added so that Fib would work; other must be a Bignum</span>
+
+  <span class="keyword">function</span> meta:__add(other)
+
+    <span class="keyword">local</span> result = {}
+
+    <span class="keyword">if</span> self.n &lt; other.n <span class="keyword">then</span> self, other = other, self <span class="keyword">end</span>
+
+    <span class="keyword">local</span> n, m = self.n, other.n
+
+    <span class="keyword">local</span> diff = n - m
+
+    <span class="keyword">local</span> carry = 0
+
+    <span class="keyword">local</span> result = {}
+
+    <span class="keyword">for</span> i = m, 1, -1 <span class="keyword">do</span>
+
+      <span class="keyword">local</span> tmp = self[i + diff] + other[i] + carry
+
+      <span class="keyword">if</span> tmp &lt; base <span class="keyword">then</span>
+
+        carry = 0
+
+      <span class="keyword">else</span>
+
+        tmp = tmp - base
+
+        carry = 1
+
+      <span class="keyword">end</span>
+
+      result[i + diff] = tmp
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">for</span> i = diff, 1, -1 <span class="keyword">do</span>
+
+      <span class="keyword">local</span> tmp = self[i] + carry
+
+      <span class="keyword">if</span> tmp &lt; base <span class="keyword">then</span>
+
+        carry = 0
+
+      <span class="keyword">else</span>
+
+        tmp = tmp - base
+
+        carry = 1
+
+      <span class="keyword">end</span>
+
+      result[i] = tmp
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> carry &gt; 0 <span class="keyword">then</span>
+
+      n = n + 1
+
+      <span class="keyword">for</span> i = n, 2, -1 <span class="keyword">do</span>
+
+        result[i] = result[i - 1]
+
+      <span class="keyword">end</span>
+
+      result[1] = carry
+
+    <span class="keyword">end</span>
+
+    result.n = n
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>(result, meta)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">function</span> meta:__tostring()
+
+    <span class="keyword">local</span> tmp = {}
+
+    tmp[1] = (<span class="string">"%.0f"</span>):format(self[1])
+
+    <span class="keyword">for</span> i = 2, self.n <span class="keyword">do</span>
+
+      tmp[i] = fmt:format(self[i])
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="library">table.concat</span>(tmp)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> Bignum(k)
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>({k, n = 1}, meta)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+For reference, the time/space chart was created (except for the heading) with the following (which will probably only work on FreeBSD or similar):
+<DL>
+<dt><dd><pre>
+
+for ((i = 50000; $i&lt;=1000000; i = $i + 50000)) do /usr/bin/time -apl -o hamming.log ./hamming.lua $i &gt;&gt; hamming.log; done
+
+egrep '(hamming|user|maximum)' hamming.log | \
+
+ lua -e 'local a = io.read"*a"; \
+
+         for n, res, time, size in string.gfind(a, "(%d+)%s+(%d+)%D+([%d.]+)%s+(%d+)") do \
+
+           print(string.format("%8i %8.2f %8i %6.1f %6.1f   %s", \
+
+                               n, time, size, (time*1e6)/n, (size*1e3)/n, res)) \
+
+         end' &gt; hamming.res
+
+</pre>
+</DL>
+<p>
+--<a href="../wiki/RiciLake.html" >RiciLake</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/HammingNumbersVariant.html" >HammingNumbersVariant</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=HammingNumbers" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=HammingNumbers" >history</a><br>Last edited May 28, 2007 8:42 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=HammingNumbers" >(diff)</a>
+</body>
+</html>

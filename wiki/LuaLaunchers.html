@@ -1,0 +1,100 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Launchers</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaLaunchers&amp;body=1" title="List pages referring to LuaLaunchers">Lua Launchers</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Minimal Lua Launcher for Windows</H3>
+<p>
+A very basic implementation of an executable that loads and runs a Lua file. 
+<p>
+Usage is simple:
+<DL>
+<dt><dd>1. Compile as luancher.exe
+<dt><dd>2. Copy luancher.exe to myapp.exe
+<dt><dd>3. Create myapp.lua in same folder
+<dt><dd>4. Implement startup code in myapp.lua
+<dt><dd>5. Run myapp.exe
+</DL>
+<p>
+<pre>
+
+#include &lt;windows.h&gt;
+
+#include &lt;lua.h&gt;
+
+#include &lt;lauxlib.h&gt;
+
+#include &lt;lualib.h&gt;
+
+#pragma comment(lib, "lua51.lib")
+
+
+
+int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+
+{
+
+	TCHAR fn[MAX_PATH];
+
+	int res, len = GetModuleFileName(hInstance, fn, MAX_PATH);
+
+	lua_State* l = luaL_newstate();
+
+	luaL_openlibs(l);
+
+	memcpy(&amp;fn[len-3], "lua", 3); // .exe -&gt; .lua
+
+	if(GetFileAttributes(fn) == INVALID_FILE_ATTRIBUTES) // check file exists
+
+		return 1;
+
+	if(AttachConsole(ATTACH_PARENT_PROCESS)) { // attach std streams to console
+
+		freopen("CONIN$", "r", stdin);
+
+		freopen("CONOUT$", "w", stdout);
+
+		freopen("CONOUT$", "w", stderr);
+
+		printf("\n");
+
+	}
+
+	res = luaL_dofile(l, fn); // execute the lua file
+
+	lua_close(l);
+
+	return res;
+
+}
+
+</pre>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaLaunchers" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaLaunchers" >history</a><br>Last edited April 1, 2013 6:08 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaLaunchers" >(diff)</a>
+</body>
+</html>

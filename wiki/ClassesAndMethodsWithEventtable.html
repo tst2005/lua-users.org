@@ -1,0 +1,627 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Classes And Methods With Eventtable</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ClassesAndMethodsWithEventtable&amp;body=1" title="List pages referring to ClassesAndMethodsWithEventtable">Classes And Methods With Eventtable</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<hr><DL>
+<dt><dd><strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  It does not run as is under Lua 5.  This page is obsolete now that Lua 5.0 is finished.  See <a href="../wiki/LuaClassesWithMetatable.html" >LuaClassesWithMetatable</a>.</strong>
+</DL>
+<hr>The difference between the Lua4.0 and Lua4.1 (work4) is like the
+difference between AWK and Perl 5.  The new metatables and
+lexical scoping are really great for making classes in Lua, but
+some understanding of tag methods is required.
+<p>
+<em>Note: in Lua4.1 (work4) the metatable() command has been altered to metatable() -- Dominik Wagner</em>
+<p>
+<em>Note: I changed the article to reflect this change. -- <a href="../wiki/JamesHearn.html" >JamesHearn</a></em>
+<p>
+To understand tag methods first set the gettable and settable events to
+be the print function.  That way you can see what arguments are passed
+to the event function when a table access happens.
+<DL>
+<dt><dd><pre>
+
+$ lua
+
+Lua 4.1 (work4)  Copyright (C) 1994-2001 TeCGraf, PUC-Rio
+
+&gt; t = { 11,22,33 , one = "a", two = "b", three = "c" }
+
+&gt; foreach(t,print)
+
+1       11
+
+2       22
+
+3       33
+
+one     a
+
+three   c
+
+two     b
+
+&gt; mt = { gettable = print, settable = print }
+
+&gt; metatable( t, mt )
+
+&gt; x = t[2]
+
+table: 0x80631d0        2
+
+&gt; = t
+
+table: 0x80631d0
+
+&gt; x = t.three
+
+table: 0x80631d0        three
+
+&gt; x = t["three"]
+
+table: 0x80631d0        three
+
+&gt; t.one = 'rat'
+
+table: 0x80631d0        one     rat
+
+&gt; t[1] = 99
+
+table: 0x80631d0        1       99
+
+&gt; = x
+
+nil
+
+&gt;
+
+</pre>
+</DL>
+From this we can see that when you try to look up a value in table 't',
+the gettable method is passed both the table 't' and the index as
+arguments.  We can also see that  when you try to set a table member to
+a value, the settable method is passed the table 't', the index and the
+new value.
+<p>
+settable and gettable events are straight forward, but the index event is
+much more useful.  The index event is called when you try to get a value
+from a table that the table doesn't have.  You can do something special
+for these cases like look in another table or whatever you want.
+<DL>
+<dt><dd><pre>
+
+&gt; foreach(t,print)
+
+1       11
+
+2       22
+
+3       33
+
+one     a
+
+three   c
+
+two     b
+
+&gt; mt = { index = print }
+
+&gt; metatable( t, mt )
+
+&gt; x = t.fish
+
+table: 0x80631d0        fish
+
+&gt; = t
+
+table: 0x80631d0
+
+&gt; x = t[44]
+
+table: 0x80631d0        44
+
+&gt; x = t['zzz']
+
+table: 0x80631d0        zzz
+
+&gt; = x
+
+nil
+
+&gt;
+
+</pre>
+</DL>
+We can see that the index event gets the table 't' and the index just
+like the gettable event did, but think of the index event as a special
+gettable for undefined table values.  Beware that if you use the
+gettable event, then the index event will never get called.
+<p>
+Lua 4.1 (work4) lets you set these tag methods to either a function or
+some other table to access instead.
+<DL>
+<dt><dd><pre>
+
+&gt; foreach(t,print)
+
+1       11
+
+2       22
+
+3       33
+
+one     a
+
+three   c
+
+two     b
+
+&gt; u = { cow = 'big' }
+
+&gt; mt.index = u
+
+&gt; foreach(u,print)
+
+cow     big
+
+&gt; = t.cow
+
+big
+
+&gt;
+
+</pre>
+</DL>
+<p>
+The following is all you need to make classes like you would in Perl.
+<p>
+An object of a class is just a table whose metatable is set to another
+table which is the class.
+<p>
+You can put all the class methods in the class table and
+set the index method to be the class table.
+Notice below how my function 'class' sets it's index member to itself.
+<p>
+Then when you do a method call like t:fun(4), which
+is shorthand for t.fun(t,4), if table 't' doesn't have the function
+'fun' it will use the index method to look in the class table.
+<p>
+<DL>
+<dt><dd><pre>
+
+------------------------------------------------------------------------------
+
+--
+
+function class( t )
+
+  t = t or {}
+
+  t.index = t
+
+  t.new = new
+
+  t.copy = copy
+
+  return t
+
+end
+
+
+
+------------------------------------------------------------------------------
+
+function new( class, init )
+
+  init = init or {}
+
+  return metatable( init, class )
+
+end
+
+
+
+------------------------------------------------------------------------------
+
+function classof( x )
+
+  return type(x)=='table' and metatable(x)
+
+end
+
+
+
+------------------------------------------------------------------------------
+
+function copy( obj )
+
+  local newobj = classof( obj ):new()
+
+  for n,v in obj do newobj[n] = v end
+
+  return newobj
+
+end
+
+
+
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+
+
+
+B = class{
+
+  name = 'Bob',
+
+}
+
+
+
+function B:who()
+
+  print(self.name)
+
+end
+
+
+
+function B:hypotenuse()
+
+  local x,y = self.x, self.y
+
+  return sqrt( x*x + y*y )
+
+end
+
+
+
+a = B:new{
+
+  x = 4,
+
+  y = 99,
+
+}
+
+
+
+b = B:new{
+
+  x = 5,
+
+  y = 12,
+
+}
+
+
+
+print( b:hypotenuse() )
+
+
+
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+
+</pre>
+</DL>
+Here the class 'B' is the metatable or class table of methods for
+objects 'a' and 'b'.  Notice how 'B.index' is equal to 'B'.
+<DL>
+<dt><dd><pre>
+
+$ lua std.lua -i
+
+&gt; foreach(B,print)
+
+copy    function: 0x8066038
+
+index   table: 0x8066a08
+
+who     function: 0x8065d40
+
+hypotenuse      function: 0x80660c0
+
+name    Bob
+
+new     function: 0x80659b8
+
+&gt; foreach(a,print)
+
+y       99
+
+x       4
+
+&gt; foreach(b,print)
+
+y       12
+
+x       5
+
+&gt; print( b:hypotenuse() )
+
+13
+
+&gt; = B
+
+table: 0x8066a08
+
+&gt;
+
+</pre>
+</DL>
+You can override the default 'new' method for the class 'B' as follows:
+<DL>
+<dt><dd><pre>
+
+&gt;
+
+&gt; function B:new( x,y )
+
+&gt;&gt; local obj = new( self, { x=x, y=y } )
+
+&gt;&gt; return obj
+
+&gt;&gt; end
+
+&gt;
+
+&gt; c = B:new(1,sqrt(3))
+
+&gt; foreach(c,print)
+
+y       1.732050807568877
+
+x       1
+
+&gt; = c:hypotenuse()
+
+2
+
+&gt;
+
+</pre>
+</DL>
+A good trick is to use the 'debug' function to stop and print out values
+inside functions and then just enter 'cont' to continue.
+<DL>
+<dt><dd><pre>
+
+&gt; function B:something(x)
+
+&gt;&gt; y = self
+
+&gt;&gt; print(x,y)
+
+&gt;&gt; debug()
+
+&gt;&gt; print(x,y)
+
+&gt;&gt; print"finish"
+
+&gt;&gt; return x
+
+&gt;&gt; end
+
+&gt;
+
+&gt; b:something(1234)
+
+1234    table: 0x8066548
+
+lua_debug&gt; print(b)
+
+table: 0x8066548
+
+lua_debug&gt; y=22
+
+lua_debug&gt; cont
+
+1234    22
+
+finish
+
+&gt;
+
+</pre>
+</DL>
+One last note.  Beware of using tag methods on the table of globals.
+Because all of Lua's standard functions are just global values, unless
+you make a local copy in a local variable, the tag method will go into
+an infinite loop when you try to call any of these functions.  That is
+why you'll sometimes see things like the following:
+<DL>
+<dt><dd><pre>
+
+local rawget, metatable, getglobal, gsub
+
+    = rawget, metatable, getglobal, gsub
+
+</pre>
+</DL>
+<p>
+<em>Is it essential that the event table peform double-duty by also holding class members?  In Python classes, for example, special members are named with underbars (e.g., __index__) so as to not conflict with user fields.  The same clashing problem exists when the Lua designers decide to add some new field to the event table specification.</em>
+<p>
+<p>
+<em>No, it is just a convenience which Peter employed. You can use a different table for the index tag method; it just means juggling more tables. There are some oddities in Peter's code (like the fact that b:new() is defined but what it does is not 100% obvious) which result from the decision to merge the index table with the event table. I would personally suggest using a different table even though it complicates the design a bit, both for this reason and because of John's objection about name clashes. __foo__ is an ugly workaround, not a solution: separation of namespaces is the solution. -- <a href="../wiki/RiciLake.html" >RiciLake</a></em>
+<p>
+Roberto was the first to suggest using the metatable to hold the methods for the class.  I like it because then you can say:
+<p>
+<DL>
+<dt><dd><pre>
+
+function some_class:some_method(some_params) does_something end
+
+</pre>
+</DL>
+<p>
+<em>If that's a recommended use then the system's event table fields should definitely be named to avoid clashes.</em>
+<p>
+The following should fix the b:new() problem because <code>obj.index</code> always gives the class table whether <code>new</code> is passed a class table or an object of the class.
+<DL>
+<dt><dd><pre>
+
+function class( t )
+
+  t = t or {}
+
+  t.index = t
+
+  t.new = new
+
+  t.copy = copy
+
+  return t
+
+end
+
+
+
+function new( obj, init )
+
+  init = init or {}
+
+  return metatable( init, obj.index )
+
+end
+
+
+
+function copy( obj, init )
+
+  local newobj = obj:new(init)
+
+  for n,v in obj do newobj[n] = v end
+
+  return newobj
+
+end
+
+</pre>
+<dt><dd><pre>
+
+$ lua -v std2.lua -i
+
+Lua 4.1 (work4)  Copyright (C) 1994-2001 TeCGraf, PUC-Rio
+
+&gt; foreach(B,print)
+
+copy    function: 0x8066fb0
+
+index   table: 0x8067b40
+
+who     function: 0x8066cb8
+
+hypotenuse      function: 0x8067038
+
+name    Bob
+
+new     function: 0x8066b18
+
+&gt; foreach(b,print)
+
+y       12
+
+x       5
+
+&gt; w = b:new()
+
+&gt; foreach(w,print)
+
+&gt; =B
+
+table: 0x8067b40
+
+&gt; =b.index
+
+table: 0x8067b40
+
+&gt; =w.index
+
+table: 0x8067b40
+
+&gt; z = b:new{ x=1,y=sqrt(3) } 
+
+&gt; = z:hypotenuse()
+
+2
+
+&gt; foreach(z,print)
+
+y       1.732050807568877
+
+x       1
+
+&gt; zz = z:copy()
+
+&gt; foreach(zz,print)
+
+y       1.732050807568877
+
+x       1
+
+&gt; =z
+
+table: 0x8068488
+
+&gt; =zz
+
+table: 0x80686d0
+
+&gt; 
+
+&gt; b:who() 
+
+Bob
+
+&gt; c=b:copy{ z=3 }
+
+&gt; foreach(c,print)
+
+y       12
+
+x       5
+
+z       3
+
+&gt; c:who()
+
+Bob
+
+&gt; 
+
+
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ClassesAndMethodsWithEventtable" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ClassesAndMethodsWithEventtable" >history</a><br>Last edited December 30, 2006 11:13 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ClassesAndMethodsWithEventtable" >(diff)</a>
+</body>
+</html>

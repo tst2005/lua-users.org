@@ -1,0 +1,68 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Swig Lua Draft</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SwigLuaDraft&amp;body=1" title="List pages referring to SwigLuaDraft">Swig Lua Draft</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Swig/Lua DRAFT</H2>
+<p>
+comment excerpts from work in progress
+<p>
+<p>
+<H3>Multi-stage module loading</H3>
+<p>
+One Lua motto is <em>"mechanisms, not policies"</em>. As a matter of fact, Lua does not come with a predefined object model. Instead, it provides a thin layer of syntactic sugar (: and self) and a small set of powerful mechanisms (environments, metatables, closures and coroutines), that together allow a wide range of object flavours.
+<p>
+Since this is the Lua way, we must follow it in designing SWIG/Lua. This means we must provide <strong>flexiblity</strong> at some level between SWIG and Lua. On the other hand, we should take care not to make Lua too different from other SWIG target languages with respect to their module interface, which whould decrease reusability.
+<p>
+SWIG does offer a lot in terms of flexibility, but relying on SWIG typemap and directive tricks would clutter interfaces. In also involves writing some C, which is not what SWIG and Lua users are usually interested in !
+<p>
+This leads to the natural solution of implementing Lua-side wrapping specifics in Lua itself [1]. 
+<p>
+We offer the following basic mechanisms:
+<p>
+<UL>
+<li> 1) <strong>loading</strong>: load spec chunk + runtime library.
+<li> 2) <strong>linking</strong>: resolve wrappers in spec.
+<li> 3) <strong>mapping</strong>: match spec with a templated logical module map.
+<li> 4) <strong>exposing</strong>: generate proxies and their metatables.
+</UL>
+<p>
+Stages 1 and 2 are straightforward.
+Stages 3 and 4 rely on <strong>declarative</strong> techniques for clarity and power.
+<p>
+[1]
+By contrast, the current official implementation of SWIG/Lua uses a single arbitrary object scheme that is hard-coded in C somewhere in the runtime SWIG library. Yes, the resulting modules can still be tweaked, but high-level information is already lost, and that is a brittle approach.
+<p>
+<hr>-- <a href="../wiki/ThomasLefort.html" >ThomasLefort</a>
+<p>
+Comments welcome.
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SwigLuaDraft" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SwigLuaDraft" >history</a><br>Last edited October 9, 2007 11:57 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SwigLuaDraft" >(diff)</a>
+</body>
+</html>

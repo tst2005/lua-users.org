@@ -1,0 +1,397 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Simulated Non Local In Strings</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SimulatedNonLocalInStrings&amp;body=1" title="List pages referring to SimulatedNonLocalInStrings">Simulated Non Local In Strings</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Simulating non-local variables in compiled files or strings</H3>
+<p>
+By default the files or strings previously compiled by using <code>loadfile</code> and <code>loadstring</code>, respectively, and executed afterwards directly or by using <code>pcall</code>, work in the global environment. Their effects in the caller are only possible through the global table <code>_G</code> and the corresponding <code>return var_list</code>. In the following we work with the string case.
+<p>
+Therefore, the local and non-local variables of the caller function or chunk are not inherited by the string. Besides, non-local variables do not exist for the string (and we cannot use the string as a closure).
+<p>
+However we could wish to use and/or modify some non-local variable inside the string. The only way of doing it is through the design of a function that prepares a new environment with a table (now a global one inside the string) as a proxy with the required non-local variables. These must be used inside the string as if they were global, but with some prefix. We chose <code>_U</code>. Inside the function defined as a string they will be the fields of a global table <code>_U</code>. We also need some functions of the <code>debug</code> library (this is a necessary drawback) with the aim of modify the upvalues in the return.
+<p>
+Therefore, the use of non-local variables is simulated, but it works.
+<p>
+We need a function, <code>callstring</code>, with arguments:
+<p>
+<UL>
+<li> <code>proc</code>, the compiled result of <code>loadstring</code> or <code>loadfile</code>.
+</UL>
+<p>
+<UL>
+<li> <code>_U</code>, a table with the desired non-local variables; if <code>nil</code> then {} is supposed.
+</UL>
+<p>
+<UL>
+<li> <code>func</code>, the caller to <code>callstring</code>; this is needed only if the invocation of <code>callstring</code> is in a tail return; otherwise it can be <code>nil</code>.
+</UL>
+<p>
+<UL>
+<li> finally the arguments that will be passed to <code>proc</code>.
+</UL>
+<p>
+The return of <code>callstring</code> is a <code>status</code> with <code>nil</code> in case of error or <code>true</code> if all is correct, and the return of <code>proc</code>.
+<p>
+Let put a simple example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+s = <span class="string">[[ _U.c = 11; _U.d = 22; return ... ]]</span>
+
+proc = <span class="library">loadstring</span>(s)
+
+
+
+<span class="keyword">local</span> c = 1
+
+
+
+<span class="keyword">function</span> example (proc)
+
+   <span class="keyword">local</span> d = 2
+
+   <span class="keyword">local</span> result = {callstring(proc, {c = c, d = d}}, <span class="keyword">nil</span>, <span class="string">"a"</span>, <span class="string">"b"</span>)}}
+
+   <span class="library">print</span>(d)       <span class="comment">-- possibly modified inside proc</span>
+
+   <span class="keyword">return</span> result  <span class="comment">-- a table with the status and the results of proc</span>
+
+<span class="keyword">end</span>
+
+
+
+example(proc)
+
+<span class="library">print</span>(c)          <span class="comment">-- possibly modified inside proc</span>
+
+</pre>
+
+</DL>
+<p>
+In this, <code>c</code> is a non-local variable in <code>example</code> because it is used inside <code>example</code> (if not Lua 'forgot' it for the moment). On the other hand, <code>d</code> is a local variable in <code>example</code>. Both behave like upvalues inside <code>proc</code>: they can be accessed and modified with the names <code>_U.c</code> and <code>_U.d</code>. Even more, the modified values are transferred to <code>example</code>.
+<p>
+The key is that the table <code>_U</code> will have two fields <code>_U.c</code> and <code>_U.d</code>, initialised with the values of <code>c</code> and <code>d</code>, respectively. Besides, by using <code>c</code> and <code>d</code> in the invocation of <code>callstring</code> we assure that both variables work like upvalues inside <code>proc</code>.
+<p>
+Other fields passed in <code>_U</code> to <code>callstring</code> are treated as local variables inside <code>proc</code>. In the calling:
+<p>
+<DL>
+<dt><dd><pre class="code">
+callstring(proc, {c = c, d = d, x = <span class="string">"xx"</span>}}, <span class="keyword">nil</span>, <span class="string">"a"</span>, <span class="string">"b"</span>)
+
+</pre>
+
+</DL>
+<p>
+<code>x</code> is not an upvalue, because it does not exist in some place in the caller closure. In this case <code>_U.x</code> takes the value <code>"xx"</code> in the string, and it behaves like a local variable inside the string.
+<p>
+It is time to present <code>callstring</code>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Calling a function obtained from a string or file</span>
+
+<span class="comment">-- with simulated upvalues</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Arguments:</span>
+
+<span class="comment">-- proc    loaded string or file</span>
+
+<span class="comment">-- _U      is a new local and non-local table;</span>
+
+<span class="comment">--         if it is nil then we suppose it {}}</span>
+
+<span class="comment">-- func    is the function from we invoked 'callstring';</span>
+
+<span class="comment">--         can be nil if the invocation is not a tail return</span>
+
+<span class="comment">-- ...     the arguments to string calling</span>
+
+
+
+<span class="keyword">function</span> callstring (proc, _U, func, ...)
+
+
+
+   _U = _U <span class="keyword">or</span> {}}
+
+   <span class="keyword">if</span> <span class="library">type</span>(_U) ~= <span class="string">"table"</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">"Second argument of callstring must be a table or nil"</span>
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="comment">-- determine the calling function</span>
+
+   func = func <span class="keyword">or</span> <span class="library">debug.getinfo</span>(2, <span class="string">"f"</span>).func
+
+
+
+   <span class="comment">-- count _U fields</span>
+
+   <span class="keyword">local</span> nt = 0
+
+   <span class="keyword">for</span> _, _ <span class="keyword">in</span> <span class="library">pairs</span>(_U) <span class="keyword">do</span> nt = nt+1 <span class="keyword">end</span>
+
+
+
+   <span class="keyword">if</span> func == <span class="keyword">nil</span> <span class="keyword">and</span> nt ~= 0 <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">"Callstring invoked in a tail call cannot evaluate string"</span>
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="comment">-- both _G and _U are passed as global in the new environment</span>
+
+   <span class="comment">-- the direct indexing of _G is permitted for accessing (not modifying)</span>
+
+
+
+   <span class="keyword">local</span> newgt = {_U = _U}}
+
+   <span class="library">setmetatable</span>(newgt, {__index = <span class="library">_G</span>}})
+
+   <span class="library">setfenv</span>(proc, newgt)
+
+
+
+   <span class="comment">-- proc is executed with arguments</span>
+
+   <span class="keyword">local</span> result = {proc(...)}}
+
+
+
+   <span class="comment">-- when _U is {}} (no upvalues) the return is always possible </span>
+
+   <span class="comment">-- (even in a tail call)</span>
+
+   <span class="keyword">if</span> nt == 0 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">true</span>, <span class="library">unpack</span>(result) <span class="keyword">end</span>
+
+
+
+   <span class="comment">-- modify local and non-local variables of the calling routine</span>
+
+   <span class="comment">-- (adapted from PIL2 chapter 23)</span>
+
+   <span class="keyword">for</span> n, v <span class="keyword">in</span> <span class="library">pairs</span>(_U) <span class="keyword">do</span>
+
+      <span class="keyword">local</span> found = <span class="keyword">false</span>
+
+      <span class="comment">-- non-local variable</span>
+
+      <span class="keyword">for</span> i = 1, <span class="library">math.huge</span> <span class="keyword">do</span>
+
+         <span class="keyword">local</span> m, _ = <span class="library">debug.getupvalue</span>(func, i)
+
+         <span class="keyword">if</span> <span class="keyword">not</span> m <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+         <span class="keyword">if</span> m == n <span class="keyword">then</span>
+
+            found = <span class="keyword">true</span>
+
+            <span class="library">debug.setupvalue</span>(func, i, v)
+
+            <span class="keyword">break</span>
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> <span class="keyword">not</span> found <span class="keyword">then</span>
+
+         <span class="comment">-- local variable</span>
+
+         <span class="keyword">local</span> ipos
+
+         <span class="keyword">for</span> i = 1, <span class="library">math.huge</span> <span class="keyword">do</span>
+
+            <span class="keyword">local</span> m, _ = <span class="library">debug.getlocal</span>(2, i)
+
+            <span class="keyword">if</span> <span class="keyword">not</span> m <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+            <span class="keyword">if</span> m == n <span class="keyword">then</span> ipos = i <span class="keyword">end</span>
+
+            <span class="comment">-- the last found is the correct</span>
+
+         <span class="keyword">end</span>
+
+         <span class="keyword">if</span> ipos <span class="keyword">then</span> <span class="library">debug.setlocal</span>(2, ipos, v) <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">return</span> <span class="keyword">true</span>, <span class="library">unpack</span>(result)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+A more elaborate example of calling could be:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> c = 1
+
+<span class="keyword">local</span> h = 2
+
+g = 3   <span class="comment">-- global</span>
+
+
+
+<span class="keyword">local</span> s = <span class="string">[[
+
+     local f = 99           -- local inside the string
+
+     _U.c = 11              -- non-local of something
+
+     _U.h = 22              -- internal (not passed in table)
+
+     _U.z = 4               -- internal (not passed in table)
+
+     _U.d = 77              -- local of something
+
+     _G.zzz = table.concat({...}}, "+") -- global of new creation
+
+     print("_U.x = ", _U.x) -- internal (because in table does not
+
+                            -- correspond to any local/non-local)
+
+     _G.g = 33              -- previously existent global
+
+     _G.v = f               -- global of new creation
+
+     return 10*g, 10*v      -- return
+
+]]</span>
+
+
+
+<span class="comment">-- loading the string</span>
+
+<span class="keyword">local</span> proc, msg = <span class="library">loadstring</span>(s)
+
+
+
+<span class="keyword">function</span> something (proc)
+
+   <span class="keyword">local</span> d = 3
+
+
+
+   <span class="keyword">if</span> proc == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="library">error</span>(msg) <span class="keyword">end</span>
+
+
+
+   <span class="keyword">local</span> r = {callstring(proc, {c = c, d = d, x = <span class="string">"xx"</span>}}, <span class="keyword">nil</span>, <span class="string">"a"</span>, <span class="string">"b"</span>)}}
+
+
+
+   <span class="comment">-- printing a local modified inside the string as an upvalue</span>
+
+   <span class="library">print</span>(<span class="string">"d = "</span>, d)
+
+
+
+   <span class="keyword">return</span> <span class="library">unpack</span>(r)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> r = {something(proc)}}
+
+
+
+<span class="keyword">if</span> <span class="keyword">not</span> r[1] <span class="keyword">then</span>
+
+   <span class="library">print</span>(<span class="string">"error in callstring: "</span> .. r[2])
+
+<span class="keyword">else</span>
+
+   k1 = r[2]
+
+   k2 = r[3]
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span>(c, h, g, v, z)
+
+<span class="library">print</span>(k1, k2)
+
+<span class="library">print</span>(zzz)
+
+</pre>
+
+</DL>
+<p>
+The output of this program is:
+<p>
+<DL>
+<dt><dd><pre class="code">
+_U.x =          xx                  <span class="comment">--&lt; internal variable in the string</span>
+
+d =     77                          <span class="comment">--&lt; local variable in something</span>
+
+11      2       33      99      <span class="keyword">nil</span> <span class="comment">--&lt; local, local, global, global, global</span>
+
+330     990                         <span class="comment">--&lt; return of string</span>
+
+a+b                                 <span class="comment">--&lt; global zzz modified inside the string</span>
+
+</pre>
+
+</DL>
+<p>
+As a conclusion, it will be good if Lua executed compiled strings
+and files as other 'normal' function. But, for the moment we have to
+'circumvent' Lua with some constructions like the one presented.
+<p>
+-- <a href="../wiki/JulioFernandez.html" >JulioFernandez</a> 
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> "Accessing Lexical Variables in the Caller / Lexical String Interpolation" and "Proxy Table of Local Variables, _L" in <a href="../wiki/LuaHacks.html" >LuaHacks</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SimulatedNonLocalInStrings" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SimulatedNonLocalInStrings" >history</a><br>Last edited March 23, 2007 5:26 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SimulatedNonLocalInStrings" >(diff)</a>
+</body>
+</html>

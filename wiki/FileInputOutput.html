@@ -1,0 +1,228 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: File Input Output</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FileInputOutput&amp;body=1" title="List pages referring to FileInputOutput">File Input Output</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following code contains a few utility file input/output functions.  These raise an error if they fail. They can also be useful for writing command-line utilities and small scripts, as the error raising (rather than returning <code>nil</code>) avoids silently continuing on failure.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Find the length of a file</span>
+
+<span class="comment">--   filename: file name</span>
+
+<span class="comment">-- returns</span>
+
+<span class="comment">--   len: length of file</span>
+
+<span class="comment">--   asserts on error</span>
+
+<span class="keyword">function</span> length_of_file(filename)
+
+  <span class="keyword">local</span> fh = <span class="library">assert</span>(<span class="library">io.open</span>(filename, <span class="string">"rb"</span>))
+
+  <span class="keyword">local</span> len = <span class="library">assert</span>(fh:seek(<span class="string">"end"</span>))
+
+  fh:close()
+
+  <span class="keyword">return</span> len
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Return true if file exists and is readable.</span>
+
+<span class="keyword">function</span> file_exists(path)
+
+  <span class="keyword">local</span> file = <span class="library">io.open</span>(path, <span class="string">"rb"</span>)
+
+  <span class="keyword">if</span> file <span class="keyword">then</span> file:close() <span class="keyword">end</span>
+
+  <span class="keyword">return</span> file ~= <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Guarded seek.</span>
+
+<span class="comment">-- Same as file:seek except throws string</span>
+
+<span class="comment">-- on error.</span>
+
+<span class="comment">-- Requires Lua 5.1.</span>
+
+<span class="keyword">function</span> seek(fh, ...)
+
+  <span class="library">assert</span>(fh:seek(...))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Old Lua 4 Stuff</H3>
+<p>
+The following examples are from Lua 4, included here only for historical reasons.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Guarded readfrom (Lua4)</span>
+
+<span class="comment">--   [f]: file name</span>
+
+<span class="comment">-- Note: In Lua5 use io.input().</span>
+
+<span class="keyword">function</span> readfrom(f)
+
+  <span class="keyword">local</span> h, err
+
+  <span class="keyword">if</span> f <span class="keyword">then</span> h, err = %readfrom(f)
+
+  <span class="keyword">else</span>      h, err = %readfrom()
+
+  <span class="keyword">end</span>
+
+  affirm(h, <span class="string">"can't read from "</span> .. (f <span class="keyword">or</span> <span class="string">"stdin"</span>) .. <span class="string">": "</span> ..
+
+         (err <span class="keyword">or</span> <span class="string">""</span>))
+
+  <span class="keyword">return</span> h
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Guarded writeto (Lua4)</span>
+
+<span class="comment">--   [f]: file name</span>
+
+<span class="comment">-- Note: In Lua5 use io.output().</span>
+
+<span class="keyword">function</span> writeto(f)
+
+  <span class="keyword">local</span> h, err
+
+  <span class="keyword">if</span> f <span class="keyword">then</span> h, err = %writeto(f)
+
+  <span class="keyword">else</span>      h, err = %writeto()
+
+  <span class="keyword">end</span>
+
+  affirm(h, <span class="string">"can't write to "</span> .. (f <span class="keyword">or</span> <span class="string">"stdout"</span>) .. <span class="string">": "</span> ..
+
+         (err <span class="keyword">or</span> <span class="string">""</span>))
+
+  <span class="keyword">return</span> h
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Guarded dofile (Lua4)</span>
+
+<span class="comment">--   [f]: file name</span>
+
+<span class="comment">-- Note: In Lua5, dofile throws on error.</span>
+
+<span class="keyword">function</span> <span class="library">dofile</span>(f)
+
+  affirm(%<span class="library">dofile</span>(f), <span class="string">"error while executing "</span> .. f)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Guarded seek (Lua4)</span>
+
+<span class="comment">--   f: file handle</span>
+
+<span class="comment">--   w: whence to seek</span>
+
+<span class="comment">--   o: offset</span>
+
+<span class="keyword">function</span> seek(f, w, o)
+
+  <span class="keyword">local</span> ok, err
+
+  <span class="keyword">if</span>     o <span class="keyword">then</span> ok, err = %seek(f, w, o)
+
+  <span class="keyword">elseif</span> w <span class="keyword">then</span> ok, err = %seek(f, w)
+
+  <span class="keyword">else</span>          ok, err = %seek(f)
+
+  <span class="keyword">end</span>
+
+  affirm(ok, <span class="string">"can't seek on "</span> .. f .. <span class="string">": "</span> .. (err <span class="keyword">or</span> <span class="string">""</span>))
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Find the length of a file (Lua4)</span>
+
+<span class="comment">--   f: file name</span>
+
+<span class="comment">-- returns</span>
+
+<span class="comment">--   len: length of file</span>
+
+<span class="keyword">function</span> length_of_file(f)
+
+  <span class="keyword">local</span> h, len
+
+  h = openfile(f, <span class="string">"r"</span>)
+
+  len = seek(h, <span class="string">"end"</span>)
+
+  closefile(h)
+
+  <span class="keyword">return</span> len
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/JayCarlson.html" >JayCarlson</a> - original (Lua 4 version)
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/FileSystemOperations.html" >FileSystemOperations</a>
+</UL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FileInputOutput" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FileInputOutput" >history</a><br>Last edited September 18, 2010 5:55 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FileInputOutput" >(diff)</a>
+</body>
+</html>

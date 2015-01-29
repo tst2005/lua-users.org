@@ -1,0 +1,82 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: File System Operations</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FileSystemOperations&amp;body=1" title="List pages referring to FileSystemOperations">File System Operations</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+File system operations include reading/writing files and directories.  It can also include manipulating file attributes, file locking, symbolic linking, and manipulating the current working directory.  Manipulating file system path names may also be included but may involve only string processing rather than OS calls.  The following libraries provide these operations in Lua:
+<p>
+<UL>
+<li> Standard API
+<UL>
+<li> <a href="http://www.lua.org/manual/5.1/manual.html#5.7">[Lua I/O Library]</a> - a standard library in Lua, includes basic file operations from ANSI C.  It lacks operations not provided by ANSI C like listing directories.
+<li> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-os.execute">[os.execute]</a> and <a href="http://www.lua.org/manual/5.1/manual.html#pdf-io.popen">[io.popen]</a> Lua standard library functions - can be used to invoke file system operations provided by the OS shell on Windows or POSIX, but different commands are required for both platforms.  Performance and error handling may be inferior with this approach.  <a href="../wiki/LuaRocks.html" >LuaRocks</a>/<a href="../wiki/LuaDist.html" >LuaDist</a> fall back to this when Lua<code></code>File<code></code>System is not available or is not sufficient.
+</UL>
+<li> Small, focused file system libraries
+<UL>
+<li> <a href="http://www.keplerproject.org/luafilesystem/">[LuaFileSystem]</a> - Windows and POSIX implementations.  Widely used, such as in <a href="../wiki/LuaRocks.html" >LuaRocks</a>/<a href="../wiki/LuaDist.html" >LuaDist</a>.  Originated from Kepler.
+<li> <a href="http://www.steve.org.uk/Software/lua-fs/">[lua-fs]</a> - basic file system operations.  API looks roughly like Lua<code></code>File<code></code>System but lacks Windows support and is lesser known.  LGPL license. (Steve Kemp)
+</UL>
+<li> Systems libraries with file system operations
+<UL>
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lposix">[lposix]</a> - fairly straightforward POSIX binding, supporting file system operations and other system related functions. (<a href="../wiki/LuizHenriqueDeFigueiredo.html" >LuizHenriqueDeFigueiredo</a>)
+<li> <a href="http://luaforge.net/projects/w32wrappers/">[Win32 API wrappers]</a> - has thin wrappers around Windows API functions, including file system operations. (Daniel Quintela)
+<li> <a href="../wiki/ExtensionProposal.html" >ExtensionProposal</a> - Includes Windows and POSIX implementations mostly borrowed from Lua<code></code>File<code></code>System.  Also includes other system related functions. (<a href="../wiki/MarkEdgar.html" >MarkEdgar</a>)
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/tnodir/">[LuaSys]</a> - Windows and POSIX implementations of file system operations.  Also includes other system related modules. (Nodir Temirhodzhaev)
+<li> <a href="http://dev.luci.freifunk-halle.net/nixio/doc/">[nxio]</a> - Includes Windows and POSIX implementations of file system operations.  Has large file support and other system related modules.  <a href="/lists/lua-l/2009-07/msg00151.html">[Comparison to LuaFileSystem]</a>. Apache 2 license. (Steven Barth)
+<li> <a href="/lists/lua-l/2009-02/msg00308.html">[Grunt]</a> - Supports the Windows shell object hierarchy.  Part of a graphical scripting system for Windows. (<a href="../wiki/JohnHind.html" >JohnHind</a>)
+<li> <a href="http://wxlua.sourceforge.net/docs/wxluaref.html">[wxLua]</a> wraps wxFile and other file system classes.
+<li> <a href="../wiki/LuaApr.html" >LuaApr</a> wraps the <a href="http://en.wikipedia.org/wiki/Apache_Portable_Runtime.html">[Apache Portable Runtime]</a> to provide a more comprehensive operating system interface. (<a href="../wiki/PeterOdding.html" >PeterOdding</a>)
+</UL>
+<li> General bindings to platforms supporting file system operations
+<UL>
+<li> Java <a href="../wiki/LuaImplementations.html" >LuaImplementations</a> and methods of <a href="../wiki/BindingCodeToLua.html" >BindingCodeToLua</a> can access Java file system operations.
+<li> .NET <a href="../wiki/LuaImplementations.html" >LuaImplementations</a> and methods of <a href="../wiki/BindingCodeToLua.html" >BindingCodeToLua</a> can access .NET file system operations.
+<li> <a href="../wiki/LuaCom.html" >LuaCom</a> - can access <a href="http://msdn.microsoft.com/en-us/library/6kxy1a51%28VS.85%29.aspx">[Scripting.FileSystemObject]</a> on Windows.
+<li> <a href="../wiki/LunaticPython.html" >LunaticPython</a> - can access Python file system operations, <code>require "python".import("os").listdir('.')} --&gt; ['lua.exe', 'lua51.dll', 'luac.exe']</code>
+<li> <a href="http://alien.luaforge.net/">[Lua Alien]</a> - could be used to call file system functions in the OS.
+</UL>
+<li> Utility and specialty libraries
+<UL>
+<li> <a href="https://github.com/stevedonovan/Penlight">[Penlight]</a> - includes file system operations and path manipulations implemented in terms of pure Lua and <a href="../wiki/LuaFileSystem.html" >LuaFileSystem</a>  (<a href="../wiki/SteveDonovan.html" >SteveDonovan</a>)
+<li> <a href="http://github.com/lua-shellscript/lua-shellscript/wiki">[lua-shellscript]</a> - effort to abstract file system and path operations (and other shell operations) in platform neutral way.  Based partly on Penlight and <a href="../wiki/LuaRocks.html" >LuaRocks</a> file system sub-libraries.
+<li> <a href="../wiki/FileGlob.html" >FileGlob</a> - pure Lua implementation of file globbing patterns.  Used, for example, in <a href="../wiki/SciteExtMan.html" >SciteExtMan</a>. (<a href="../wiki/DavidManura.html" >DavidManura</a>)
+<li> <a href="http://code.google.com/p/luafuse/">[luafuse]</a> - Lua binding to FUSE, a Linux library for creating file systems in userspace. (Gary Ng)
+</UL>
+<li> Examples/tutorials
+<UL>
+<li> <a href="../wiki/IoLibraryTutorial.html" >IoLibraryTutorial</a> - description of the Lua I/O library
+<li> <a href="http://www.lua.org/pil/21.html">[Programming in Lua]</a> has a chapter on the I/O library, as does Beginning Lua Programming (see <a href="../wiki/LuaBooks.html" >LuaBooks</a>)
+<li> <a href="../wiki/FileInputOutput.html" >FileInputOutput</a> - a few utility file input/output functions
+</UL>
+</UL>
+<p>
+Sometimes file system operations are bundled together with more general systems related functions (see <a href="../wiki/ExtendedApi.html" >ExtendedApi</a> and <a href="../wiki/LibrariesAndBindings.html" >LibrariesAndBindings</a>).
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FileSystemOperations" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FileSystemOperations" >history</a><br>Last edited July 4, 2012 9:44 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FileSystemOperations" >(diff)</a>
+</body>
+</html>

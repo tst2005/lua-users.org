@@ -1,0 +1,378 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Extended Api</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ExtendedApi&amp;body=1" title="List pages referring to ExtendedApi">Extended Api</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The Lua core is based on the C language and its standard library and therefore, like C, it does not provide access to many facilities present in modern operating systems.  There are (and have been) several attempts to make a Lua API which provides access to standard O/S facilities not present in C.  This page is intended to generate discussion about which such facilities should be considered "standard" and what such a Lua API should look like.
+<p>
+While it is true that a complete POSIX binding would allow Lua programs to be written for many platforms, it is also true that at least one major platform (Windows) would be left out.  It is neither easy nor clean to attempt to graft a POSIX-like API on top of Windows.
+<p>
+Here is brief list and description of known libraries, APIs and systems:
+<p>
+<UL>
+<li> <a href="../wiki/ExtensionProposal.html" >ExtensionProposal</a>
+</UL><DL>
+<dt><dd>This API is meant to provide a more complete programming environment for stand-alone Lua programs on today's popular operating systems (Windows, MacOSX and POSIX platforms).
+</DL>
+<p>
+<UL>
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lposix">[lposix]</a>
+</UL><DL>
+<dt><dd>A more-or-less straight-forward POSIX binding.
+</DL>
+<p>
+<UL>
+<li> <a href="http://www.keplerproject.org/luafilesystem/">[LuaFileSystem]</a>
+</UL><DL>
+<dt><dd><a href="../wiki/LuaFileSystem.html" >LuaFileSystem</a> offers a portable way to access the underlying directory structure and file attributes.
+</DL>
+<p>
+<UL>
+<li> LuaSys<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaSys" >?</a> <a href="http://lua-users.org/files/wiki_insecure/users/tnodir/">[1]</a>:
+</UL><DL>
+<dt><dd>File I/O and file system; serial communication; sockets; event notification mechanism (recently added IOCP); win32 stuff: registry, event, service; etc.
+</DL>
+<p>
+<UL>
+<li> <a href="../wiki/FileSystemOperations.html" >FileSystemOperations</a> outlines libraries specifically for file system operations, ignoring more general operation systems related functions.
+</UL>
+<p>
+--
+<p>
+<p>
+Following is a comparison of the <a href="../wiki/ExtensionProposal.html" >ExtensionProposal</a> API with <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lposix">[lposix]</a> and <a href="http://www.keplerproject.org/luafilesystem/">[LuaFileSystem]</a>.
+<p>
+<H2>Comparison</H2>
+<p>
+<H3>Environment</H3>
+<pre class="code">
+<span class="comment">-- get environment variable</span>
+
+<span class="library">os.getenv</span>           posix.getenv
+
+
+
+<span class="comment">-- set/unset environment variable</span>
+
+<span class="library">os.setenv</span>           posix.putenv
+
+                    posix.setenv
+
+                    posix.unsetenv
+
+
+
+<span class="comment">-- sleep (pause without consuming CPU)</span>
+
+<span class="library">os.sleep</span>            posix.sleep
+
+<span class="comment">--[[
+
+    os.sleep specifies that the implementation provide sub-second
+
+    resolution if available.  posix.sleep provides only second resolution.
+
+--]]</span>
+
+
+
+<span class="comment">-- system information</span>
+
+                    posix.ctermid
+
+                    posix.errno
+
+                    posix.pathconf
+
+                    posix.sysconf
+
+                    posix.ttyname
+
+                    posix.uname
+
+</pre>
+
+<H3>Directories</H3>
+<pre class="code">
+<span class="comment">-- get/set current directory</span>
+
+<span class="library">os.currentdir</span>       posix.getcwd        lfs.currentdir
+
+<span class="library">os.chdir</span>            posix.chdir         lfs.chdir
+
+
+
+<span class="comment">-- create/delete directories</span>
+
+<span class="library">os.mkdir</span>            posix.mkdir         lfs.mkdir
+
+<span class="library">os.remove</span>           posix.rmdir         lfs.rmdir
+
+<span class="comment">--[[
+
+    In both "ex" and POSIX systems, os.remove() will remove any directory
+
+    entry: both files (non-directories) and empty subdirectories.
+
+    The Lua 5.1 reference says that the standard os.remove() function will
+
+    remove a directory, but in fact the Microsoft MSVCRT implementation
+
+    of the C remove() function (on which os.remove() is based) will not
+
+    remove directories.
+
+--]]</span>
+
+
+
+<span class="comment">-- POSIX directory routines</span>
+
+                    posix.link
+
+                    posix.unlink
+
+                    posix.mkfifo
+
+                    posix.readlink
+
+                    posix.symlink
+
+</pre>
+
+<H3>Directory entries</H3>
+<pre class="code">
+<span class="comment">-- list directory</span>
+
+<span class="library">os.dir</span>              posix.files         lfs.dir
+
+                    posix.dir
+
+
+
+<span class="comment">-- get file attributes</span>
+
+<span class="library">os.dirent</span>           posix.stat          lfs.attributes
+
+<span class="comment">--[[
+
+    The "ex" os.dir() iterator returns a table of directory entry
+
+    attributes including the name, while the posix.files() and lfs.dir()
+
+    iterators return entry names only.
+
+
+
+    The best comparison of these three functions is via example:
+
+--]]</span>
+
+  <span class="library">require</span><span class="string">"ex"</span>
+
+  <span class="keyword">for</span> e <span class="keyword">in</span> <span class="library">os.dir</span>() <span class="keyword">do</span>
+
+    <span class="library">print</span>(e.name, e.size)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="library">require</span><span class="string">"lfs"</span>
+
+  <span class="keyword">for</span> name <span class="keyword">in</span> lfs.dir() <span class="keyword">do</span>
+
+    <span class="keyword">if</span> name~=<span class="string">"."</span> <span class="keyword">and</span> name~=<span class="string">".."</span> <span class="keyword">then</span>
+
+      <span class="library">print</span>(name, lfs.attributes(name).size)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="library">require</span><span class="string">"posix"</span>
+
+  <span class="keyword">for</span> name <span class="keyword">in</span> posix.files() <span class="keyword">do</span>
+
+    <span class="keyword">if</span> name~=<span class="string">"."</span> <span class="keyword">and</span> name~=<span class="string">".."</span> <span class="keyword">then</span>
+
+      <span class="library">print</span>(name, posix.stat(name, <span class="string">"size"</span>))
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="comment">--[[
+
+    os.dir() elides any "." and ".." names while lfs.dir(),
+
+    posix.dir() and posix.files() include them.
+
+    
+
+    posix.dir() is not an iterator; it returns a table with all entry names.
+
+--]]</span>
+
+
+
+<span class="comment">-- set file attributes</span>
+
+                    posix.utime         lfs.touch
+
+                    posix.chmod
+
+                    posix.chown
+
+<span class="comment">--[[
+
+    The "ex" API says only that the os.dirent() table can be extended
+
+    with OS-specific attribute values.  It would not be unreasonable
+
+    to add file date information to the standard fields:
+
+--]]</span>
+
+  <span class="keyword">local</span> age = <span class="library">os.difftime</span>(<span class="library">os.time</span>(), e.modified)
+
+  e.modified = <span class="library">os.time</span>() <span class="comment">-- touch a file</span>
+
+
+
+<span class="comment">-- Check permissions</span>
+
+                    posix.access
+
+</pre>
+
+<H3>File I/O</H3>
+<pre class="code">
+<span class="comment">-- file locking</span>
+
+file:lock                               lfs.lock
+
+file:unlock                             lfs.unlock
+
+
+
+<span class="comment">-- create anonymous pipe</span>
+
+<span class="library">io.pipe</span>
+
+</pre>
+
+<H3>Process control</H3>
+<pre class="code">
+<span class="comment">-- spawn process</span>
+
+<span class="library">os.spawn</span>            posix.fork
+
+proc:wait           posix.exec
+
+                    posix.wait
+
+<span class="comment">--[[
+
+    os.spawn supports redirection for standard I/O streams (in,
+
+    out, err) while lposix does not provide full integration with
+
+    POSIX-style descriptors and therefore does not provide a bind
+
+    for the POSIX dup() interface.
+
+--]]</span>
+
+
+
+<span class="comment">-- signal a process</span>
+
+                    posix.kill
+
+
+
+<span class="comment">-- process information</span>
+
+                    posix.getprocessid
+
+                    posix.getgroup
+
+                    posix.getlogin
+
+                    posix.getpasswd
+
+                    posix.setgid
+
+                    posix.setuid
+
+                    posix.times
+
+                    posix.umask
+
+</pre>
+
+<p>
+Note that the "ex" API was based (in part) on <a href="../wiki/LuaFileSystem.html" >LuaFileSystem</a> and its implementations use some code from it.
+<p>
+<H3>Comments</H3>
+<p>
+<DL>
+<dt><dd><em>How does <a href="../wiki/ExtensionProposal.html" >ExtensionProposal</a> compare with <a href="../wiki/StandardLibraries.html" >StandardLibraries</a> and <a href="http://luaforge.net/projects/stdlib/">http://luaforge.net/projects/stdlib/</a> ? -- <a href="../wiki/DavidManura.html" >DavidManura</a></em>
+</DL>
+<p>
+<DL>
+<dt><dd><em><a href="../wiki/StandardLibraries.html" >StandardLibraries</a> appears to be a set of modules written in pure Lua.  None of the modules (so far) appear to provide facilities not present in C, but instead provide a set of standard libraries for reuse.  It may be that the result of an extended API should belong as part of stdlib.</em>  -- <a href="../wiki/MarkEdgar.html" >MarkEdgar</a>
+</DL>
+<p>
+<DL>
+<dt><dd>If you need an extended API <em>right now</em>, you can use Python's via <a href="../wiki/LunaticPython.html" >LunaticPython</a>:
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><pre>
+
+&gt; py = require "python"
+
+&gt; os = py.import("os")
+
+&gt; =os.listdir('.')
+
+['lua.exe', 'lua51.dll', 'luac.exe']
+
+</pre>
+</DL>
+<dt><dd>--<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ExtendedApi" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ExtendedApi" >history</a><br>Last edited September 18, 2010 4:40 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ExtendedApi" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Cgi Utils</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CgiUtils&amp;body=1" title="List pages referring to CgiUtils">Cgi Utils</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>CGI Header</H3>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span><span class="string">"Content-type: text/html; charset=iso-8859-1\r\n\r\n"</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Parse POST variables</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Written by RiciLake.</span>
+
+<span class="comment">-- The author places the code into the public domain, renouncing all rights and responsibilities.</span>
+
+<span class="comment">-- Don't use this in a real application, see notes below.</span>
+
+<span class="keyword">function</span> parsecgi(str)
+
+  <span class="keyword">local</span> rv = {}
+
+  <span class="keyword">for</span> pair <span class="keyword">in</span> str:gmatch<span class="string">"[^&amp;]+"</span> <span class="keyword">do</span>
+
+    <span class="keyword">local</span> key, val = pair:match<span class="string">"([^=]*)=(.*)"</span>
+
+    <span class="keyword">if</span> key <span class="keyword">then</span> rv[key] = val <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> rv
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+This implementation is dangerous in various ways:
+<UL>
+<li> It accepts invalid keys, since it has no idea what valid keys are
+<li> It doesn't properly handle repeated keys
+<li> It ignores (or throw an error) on invalid CGI strings where there is no <code>=</code> in a segment
+<li> It doesn't handle the "search" case where the CGI string consists of term[+term]*
+<li> It doesn't decode <code>+</code> or <code>%xx</code> in values (or keys, although valid keys should not need % encoding in my opinion)
+</UL>
+<p>
+So here's a slightly better one, which still doesn't handle the "search" case. You have to give it
+a freshly constructed table of legal keys; if a key can have multiple values, you provide a table
+as the associated value (which is filled in), and otherwise you provide the default value (or
+<code>false</code>). Illegal keys are either ignored or throw errors. Segments without an <code>=</code> throw an error.
+Errors are thrown because invalid query/post strings are most likely to be attack attempts, and ought (in my opinion)
+to be rejected; consequently, you should wrap your CGI handler in a <code>pcall</code> and return a <code>403</code> or <code>404</code> error to the browser.
+<p>
+The function deliberately does not attempt to %-decode keys, on the basis that a valid key should never need to be %-encoded and consequently a URL of that form is likely to be an obscure attempt to attack the server.
+<p>
+A possible enhancement would be to also check that the supplied value is numeric in the case that the initial table has a number as the default value.
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Written by RiciLake.</span>
+
+<span class="comment">-- The author places the code into the public domain, renouncing all rights and responsibilities.</span>
+
+<span class="comment">-- Replace + with space and %xx with the corresponding character.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> cgidecode(str)
+
+  <span class="keyword">return</span> (str:gsub(<span class="string">'+'</span>, <span class="string">' '</span>):gsub(<span class="string">"%%(%x%x)"</span>, <span class="keyword">function</span>(xx) <span class="keyword">return</span> <span class="library">string.char</span>(<span class="library">tonumber</span>(xx, 16)) <span class="keyword">end</span>))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Main function</span>
+
+<span class="comment">-- Sample invocation:  cgivals = parsecgi(str, {count = 10, start = 1, names = {}})</span>
+
+<span class="keyword">function</span> parsecgi(str, keys, ignore_invalid)
+
+  <span class="keyword">local</span> keyfound = {}
+
+  <span class="keyword">for</span> pair <span class="keyword">in</span> str:gmatch<span class="string">"[^&amp;]+"</span> <span class="keyword">do</span>
+
+    <span class="keyword">local</span> key, val = pair:match<span class="string">"([^=]*)=(.*)"</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> key <span class="keyword">then</span> <span class="library">error</span><span class="string">"Invalid query string"</span> <span class="keyword">end</span>
+
+    <span class="keyword">local</span> default = keys[key]
+
+    <span class="keyword">if</span> default == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+      <span class="keyword">if</span> <span class="keyword">not</span> ignore_invalid <span class="keyword">then</span> <span class="library">error</span><span class="string">"Invalid query string"</span> <span class="keyword">end</span>
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">if</span> <span class="library">type</span>(default) == <span class="string">"table"</span> <span class="keyword">then</span> default[#default+1] = cgidecode(val)
+
+      <span class="keyword">elseif</span> keyfound[key] <span class="keyword">then</span> <span class="library">error</span><span class="string">"Invalid query string"</span>
+
+      <span class="keyword">else</span>
+
+        keyfound[key] = <span class="keyword">true</span>
+
+        keys[key] = cgidecode(val)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> keys
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H3>Parse GET variables</H3>
+<DL>
+<dt><dd><pre class="code">
+str = <span class="library">os.getenv</span>(<span class="string">"QUERY_STRING"</span>)
+
+...
+
+</pre>
+
+</DL>
+<p>
+<H3>Handle SCGI Requests</H3>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Assigns header information to variable "l", and returns "Hello!" back as the webpage content.</span>
+
+<span class="comment">-- This could use some cleaning up - error checking, removal of repetition, improved scoping.</span>
+
+
+
+<span class="comment">-- The SCGI protocol has the HTTP requests forwarded to a specified port (default 4000), with</span>
+
+<span class="comment">-- headers passed directly through TCP (and an ASCII string length prefix followed by a ":", </span>
+
+<span class="comment">-- with the key-value pairs of the header seperated by null characters "\0")</span>
+
+
+
+<span class="comment">-- With no parsing, this code handles about 950 requests per second on a 2 year old laptop.</span>
+
+
+
+<span class="keyword">local</span> socket = <span class="library">require</span>(<span class="string">"socket"</span>)
+
+<span class="keyword">local</span> host = host <span class="keyword">or</span> <span class="string">"*"</span>
+
+<span class="keyword">local</span> port = port <span class="keyword">or</span> 4000
+
+<span class="keyword">local</span> s = <span class="library">assert</span>(socket.bind(host, port))
+
+<span class="keyword">local</span> i, p   = s:getsockname()
+
+<span class="library">assert</span>(i, p)
+
+<span class="library">print</span>(<span class="string">"Waiting on "</span> .. i .. <span class="string">":"</span> .. p .. <span class="string">"..."</span>)
+
+<span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+  c = <span class="library">assert</span>(s:accept())
+
+  <span class="library">print</span>(<span class="string">"Connection requested."</span>)
+
+  len = <span class="string">""</span>
+
+  l, e = c:receive(1)
+
+  <span class="keyword">while</span> <span class="keyword">not</span> e <span class="keyword">do</span>
+
+    <span class="keyword">if</span> l == <span class="string">":"</span> <span class="keyword">then</span> header_len = <span class="library">tonumber</span>(len) ; <span class="keyword">break</span> <span class="keyword">end</span>
+
+    len = len .. l
+
+    l, e = c:receive(1)
+
+  <span class="keyword">end</span>
+
+  l,e = c:receive(header_len)
+
+  c:send(<span class="string">"Status: 200 OK\r\n"</span>)
+
+  c:send(<span class="string">"Content-Type: text/plain\r\n"</span>)
+
+  c:send(<span class="string">"\r\n"</span>)
+
+  c:send(<span class="string">"Hello!"</span>)
+
+  c:close()
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The following lines in httpd.conf (Apache 2) will allow this SCGI example to function - although 127.0.0.1 will need to be changed to a more suitable IP address.
+<p>
+<DL>
+<dt><dd><pre class="code">
+LoadModule scgi_module modules/mod_scgi.so
+
+SCGIMount /dynamic 127.0.0.1:4000
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CgiUtils" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CgiUtils" >history</a><br>Last edited November 12, 2007 11:13 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CgiUtils" >(diff)</a>
+</body>
+</html>

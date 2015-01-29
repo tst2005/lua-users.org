@@ -1,0 +1,144 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Tags</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteTags&amp;body=1" title="List pages referring to SciteTags">Scite Tags</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+It is often necessary to navigate inside large projects, and ctags is a very effective tool for doing so.  A popular version of ctags is known as the Exuberant Ctags <a href="http://ctags.sourceforge.net">[1]</a> by Darren Hiebert that supports a healthy number of different languages.  There are currently several scripts and therefore several methods available to provide <a href="../wiki/SciteTags.html" >SciteTags</a> functionalities.
+<p>
+<H2>Basic readtags based version</H2>
+The following <a href="../wiki/SciteTags.html" >SciteTags</a> library is a small set of scripts for driving the supplied <code>readtags</code> program. See <a href="/files/wiki_insecure/editors/SciTE/ctags.lua">Files:wiki_insecure/editors/SciTE/ctags.lua</a>.
+<p>
+<H2>Extended versions</H2>
+These are extended experimental versions that only work with <a href="../wiki/SciteExtMan.html" >SciteExtMan</a>.  Note that these scripts doesn't need <code>readtags</code> and is a lot faster on slow machines.
+<p>
+This is the original version for <a href="../wiki/SciteExtMan.html" >SciteExtMan</a>: &lt;=&gt; <a href="/files/wiki_insecure/editors/SciTE/ctagsx.lua">Files:wiki_insecure/editors/SciTE/ctagsx.lua</a>
+<p>
+This is an alternative version that fixes a few problems with whitespace being present in the tag file... &lt;=&gt; <a href="/files/wiki_insecure/editors/SciTE/ctagsx_alt.lua">Files:wiki_insecure/editors/SciTE/ctagsx_alt.lua</a>        
+<p>
+Yet another alternative version that dynamically searches and uses the nearest <code>tags</code> file relative to <code>$FileDir</code> path of the opened file.  This version does not require specifying <code>ctags.path.cxx</code> in the properties file of SciTE and it is also able to cope with non Exuberant ctags as well &lt;=&gt; <a href="/files/wiki_insecure/editors/SciTE/ctagsdx.lua">Files:wiki_insecure/editors/SciTE/ctagsdx.lua</a>
+<p>
+<H2>Usage Illustrations</H2>
+<H3>Obtaining ctags tools</H3>
+<a href="http://home.mweb.co.za/sd/sdonovan/SciTE/ctags.zip">http://home.mweb.co.za/sd/sdonovan/SciTE/ctags.zip</a> includes a prebuilt Win32 version of ctags. Make sure that both ctags.exe and readtags.exe is on your path, and load ctags.lua as usual.  (Under *nix, please note that there is often a program called 'ctags' which is not Exuberant!)  Nevertheless, <code>ctagsdx.lua</code> is now able to cope with ctags, Exuberant or not.
+<p>
+<H3>Setting up SciTE</H3>
+Put these in your properties files, unless you are using the extended versions <code>ctagsx.lua</code> or <code>ctagsx_alt</code>.  All extended versions that work with <a href="../wiki/SciteExtMan.html" >SciteExtMan</a> do not need the properties file:
+<p>
+<pre>
+
+
+
+ctags.path.cxx=&lt;full path to tags file&gt;
+
+
+
+command.name.14.*=Find Tag
+
+command.14.*=find_ctag $(CurrentWord)
+
+command.subsystem.14.*=3
+
+command.mode.14.*=savebefore:no
+
+command.shortcut.14.*=Ctrl+.
+
+
+
+command.name.15.*=Go to mark
+
+command.15.*=goto_mark
+
+command.subsystem.15.*=3
+
+command.mode.15.*=savebefore:no
+
+command.shortcut.15.*=Alt+.
+
+
+
+command.name.16.*=Set Mark
+
+command.16.*=set_mark
+
+command.subsystem.16.*=3
+
+command.mode.16.*=savebefore:no
+
+command.shortcut.16.*=Ctrl+'
+
+
+
+command.name.17.*=Select from Mark
+
+command.17.*=select_mark
+
+command.subsystem.17.*=3
+
+command.mode.17.*=savebefore:no
+
+command.shortcut.17.*=Ctrl+/
+
+
+
+
+
+#ctags.exe --recurse --totals=yes --languages=c,c++ --verbose "d:\*" "c:\*"
+
+command.name.18.*=rebuildTags
+
+command.18.*=$(SciteDefaultHome)/ctags --recurse --totals=yes --languages=c,c++ "C:\Dokumente und Einstellungen\lars\Desktop\linux-2.6.15.7\*"
+
+command.subsystem.18.*=0
+
+command.mode.18.*=savebefore:no
+
+</pre>
+<p>
+<H3>Generating tags files</H3>
+For instance, if you wanted to browse through the SciTE source, then to build a tags database you would say:
+<pre>
+
+e:\scite&gt; ctags src\*.cxx src\*.h win32\*.cxx win32\*.h
+
+</pre>
+and then set <code>ctags.path.cxx</code> to e:\scite\tags
+<p>
+<H3>Finding tags (Applicable to all versions)</H3>
+The basic operation is <code>Find Tag</code>, or Ctrl+., which works with the word under the cursor.  This sets the <em>mark</em>, so you can immediately get back to your original position with <code>Go to Mark</code>, or Alt+.  (I have had difficulties with setting shortcuts of this form with the GTK 1.2 version, so experiment. Your fingers will in any case find other shortcuts more comfortable). 
+<p>
+As a bonus, Ctrl+' will <code>Set Mark</code>, and Ctrl+/ will select the text between the cursor and the mark position.
+<p>
+For the basic script, since it needs to run <code>readtags</code>, you will get a nasty flashing black box under Windows. A quick solution that doesn't require patching SciTE is the <a href="../wiki/SciteOther.html" >SciteOther</a> library; <a href="../wiki/SciteTags.html" >SciteTags</a> will automatically try to load this if it's available in the usual place.  All extended versions <code>ctagsx.lua, ctagsx_alt.lua</code> do not have this issue, but you do have to put the script file in your <code>scite_lua</code> directory.
+<p>
+<H3>Extended features (Applicable to extended versions)</H3>
+These features are only available for <code>ctagsx.lua, ctagsx_alt.lua</code>.
+When the search reveals more than one matching tag, all matching multiple tags will be presented in a drop-down list for selection.  There is also the Alt+C key strokes feature that allows finding tags by name.  An Alt+C followed by 't' allows one to find the tag name exactly as it has been typed.  An Alt+C followed by 'f' allows finding tag name with the regular expression.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteTags" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteTags" >history</a><br>Last edited May 11, 2007 4:12 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteTags" >(diff)</a>
+</body>
+</html>

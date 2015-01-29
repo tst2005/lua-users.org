@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Dalee Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=DaleeLua&amp;body=1" title="List pages referring to DaleeLua">Dalee Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The original page: <a href="http://homepage.mac.com/dalee1/">http://homepage.mac.com/dalee1/</a> no longer exists, it has been restored here for completeness
+<p>
+*<a href="http://lua-users.org/files/wiki_insecure/Lua4.0-MacOSX.tar.gz">[Lua4.0-MacOSX.tar.gz]</a>
+<p>
+<hr><H3>Lua 4.0 for Mac OS X - distribution by David Lee</H3>
+<p>
+N.B. - This note is not intended to describe Lua fully. It is an accompanyment to the Mac OS X distribution of Lua 4.0. For comprehensive documentation about the Lua programming language and visit www.lua.org.
+<p>
+<em><strong>These instructions accompany the Lua4.0-MacOSX download.</strong></em>
+<p>
+<H3>About Lua for Mac OS X</H3>
+<p>
+I created these Mac OS X frameworks so that other developers would find incorporating Lua into their projects very easy. Basically all this distribution is, is the original Lua source code wrapped up in Mac OS X Project Builder projects. I am providing them as a biproduct of my own projects which have included Lua and I though others may benefit from them. I should make it clear that <strong>I have not made any modifications to the source code in the original Lua distribution</strong>, I have just made it easier to add to Mac OS X projects by distributing these frameworks.
+<p>
+Lua for Mac OS X is comprised of two frameworks (lua_core.framework and lua_standard.framework) which are equivalent to the Lua libraries you compile on other platforms. Frameworks are broadly speaking equivalent in terms of functionality to a library. If you include these frameworks in your projects just include them and then you can use all the Lua API calls in them.
+<p>
+<p>
+Altogether this package consists of 4 Project Builder projects:
+<p>
+*	Lua Standard Library (implimented as a framework)
+*	Lua Core Library (also a framework)
+*	Lua interpreter (for running lua programs on the command line
+*	Lua Compiler to speed up your lua scripts execution.
+<p>
+<p>
+<H3>Compiling &amp; Installation</H3>
+<p>
+The order you do this is important otherwise your builds will fail.
+<p>
+- First open the lua_core project in Project and build the framework. - Once built you should find 'lua_core.framework' (which appears as a folder) now exits in the 'build' folder in it's project folder. It should immediately be put either in ~yourusername/Library/Frameworks (if only you are going to use the Lua Frameworks) or in /System/Library/Frameworks (to allow all users to access the frameworks). - You can now build the lua_standard framework. - Put 'lua_standard.framework' in the same location you just put 'lua_core.framework' in.
+<p>
+<p>
+- You can build lua_compiler and lua_interpreter now (in any order) and you should put the binaries you build into /bin for convenience.
+- If you prefer you can rename the binaries in the project 'build' folder. Perhaps rename the interpreter to 'lua' and the compiler to 'luac'. These two can then be put in your /bin directory. That's it. Simple. 
+<p>
+<em><strong>Important:</strong></em>
+<p>
+<em><strong>To use these frameworks in your projects you will probably have to put the file lua.h into your project directory (and possibly some others, but the compiler will notify you). Simply add the following line you your main source code file: #include "lua.h" </strong></em>
+<p>
+<p>
+<em><strong>You will find lua.h in the 'Framework Header' folder.</strong></em>
+<p>
+<H3>About Me</H3>
+<p>
+My name is David Lee and I am studying for a BSc in Software Engineering at the University of the West of England (UWE) in Bristol, UK. I am an avid supporter of the open source philosophy of writing software. All the credit for the actual implimentation of Lua should rightly go to the people from www.lua.org as Lua is fantastic. I just packaged their hard work.Give them a visit. Mail me if you found these frameworks helpful, or to let me know where this Lua port has been built into your projects:
+<p>
+David2.Lee@uwe.ac.uk
+<p>
+<p>
+<H3>Credit Where Credit is due...</H3>
+<p>
+Lua is Copyright © 1994-2000 TeCGraf, PUC-Rio. All rights reserved.
+<p>
+<H3>Bash install script</H3>
+<p>
+David Blevins:  Here is a little script I whipped up for compiling and installing according to the directions above.
+<p>
+<DL>
+<dt><dd><pre>
+
+#!/bin/bash
+
+(cd lua_core &amp;&amp; xcodebuild &amp;&amp; sudo cp -r build/lua_core.framework /System/Library/Frameworks/ )
+
+(cd lua_standard &amp;&amp; xcodebuild &amp;&amp; sudo cp -r build/lua_standard.framework /System/Library/Frameworks/ )
+
+(cd lua_compiler &amp;&amp; xcodebuild &amp;&amp; sudo cp -r build/lua_compiler /usr/bin/luac )
+
+(cd lua_interpreter &amp;&amp; xcodebuild &amp;&amp; sudo cp -r build/lua_interpreter /usr/bin/lua )
+
+</pre>
+</DL>
+<p>
+<em>[Last Updated Saturday 25-08-2001 21:24]</em>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DaleeLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=DaleeLua" >history</a><br>Last edited February 7, 2005 2:00 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=DaleeLua" >(diff)</a>
+</body>
+</html>

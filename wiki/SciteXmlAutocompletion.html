@@ -1,0 +1,332 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Xml Autocompletion</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteXmlAutocompletion&amp;body=1" title="List pages referring to SciteXmlAutocompletion">Scite Xml Autocompletion</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This script enables Visual Studio-like XML autocompletion: ending tags are automatically added and attributes are automatically quoted. This works for XHTML and any XML files.
+<p>
+Copy the following code in your Lua startup script:
+<p>
+<hr><pre class="code">
+<span class="keyword">function</span> OnChar(c)
+
+	<span class="keyword">local</span> nLexer = editor.Lexer
+
+	<span class="keyword">if</span> nLexer ~= 4 <span class="keyword">and</span> nLexer ~= 5 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+
+
+	<span class="comment">-- tag completion</span>
+
+	<span class="keyword">if</span> c == <span class="string">"&gt;"</span> <span class="keyword">then</span>
+
+		<span class="keyword">local</span> pEnd = editor.CurrentPos - 1
+
+		<span class="keyword">if</span> pEnd &lt; 1 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+		<span class="keyword">local</span> nStyle = editor.StyleAt[pEnd - 1]
+
+		<span class="keyword">if</span> nStyle &gt; 8 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+		<span class="keyword">local</span> nLastChar = editor.CharAt[pEnd - 1]
+
+		<span class="keyword">if</span> nStyle == 6 <span class="keyword">and</span> nLastChar ~= 34 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+		<span class="keyword">if</span> nStyle == 7 <span class="keyword">and</span> nLastChar ~= 39 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+		<span class="keyword">if</span> nLastChar == 47 <span class="keyword">or</span> nLastChar == 37 <span class="keyword">or</span> nLastChar == 60 <span class="keyword">or</span> nLastChar == 63 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+		<span class="keyword">local</span> pStart = pEnd
+
+		<span class="keyword">repeat</span>
+
+			pStart = pStart - 1
+
+			<span class="keyword">if</span> (editor.CharAt[pStart] == 32) <span class="keyword">then</span>
+
+				pEnd = pStart
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">until</span> editor.CharAt[pStart] == 60 <span class="keyword">or</span> pStart == 0
+
+		<span class="keyword">if</span> editor.CharAt[pStart + 1] == 47 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+		<span class="keyword">if</span> pStart == 0 <span class="keyword">and</span> editor.CharAt[pStart] ~= 60 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+		<span class="keyword">local</span> tag = editor:textrange(pStart + 1, pEnd)
+
+		editor:InsertText(editor.CurrentPos, <span class="string">"&lt;/"</span> .. tag .. <span class="string">"&gt;"</span>)
+
+	<span class="keyword">end</span>
+
+
+
+	<span class="comment">-- attribute quotes</span>
+
+	<span class="keyword">if</span> c == <span class="string">"="</span> <span class="keyword">then</span>
+
+		<span class="keyword">local</span> nStyle = editor.StyleAt[editor.CurrentPos - 2]
+
+		<span class="keyword">if</span> nStyle == 3 <span class="keyword">or</span> nStyle == 4 <span class="keyword">then</span>
+
+			editor:InsertText(editor.CurrentPos, <span class="string">"\"\""</span>)
+
+			editor:GotoPos(editor.CurrentPos + 1)
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+
+
+	<span class="keyword">return</span> <span class="keyword">false</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<hr><H3>Bugs</H3>
+Please report bugs here
+<p>
+<p>
+<a href="../wiki/RomainVallet.html" >RomainVallet</a>
+<p>
+<hr><H2>Dreamweaver style xml / html autocomplete</H2>
+<p>
+(bugfix posted: 3 July 2008)
+<p>
+Similar to the above (can only use one or the other) but auto closes tags in Dreamweaver style. Each time you type '&lt;/' in an XML or HTML file it looks for the corresponding opening tag and auto finishes it for you. 
+<p>
+e.g. You type 
+<pre>&lt;html&gt;&lt;body&gt;test&lt;/</pre>
+<p>
+and autocomplete finishes the tag as 
+<pre>&lt;html&gt;&lt;body&gt;test&lt;/body&gt;</pre>
+<p>
+<pre class="code">
+
+
+<span class="comment">--------------------------------------------------------------------</span>
+
+<span class="comment">-- XML Autocompletion Dreamweaver Style</span>
+
+<span class="comment">-- Author: Paul Healsey (www.phdesign.com.au)</span>
+
+<span class="comment">-- Version: 1.2 </span>
+
+<span class="comment">--------------------------------------------------------------------</span>
+
+
+
+<span class="keyword">function</span> AutocompleteXmlDW(c)
+
+	<span class="keyword">local</span> nLexer = editor.Lexer
+
+	<span class="keyword">if</span> nLexer ~= 4 <span class="keyword">and</span> nLexer ~= 5 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+	
+
+	<span class="comment">-- tag completion</span>
+
+	<span class="keyword">if</span> c == <span class="string">"&lt;"</span> <span class="keyword">then</span>
+
+		xmlComplete = <span class="keyword">true</span>
+
+	<span class="keyword">elseif</span> xmlComplete == <span class="keyword">true</span> <span class="keyword">and</span> c == <span class="string">"/"</span> <span class="keyword">then</span>
+
+		<span class="comment">--find last opening tag</span>
+
+		<span class="comment">--local xmlPattern = "&lt;([^%s]-)([^&gt;]-)&gt;"</span>
+
+		<span class="keyword">local</span> closedTags = {}
+
+		ctr = 0
+
+		<span class="keyword">local</span> tag = FindXmlTag(editor.CurrentPos, closedTags)
+
+		<span class="keyword">if</span> tag ~= <span class="keyword">nil</span> <span class="keyword">then</span>
+
+			editor:InsertText(editor.CurrentPos, tag .. <span class="string">"&gt;"</span>)
+
+			editor:GotoPos(editor.CurrentPos + <span class="library">string.len</span>(tag) + 1)
+
+		<span class="keyword">end</span>
+
+		xmlComplete = <span class="keyword">false</span>
+
+	<span class="keyword">else</span>
+
+		xmlComplete = <span class="keyword">false</span>
+
+	<span class="keyword">end</span>
+
+
+
+	<span class="keyword">return</span> <span class="keyword">false</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> FindXmlTag(pos, closedTags)
+
+	<span class="keyword">local</span> tag = <span class="keyword">nil</span>
+
+	<span class="keyword">local</span> startPos, endPos
+
+	
+
+	endPos = FindCharReverse(<span class="string">"&gt;"</span>, pos)
+
+	<span class="keyword">if</span> endPos == -1 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span> <span class="keyword">end</span>
+
+	startPos = FindCharReverse(<span class="string">"&lt;"</span>, endPos)
+
+	<span class="keyword">if</span> startPos == -1 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span> <span class="keyword">end</span>
+
+	pos = startPos
+
+	<span class="comment">-- get tag name (first word inside &lt;&gt;)</span>
+
+	tag = editor:textrange(startPos + 1, endPos)
+
+	_, _, tag = <span class="library">string.find</span>(tag, <span class="string">"/*([^%s]*)"</span>)
+
+	<span class="comment">--print("tag = '"..tag.."'")</span>
+
+	<span class="keyword">if</span> CharAt(pos + 1) == <span class="string">"?"</span> <span class="keyword">then</span>
+
+		<span class="comment">-- this tag doesn't need to be closed (e.g. &lt;?xml?&gt;</span>
+
+		tag = FindXmlTag(pos, closedTags)
+
+	<span class="keyword">elseif</span> CharAt(endPos - 1) == <span class="string">"/"</span> <span class="keyword">then</span>
+
+		<span class="comment">-- this tag closes itself (e.g. &lt;tag /&gt;)</span>
+
+		tag = FindXmlTag(pos, closedTags)
+
+	<span class="keyword">elseif</span> CharAt(pos + 1) == <span class="string">"/"</span> <span class="keyword">then</span>
+
+		<span class="library">table.insert</span>(closedTags, tag)
+
+		<span class="comment">--for i,v in ipairs(closedTags) do print(i,v) end</span>
+
+		<span class="comment">--print("---------------")</span>
+
+		tag = FindXmlTag(pos, closedTags)
+
+	<span class="keyword">elseif</span> RemoveItemReverse(closedTags, tag) == <span class="keyword">true</span> <span class="keyword">then</span>
+
+		<span class="comment">--for i,v in ipairs(closedTags) do print(i,v) end</span>
+
+		<span class="comment">--print("---------------")</span>
+
+		tag = FindXmlTag(pos, closedTags)
+
+	<span class="keyword">elseif</span> <span class="library">table.getn</span>(closedTags) &gt; 0 <span class="keyword">then</span>
+
+		tag = FindXmlTag(pos, closedTags)
+
+	<span class="keyword">end</span> 
+
+	
+
+	<span class="keyword">return</span> tag
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> RemoveItemReverse(tbl, str)
+
+	<span class="keyword">for</span> i = <span class="library">table.getn</span>(tbl), 0, -1 <span class="keyword">do</span> 
+
+		<span class="keyword">if</span> tbl[i] == str <span class="keyword">then</span>
+
+			<span class="library">table.remove</span>(tbl, i)
+
+			<span class="keyword">return</span> <span class="keyword">true</span>
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="keyword">return</span> <span class="keyword">false</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> FindCharReverse(char, pos)
+
+	<span class="keyword">local</span> first = <span class="keyword">true</span>
+
+	
+
+	<span class="keyword">while</span> pos &gt; 0 <span class="keyword">do</span>
+
+		<span class="keyword">if</span> first <span class="keyword">then</span> 
+
+			first = <span class="keyword">false</span>
+
+		<span class="keyword">else</span>
+
+			pos = pos - 1 
+
+		<span class="keyword">end</span>
+
+		<span class="keyword">if</span> CharAt(pos) == char <span class="keyword">then</span> <span class="keyword">return</span> pos <span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="keyword">return</span> -1
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> CharAt(n)
+
+	<span class="keyword">return</span> <span class="library">string.char</span>(editor.CharAt[n])
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteXmlAutocompletion" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteXmlAutocompletion" >history</a><br>Last edited July 3, 2008 12:28 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteXmlAutocompletion" >(diff)</a>
+</body>
+</html>

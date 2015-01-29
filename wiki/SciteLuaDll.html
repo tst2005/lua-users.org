@@ -1,0 +1,496 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Lua Dll</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteLuaDll&amp;body=1" title="List pages referring to SciteLuaDll">Scite Lua Dll</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Creating custom Lua Dlls for SciTE</H3>
+<p>
+Here is the solution I found to create fully functional* Win32 DLLs to be loaded using loadlib().
+<p>
+<em><a href="../wiki/VersionNotice.html" >VersionNotice</a>: This code is based on an older version of Lua.  Lua 5.1. uses package.loadlib.</em>
+<p>
+* fully functional, means that the loaded DLL will be able to define global objects and functions accessible to the Lua scripts.
+<p>
+To make it work, you will have to choose to:
+<DL>
+<dt><dd>1. make a special SciTE build (actually this is easy)
+<dt><dd>2. add another lua.dll (better if you want to rely on the offical SciTE build)
+</DL>
+<p>
+<p>
+<H3>Writing your Dll</H3>
+<p>
+This sample Dll will add a new metatable "mydll" with two functions:
+<UL>
+<li>  msgbox: display a simple "OK" messagebox with a custom message and caption,
+<li>  confirm: display a OK/CANCEL confirmation messagebox with a custom message and caption,
+</UL>
+<p>
+Dll source, "mydll.c":
+<p>
+<DL>
+<dt><dd><pre>
+
+#include &lt;windows.h&gt;
+
+#include "lauxlib.h"
+
+
+
+/**
+
+ * @method OK MessageBox
+
+ * @param message
+
+ * @param title
+
+ * @return selection
+
+ */
+
+int mydll_msgbox(lua_State* L)
+
+{
+
+	const char* message = luaL_checkstring(L, 1);
+
+	const char* caption = luaL_optstring(L, 2, "");
+
+	int result = MessageBox(NULL, message, caption, MB_OK);
+
+	lua_pushnumber(L, result);
+
+	return 1;
+
+}
+
+
+
+/**
+
+ * @method OK / CANCEL MessageBox
+
+ * @param message
+
+ * @param title
+
+ * @return selection
+
+ */
+
+int mydll_confirm(lua_State* L)
+
+{
+
+	const char* message = luaL_checkstring(L, 1);
+
+	const char* caption = luaL_optstring(L, 2, "");
+
+	int result = MessageBox(NULL, message, caption, MB_OKCANCEL);
+
+	lua_pushnumber(L, result);
+
+	return 1;
+
+}
+
+
+
+// methods table
+
+static const luaL_reg mydll_methods[] = {
+
+  {"confirm", mydll_confirm},
+
+  {"msgbox", mydll_msgbox},
+
+  {0, 0}
+
+};
+
+
+
+/**
+
+ * Register objects and functions
+
+ */
+
+int __declspec(dllexport) libinit (lua_State* L)
+
+{
+
+	// create methods table, add it to the globals
+
+	luaL_openlib(L, "mydll", mydll_methods, 0);
+
+	// create metatable, and add it to the Lua registry
+
+	luaL_newmetatable(L, "mydll");
+
+	return 0;
+
+}
+
+
+
+</pre>
+</DL>
+<p>
+<p>
+<H3>First option: customized SciTE build</H3>
+<p>
+Download SciTE source and modify "&lt;scite_src&gt;\scite\lua\include\lua.h", line 94, to have SciTE export Lua API for your Dll:
+<p>
+<DL>
+<dt><dd><pre>
+
+/* mark for all API functions */
+
+#ifndef LUA_API
+
+// was: #define LUA_API       extern
+
+#define LUA_API       __declspec(dllexport)
+
+#endif
+
+</pre>
+</DL>
+<p>
+That's all and easy (credit for the tip goes to <a href="../wiki/SteveDonovan.html" >SteveDonovan</a> - thank you).
+<p>
+Now build scintilla and scite - I'm using Borland C++ compiler:
+<p>
+<DL>
+<dt><dd><pre>
+
+cd &lt;scite_src&gt;\scintilla\win32
+
+make -f scintilla.mak
+
+
+
+cd &lt;scite_src&gt;\scite\win32
+
+make -f scite.mak
+
+implib SciTE SciTE.exe
+
+</pre>
+</DL>
+<p>
+Now you should have "SciTE.lib" in the "bin" folder. You can build your Dll:
+<p>
+<DL>
+<dt><dd><pre>
+
+cd &lt;mydll_src&gt;\
+
+bcc32 -w -tWD -I..\scite\lua\include -DLUA_API=__declspec(dllimport) ..\scite\bin\SciTE.lib mydll.c
+
+</pre>
+</DL>
+<p>
+<p>
+<H3>Second option: add another lua.dll</H3>
+<p>
+This option should be used if you want to rely on an offical SciTE build that does not export Lua API.
+<p>
+See <a href="../wiki/CreatingBinaryExtensionModules.html" >CreatingBinaryExtensionModules</a> to build Lua and your Dll.
+<p>
+You have to copy "lua.dll" in your &lt;scite&gt; folder along with SciTE.exe for your Dll to work.
+<p>
+<p>
+<H3>Loading your Dll in Lua</H3>
+<p>
+Copy "mydll.dll" in your &lt;scite&gt; folder along with SciTE.exe.
+<p>
+Add this code in your Lua script (for example SciTEStartup.lua):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- load your custom Dll</span>
+
+libinit = loadlib(props[<span class="string">'SciteDefaultHome'</span>]..<span class="string">"/mydll.dll"</span>, <span class="string">"libinit"</span>)
+
+<span class="keyword">if</span> libinit <span class="keyword">then</span> libinit()
+
+<span class="keyword">else</span>
+
+	<span class="library">print</span> (<span class="string">"Error: unable to load mydll.dll"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- test your Dll</span>
+
+<span class="keyword">if</span> mydll <span class="keyword">then</span>
+
+	mydll.msgbox(<span class="string">"Hello World!"</span>, <span class="string">"Hello"</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<em>--Philippe</em>
+<p>
+<H3>Using MinGW</H3>
+<p>
+MinGW does not have the implib utility, or at least not in a way I can identify, so I had to create a .dll of the Lua code and then create my dll.
+<p>
+I believe there are some small revisions from Lua that make it different from the standard Lua release, so I chose to name the dll SciTELua.dll
+<p>
+Within SciTE\Win32\Makefile
+<p>
+<DL>
+<dt><dd><pre>
+
+# after "PROGSTATIC = ../bin/Sc1.exe" I added 
+
+LUA_DLL=../bin/SciTELua.dll
+
+LUA_DLL_LIB=../bin/lscitelua.a
+
+LUA_DLL_DEF=../bin/scitelua.def
+
+
+
+# after "LUA_CORE_OBJS" and "LUA_LIB_OBJS" are defined I added
+
+LUA_DLL_OBJS := $(LUA_CORE_OBJS) $(LUA_LIB_OBJS)
+
+
+
+# I modified "ALL" to be
+
+ALL:	$(PROG) $(PROGSTATIC) $(DLLS) $(PROPS) $(LUA_DLL) $(LUA_SCRIPTS)
+
+
+
+#this is at the bottom, below "SciTEBase.o: $(OTHER_OBJS)"
+
+$(LUA_DLL): $(LUA_DLL_OBJS)
+
+	$(DLLWRAP) --no-idata4 --no-idata5 --target i386-mingw32 -mno-cygwin --output-lib $(LUA_DLL_LIB)  --output-def $(LUA_DLL_DEF) -o $(LUA_DLL) $(LUA_DLL_OBJS)
+
+
+
+</pre>
+</DL>
+<p>
+I have not made a Makefile to create my dll, I use a batch file
+<DL>
+<dt><dd><pre>
+
+SET OUTDIR=../scite/bin
+
+SET OUTFILE=aprillua
+
+
+
+gcc 2&gt;&amp;1 -mno-cygwin -DLUA_API=__declspec(dllimport) -c -Wall -I../scite/lua/include aprilluadll.c
+
+dllwrap 2&gt;&amp;1 --no-idata4 --no-idata5 --target i386-mingw32 -mno-cygwin --output-def %OUTDIR%/%OUTFILE%.def --output-lib %OUTDIR%/l%OUTFILE%.a -o %OUTDIR%/%OUTFILE%.dll aprilluadll.o -L%OUTDIR% -lscitelua -mwindows
+
+</pre>
+</DL>
+<p>
+My test dll is based on the code msgbox() &amp; confirm() functions, though I also wrote getsavefilename() which is a link to the GetSaveFileName<a href="/cgi-bin/wiki.pl?action=edit&amp;id=GetSaveFileName" >?</a>() Win32 API.
+<p>
+MinGW does not prefix the initialization library name with an underscore, so my SciTE startup script is:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> libinit = loadlib(props.SciteDefaultHome .. <span class="string">"\\aprillua.dll"</span>, <span class="string">"libinit"</span>)
+
+</pre>
+
+</DL>
+<p>
+<em>--April White</em>
+<p>
+For your library libinit() method, use this for calling luaL_openlib()
+<p>
+<DL>
+<dt><dd><pre>
+
+// create methods table, add it to the globals
+
+const char* tblname = luaL_optstring(L, 1, "mydll" );
+
+luaL_openlib(L, tblname, dll_methods, 0);
+
+</pre>
+</DL>
+<p>
+which makes libinit() accept an optional parameter as the name of the table.  So your Lua code could read
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> libinit = loadlib(props.SciteDefaultHome .. <span class="string">"\\test.dll"</span>, <span class="string">"libinit"</span>)
+
+<span class="keyword">if</span> libinit <span class="keyword">then</span>
+
+	libinit() <span class="comment">-- defaults to mydll</span>
+
+<span class="keyword">else</span>
+
+	alert(<span class="string">"Error: unable to load "</span> .. props.SciteDefaultHome .. <span class="string">"\\test.dll"</span> )
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+or
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> libinit = loadlib(props.SciteDefaultHome .. <span class="string">"\\test.dll"</span>, <span class="string">"libinit"</span>)
+
+<span class="keyword">if</span> libinit <span class="keyword">then</span>
+
+	libinit( <span class="string">"Aprilz"</span> ) <span class="comment">-- creates the table as Aprilz</span>
+
+<span class="keyword">else</span>
+
+	alert(<span class="string">"Error: unable to load "</span> .. props.SciteDefaultHome .. <span class="string">"\\test.dll"</span> )
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<em>--April White, September 24, 2005</em>
+<p>
+<H3>Using MinGW DLLs without separate Lua DLL</H3>
+<p>
+It's actually possible to link MinGW DLLs against the patched version of SciTE itself.
+For this, you will need a scite.def file containing all the lua functions.
+<DL>
+<dt><dd><pre>
+
+LIBRARY "SciTE.exe"
+
+EXPORTS
+
+luaL_addlstring
+
+luaL_addstring
+
+luaL_addvalue
+
+...
+
+</pre>
+</DL>
+I've put my version of scite.def in the file manager under <a href="/files/wiki_insecure/editors/SciTE/scite.def">Files:wiki_insecure/editors/SciTE/scite.def</a>.
+<p>
+To make an import library from scite.def, use dlltool:
+<DL>
+<dt><dd><pre>
+
+dlltool -d scite.def -l scite.la
+
+</pre>
+</DL>
+and then to build your DLL (such as the execellent <a href="../wiki/LuaFileSystem.html" >LuaFileSystem</a>), just use:
+<DL>
+<dt><dd><pre>
+
+gcc -shared -I..\scite\lua\include lfs.c -o lfs.dll scite.la
+
+</pre>
+</DL>
+<em>--Steve Donovan, July 2, 2007</em>
+<p>
+<p>
+<H3>Update for SciTE 1.74 or later and Lua 5.1</H3>
+<p>
+Using Visual Studio 2005 and SciTE 1.74 or later, the process of building the library is quite simple since it looks like SciTE's official sources have already been patched to accommodate the first option above.
+<p>
+You need to get the sources of Scite and rebuild. The library file "SciTE.lib" should be created and you can find it among the binaries.  <em>I do not know if the same is true for other compilers.</em>  Now, following the tip by Steve Donovan, you can build your library supplying the Lua include directory from Scite sources to the compiler and the "SciTE.lib" file to the linker.
+<p>
+Using the library in your Lua code is also very simple.  Copy "mydll.dll" in your &lt;scite&gt; folder along with SciTE.exe.  Then put this code in your Lua startup script:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- load your custom Dll</span>
+
+<span class="library">require</span> <span class="string">'mydll'</span>
+
+
+
+<span class="comment">-- test your Dll</span>
+
+<span class="keyword">if</span> mydll <span class="keyword">then</span>
+
+        mydll.msgbox(<span class="string">"Hello World!"</span>, <span class="string">"Hello"</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The updated function to register objects and functions for Lua 5.1 is thus:
+<DL>
+<dt><dd><pre>
+
+/**
+
+ * Register objects and functions
+
+ */
+
+int __declspec(dllexport) luaopen_mydll (lua_State* L)
+
+{
+
+	// Add the methods table to the globals
+
+	luaL_register(L, "mydll", mydll_methods); 
+
+	return 1;
+
+}
+
+</pre>
+</DL>
+<p>
+<em>--Updated for Scite 1.74 and Lua 5.1 by Maciej Radziejewski</em>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteLuaDll" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteLuaDll" >history</a><br>Last edited October 10, 2008 6:47 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteLuaDll" >(diff)</a>
+</body>
+</html>

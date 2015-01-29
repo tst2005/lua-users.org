@@ -1,0 +1,72 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Versus Go</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaVersusGo&amp;body=1" title="List pages referring to LuaVersusGo">Lua Versus Go</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Go is a compiled, garbage-collected, concurrent  programming language developed by Google Inc. <a href="http://en.wikipedia.org/wiki/Go_%28programming_language%29#cite_note-2.html">[1]</a>
+<p>
+<UL>
+<li> <a href="http://www.scribd.com/doc/33559310/Comparativo-entre-Go-e-Lua">[Comparativo entre Go e Lua]</a> (Portuguese)
+</UL>
+<p>
+Point-by-Point Comparison:
+<p>
+<UL>
+<li> Philosophy - Go <a href="http://golang.org/doc/go_faq.html#creating_a_new_language">[2]</a> and Lua <a href="http://www.lua.org/about.html">[3]</a>
+<li> Type system - Go supports static typing without inheritance or any relationships between types.
+<li> Types - Go has a larger number of builtin types (e.g. integers of various sizes and signedness), whereas Lua code normally just uses the number type (typically floating point).  For Lua, see also the <a href="http://luaforge.net/projects/lnum/">[LNUM patch]</a>.
+<li> Multiple return values - supported by both languages
+<li> Strings are immutable in both languages
+<li> C/C++ interfacing - Well developed in Lua (<a href="../wiki/BindingCodeToLua.html" >BindingCodeToLua</a>). Go can link to C using cgo<a href="http://golang.org/cmd/cgo/">[4]</a> and SWIG now supports Go. <a href="http://golang.org/doc/go_faq.html#Do_Go_programs_link_with_Cpp_programs">[5]</a>.
+<li> Concurrency - Lua and Go both support forms of coroutines ("goroutines" in Go). Go has channels, making concurrency safer, and the goroutines can be multiplexed over concurrent threads (see GOMAXPROCS runtime option).
+<li> RAII/exceptions - Go's "defer" statement supports execution on scope exit (function not block level) <a href="http://golang.org/doc/effective_go.html#defer">[6]</a>.  Lua doesn't natively support it, but see <a href="../wiki/ResourceAcquisitionIsInitialization.html" >ResourceAcquisitionIsInitialization</a>.  Go and Lua don't have a try-catch statement <a href="http://golang.org/doc/go_faq.html#exceptions">[7]</a>, but the pcall function in Lua is analogous, and similarly the panic/recover construct in Go.
+<li> Standard library - Go is larger <a href="http://golang.org/pkg/">[8]</a> and doesn't limit itself to ANSI C.
+<li> Stability - Go 1 release is stable[<a href="http://blog.golang.org/2012/03/go-version-1-is-released.html">[9]</a>] and widely used in production<a href="http://go-lang.cat-v.org/organizations-using-go">[10]</a>.  Lua is a mature language and implementation.  See also <a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a>.
+<li> Compilers - Go has two full stable compilers, the main 'gc' compilers, and gccgo<a href="http://golang.org/doc/install/gccgo">[11]</a>, there is also an llvm frontend in progress: llgo<a href="https://github.com/axw/llgo/">[12]</a>.  Lua has <a href="../wiki/LuaImplementations.html" >LuaImplementations</a>.
+<li> Syntax - Go follows C brace and comment syntax closer than Lua though still deviates from C in many ways <a href="http://golang.org/doc/go_faq.html#different_syntax">[13]</a>.
+<li> Runtime speed - Both Lua and Go emphasize efficiency, especially for the LuaJIT implementation of Lua. Go is readily a compiled language. 
+<li> Compilation speed - Both Lua and Go emphasize speed of compilation. Go has a novel approach in handling big project trees, resulting in exponential speed gain.
+<li> Pointers - Go has pointers but no pointer arithmetic, for safety <a href="http://golang.org/doc/go_faq.html#no_pointer_arithmetic">[14]</a>.  Lua has no pointers.
+<li> Garbage collection - Both Lua and Go use garbage collection.<a href="http://golang.org/doc/go_faq.html#garbage_collection">[15]</a>
+<li> Portability - Lua runs anywhere you have an ANSI C compiler.  Go runs on unix-style systems and Windows. A Plan 9 port is on it's way.
+<li> Go has named result parameters <a href="http://golang.org/doc/effective_go.html#named-results">[16]</a> (see also: Multiple Return Values mentioned above).
+<li> Go has Python-style slices.
+</UL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaComparison.html" >LuaComparison</a>
+<li> <a href="http://golang.org/">[The Go Programming Language]</a> - main site
+<li> <a href="http://en.wikipedia.org/wiki/Go_%28programming_language%29.html">[Wikipedia:Go (programming language)]</a>
+<li> lua-users discussions: <a href="/lists/lua-l/2009-11/msg00551.html">[17]</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaVersusGo" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaVersusGo" >history</a><br>Last edited August 16, 2012 10:34 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaVersusGo" >(diff)</a>
+</body>
+</html>

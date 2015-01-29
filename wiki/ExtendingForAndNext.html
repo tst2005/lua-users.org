@@ -1,0 +1,275 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Extending For And Next</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ExtendingForAndNext&amp;body=1" title="List pages referring to ExtendingForAndNext">Extending For And Next</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<hr><DL>
+<dt><dd><strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  It does not run as is under Lua 5.</strong>
+</DL>
+<hr><H3>An experimental patch to Lua 4.0</H3>
+<p>
+The Lua API makes it quite easy to integrate "foreign" objects, including foreign maps, but does not provide a facility to iterate over them. That is, by defining <code>gettable</code> and <code>settable</code> tag methods, it is feasible to completely integrate an indexed foreign object into the Lua environment, but this does not extend to the use of <code>for k,v in foreign_map</code> or, for that matter, <code>k,v = next(foreign_map, k)</code>. Both of these constructions can be useful.
+<p>
+I was also intrigued by the possibility of extending <code>next</code> to "generator" functions. A generator function works exactly like the Lua <code>next</code> library function; given an iteration-state, it produces the next iteration-state and a value. To take a concrete example, I might define a generator as a closure on a character string, so that I could say:
+<p>
+<DL>
+<dt><dd><pre>
+
+keywords = words "do else elseif end for if in repeat unless while"
+
+for i, v in keywords do
+
+   dict[v] = (dict[v] or 0) + 1
+
+end
+
+</pre>
+</DL>
+<p>
+which struck me as fairly elegant.
+<p>
+It turned out that the patch was quite simple, so I've posted it in the file area for those who might want to play with it.
+<p>
+<H3>The Files</H3>
+<p>
+<UL>
+<li> <a href="/files/wiki_insecure/users/rici/next.patch">Files:wiki_insecure/users/rici/next.patch</a> is the patch itself
+</UL>
+<p>
+<UL>
+<li> <a href="/files/wiki_insecure/users/rici/test.lua">Files:wiki_insecure/users/rici/test.lua</a> is a simple timing test
+</UL>
+<p>
+<UL>
+<li> <a href="/files/wiki_insecure/users/rici/results.test.lua.txt">Files:wiki_insecure/users/rici/results.test.lua.txt</a> are the results on a vanilla Lua
+</UL>
+<p>
+<UL>
+<li> <a href="/files/wiki_insecure/users/rici/results.test.nlua.txt">Files:wiki_insecure/users/rici/results.test.nlua.txt</a> are the results on a patched Lua
+</UL>
+<p>
+<UL>
+<li> <a href="/files/wiki_insecure/users/rici/test2.lua">Files:wiki_insecure/users/rici/test2.lua</a> shows some ways of using the patch, along with a timing test
+</UL>
+<p>
+<UL>
+<li> <a href="/files/wiki_insecure/users/rici/results.test2.nlua.txt">Files:wiki_insecure/users/rici/results.test2.nlua.txt</a> are the results on the patched Lua (it won't work on an unpatched Lua)
+</UL>
+<p>
+<H3>Usage</H3>
+<p>
+The patch provides a new tag method, <code>"next"</code>, which is invoked by the <code>for k,v in obj do end</code> construction; in the <code>next</code> library function; and in the <code>lua_next</code> API. Consistent with what seems to be Lua style, a new <code>rawnext</code> library function and <code>lua_rawnext</code> API are provided which avoid the use of the tag method. These work just as tables do, with the exception that they return and use "iteration states" rather than "keys". If the object also defined <code>gettable</code> and <code>settable</code> tag methods, it would probably be wise to arrange for a key and an iteration state to be the same thing; however, for a pure iteration object, the iteration state could be anything provided that <code>nil</code> indicates both the beginning and the end of the iteration. In fact, there is no need for it to be distinct on each iteration.
+<p>
+In addition, the patched constructions can iterate over a function rather than a table or an object with the "next" tag method; the function is called with a single argument, which is an iteration state, and must return two arguments, the first of which is the next iteration state and the second of which is the associated value. This is really only of cosmetic value in the case of <code>next</code> and <code>lua_next</code> but it avoids having to know whether the iteratee is functional or objective.
+<p>
+<p>
+<H3>Examples</H3>
+<p>
+The <code>words</code> generator described above is defined as follows:
+<p>
+<DL>
+<dt><dd><pre>
+
+function words(str)
+
+  return
+
+    function(k)
+
+      local _, k, v = strfind(%str, "([%w]+)", (k or 0) + 1)
+
+      return k,v
+
+    end
+
+end
+
+</pre>
+</DL>
+<p>
+As can be seen, it retains its argument as a closure, and uses the index of the last character in each word as an iteration state.
+<p>
+Similarly, I could define
+<p>
+<DL>
+<dt><dd><pre>
+
+function wordsInFile(file)
+
+  return
+
+    function(k)
+
+      k = read(%file, "*w")
+
+      return k, k
+
+    end
+
+end
+
+</pre>
+</DL>
+<p>
+In this case, the iteration state is essentially meaningless during the iteration; it serves only to signal termination. Obviously, more sophisticated implementations are possible.
+<p>
+<H3>Filters and transformers</H3>
+<p>
+Filters and transformers take a generator and return another generator. A simple example of a transformer is
+<p>
+<DL>
+<dt><dd><pre>
+
+function toupper(gen)
+
+  return
+
+    function(k)
+
+      local v
+
+      k, v = next(%gen, k)
+
+      if k then return k, strupper(v) end
+
+    end
+
+end
+
+</pre>
+</DL>
+<p>
+This can be generalised:
+<p>
+<DL>
+<dt><dd><pre>
+
+function gmap(fn, gen)
+
+  return function(k)
+
+    local v
+
+    k, v = next(%gen, k)
+
+    return k, k and %fn(v)
+
+  end
+
+end
+
+</pre>
+</DL>
+<p>
+Now I can write things like:
+<p>
+<DL>
+<dt><dd><pre>
+
+for i, v in toupper(words(str)) do
+
+  -- something
+
+end
+
+</pre>
+</DL>
+<p>
+A filter is rather like a transformer but is not one-to-one. A sample filter is similar to the Perl <code>grep</code> function:
+<p>
+<DL>
+<dt><dd><pre>
+
+-- given a predicate and a generator, generate only those
+
+-- values for which the predicate returns true
+
+function gfilter(fn, gen)
+
+  return function(k)
+
+    local v
+
+    k, v = next(%gen, k)
+
+    while k do
+
+      if %fn(v) then return k, v end
+
+      k, v = next(%gen, k)
+
+    end
+
+  end
+
+end
+
+</pre>
+</DL>
+<p>
+I hope that gives a taste of the possibilities.
+<p>
+<H3>Implementation Notes</H3>
+<p>
+The majority of the patch is in <code>lvm.c</code>. Here I modify the opcodes <code>LFORPREP</code> and <code>LFORLOOP</code> to use the new vm function <code>luaV_next</code>, which implements the switch on ttype and tag method. <code>next</code> and <code>lua_next</code> are also modified to use this same function, producing (I hope) consistent results.
+<p>
+This does slow for loops down slightly, since the test is done every time through the loop. Timing tests on a P3/866 with 128MB RAM running FreeBSD 3.2 (my development machine) showed that a very basic for loop was approximately 10% slower with the patch. (On the other hand, next is about 4% faster.) I have a somewhat more complex patch which caches the tag method on the stack, resulting in a slowdown of only 7%, but I'm not yet happy enough with it to release it. I believe that the 4.1alpha architecture lends itself better to this, and I'm currently working my way through the 4.1alpha VM in an attempt to do it.
+<p>
+No changes are made to the parser or to the stack layout during a for loop, so the patched Lua ought to be binary-compatible; it only provides additional facilities. However, I wouldn't swear to that statement.
+<p>
+<H3>Future directions</H3>
+<p>
+I regard all of this as an interesting experiment. I think the sample code provided with the patch shows the expressive power of the new construct, quite apart from the ability to define iteratable userdata.
+<p>
+However, the confusion between iteration state and key continues to bother me. I note that in 4.1alpha, the list for is actually implemented with an iteration state <em>and</em> a key, which I think is more logical (and ought to be slightly faster); I'd be interested in the possibilities of extending the semantics of for loops and the <code>next</code> library function to allow for this. While it is often the case that a key can be used as an iteration-state, it is not always convenient (as the <code>words</code> example shows).
+<p>
+While keeping the iteration state hidden during a for loop is tempting, it reduces flexibility. The advantage of using a for loop and a generator rather than a traditional <code>map</code> function is primarily that it is possible to abandon an iteration or modify it. That is, it should (at least) be possible to use <code>next</code> inside a for loop in order to skip over elements. In some cases, it may also be possible to restart an iteration by assigning to the iteration-state variable.
+<p>
+Clearly, generators come in many categories and need to be adequately documented. They may be:
+<p>
+<UL>
+<li> <em>restartable</em> meaning that it is possible to reuse a previously generated iteration state
+</UL>
+<p>
+<UL>
+<li> <em>stable under modification</em> meaning that you can modify the iterated object during an iteration
+</UL>
+<p>
+<UL>
+<li> ...
+</UL>
+<p>
+At the same time, the key-&gt;value model is a little rigid. In the case of a vector, the key may not be very interesting to me; in the case of a database, I might want to use a generator which returns more than one value. In theory, this could be accomodated by extending the syntax of for to something like <code>for name_list in exp1 [, exp1] ...</code> (the second exp1 would be a starting iteration state with <code>nil</code> as a default).
+<p>
+I welcome any thoughts; you can reach me at rlake(at)oxfam.org.pe. Or just put them here, or on the mailing list.
+<p>
+<em>I suggest that you make the patch using options "-urN" and include the test programs in the patch.  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a></em>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ExtendingForAndNext" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ExtendingForAndNext" >history</a><br>Last edited December 30, 2006 11:18 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ExtendingForAndNext" >(diff)</a>
+</body>
+</html>

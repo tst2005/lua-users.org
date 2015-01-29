@@ -1,0 +1,133 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Hex Dump</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=HexDump&amp;body=1" title="List pages referring to HexDump">Hex Dump</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Dump a string in the following format:
+<pre>
+
+   00F52960  2F 4C 5B E1 4D C4 BE 94  95 E6 C9 3F 92 C4 53 3B  /L[.M......?..S;
+
+   00F52970  75 44 CD 14 BE 9A AF 3F  DE 67 BA 94 39 45 AD 1E  uD.....?.g...E..
+
+   00F52980  B1 CF 94 3F 24 23 C6 E2  BC BA 3B 31 61 8B 7A 3F  ...?$#....;.a.z?
+
+   00F52990  61 55 59 C1 7E B1 53 7C  12 BB 5F 3F D7 EE 2F 8D  aUY.~.S|.._?../.
+
+   00F529A0  06 BE 92 85 15 FB 44 3F  24 3F A5 E9 39 A5 27 EA  ......D?$?....'.
+
+   00F529B0  7F A8 2A 3F 7D AC A1 E4  BC 64 7C 46 D0 DD 55 3E  ..*?}....d|F..U&gt;
+
+   00F529C0  63 7B 06 CC 23 54 77 83  FF 91 81 3D 91 FA 3A 19  c{..#Tw....=..:.
+
+   00F529D0  7A 63 25 43 31 C0 AC 3C  21 89 D1                 zc%C...&lt;!..     
+
+</pre>
+<p>
+I came here looking for Lua code to do that (because I'm lazy), but there was nothing here. So here ya go. 
+<pre class="code">
+   <span class="keyword">function</span> hex_dump(buf)
+
+      <span class="keyword">for</span> i=1,<span class="library">math.ceil</span>(#buf/16) * 16 <span class="keyword">do</span>
+
+         <span class="keyword">if</span> (i-1) % 16 == 0 <span class="keyword">then</span> <span class="library">io.write</span>(<span class="library">string.format</span>(<span class="string">'%08X  '</span>, i-1)) <span class="keyword">end</span>
+
+         <span class="library">io.write</span>( i &gt; #buf <span class="keyword">and</span> <span class="string">'   '</span> <span class="keyword">or</span> <span class="library">string.format</span>(<span class="string">'%02X '</span>, buf:byte(i)) )
+
+         <span class="keyword">if</span> i %  8 == 0 <span class="keyword">then</span> <span class="library">io.write</span>(<span class="string">' '</span>) <span class="keyword">end</span>
+
+         <span class="keyword">if</span> i % 16 == 0 <span class="keyword">then</span> <span class="library">io.write</span>( buf:sub(i-16+1, i):gsub(<span class="string">'%c'</span>,<span class="string">'.'</span>), <span class="string">'\n'</span> ) <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+</pre>
+
+<p>
+<em>See test/xd.lua in the source distribution. --lhf</em>
+<p>
+<em>Ahhh.... thanks. Wish I'd seen that earlier. :) I'll include that version here as well. -- ewt</em>
+<p>
+As Luiz points out, there's a hex dump in the Lua distro. Here's that implementation modified to operate on a string rather than a file:
+<pre class="code">
+   <span class="keyword">function</span> hex_dump(buf)
+
+      <span class="keyword">for</span> byte=1, #buf, 16 <span class="keyword">do</span>
+
+         <span class="keyword">local</span> chunk = buf:sub(byte, byte+15)
+
+         <span class="library">io.write</span>(<span class="library">string.format</span>(<span class="string">'%08X  '</span>,byte-1))
+
+         chunk:gsub(<span class="string">'.'</span>, <span class="keyword">function</span> (c) <span class="library">io.write</span>(<span class="library">string.format</span>(<span class="string">'%02X '</span>,<span class="library">string.byte</span>(c))) <span class="keyword">end</span>)
+
+         <span class="library">io.write</span>(<span class="library">string.rep</span>(<span class="string">' '</span>,3*(16-#chunk)))
+
+         <span class="library">io.write</span>(<span class="string">' '</span>,chunk:gsub(<span class="string">'%c'</span>,<span class="string">'.'</span>),<span class="string">"\n"</span>) 
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+</pre>
+
+<p>
+I'll leave mine here as well, because it separates DWORDs by a space (my preference), which would be somewhat messy to patch into the distro version (because it iterates with gsub).
+<p>
+Variation that accepts an optional byte range:
+<p>
+<pre class="code">
+   <span class="comment">-- [first] begin dump at 16 byte-aligned offset containing 'first' byte</span>
+
+   <span class="comment">-- [last] end dump at 16 byte-aligned offset containing 'last' byte</span>
+
+   <span class="keyword">function</span> hex_dump(buf,first,last)
+
+      <span class="keyword">local</span> <span class="keyword">function</span> align(n) <span class="keyword">return</span> <span class="library">math.ceil</span>(n/16) * 16 <span class="keyword">end</span>
+
+      <span class="keyword">for</span> i=(align((first <span class="keyword">or</span> 1)-16)+1),align(<span class="library">math.min</span>(last <span class="keyword">or</span> #buf,#buf)) <span class="keyword">do</span>
+
+         <span class="keyword">if</span> (i-1) % 16 == 0 <span class="keyword">then</span> <span class="library">io.write</span>(<span class="library">string.format</span>(<span class="string">'%08X  '</span>, i-1)) <span class="keyword">end</span>
+
+         <span class="library">io.write</span>( i &gt; #buf <span class="keyword">and</span> <span class="string">'   '</span> <span class="keyword">or</span> <span class="library">string.format</span>(<span class="string">'%02X '</span>, buf:byte(i)) )
+
+         <span class="keyword">if</span> i %  8 == 0 <span class="keyword">then</span> <span class="library">io.write</span>(<span class="string">' '</span>) <span class="keyword">end</span>
+
+         <span class="keyword">if</span> i % 16 == 0 <span class="keyword">then</span> <span class="library">io.write</span>( buf:sub(i-16+1, i):gsub(<span class="string">'%c'</span>,<span class="string">'.'</span>), <span class="string">'\n'</span> ) <span class="keyword">end</span>
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+</pre>
+
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=HexDump" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=HexDump" >history</a><br>Last edited January 11, 2008 9:01 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=HexDump" >(diff)</a>
+</body>
+</html>

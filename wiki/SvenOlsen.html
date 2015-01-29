@@ -1,0 +1,369 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Sven Olsen</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SvenOlsen&amp;body=1" title="List pages referring to SvenOlsen">Sven Olsen</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+I started playing around with Lua in 2010; about a year before the release of 5.2.  I quickly fell in love with the language, though a few of the idioms struck me as needlessly verbose.  And so it wasnt long before I was poking around the power patch page, looking for a += implementation.  
+<p>
+What I found there was something far better -- Peter Shooks beautifully clever table unpack patch.  Since that discovery, tweaking the syntax rules of my Lua parser has become a bit of a guilty pleasure.  
+<p>
+Rather than clutter up the power patch page with a long list of small, debatably useful patches, Ive decided to try documenting most of them here.  Again -- Im following <a href="../wiki/PeterShook.html" >PeterShook</a>'s lead in this; as he also seemed to have decided to move the docs for some of his more debatably useful language tweaks to his personal bio page.
+<p>
+<H2>Newline Handling</H2>
+<pre>
+
+  a=b
+
+  (f or g)()
+
+</pre>
+<p>
+In Lua 5.1, the parser will throw an error given the above code, complaining about ambiguous syntax.  Lua 5.2 will accept the code, interpreting the two lines as single statement, one that executes:
+<p>
+<pre>
+
+  a=b( f or g)()
+
+</pre>
+<p>
+In general, I prefer 5.1s behavior.   After upgrading to Lua 5.2, I occasionally found myself writing bugs that the old ambiguous syntax check would have caught.
+<p>
+However, as Roberto has pointed out, there are problems with 5.1s ambiguous syntax check.  For one, it doesnt actually check for ambiguous syntax --  a task that would be effectively impossible inside a single-pass parser.  Instead, the check is implemented by simply throwing an error anytime a function argument list starts on a new line.  Thus, under 5.1
+<p>
+<pre>
+
+  print 
+
+  (
+
+   "long string one",
+
+   "long string two"
+
+  )
+
+</pre>
+<p>
+results in an error for ambiguous syntax; though theres clearly nothing ambiguous about the code.
+<p>
+Ive tweaked my own Lua parser to have behavior somewhere between Lua 5.1s and 5.2s.  My check works by adding a second condition to the one used in 5.1, restricting errors to the case of expressions that include 2+ function calls.  Ive also changed the text of the error message, in hopes of making it more obvious that the error should be interpreted as a warning about dangerous formating.
+<p>
+My modified check isnt perfect -- like Lua 5.1, it will still sometimes throw errors in response to code that only has one possible interpretation.  For example, the following triggers an error, even though theres only one valid way of parsing the code:
+<p>
+<pre>
+
+  new_object
+
+  (f or g)(state)
+
+</pre>
+<p>
+The beautiful thing about Luas syntax is that these sorts of troublesome syntax ambiguities very rarely come up in practice.  Even under the very aggressive 5.1-style newline handling, programmers would only rarely see ambiguous syntax errors.  Under my own more cautious check, such situations are even less common.
+<p>
+But while it may be a rare edge case, I think its a mistake to ignore the issue completely. 
+<p>
+Of all the patches Ive written, this is the only one which Id seriously recommend as an addition to the official Lua branch.  It does prevent bugs; and its costs are tiny.  
+<p>
+<a href="/files/wiki_insecure/power_patches/5.2/newlines-5.2.2.patch">[Download for 5.2.2)]</a>
+<p>
+<H3>Optional "do" and "then" tokens</H3>
+<p>
+This is perhaps the simplest powerpatch youll ever find.  Its a one liner that Brian Palmer included in his concise anonymous functions patch -- one that removes the need to follow if statements with a then token.  Ive extended it to similarly make optional following a for statement with a do token.  Using the patch will add some potential parsing quirks to the language.  For example, if you have a statement like this:
+<p>
+<pre>
+
+  if a then
+
+    (f or g)()
+
+  end
+
+</pre>
+<p>
+and you remove the then, youll end up generating code that simply executes the line:
+<p>
+<pre>
+
+  a( f or g )()
+
+</pre>
+<p>
+But as discussed above -- potentially ambiguous syntax is something that Lua programmers will always need to be mindful of -- its a necessary consequence of making semicolons optional.  In the version posted here, Ive packaged it with my newline handling patch; as using it along with 5.2s relaxed parse rules seems unnecessarily dangerous.
+<p>
+<a href="/files/wiki_insecure/power_patches/5.2/optional-5.2.2.patch">[Download for 5.2.2)]</a>
+<p>
+<H2>Bigger Patches</H2>
+<p>
+If you're curious to try out any of the rest of my patches, you can download them all as one <a href="/files/wiki_insecure/power_patches/5.2/svenshacks-5.2.2.patch">[super-patch]</a>, based on 5.2.2.  While most of my mods are fairly self-contained -- there's just enough overlap between them to make maintaining independent patch files troublesome.  Peter's Table Unpack patch overlaps with both Compound Assignment and the Required Fields semantic.  Required Fields, meanwhile, share a VM change with the Safe Navigation patch.  The Stringification patches are both small and self-contained -- though if you want a clean-version of those two, you can find my walk-through of the diffs in the lua-l archives <a href="/lists/lua-l/2012-11/msg00398.html">[1]</a>.
+<p>
+<H3>Table unpack</H3>
+<p>
+As Ive mentioned above, this is my favorite powerpatch.  And if youre going to try any of my own syntax mods, you should certainly try Peters as well.  The syntax converts:
+<p>
+<pre>
+
+	a,b,c in t  ==&gt;  a,b,c=t.a,t.b,t.c.
+
+</pre>
+<p>
+Its a wonderful transformation -- and one that's become even more useful as a result of the new _ENV rules in 5.2.  For example, if youre planning to change _ENV to something unusual, but want to keep certain standard global functions in scope, you simply write:
+<p>
+<pre>
+
+  local pairs, ipairs, tostring, print in _ENV
+
+</pre>
+<p>
+However, there are more subtle idioms you can try as well, most of which come from combining the syntax with metamethods.  Consider:
+<p>
+<pre>
+
+ local x,y,z,vx,vy,vz in INIT(0)
+
+</pre>
+<p>
+If INIT(a) returns a table with __index = function() return a end, then the above will initialize all the given variables to 0.
+<p>
+A similar __index trick will let you significantly simplify most require statement boilerplate.  For example, you can define an REQUIRE proxy object that lets you replace,
+<p>
+<pre>
+
+  local socket = require 'socket'
+
+  local lxp = require 'lxp'
+
+  local ml = require 'ml'
+
+</pre>
+<p>
+with,
+<p>
+<pre>
+
+ local socket, lxp, ml in REQUIRE
+
+</pre>
+<p>
+<H3>Stringification</H3>
+<p>
+Peters syntax is as powerful as it is because it gives programmers a tool for converting variable names into strings.  However, it only does so inside the context of variable assignment.  A more general tool for transforming variables into their matching string representations would be helpful; and while the patch Ive come up with isnt as elegant or as clear as Peters, I do often use it.
+<p>
+The patch applies two transformations.  First, in the context of a table constructor, writing
+<p>
+<pre>
+
+	t = {..star, ..planet, ..galaxy} ==&gt;  t = {star=star, planet=planet, galaxy=galaxy}
+
+</pre>
+<p>
+Similarly, in the context of function argument lists, writing
+<p>
+<pre>
+
+	f(..star,..planet,..galaxy) ==&gt; f('star',star,'planet',planet,'galaxy',galaxy)
+
+</pre>
+<p>
+Due to a quirk of the implementation, using .. on a on a complex expression will return the last string, name, or numeric constant encountered while parsing that expression.  Thus
+<p>
+<pre>
+
+	{..planet.star, ..planet, ..moon 'luna' } ==&gt; 
+
+		{ star=planet.star, planet=planet, luna = moon 'luna' }
+
+</pre>
+<p>
+<H3>Safe Navigation</H3>
+<p>
+The name for this handy semantic is borrowed from Groovy; through CoffeeScript<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CoffeeScript" >?</a> also has a similar feature.  The idea is to make it possible to check for values without triggering an 'attempt to index nil' error.
+<p>
+For example, the following expression will evaluate to the glow color of an objects icon, if a glow color is defined, or white, otherwise:
+<p>
+<pre>
+
+  color = object?.icon?.glow?.color or white
+
+</pre>
+<p>
+Failing to define object, or object.icon, or object.icon.glow, will result in the first part of the expression evaluating to nil.
+<p>
+When I proposed this patch on lua-l <a href="/lists/lua-l/2013-02/msg00733.html">[2]</a>, there was quite a bit of enthusiasm for it.  However, there was also some disagreement over the details of how, exactly, the semantics ought to work.  
+<p>
+My own preference is to define ? as a relatively simple piece of syntax sugar, though one that relies on adding a new variable to the global namespace.  Thus, when a new lua state is initialized, I add a userdata called _SAFE to the global table, where _SAFE has __index, __newindex, and __call all set to nullops, __len set to always return 0, and __pairs and __ipairs defined as functions that themselves return a nullop.
+<p>
+Once we have such a user data, it's fairly simple to add some syntax sugar that converts
+<p>
+<pre>
+
+	(&lt;expr&gt;?) ==&gt; (&lt;expr&gt; or _SAFE*)
+
+</pre>
+<p>
+Given the default definition of _SAFE , this results in indexing operations that work as desired.  But the semantic also opens up some neat new features.  For example, if youre also using Peters table unpack patch, you can write:
+<p>
+<pre>
+
+  local update, display in object?
+
+</pre>
+<p>
+With the result that update and display will be nil if object isnt defined.
+<p>
+Similarly, you can call
+<p>
+<pre>
+
+  update?() 
+
+</pre>
+<p>
+with the result that update will only execute if its defined. Or you can write the following, which which iterates through all of objects icons, provided theyre defined.
+<p>
+<pre>
+
+  for k,v in pairs(object.icons?) 
+
+</pre>
+<p>
+But theres one caveat to this otherwise fairly elegant definition.  For the patch to work as intended, the version of _SAFE referenced from the syntax sugar needs to be evaluated as if the upvalue _ENV was equal to _G -- otherwise, a seemingly harmless line like _ENV = {} will change the meaning of the shorthand.  (This is why Ive included an asterix in the transformation definition.)
+<p>
+So while implementing this patch requires only a small parser change, it also requires reintroducing the op code OP_GETGLOBAL back into the VM.
+<p>
+Its probably also worth pointing out that the semantics do have a bit of quirk, one related to the way or operations are interpreted.  Specifically:
+<p>
+<pre>
+
+  v = (nil)?.v ==&gt; v=nil
+
+  v = (false)?.v ==&gt; v=nil
+
+  v = (true)?.v ==&gt; runtime error: attempt to index a boolean value
+
+</pre>
+<p>
+Several lua-l users considered that behavior a bit unintuitive; though personally, I prefer it to throwing an error on (false)?.v.
+<p>
+<H3>Required Fields</H3>
+<p>
+A few months after writing up the safe navigation patch -- there was a long discussion on lua-l about the various ways in which having undefined table references return nil can lead to bugs <a href="/lists/lua-l/2013-03/msg00598.html">[3]</a>.  For example, if youre writing code to build a list of all object names, iterating along and setting
+<p>
+<pre>
+
+  name[i] = object.name
+
+</pre>
+<p>
+can lead to strange behaviors on down the line if you happen to come across an object that lacks a name.
+<p>
+In a way, this is the exact opposite of the situation that motivated the safe navigation patch.  The purpose of ? is to make Lua return nil when it would otherwise throw an error.  However, there are certainly cases where the opposite behavior is desirable; where wed like Lua to throw an error, rather than returning nil.  Thus, Ive written a patch for a "required field" operator.  On the surface, it's quite similar to my safe navigation patch.  In its simplest form, it converts:
+<p>
+<pre>
+
+	(object!) ==&gt; (object or _MISSING*( "object" ) )
+
+</pre>
+<p>
+Here _MISSING is a global variable that's fetched via OP_GETGLOBAL as per the Safe Navigation patch.  Thus, a line like
+<p>
+<pre>
+
+	name = get_name(object!,field!)
+
+</pre>
+<p>
+Will result in 
+<pre>
+
+	error: missing required value "object",  if object==nil or
+
+	error: missing required value "field",  if field==nil
+
+</pre>
+<p>
+I've taken things a bit farther, however, augmenting the syntax so that table lookups that include a '!' will throw errors if they return nil or false.  Thus, for a line like:
+<pre>
+
+	age,height in record![name]!
+
+</pre>
+<p>
+The errors that may be generated include:
+<pre>
+
+	error: missing required value "record", if record==nil
+
+	error: &lt;expr&gt; is missing required field ["age"],  if record[name].age==nil
+
+	error: &lt;expr&gt; is missing required field [name -&gt; "foo"], if name=='foo', and record.foo==nil
+
+</pre>
+<p>
+This is not an elegant patch -- dispatching between the various error cases gets messy, and the generated bytecode is not terribly efficient.  Even so, I've been finding it useful.  It removes the need for much of the boilerplate sanity checking code Id otherwise write.
+<p>
+<H3>Compound Assignment</H3>
+<p>
+This was the syntax sugar I originally went looking for.  All the goodies I'd been missing from C: +=, -=, *=, etc.  
+<p>
+The implementation included in the bundle allows vector increments, for example:
+<pre>
+
+  vx,vy,vz += ax, ay, az
+
+</pre>
+<p>
+You can also use an open function call to provide data for an arbitrary list of additional values.  For example:
+<pre>
+
+  px,py,pz += 1, calc_yz_vel()
+
+</pre>
+<p>
+However, if there's a clear miss-match between the number of right hand and left hand values, the parser will throw an error.
+<p>
+Unlike standard assignments, the compound assignments are evaluated left-to-right.  So,
+<pre>
+
+  local a,b=2,4
+
+  a,b+=b,a
+
+    ==&gt; a==6, b==10 
+
+</pre>
+<p>
+Also -- because I was having altogether too much fun with this hack -- I added a '++' sugar as well.  In the case of multiple left hand values, all will be incremented by 1. 
+<pre>
+
+	i,j,k++    ==&gt;    i,j,k=i+1,j+1,k+1
+
+</pre>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SvenOlsen" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SvenOlsen" >history</a><br>Last edited November 18, 2013 3:15 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SvenOlsen" >(diff)</a>
+</body>
+</html>

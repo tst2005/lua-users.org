@@ -1,0 +1,477 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Common Functions</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CommonFunctions&amp;body=1" title="List pages referring to CommonFunctions">Common Functions</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Some commonly used functions (stolen from messageboards, other wiki pages, PiL) are listed below- feel free to improve them.
+<p>
+<UL>
+<li> <a href="../wiki/TableUtils.html" >TableUtils</a>
+<li> <a href="../wiki/CsvUtils.html" >CsvUtils</a>
+<li> <a href="../wiki/CgiUtils.html" >CgiUtils</a>
+<li> <a href="../wiki/BitUtils.html" >BitUtils</a>
+</UL>
+<p>
+<H2>String Library</H2>
+<p>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- all/string.lua (all.string)</span>
+
+<span class="comment">-- A Lua Library (ALL) - string utility functions.</span>
+
+<span class="comment">-- This is compatible with Lua 5.1.</span>
+
+<span class="comment">-- Licensed under the same terms as Lua itself.--DavidManura</span>
+
+<span class="library">module</span>(<span class="string">"all.string"</span>, <span class="library">package.seeall</span>)
+
+
+
+<span class="keyword">function</span> import()
+
+  <span class="keyword">local</span> env = <span class="library">getfenv</span>(2)
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(all.string) <span class="keyword">do</span> env[k] = v <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- remove trailing and leading whitespace from string.</span>
+
+<span class="comment">-- http://en.wikipedia.org/wiki/Trim_(8programming)</span>
+
+<span class="keyword">function</span> trim(s)
+
+  <span class="comment">-- from PiL2 20.4</span>
+
+  <span class="keyword">return</span> (s:gsub(<span class="string">"^%s*(.-)%s*$"</span>, <span class="string">"%1"</span>))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- remove leading whitespace from string.</span>
+
+<span class="comment">-- http://en.wikipedia.org/wiki/Trim_(8programming)</span>
+
+<span class="keyword">function</span> ltrim(s)
+
+  <span class="keyword">return</span> (s:gsub(<span class="string">"^%s*"</span>, <span class="string">""</span>))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- remove trailing whitespace from string.</span>
+
+<span class="comment">-- http://en.wikipedia.org/wiki/Trim_(8programming)</span>
+
+<span class="keyword">function</span> rtrim(s)
+
+  <span class="keyword">local</span> n = #s
+
+  <span class="keyword">while</span> n &gt; 0 <span class="keyword">and</span> s:find(<span class="string">"^%s"</span>, n) <span class="keyword">do</span> n = n - 1 <span class="keyword">end</span>
+
+  <span class="keyword">return</span> s:sub(1, n)
+
+<span class="keyword">end</span>
+
+<span class="comment">-- The following more obvious implementation is generally not</span>
+
+<span class="comment">-- as efficient, particularly for long strings since Lua pattern matching</span>
+
+<span class="comment">-- starts at the left (though in special cases it is more efficient).</span>
+
+<span class="comment">-- Related discussion on p.197 of book "Beginning Lua Programming".</span>
+
+<span class="comment">--[[
+
+function rtrim(s) return (s:gsub("%s*$", "")) end
+
+]]</span>
+
+
+
+<span class="comment">-- substitute variables into string.</span>
+
+<span class="comment">-- Example: subst("a=$(a),b=$(b)", {a=1, b=2}) --&gt; "a=1,b=2".</span>
+
+<span class="keyword">function</span> subst(s, t)
+
+  <span class="comment">-- note: handle {a=false} substitution</span>
+
+  s = s:gsub(<span class="string">"%$%(([%w_]+)%)"</span>, <span class="keyword">function</span>(name)
+
+    <span class="keyword">local</span> val = t[name]
+
+    <span class="keyword">return</span> val ~= <span class="keyword">nil</span> <span class="keyword">and</span> <span class="library">tostring</span>(val)
+
+  <span class="keyword">end</span>)
+
+  <span class="keyword">return</span> s
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Other ideas...</span>
+
+<span class="comment">-- This library needs one good split function.</span>
+
+
+
+<span class="comment">-- [mjc 6/12/2008] here is my basic split implementation.</span>
+
+<span class="comment">-- takes a string and a pattern to split with. returns a table </span>
+
+<span class="comment">-- of words that have been seperated at the pattern (does not </span>
+
+<span class="comment">-- include the pattern in any words in the returned table).</span>
+
+<span class="keyword">function</span> split(str, patt)
+
+	vals = {}; valindex = 0; word = <span class="string">""</span>
+
+	<span class="comment">-- need to add a trailing separator to catch the last value.</span>
+
+	str = str .. patt
+
+	<span class="keyword">for</span> i = 1, <span class="library">string.len</span>(str) <span class="keyword">do</span>
+
+	
+
+		cha = <span class="library">string.sub</span>(str, i, i)
+
+		<span class="keyword">if</span> cha ~= patt <span class="keyword">then</span>
+
+			word = word .. cha
+
+		<span class="keyword">else</span>
+
+			<span class="keyword">if</span> word ~= <span class="keyword">nil</span> <span class="keyword">then</span>
+
+				vals[valindex] = word
+
+				valindex = valindex + 1
+
+				word = <span class="string">""</span>
+
+			<span class="keyword">else</span>
+
+				<span class="comment">-- in case we get a line with no data.</span>
+
+				<span class="keyword">break</span>
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span> 
+
+		
+
+	<span class="keyword">end</span>	
+
+	<span class="keyword">return</span> vals
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+Tests.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- alltest.lua</span>
+
+<span class="comment">-- Test suite for all library.</span>
+
+
+
+<span class="library">require</span> <span class="string">"all.string"</span> :import()
+
+
+
+<span class="keyword">function</span> assert_equal(a, b)
+
+  <span class="keyword">if</span> a ~= b <span class="keyword">then</span> <span class="library">error</span>(<span class="library">tostring</span>(a) .. <span class="string">" == "</span> .. <span class="library">tostring</span>(b), 2) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+assert_equal(trim(<span class="string">""</span>), <span class="string">""</span>)
+
+assert_equal(trim(<span class="string">"   "</span>), <span class="string">""</span>)
+
+assert_equal(trim(<span class="string">"12"</span>), <span class="string">"12"</span>)
+
+assert_equal(trim(<span class="string">" 12 "</span>), <span class="string">"12"</span>)
+
+assert_equal(trim(<span class="string">"  1 2  "</span>), <span class="string">"1 2"</span>)
+
+assert_equal(trim(<span class="string">"\r\n\t\f 1\r\n\t\f\ "</span>), <span class="string">"1"</span>)
+
+
+
+assert_equal(ltrim(<span class="string">""</span>), <span class="string">""</span>)
+
+assert_equal(trim(<span class="string">"   "</span>), <span class="string">""</span>)
+
+assert_equal(ltrim(<span class="string">"12"</span>), <span class="string">"12"</span>)
+
+assert_equal(ltrim(<span class="string">" 12 "</span>), <span class="string">"12 "</span>)
+
+assert_equal(ltrim(<span class="string">"  1 2  "</span>), <span class="string">"1 2  "</span>)
+
+assert_equal(ltrim(<span class="string">"\r\n\t\f 1\r\n\t\f\ "</span>), <span class="string">"1\r\n\t\f "</span>)
+
+
+
+assert_equal(rtrim(<span class="string">""</span>), <span class="string">""</span>)
+
+assert_equal(trim(<span class="string">"   "</span>), <span class="string">""</span>)
+
+assert_equal(rtrim(<span class="string">"12"</span>), <span class="string">"12"</span>)
+
+assert_equal(rtrim(<span class="string">" 12 "</span>), <span class="string">" 12"</span>)
+
+assert_equal(rtrim(<span class="string">"  1 2  "</span>), <span class="string">"  1 2"</span>)
+
+assert_equal(rtrim(<span class="string">"\r\n\t\f 1\r\n\t\f\ "</span>), <span class="string">"\r\n\t\f\ 1"</span>)
+
+
+
+assert_equal(subst(<span class="string">""</span>, {}), <span class="string">""</span>)
+
+assert_equal(subst(<span class="string">"aa=$(aa),bb_=$(bb_)"</span>, {aa=1,bb_=2}), <span class="string">"aa=1,bb_=2"</span>)
+
+assert_equal(subst(<span class="string">"a=$(a)"</span>, {a=<span class="keyword">false</span>}), <span class="string">"a=false"</span>)
+
+assert_equal(subst(<span class="string">"a=$(a),b=$(b),c=$(c)"</span>, {a=4,b=2,c=<span class="keyword">nil</span>}), <span class="string">"a=4,b=2,c=$(c)"</span>)
+
+
+
+<span class="library">print</span>(<span class="string">"done"</span>)
+
+</pre>
+
+</DL>
+<p>
+<H2>Patterns Library</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- all/pattern.lua (all.pattern)</span>
+
+<span class="comment">-- A Lua Library (ALL) - pattern utility functions.</span>
+
+<span class="comment">-- This is compatible with Lua 5.1.</span>
+
+<span class="comment">-- Licensed under the same terms as Lua itself.--DavidManura</span>
+
+<span class="library">module</span>(<span class="string">"all.pattern"</span>, <span class="library">package.seeall</span>)
+
+
+
+<span class="keyword">function</span> import()
+
+  <span class="keyword">local</span> env = <span class="library">getfenv</span>(2)
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(all.pattern) <span class="keyword">do</span> env[k] = v <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Remove whitespace from pattern.</span>
+
+<span class="comment">-- Patterns may be expressed more readably with</span>
+
+<span class="comment">-- extra whitespace and then filtered through this function</span>
+
+<span class="comment">-- to remove this whitespace for processing.</span>
+
+<span class="comment">-- This function is inspired by the //x regex option in Perl.</span>
+
+<span class="comment">-- If the final pattern requires whitespace, escape it (e.g. "% ").</span>
+
+<span class="comment">-- Example: ("(x y)"):gsub(px" ^ %( . % . %) $ ", "t") --&gt; "t"</span>
+
+<span class="keyword">function</span> px(s)
+
+  <span class="keyword">local</span> n = 1
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span> <span class="comment">-- removes spaces</span>
+
+      <span class="keyword">local</span> _, ne, np = s:find(<span class="string">"^[^%s%%]*()%s*"</span>, n)
+
+      n = np
+
+      <span class="keyword">if</span> np - 1 ~= ne <span class="keyword">then</span> s = s:sub(1, np - 1) .. s:sub(ne + 1)
+
+      <span class="keyword">else</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">local</span> m = s:match(<span class="string">"%%(.?)"</span>, n) <span class="comment">-- skip magic chars</span>
+
+    <span class="keyword">if</span> m == <span class="string">"b"</span> <span class="keyword">then</span> n = n + 4
+
+    <span class="keyword">elseif</span> m <span class="keyword">then</span> n = n + 2
+
+    <span class="keyword">else</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> s
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Lua pattern for matching Lua identifier.</span>
+
+<span class="comment">-- Warning: wrongly matches Lua keywords too.</span>
+
+pat_id = <span class="string">"([%a_][%w_]*)"</span>
+
+
+
+<span class="comment">-- Lua pattern for matching Lua single line comment.</span>
+
+pat_scomment = <span class="string">"(%-%-[^\n]*)"</span>
+
+
+
+<span class="comment">-- Lua pattern for matching Lua multi-line comment.</span>
+
+pat_mcomment = <span class="string">"(%-%-%[(=*)%[.-%]%2%])"</span>
+
+
+
+<span class="comment">-- Other ideas....</span>
+
+
+
+<span class="comment">-- Possibly add more Lua parsing like in Perl Text-Balanced.</span>
+
+<span class="comment">-- Note: not all fragments can be parsed with plain Lua patterns,</span>
+
+<span class="comment">-- though regexes maybe.  There could possibly be a series of</span>
+
+<span class="comment">-- find_* functions.  For example, find_luastring(s, n) to find</span>
+
+<span class="comment">-- Lua syntax string at index n in string s.</span>
+
+
+
+<span class="comment">-- Possibly add a pure Lua implementation for matching patterns</span>
+
+<span class="comment">-- with alternations as in the regex "(yes|no)+" construct.</span>
+
+<span class="comment">-- Or maybe add a gmatch that takes multiple patterns and matches</span>
+
+<span class="comment">-- any of the patterns.</span>
+
+</pre>
+
+</DL>
+<p>
+Tests.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"all.pattern"</span> :import()
+
+
+
+<span class="keyword">function</span> assert_equal(a, b)
+
+  <span class="keyword">if</span> a ~= b <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"&lt;"</span> .. <span class="library">tostring</span>(a) .. <span class="string">"=="</span> .. <span class="library">tostring</span>(b) .. <span class="string">"&gt;"</span>, 2) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+assert_equal(px<span class="string">""</span>, <span class="string">""</span>)
+
+assert_equal(px<span class="string">"   \f\n\r\t\f"</span>, <span class="string">""</span>)
+
+assert_equal(px<span class="string">" ^ %(  .-  %) $ "</span>, <span class="string">"^%(.-%)$"</span>)
+
+assert_equal(px<span class="string">" 1%%% 2%% %%% %.%b %%%  %a  %b%% % . . %a"</span>,
+
+               <span class="string">"1%%% 2%%%%% %.%b %%%%a%b%%% ..%a"</span>)
+
+assert_equal(px<span class="string">"%"</span>, <span class="string">"%"</span>) <span class="comment">-- actually invalid pattern</span>
+
+assert_equal((<span class="string">"(x y)"</span>):gsub(px<span class="string">" ^ %( . % . %) $ "</span>, <span class="string">"t"</span>), <span class="string">"t"</span>)
+
+
+
+assert_equal((<span class="string">"_"</span>):match(<span class="string">"^"</span> .. pat_id), <span class="string">"_"</span>)
+
+assert_equal((<span class="string">"A1_"</span>):match(<span class="string">"^"</span> .. pat_id), <span class="string">"A1_"</span>)
+
+
+
+assert_equal((<span class="string">"--\n2"</span>):match(<span class="string">"^"</span> .. pat_scomment), <span class="string">"--"</span>)
+
+assert_equal((<span class="string">"--123\n2"</span>):match(<span class="string">"^"</span> .. pat_scomment), <span class="string">"--123"</span>)
+
+
+
+assert_equal((<span class="string">"--[[ ] ]] "</span>):match(<span class="string">"^"</span> .. pat_mcomment), <span class="string">"--[[ ] ]]"</span>)
+
+assert_equal((<span class="string">"--[[ ]] ]]"</span>):match(<span class="string">"^"</span> .. pat_mcomment), <span class="string">"--[[ ]]"</span>)
+
+assert_equal((<span class="string">"--[==[ ]] ]==] ]==]"</span>):match(<span class="string">"^"</span> .. pat_mcomment),
+
+              <span class="string">"--[==[ ]] ]==]"</span>)
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/StringTrim.html" >StringTrim</a> - alternate implementations of <code>trim</code>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CommonFunctions" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CommonFunctions" >history</a><br>Last edited December 25, 2009 4:45 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CommonFunctions" >(diff)</a>
+</body>
+</html>

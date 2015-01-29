@@ -1,0 +1,261 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Func List</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteFuncList&amp;body=1" title="List pages referring to SciteFuncList">Scite Func List</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a simple Lua script to show the function list of the current editing source file in the output pane. If you'd like to move to the function that you are looking for, you just need to click the function name in the output pane.
+<p>
+<a href="../wiki/SciteFuncList.html" >SciteFuncList</a> depends on the <a href="http://ctags.sourceforge.net">[ctags]</a> and <a href="../wiki/SciteTags.html" >SciteTags</a>, so you need to prepare these before using <a href="../wiki/SciteFuncList.html" >SciteFuncList</a>.
+<p>
+<pre class="code">
+<span class="comment">-- SciteFuncList.lua</span>
+
+<span class="comment">-- by 2011.04.22 lee.sheen@gmail.com</span>
+
+
+
+scite_Command {
+
+	<span class="string">'Function List|functionList|Ctrl+/'</span>,
+
+}
+
+
+
+<span class="keyword">function</span> functionList()
+
+	<span class="keyword">local</span> sourceFilename = props[<span class="string">"FilePath"</span>]
+
+	<span class="keyword">local</span> ctagsFilename = sourceFilename .. <span class="string">".ctags"</span>
+
+
+
+	makeCtagsFile(sourceFilename, ctagsFilename)
+
+	readCtagsFile(ctagsFilename)
+
+	removeCtagsFile(ctagsFilename)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> makeCtagsFile(sourceFilename, ctagsFilename)
+
+	<span class="keyword">local</span> makeCtagsCommand = <span class="string">"ctags -u -f "</span> .. ctagsFilename .. <span class="string">" "</span> .. sourceFilename
+
+	<span class="comment">--print(makeCtagsCommand)</span>
+
+	<span class="library">os.execute</span>(makeCtagsCommand)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> readCtagsFile(ctagsFilename)
+
+	<span class="library">print</span>()
+
+	<span class="library">io.input</span>(ctagsFilename)
+
+	<span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+		<span class="keyword">local</span> line = <span class="library">io.read</span>(<span class="string">"*line"</span>)
+
+		<span class="keyword">if</span> line == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+		<span class="keyword">if</span> <span class="keyword">not</span> isCommentLine(line) <span class="keyword">then</span>
+
+			<span class="library">print</span>(getFunctionName(line))
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> isCommentLine(line)
+
+	<span class="keyword">return</span> <span class="string">'!'</span> == <span class="library">string.sub</span>(line, 0, 1)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> getFunctionName(line)
+
+	<span class="keyword">local</span> ctagsTable = {}
+
+	ctagsTable = splitCtagsLine(line)
+
+	<span class="keyword">local</span> functionName = makeFunctionName(ctagsTable)
+
+	<span class="keyword">local</span> searchString = makeSearchString(ctagsTable)
+
+	<span class="keyword">return</span> functionName, searchString
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> splitCtagsLine(line)
+
+	<span class="keyword">local</span> t = {}
+
+	<span class="keyword">local</span> l = 0
+
+	<span class="keyword">local</span> r = 0
+
+	<span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+		r = <span class="library">string.find</span>(line, <span class="string">"\t"</span>, l)
+
+		<span class="keyword">if</span> r == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+			r = #line + 1
+
+		<span class="keyword">end</span>
+
+
+
+		<span class="keyword">local</span> name = <span class="library">string.sub</span>(line, l, r - 1)
+
+		t[#t + 1] = name
+
+
+
+		l = r + 1
+
+		<span class="keyword">if</span> #line &lt;= l <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> makeFunctionName(ctagsTable)
+
+	<span class="keyword">local</span> functionName = ctagsTable[1]
+
+<span class="comment">--[[
+
+	-- with it's class name
+
+	if not(ctagsTable[5] == nil) then
+
+		local isClass = not(string.find(ctagsTable[5], "class:", 0) == nil)
+
+		if isClass then 
+
+			local className = string.sub(ctagsTable[5], 7)
+
+			functionName = className.."::"..functionName
+
+		end
+
+	end
+
+--]]</span>
+
+	<span class="keyword">return</span> functionName
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> makeSearchString(ctagsTable)
+
+	<span class="keyword">local</span> searchString = <span class="keyword">nil</span>
+
+	<span class="keyword">local</span> s = <span class="library">string.sub</span>(ctagsTable[3], 0, #ctagsTable[3] - 2)
+
+	<span class="keyword">local</span> l = 0
+
+	<span class="keyword">local</span> r = 0
+
+	<span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+		r = <span class="library">string.find</span>(s, <span class="string">"\\"</span>, l)
+
+		<span class="keyword">if</span> r == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+			r = #s + 1
+
+		<span class="keyword">elseif</span> <span class="library">string.sub</span>(s, r + 1, r + 1) == <span class="string">"\\"</span> <span class="keyword">then</span> 
+
+			r = r + 1
+
+		<span class="keyword">end</span>
+
+
+
+		<span class="keyword">local</span> name = <span class="library">string.sub</span>(s, l, r - 1)
+
+		<span class="keyword">if</span> searchString == <span class="keyword">nil</span> <span class="keyword">then</span> 
+
+			searchString = name
+
+		<span class="keyword">else</span>
+
+			searchString = searchString..name
+
+		<span class="keyword">end</span>
+
+
+
+		l = r + 1
+
+		<span class="keyword">if</span> #s &lt;= l <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+
+
+	<span class="keyword">return</span> searchString
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> removeCtagsFile(ctagsFilename)
+
+	<span class="library">os.remove</span>(ctagsFilename)
+
+<span class="keyword">end</span>
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteFuncList" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteFuncList" >history</a><br>Last edited April 22, 2011 3:58 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteFuncList" >(diff)</a>
+</body>
+</html>

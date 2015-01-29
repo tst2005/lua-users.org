@@ -1,0 +1,265 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Source Code Formatter</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SourceCodeFormatter&amp;body=1" title="List pages referring to SourceCodeFormatter">Source Code Formatter</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Why?</H3>
+This script is designed to help format code for the wiki. Reasons :-
+<UL>
+<li> Its a real bind doing it by hand :o)
+<li> Inconsistency of tab sizes. Different authors and editors have different different tab sizes which may vary from the size of 8 space tabs here on the wiki. This works both ways. When you paste code here the tab size may be different and when you copy code from the wiki it may be inconsistent.
+<li> Automatic indentation in your editor may have added tabs into your code (maybe without you even realising!). These may expand to a different size here.
+<li> Its nice when code is a standard width so you dont have to keep resizing your viewing window.
+<li> Homogenous appearance means more consistency for scripts which (hopefully) makes them easier on the eye. The intention being that the wiki looks like a collective effort, rather than the effort of individuals. We are the Lua Wiki Borg! :-)
+</UL>
+<p>
+<em><strong>Disclaimer:</strong></em> You are not forced to use this script!! You may experience problems when pasting code snippets or scripts into the wiki editor because of tabs. This script is here to help you. Hopefully by having a similar source code format this wiki will look consistent and more organised. Please do not start a flame war about what is good and bad formatting. You are free to do as you please.
+<p>
+<H3>What the script does</H3>
+<UL>
+<li> Removes tab indents and replaces them with spaces.
+<li> Standardises indentation at 2 spaces per indent.
+<li> Checks that line lengths don't exceed 80 characters.
+</UL>
+<p>
+<H3>Usage</H3>
+<UL>
+<li> Use: <code>lua -f codeformat.lua ...options...</code>.
+<li> <code>--file &lt;lua file&gt;</code> - the Lua file to process
+<li> <code>--ts &lt;size&gt;</code> - the size of your tabs eg. <code>--ts 4</code> (spaces)
+<li> <code>--in &lt;indent size&gt;</code> - number of spaces you use for indentation.
+<li> eg. <code>lua -f codeformat.lua --file myfile.lua --ts 4 --in 4</code> for files with a tab size of 4 spaces and an indent step of 4 spaces.
+</UL>
+<p>
+This script works with Lua 5.0. (Thanks to whoever updated the library calls from the Lua 4.0 version.)
+<p>
+<hr><DL>
+<dt><dd><pre class="code">
+
+
+<span class="comment">-- Lua code formatter</span>
+
+<span class="comment">-- Removes tabs and checks lines arent too long.</span>
+
+<span class="comment">-- Nick Trout</span>
+
+<span class="comment">-- $Header: /Tools/build/codefmt.lua 3     16/08/01 20:00 Nick $</span>
+
+<span class="comment">-- For Lua 5.0</span>
+
+
+
+mytabs = 4 <span class="comment">-- spaces (default)</span>
+
+myindent = 4 <span class="comment">-- spaces (default)</span>
+
+codetabsize = 8 <span class="comment">-- spaces</span>
+
+codeindent = 2 <span class="comment">-- spaces per indent</span>
+
+codelinelength = 80 <span class="comment">-- characters</span>
+
+
+
+
+
+usage = 
+
+<span class="string">[[
+
+
+
+Usage: lua -f codeformat.lua ...options...
+
+
+
+Options are:
+
+--file &lt;lua file&gt;
+
+--ts &lt;spaces&gt;, tabsize: number of spaces in your tabs
+
+--in &lt;spaces&gt;, indent size: number of spaces for each indentation
+
+
+
+]]</span>
+
+
+
+
+
+<span class="keyword">function</span> process_args()
+
+  <span class="comment">-- get args set by user in command line</span>
+
+  <span class="keyword">local</span> t,i = {},1
+
+  <span class="keyword">while</span> i&lt;<span class="library">table.getn</span>(arg) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> a=arg[i]
+
+    <span class="keyword">if</span> a==<span class="string">"--file"</span> <span class="keyword">then</span>
+
+      t.filename,i = arg[i+1],i+2
+
+    <span class="keyword">elseif</span> a==<span class="string">"--ts"</span> <span class="keyword">then</span>
+
+      t.mytabsize,i = arg[i+1]+0,i+2
+
+    <span class="keyword">elseif</span> a==<span class="string">"--in"</span> <span class="keyword">then</span>
+
+      t.myindent,i = arg[i+1]+0,i+2
+
+    <span class="keyword">else</span>
+
+      <span class="library">print</span>(usage..<span class="string">"Bad flag: "</span>..a)
+
+      <span class="library">os.exit</span>(-1)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> readfile(f)
+
+  <span class="keyword">local</span> fh=<span class="library">io.open</span>(f,<span class="string">"rt"</span>)
+
+  <span class="keyword">local</span> t={}
+
+  <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+    <span class="keyword">local</span> ln=fh:read(<span class="string">"*l"</span>)
+
+    <span class="keyword">if</span> ln <span class="keyword">then</span> <span class="library">table.insert</span>(t,ln) <span class="keyword">else</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  fh:close()
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- convert any leading tabs in a given string to spaces.</span>
+
+<span class="comment">-- the number of spaces to replace the tab by is given by args.mytabsize</span>
+
+<span class="keyword">function</span> convertTabsToSpaces(ln)
+
+  <span class="keyword">local</span> s,e = <span class="library">string.find</span>(ln,<span class="string">"\t+"</span>,1)
+
+  <span class="keyword">if</span> s <span class="keyword">and</span> s==1 <span class="keyword">then</span>
+
+    <span class="keyword">local</span> spc = <span class="library">string.rep</span>(<span class="string">" "</span>,args.mytabsize*(e-s+1))
+
+    ln = spc..<span class="library">string.sub</span>(ln,e+1)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> ln
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- convert any indentation to use the standard indent</span>
+
+<span class="keyword">function</span> indent(ln)
+
+  <span class="keyword">local</span> s,e = <span class="library">string.find</span>(ln,<span class="string">" +"</span>,1)
+
+  <span class="keyword">if</span> s==1 <span class="keyword">then</span>
+
+    <span class="keyword">local</span> indent = (e-s+1)/args.myindent
+
+    ln = <span class="library">string.rep</span>(<span class="string">" "</span>,codeindent*indent)..<span class="library">string.sub</span>(ln,e+1)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> ln
+
+<span class="keyword">end</span>
+
+  
+
+<span class="keyword">function</span> process(lines)
+
+  <span class="keyword">for</span> li=1,<span class="library">table.getn</span>(lines) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> line=lines[li]
+
+    line = convertTabsToSpaces(line)
+
+    line = indent(line)
+
+    <span class="comment">-- warn if length too long</span>
+
+    <span class="keyword">local</span> len=<span class="library">string.len</span>(line)
+
+    <span class="keyword">if</span> len&gt;codelinelength <span class="keyword">then</span>
+
+      <span class="library">print</span>(<span class="string">"-- ######## Line too long ("</span>..len..<span class="string">" chars) ######## :"</span>)
+
+    <span class="keyword">end</span>
+
+    <span class="library">print</span>(line)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+args = process_args()
+
+<span class="keyword">if</span> <span class="keyword">not</span> args.filename <span class="keyword">then</span> <span class="library">error</span>(usage..<span class="string">"no Lua file given"</span>) <span class="keyword">end</span>
+
+args.mytabsize = args.mytabsize <span class="keyword">or</span> mytabs
+
+args.myindent = args.myindent <span class="keyword">or</span> myindent
+
+process( readfile(args.filename) )
+
+</pre>
+
+</DL>
+<p>
+<hr>See also: <a href="../wiki/WikiHelp.html" >WikiHelp</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SourceCodeFormatter" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SourceCodeFormatter" >history</a><br>Last edited January 6, 2007 6:49 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SourceCodeFormatter" >(diff)</a>
+</body>
+</html>

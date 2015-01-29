@@ -1,0 +1,648 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Functional Tuples</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FunctionalTuples&amp;body=1" title="List pages referring to FunctionalTuples">Functional Tuples</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This article describes a novel design pattern for expressing tuples in terms of only functions.
+<p>
+<strong>Tuples</strong> are immutable sequences of objects. They are present in a number of programming languages including <a href="http://www.python.org">[Python]</a>, <a href="http://www.erlang.org">[Erlang]</a>, and indeed most <a href="http://www.cs.chalmers.se/~rjmh/Papers/whyfp.html">[functional languages]</a>. Lua strings are a particular type of tuple, one whose elements are restricted to single characters.
+<p>
+Because tuples are immutable, they can be shared without copying. On the other hand, they cannot be modified; any modification to a tuple must create a new tuple.
+<p>
+To explain the concept, we implement a point in three-dimensional space as a tuple <code>&lt;x, y, z&gt;</code>
+<p>
+Lua provides a number of ways to implement tuples; the following is an adaptation of an implementation which can be found in the excellent textbook <a href="http://mitpress.mit.edu/sicp/full-text/book/book.html">[Structure and Interpretation of Computer Programs]</a>.
+<p>
+Following Abelson and Sussman, we represent a tuple as a <em>function</em> of one argument; the argument itself must be a function; we can variously think of it a method or slot-accessor.
+<p>
+To start with, we'll need a constructor function and some member selectors:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> Point(_x, _y, _z)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(fn) <span class="keyword">return</span> fn(_x, _y, _z) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> x(_x, _y, _z) <span class="keyword">return</span> _x <span class="keyword">end</span>
+
+<span class="keyword">function</span> y(_x, _y, _z) <span class="keyword">return</span> _y <span class="keyword">end</span>
+
+<span class="keyword">function</span> z(_x, _y, _z) <span class="keyword">return</span> _z <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+So what is going on here? <code>Point</code> takes three arguments, the co-ordinates of the point, and returns a function; for these purposes, we will regard the return value as <strong>opaque</strong>. Calling a <code>Point</code> with a function feeds that function as arguments the objects that make up the tuple; the selectors simply return one of these and ignore the other ones:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; p1 = Point(1, 2, 3)
+
+&gt; =p1(x)
+
+1
+
+&gt; =p1(z)
+
+3
+
+</pre>
+
+</DL>
+<p>
+However, we are not limited to selectors; we can write any arbitrary function:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> vlength(_x, _y, _z)
+
+  <span class="keyword">return</span> <span class="library">math.sqrt</span>(_x * _x + _y * _y + _z * _z)
+
+<span class="keyword">end</span>
+
+
+
+&gt; =p1(vlength)
+
+3.7416573867739
+
+</pre>
+
+</DL>
+<p>
+Now, although we cannot modify a tuple, we can write functions which create a new tuple with a specific modification (this is similar to <code>string.gsub</code> in the standard Lua library):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> subst_x(_x)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(_, _y, _z) <span class="keyword">return</span> Point(_x, _y, _z) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> subst_y(_y)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(_x, _, _z) <span class="keyword">return</span> Point(_x, _y, _z) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> subst_z(_z)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(_x, _y, _) <span class="keyword">return</span> Point(_x, _y, _z) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Like <code>gsub</code>, these functions do not affect the contents of the original point:
+<DL>
+<dt><dd><pre class="code">
+&gt; p2 = p1(subst_x(42))
+
+&gt; =p1(x)
+
+1
+
+&gt; =p2(x)
+
+42
+
+</pre>
+
+</DL>
+<p>
+It is interesting to note that we can use any function which takes an arbitrary sequence of arguments:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; p2(<span class="library">print</span>)
+
+42      2       3
+
+</pre>
+
+</DL>
+<p>
+Similarly, we can write functions which combine two points:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> vadd(v2)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(_x, _y, _z)
+
+    <span class="keyword">return</span> Point(_x + v2(x), _y + v2(y), _z + v2(z))
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> vsubtract(v2)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(_x, _y, _z)
+
+    <span class="keyword">return</span> Point(_x - v2(x), _y - v2(y), _z - v2(z))
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+&gt; =p1(vadd(p1))(<span class="library">print</span>)
+
+2       4       6
+
+</pre>
+
+</DL>
+<p>
+A close examination of <code>vadd</code> and <code>vsubtract</code> (and, indeed, of the various substitute functions) shows that they are actually creating a temporary function with a closed upvalue (their original argument). However, there is no reason for these functions to be temporary. Indeed, we may actually want to use a specific transformation several times, in which case we could just save it:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; shiftDiagonally = vadd(Point(1, 1, 1))
+
+&gt; p2(<span class="library">print</span>)
+
+42      2       3
+
+&gt; p2(shiftDiagonally)(<span class="library">print</span>)
+
+43      3       4
+
+&gt; p2(shiftDiagonally)(shiftDiagonally)(<span class="library">print</span>)
+
+44      4       5
+
+</pre>
+
+</DL>
+<p>
+This might incline us to revisit the definition of vadd to avoid creating and then deconstructing the argument:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> subtractPoint(x, y, z)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(_x, _y, _z) <span class="keyword">return</span> _x - x, _y - y, _z - z <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> addPoint(x, y, z)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(_x, _y, _z) <span class="keyword">return</span> _x + x, _y + y, _z + z <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+And while we're at it, let's add a couple of other transformations:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> scaleBy(q)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(_x, _y, _z) <span class="keyword">return</span> q * _x, q * _y, q * _z <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> rotateBy(theta)
+
+  <span class="keyword">local</span> sintheta, costheta = <span class="library">math.sin</span>(theta), <span class="library">math.cos</span>(theta)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(_x, _y, _z)
+
+    <span class="keyword">return</span> _x * costheta - _y * sintheta, _x * sintheta + _y * costheta, _z
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Notice that in <code>rotateBy</code>, we pre-compute the sine and cosine so as to not have to call the math library every time the function is applied.
+<p>
+Now these functions do not return a <code>Point</code>; they simply return the values which make up the <code>Point</code>. To use them, we have to create the point explicitly:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; p3 = Point(p1(scaleBy(10)))
+
+&gt; p3(<span class="library">print</span>)
+
+10      20      30
+
+</pre>
+
+</DL>
+<p>
+That is a little fastidious. But as we will see, it has its advantages.
+<p>
+But first, let's look once again at <code>addPoint</code>. It is fine if we have a transformation in mind, but what if we want to shift by a particular point? <code>p1(addPoint(p2))</code> obviously is not going to work. However, the answer is quite simple:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; centre = Point(0.5, 0.5, 0.5)
+
+&gt; <span class="comment">-- This doesn't work</span>
+
+&gt; =p1(subtractPoint(centre))
+
+stdin:2: attempt to perform arithmetic on a <span class="keyword">function</span> value
+
+stack traceback:
+
+        stdin:2: <span class="keyword">in</span> <span class="keyword">function</span> &lt;stdin:2&gt;
+
+        (tail call): ?
+
+        (tail call): ?
+
+        [C]: ?
+
+&gt; <span class="comment">-- But this works just fine:</span>
+
+&gt; =p1(centre(subtractPoint))
+
+0.5     1.5     2.5
+
+</pre>
+
+</DL>
+<p>
+Moreover, these new functions can be <em>composed</em>; we can, in effect, create a sequence of transformations as a single primitive:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- A complex transformation</span>
+
+<span class="keyword">function</span> transform(centre, expand, theta)
+
+  <span class="keyword">local</span> shift = centre(subtractPoint)
+
+  <span class="keyword">local</span> exp = scaleBy(expand)
+
+  <span class="keyword">local</span> rot = rotateBy(theta)
+
+  <span class="keyword">local</span> unshift = centre(addPoint)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(_x, _y, _z)
+
+    <span class="keyword">return</span> unshift(exp(rot(shift(_x, _y, _z))))
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+&gt; xform = transform(centre, 10, <span class="library">math.pi</span> / 4)
+
+&gt; =p1(xform)
+
+-6.5710678118655        14.642135623731 25.5
+
+</pre>
+
+</DL>
+<p>
+One enormous benefit that this carries is that once <code>xform</code> is created, it can execute without creating a single heap-object. All memory consumption is on the stack. Of course, that is a little disngenuous -- quite a lot of storage allocation is done to create the tuple (a function closure and three upvalues) and to create individual transformers.
+<p>
+Furthermore, we have not yet managed to deal with some important syntax issues, like how to make these tuples actually usable by an average programmer.
+<p>
+--<a href="../wiki/RiciLake.html" >RiciLake</a>
+<p>
+<H2>Generalized to Arbitrary Size N</H2>
+<p>
+To make the above scheme work for tuples of arbitrary size, we can use <a href="../wiki/CodeGeneration.html" >CodeGeneration</a> as shown below--<a href="../wiki/DavidManura.html" >DavidManura</a>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> all(n, ...) <span class="keyword">return</span> ... <span class="keyword">end</span>     <span class="comment">-- return all elements in tuple</span>
+
+<span class="keyword">function</span> size(n) <span class="keyword">return</span> n <span class="keyword">end</span>           <span class="comment">-- return size of tuple</span>
+
+<span class="keyword">function</span> first(n,e, ...) <span class="keyword">return</span> e <span class="keyword">end</span>     <span class="comment">-- return first element in tuple</span>
+
+<span class="keyword">function</span> second(n,_,e, ...) <span class="keyword">return</span> e <span class="keyword">end</span>  <span class="comment">-- return second element in tuple</span>
+
+<span class="keyword">function</span> third(n,_,_,e, ...) <span class="keyword">return</span> e <span class="keyword">end</span> <span class="comment">-- return third element in tuple</span>
+
+<span class="keyword">local</span> nthf = {first, second, third}
+
+<span class="keyword">function</span> nth(n)
+
+  <span class="keyword">return</span> nthf[n] <span class="keyword">or</span> <span class="keyword">function</span>(...) <span class="keyword">return</span> <span class="library">select</span>(n+1, ...) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> make_tuple_equals(n)
+
+  <span class="keyword">local</span> ta, tb, te = {}, {}, {}
+
+  <span class="keyword">for</span> i=1,n <span class="keyword">do</span>
+
+    ta[#ta+1] = <span class="string">"a"</span> .. i
+
+    tb[#tb+1] = <span class="string">"b"</span> .. i
+
+    te[#te+1] = <span class="string">"a"</span> .. i .. <span class="string">"==b"</span> .. i
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> alist = <span class="library">table.concat</span>(ta, <span class="string">","</span>)
+
+  <span class="keyword">if</span> alist ~= <span class="string">""</span> <span class="keyword">then</span> alist = <span class="string">","</span> .. alist <span class="keyword">end</span>
+
+  <span class="keyword">local</span> blist = <span class="library">table.concat</span>(tb, <span class="string">","</span>)
+
+  <span class="keyword">if</span> blist ~= <span class="string">""</span> <span class="keyword">then</span> blist = <span class="string">","</span> .. blist <span class="keyword">end</span>
+
+  <span class="keyword">local</span> elist = <span class="library">table.concat</span>(te, <span class="string">" and "</span>)
+
+  <span class="keyword">if</span> elist ~= <span class="string">""</span> <span class="keyword">then</span> elist = <span class="string">"and "</span> .. elist <span class="keyword">end</span>
+
+  <span class="keyword">local</span> s = <span class="string">[[
+
+    local t, n1 %s = ...
+
+    local f = function(n2 %s)
+
+      return n1==n2 %s
+
+    end
+
+    return t(f)
+
+  ]]</span>
+
+  s = <span class="library">string.format</span>(s, alist, blist, elist)
+
+  <span class="keyword">return</span> <span class="library">assert</span>(<span class="library">loadstring</span>(s))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> cache = {}
+
+<span class="keyword">function</span> equals(t)
+
+  <span class="keyword">local</span> n = t(size)
+
+  <span class="keyword">local</span> f = cache[n]; <span class="keyword">if</span> <span class="keyword">not</span> f <span class="keyword">then</span>
+
+    f = make_tuple_equals(n)
+
+    cache[n] = f
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(...) <span class="keyword">return</span> f(t, ...) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> equals2(t1, t2)
+
+  <span class="keyword">return</span> t1(equals(t2))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> ops = {
+
+  [<span class="string">'#'</span>] = size,
+
+  [<span class="string">'*'</span>] = all,
+
+}
+
+<span class="keyword">local</span> ops2 = {
+
+  [<span class="string">"number"</span>]   = <span class="keyword">function</span>(x) <span class="keyword">return</span> nth(x) <span class="keyword">end</span>,
+
+  [<span class="string">"function"</span>] = <span class="keyword">function</span>(x) <span class="keyword">return</span> x <span class="keyword">end</span>,
+
+  [<span class="string">"string"</span>]   = <span class="keyword">function</span>(x) <span class="keyword">return</span> ops[x] <span class="keyword">end</span>
+
+}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> make_tuple_constructor(n)
+
+  <span class="keyword">local</span> ts = {}
+
+  <span class="keyword">for</span> i=1,n <span class="keyword">do</span> ts[#ts+1] = <span class="string">"a"</span> .. i <span class="keyword">end</span>
+
+  <span class="keyword">local</span> slist = <span class="library">table.concat</span>(ts, <span class="string">","</span>)
+
+  <span class="keyword">local</span> c = slist ~= <span class="string">""</span> <span class="keyword">and</span> <span class="string">","</span> <span class="keyword">or</span> <span class="string">""</span>
+
+  <span class="keyword">local</span> s =
+
+    <span class="string">"local ops2 = ... "</span> ..
+
+    <span class="string">"return function("</span> .. slist .. <span class="string">") "</span> ..
+
+    <span class="string">"  return function(f) "</span> ..
+
+     <span class="string">"    return (ops2[type(f)](f))("</span> ..
+
+                 n .. c .. slist .. <span class="string">") end "</span> ..
+
+    <span class="string">"end"</span>
+
+  <span class="keyword">return</span> <span class="library">assert</span>(<span class="library">loadstring</span>(s))(ops2)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> cache = {}
+
+<span class="keyword">function</span> tuple(...)
+
+  <span class="keyword">local</span> n = <span class="library">select</span>(<span class="string">'#'</span>, ...)
+
+  <span class="keyword">local</span> f = cache[n]; <span class="keyword">if</span> <span class="keyword">not</span> f <span class="keyword">then</span>
+
+    f = make_tuple_constructor(n)
+
+    cache[n] = f
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> f(...)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Test:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- test suite</span>
+
+<span class="keyword">local</span> t = tuple(1,<span class="keyword">nil</span>,2,<span class="keyword">nil</span>)
+
+;(<span class="keyword">function</span>(a,b,c,d) <span class="library">assert</span>(a==1 <span class="keyword">and</span> b==<span class="keyword">nil</span> <span class="keyword">and</span> c==2 <span class="keyword">and</span> d==<span class="keyword">nil</span>) <span class="keyword">end</span>)(t(all))
+
+;(<span class="keyword">function</span>(a,b,c,d) <span class="library">assert</span>(a==1 <span class="keyword">and</span> b==<span class="keyword">nil</span> <span class="keyword">and</span> c==2 <span class="keyword">and</span> d==<span class="keyword">nil</span>) <span class="keyword">end</span>)(t <span class="string">'*'</span>)
+
+<span class="library">assert</span>(t(size) == 4)
+
+<span class="library">assert</span>(t <span class="string">'#'</span> == 4)
+
+<span class="library">assert</span>(t(nth(1)) == 1 <span class="keyword">and</span> t(nth(2)) == <span class="keyword">nil</span> <span class="keyword">and</span> t(nth(3)) == 2 <span class="keyword">and</span>
+
+       t(nth(4)) == <span class="keyword">nil</span>)
+
+<span class="library">assert</span>(t(1) == 1 <span class="keyword">and</span> t(2) == <span class="keyword">nil</span> <span class="keyword">and</span> t(3) == 2 <span class="keyword">and</span> t(4) == <span class="keyword">nil</span>)
+
+<span class="library">assert</span>(t(first) == 1 <span class="keyword">and</span> t(second) == <span class="keyword">nil</span> <span class="keyword">and</span> t(third) == 2)
+
+<span class="keyword">local</span> t = tuple(3,4,5,6)
+
+<span class="library">assert</span>(t(nth(1)) == 3 <span class="keyword">and</span> t(nth(2)) == 4 <span class="keyword">and</span> t(nth(3)) == 5 <span class="keyword">and</span>
+
+       t(nth(4)) == 6)
+
+<span class="library">assert</span>(t(first) == 3 <span class="keyword">and</span> t(second) == 4 <span class="keyword">and</span> t(third) == 5)
+
+<span class="library">assert</span>(tuple()(size) == 0 <span class="keyword">and</span> tuple(3)(size) == 1 <span class="keyword">and</span> tuple(3,4)(size) == 2)
+
+<span class="library">assert</span>(tuple(<span class="keyword">nil</span>)(size) == 1)
+
+<span class="library">assert</span>(tuple(3,<span class="keyword">nil</span>,5)(equals(tuple(3,<span class="keyword">nil</span>,5))))
+
+<span class="library">assert</span>(<span class="keyword">not</span> tuple(3,<span class="keyword">nil</span>,5)(equals(tuple(3,1,5))))
+
+<span class="library">assert</span>(<span class="keyword">not</span> tuple(3,<span class="keyword">nil</span>)(equals(tuple(3,<span class="keyword">nil</span>,5))))
+
+<span class="library">assert</span>(<span class="keyword">not</span> tuple(3,5,<span class="keyword">nil</span>)(equals(tuple(3,5))))
+
+<span class="library">assert</span>(tuple()(equals(tuple())))
+
+<span class="library">assert</span>(tuple(<span class="keyword">nil</span>)(equals(tuple(<span class="keyword">nil</span>))))
+
+<span class="library">assert</span>(tuple(1)(equals(tuple(1))))
+
+<span class="library">assert</span>(<span class="keyword">not</span> tuple(1)(equals(tuple())))
+
+<span class="library">assert</span>(<span class="keyword">not</span> tuple()(equals(tuple(1))))
+
+<span class="library">assert</span>(equals2(tuple(3,<span class="keyword">nil</span>,5), tuple(3,<span class="keyword">nil</span>,5)))
+
+<span class="library">assert</span>(<span class="keyword">not</span> equals2(tuple(3,<span class="keyword">nil</span>,5), tuple(3,1,5)))
+
+
+
+
+
+<span class="comment">-- example</span>
+
+<span class="keyword">function</span> trace(f)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+    <span class="library">print</span>(<span class="string">"+function"</span>)
+
+    <span class="keyword">local</span> t = tuple(f(...))
+
+    <span class="library">print</span>(<span class="string">"-function"</span>)
+
+    <span class="keyword">return</span> t(all)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> test = trace(<span class="keyword">function</span> (a,b,c)
+
+  <span class="library">print</span>(<span class="string">"test"</span>,a+b+c)
+
+<span class="keyword">end</span>)
+
+test(2,3,4)
+
+<span class="comment">--[[OUTPUT:
+
++function
+
+test    9
+
+-function
+
+]]</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Comments</H2>
+<p>
+I think this page is misleading. These are not tuples. Tuples are only useful if they compare by value so they can be indexed on (i.e. can be used as table keys). Without this property they are no better than tables. See <a href="http://luapower.com/tuple">[1]</a> for an n-tuple implementation using an internal indexing tree. --<a href="../wiki/CosminApreutesei.html" >CosminApreutesei</a>.
+<p>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/SimpleTuples.html" >SimpleTuples</a> - interned tuples
+<li> <a href="../wiki/MutableFunctions.html" >MutableFunctions</a> - somewhat analogously presents an approach for simulating tables using functions (rather than tuples using functions).
+<li> <a href="../wiki/VarargTheSecondClassCitizen.html" >VarargTheSecondClassCitizen</a> - other tuple-like implementations for storing varargs
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FunctionalTuples" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FunctionalTuples" >history</a><br>Last edited September 12, 2014 3:09 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FunctionalTuples" >(diff)</a>
+</body>
+</html>

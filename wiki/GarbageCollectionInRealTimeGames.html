@@ -1,0 +1,95 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Garbage Collection In Real Time Games</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=GarbageCollectionInRealTimeGames&amp;body=1" title="List pages referring to GarbageCollectionInRealTimeGames">Garbage Collection In Real Time Games</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Some notes on garbage collection in real-time games, as it relates to
+Lua.  Please correct, extend and update these notes. -- <a href="../wiki/ThatcherUlrich.html" >ThatcherUlrich</a>
+<p>
+<em><a href="../wiki/VersionNotice.html" >VersionNotice</a>: Lua 5.1 has got an incremental GC, so many of these points may be of only historical interest.</em>
+<p>
+<UL>
+<li> Lua could greatly benefit from having an incremental GC for applications like action games, which are basically soft real-time systems.
+</UL><DL>
+<dt><dd>
+
+</DL><UL>
+<li> Console games typically require hitting a 60Hz, since at 30Hz the PS2 shows annoying interlacing. 60Hz amounts to 16.7ms maximum processing time per frame.  Much of the main CPU's time is consumed with gameplay and graphics tasks, which are usually very demanding. So a viable scripting language really can't be allowed to *ever* have a latency of more than say 1 or 2ms for doing GC. With a little care in creating the engine occasional pauses for Lua GC of up to about 120ms were not noticeable except by the carefully trained.  On the other hand a fighting game that runs at 60Hz all the time and has animation data coded on a per frame basis would not be able to tolerate any long frames at all.  So it depends on circumstances.
+</UL><DL>
+<dt><dd>
+
+</DL><UL>
+<li> The total amortized overhead of GC, on the other hand, is not as critical.  As long as the GC never has a latency of more than 1 or 2ms, then it can take that amount of time every frame.  Obviously	it's better for the amortized cost to be low, but the worst-case cost is far more important for a game.
+</UL><DL>
+<dt><dd>
+
+</DL><UL>
+<li> Lua's current garbage collector uses a traditional simple non-incremental mark-and-sweep algorithm.  When a collection cycle begins, it walks all reachable heap objects in the mark phase, and then walks the entire heap in the sweep phase.  So the time cost is proportional to the number of objects on the heap, plus the number of reachable objects.
+</UL><DL>
+<dt><dd>
+
+</DL><UL>
+<li> Other collector types: a copying collector might be feasible, but for our purposes probably requires more overhead than mark-and-sweep.  Generational GC greatly improves the average case but doesn't prevent worst-case hiccups.  Also generational GC is more complicated.  An incremental generational GC would be a good next step after a vanilla incremental GC.
+</UL><DL>
+<dt><dd>
+
+</DL><UL>
+<li> Incremental collectors: the problem of making the stock mark-and-sweep algorithm incremental has been well studied. Johnstone's thesis summarizes the approaches pretty well.  The main additional cost for Lua is that the Lua VM must use a "write barrier" whenever it changes the value of a pointer.  The write barrier looks at the internal state of the collector, and marks either the new pointer or the old pointer under certain conditions.	
+</UL>
+<p>
+<DL>
+<dt><dd>To maintain low-latency operation, the garbage collector must be allowed to perform a little bit of work on a regular basis.  For games, this means the game loop should call the garbage collector once per frame.  This is a much coarser level of granularity than what is usually discussed in the literature, where the focus has often been on algorithms for multiprocessors.  Johnstone's thesis explicitly addresses the uniprocessor case though.
+<dt><dd>
+
+<dt><dd>The write barrier is pretty simple; there are a few variations depending on the exact algorithm, but in the end it amounts to maybe 5 or 10 lines of C, and 10 or 20 instructions.
+</DL>
+<p>
+<DL>
+<dt><dd>Implementation note: it would be nice for the Lua implementation to use a macro whereever it writes to an internal (table) pointer (perhaps it already does).  Then an add-on incremental collector could define this macro as a function call to the write barrier (or the inline code for the write barrier itself).
+</DL>
+<p>
+<UL>
+<li> I've written such a collector before for a Scheme interpreter.  The most difficult part of that project was ensuring that there was a write barrier in every case where pointers were changed.  It's definitely doable, and the Lua API prevents host programs from accessing Lua's internal pointers, so it shouldn't be too hard.
+</UL><DL>
+<dt><dd>
+
+</DL><UL>
+<li> It would be nice if the incremental collector behaved like the regular collector when used as such.  I.e. if the "do some work" call is never made, collection should still happen automatically (albeit at the expense of an occasional long latency, like it is now).  It would be especially nice if the incremental collector did not impose extra overhead in code size, collection time, and memory use, compared to the regular collector, because then the regular collector could be replaced completely in stock Lua with no penalty. My guess is that a compile-time switch could be used to ensure no extra overhead.  Also, I suspect that with some care, the incremental collector can be coded to avoid any extra memory use. It remains to be seen what the code size and time overheads will be. I suspect that both overheads will be small, but more than zero.
+</UL>
+<p>
+<UL>
+<li> A reference-counting collector, possibly in conjunction with the existing mark-and-sweep, may hit the sweet spot.  Reference counting is straightforward, commonly used in C++ game engines (so game developers tend to understand it), and deterministic.  Based on experience with C++ game engines, it seems to be incremental enough.  The big drawback with reference-counting is that it can't collect cyclic garbage.  To combat this, mark-and-sweep could be called at convenient times.  And/or, programmers could take care not to inadvertently create cycles.  Weak tables can help here; in C++ game engines, weak pointers are a common solution to this problem.
+<UL>
+<li> Reference counting has a considerable overhead both in space and time. Also the latency is a drawback - collecting a single object may trigger lots of other objects to be collected. An incremental garbage collector doesn't have these issues.
+<li> These issues with reference counting can be addressed by having a work list of objects needing their counts decremented and processing that list incrementally. You can frequently use the storage in the objects being freed to hold the list.
+</UL>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=GarbageCollectionInRealTimeGames" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=GarbageCollectionInRealTimeGames" >history</a><br>Last edited March 16, 2009 11:14 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=GarbageCollectionInRealTimeGames" >(diff)</a>
+</body>
+</html>

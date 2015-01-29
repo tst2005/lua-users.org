@@ -1,0 +1,249 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Indentation</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteIndentation&amp;body=1" title="List pages referring to SciteIndentation">Scite Indentation</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em><strong>This is a rather crude script for indenting selected Lua code in SciTE. This code is largely ignorant of the Lua code being indented, using just a few overly simple rules such as a line ending in "do" indicating a new level on indentation.</strong></em>
+<p>
+Add the following to lua.properties:
+<p>
+<DL>
+<dt><dd><pre class="code">
+command.name.31.*=Reindent Selected Text
+
+command.mode.31.*=subsystem:lua,savebefore:no,groupundo
+
+command.shortcut.31.*=Ctrl+I
+
+command.31.*=indent_selection
+
+</pre>
+
+</DL>
+<p>
+Lua code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+
+
+<span class="comment">-- startswith("hello world", "hel") -&gt; true</span>
+
+<span class="comment">-- startswith("hello world", {"hel","blah"}) -&gt; true</span>
+
+<span class="keyword">function</span> startswith(sbig, slittle)
+
+  <span class="keyword">if</span> <span class="library">type</span>(slittle) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+    <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">ipairs</span>(slittle) <span class="keyword">do</span>
+
+      <span class="keyword">if</span> <span class="library">string.sub</span>(sbig, 1, <span class="library">string.len</span>(v)) == v <span class="keyword">then</span> 
+
+        <span class="keyword">return</span> <span class="keyword">true</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="keyword">false</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">string.sub</span>(sbig, 1, <span class="library">string.len</span>(slittle)) == slittle
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- endswith("hello world", "world") -&gt; true</span>
+
+<span class="comment">-- endswith("hello world", {"world","blah"}) -&gt; true</span>
+
+<span class="keyword">function</span> endswith(sbig, slittle)
+
+  <span class="keyword">if</span> <span class="library">type</span>(slittle) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+    <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">ipairs</span>(slittle) <span class="keyword">do</span>
+
+      <span class="keyword">if</span> <span class="library">string.sub</span>(sbig, <span class="library">string.len</span>(sbig) - <span class="library">string.len</span>(v) + 1) == v <span class="keyword">then</span> 
+
+        <span class="keyword">return</span> <span class="keyword">true</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="keyword">false</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">string.sub</span>(sbig, <span class="library">string.len</span>(sbig) - <span class="library">string.len</span>(slittle) + 1) == slittle
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- contains("hello world", "llo wor") -&gt; true</span>
+
+<span class="comment">-- contains("hello world", {"llo wor","blah"}) -&gt; true</span>
+
+<span class="keyword">function</span> contains(sbig, slittle)
+
+  <span class="keyword">if</span> <span class="library">type</span>(slittle) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+    <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">ipairs</span>(slittle) <span class="keyword">do</span>
+
+      <span class="keyword">if</span> <span class="library">string.find</span>(sbig, v, 1, <span class="keyword">true</span>) == v <span class="keyword">then</span> 
+
+        <span class="keyword">return</span> <span class="keyword">true</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="keyword">false</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">string.find</span>(sbig, slittle, 1, <span class="keyword">true</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> trim(s)
+
+  <span class="keyword">return</span> (<span class="library">string.gsub</span>(s,<span class="string">"^%s*(.-)%s*$"</span>, <span class="string">"%1"</span>))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> crappyindent(block, indentation, indent_sequence)
+
+  <span class="keyword">local</span> result, line_start, line_end
+
+  result = <span class="string">""</span>
+
+  indentation = 0
+
+  indent_sequence = <span class="string">"  "</span>
+
+  line_start = 1
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    line_end = <span class="library">string.find</span>(block, <span class="string">"\n"</span>, line_start, <span class="keyword">true</span>)
+
+    <span class="keyword">if</span> line_end <span class="keyword">then</span>
+
+      v = <span class="library">string.sub</span>(block, line_start, line_end-1)
+
+    <span class="keyword">else</span>
+
+      v = <span class="library">string.sub</span>(block, line_start)
+
+    <span class="keyword">end</span>
+
+    v = trim(v)
+
+    indent = startswith(v, {<span class="string">"function"</span>, <span class="string">"if"</span>, <span class="string">"for"</span>, <span class="string">"repeat"</span>}) <span class="keyword">or</span> 
+
+      contains(v, {<span class="string">"function ("</span>, <span class="string">"function("</span>}) <span class="keyword">or</span> endswith(v, <span class="string">"do"</span>)
+
+    oddindent = startswith(v, {<span class="string">"else"</span>, <span class="string">"elseif"</span>})
+
+    unindent = endswith(v, <span class="string">"end"</span>) <span class="keyword">or</span> startswith(v, <span class="string">"until"</span>)
+
+    <span class="keyword">if</span> indent <span class="keyword">and</span> <span class="keyword">not</span> unindent <span class="keyword">then</span>
+
+      result = result .. <span class="library">string.rep</span>(indent_sequence, indentation) .. v .. <span class="string">"\n"</span>
+
+      indentation = indentation + 1
+
+    <span class="keyword">elseif</span> unindent <span class="keyword">and</span> <span class="keyword">not</span> indent <span class="keyword">then</span>
+
+      indentation = indentation - 1
+
+      result = result .. <span class="library">string.rep</span>(indent_sequence, indentation) .. v .. <span class="string">"\n"</span>
+
+    <span class="keyword">elseif</span> oddindent <span class="keyword">then</span>
+
+      indentation = indentation - 1
+
+      result = result .. <span class="library">string.rep</span>(indent_sequence, indentation) .. v .. <span class="string">"\n"</span>
+
+      indentation = indentation + 1
+
+    <span class="keyword">else</span>
+
+      result = result .. <span class="library">string.rep</span>(indent_sequence, indentation) .. v .. <span class="string">"\n"</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> line_end <span class="keyword">then</span>
+
+      line_start = line_end + 1
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">break</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> result
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> indent_selection()
+
+  <span class="keyword">local</span> txt
+
+  txt = crappyindent(editor:GetSelText())
+
+  <span class="keyword">if</span> <span class="library">string.sub</span>(txt, <span class="library">string.len</span>(txt)) == <span class="string">"\n"</span> <span class="keyword">then</span>
+
+    txt = <span class="library">string.sub</span>(txt, 1, <span class="library">string.len</span>(txt)-1)
+
+  <span class="keyword">end</span>
+
+  editor:ReplaceSel(txt)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteIndentation" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteIndentation" >history</a><br>Last edited August 23, 2007 2:34 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteIndentation" >(diff)</a>
+</body>
+</html>

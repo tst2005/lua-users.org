@@ -1,0 +1,392 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Types Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaTypesTutorial&amp;body=1" title="List pages referring to LuaTypesTutorial">Lua Types Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a short introduction to the eight basic types of values in Lua: number, string, boolean, table, function, nil, userdata, thread.  Each section introduces a different type. 
+<p>
+Please look at <a href="../wiki/TutorialExamples.html" >TutorialExamples</a> for notes about running the examples here.  We'll use the <code>print()</code> function to print out values or calculations on those values. The parentheses around the arguments are important and will cause an error if omitted.
+<p>
+<DL>
+<dt><dd><pre>!
+
+&gt; print("hello") -- print the string hello.
+
+hello
+
+</pre>
+</DL>
+<p>
+<H2>Numbers</H2>
+<p>
+The number type represents a floating point (fractional) number. There is no separate integer (non-fractional) type.
+<p>
+Lua allows simple arithmetic on numbers using the usual operators to add, subtract, multiply and divide.
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">print</span>(2+2)
+
+4
+
+&gt; <span class="library">print</span>(2-7)
+
+-5
+
+&gt; <span class="library">print</span>(7*8)
+
+56
+
+&gt; <span class="library">print</span>(7/8)
+
+0.875
+
+</pre>
+
+</DL>
+<p>
+Notice that the numbers are not rounded into integers. They are floating point, or real numbers. We can assign values to variables using the <code>=</code> operator.
+<DL>
+<dt><dd><pre class="code">
+&gt; x = 7
+
+&gt; <span class="library">print</span>(x)
+
+7
+
+</pre>
+
+</DL>
+The <code>=</code> operator assigns the number 7 to the variable <code>x</code>. We use the <code>print()</code> function again to print out the value of <code>x</code>. We can now use the value in <code>x</code> for other calculations.
+<DL>
+<dt><dd><pre class="code">
+&gt; x = x * 9
+
+&gt; <span class="library">print</span>(x)
+
+63
+
+&gt; <span class="library">print</span>(x*2) <span class="comment">-- will not change the value of x</span>
+
+126
+
+&gt; <span class="library">print</span>(x)
+
+63
+
+</pre>
+
+</DL>
+<p>
+For more information on Lua's number type you can look at the <a href="../wiki/NumbersTutorial.html" >NumbersTutorial</a>.
+<p>
+<H2>Strings</H2>
+<p>
+Lua also uses strings (i.e. text) types. To create strings, wrap text in <code>"double quotes"</code> or <code>'single quotes'</code>:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">print</span>(<span class="string">"hello"</span>)
+
+hello
+
+</pre>
+
+</DL>
+We can assign strings to variables just like we can numbers:
+<DL>
+<dt><dd><pre class="code">
+&gt; who = <span class="string">"Lua user"</span>
+
+&gt; <span class="library">print</span>(who)
+
+Lua user
+
+</pre>
+
+</DL>
+We can concatenate (join together) strings together using the <code>..</code> operator:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">print</span>(<span class="string">"hello "</span>)
+
+hello 
+
+&gt; <span class="library">print</span>(<span class="string">"hello "</span> .. who) <span class="comment">-- the variable "who" was assigned above</span>
+
+hello Lua user
+
+&gt; <span class="library">print</span>(who)
+
+Lua user
+
+</pre>
+
+</DL>
+<p>
+Unlike some other languages, you cannot use the <code>+</code> operator to concatenate strings. i.e.:
+<DL>
+<dt><dd><pre class="code">
+&gt; message = <span class="string">"hello "</span> + who
+
+stdin:1: attempt to perform arithmetic on a <span class="library">string</span> value
+
+stack traceback:
+
+        stdin:1: <span class="keyword">in</span> main chunk
+
+        [C]: ?
+
+</pre>
+
+</DL>
+<p>
+For more information on Lua's string type you can look at the <a href="../wiki/StringsTutorial.html" >StringsTutorial</a>.
+<p>
+<H2>Boolean</H2>
+<p>
+Boolean values have either the value <code>true</code> or <code>false</code>. If a value is not <code>true</code>, it must be <code>false</code> and vice versa. The <code>not</code> operator can be placed before a boolean value to invert it. i.e. <code>not true</code> is equal to <code>false</code>.
+<DL>
+<dt><dd><pre class="code">
+&gt; x = <span class="keyword">true</span>
+
+&gt; <span class="library">print</span>(x)
+
+<span class="keyword">true</span>
+
+&gt; <span class="library">print</span>(<span class="keyword">not</span> x)
+
+<span class="keyword">false</span>
+
+&gt; <span class="library">print</span>(<span class="keyword">not</span> <span class="keyword">false</span>)
+
+<span class="keyword">true</span>
+
+</pre>
+
+</DL>
+Boolean values are used to represent the results of logic tests. The equals <code>==</code>, and not equals <code>~=</code> operators will return boolean values depending on the values supplied to them.
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">print</span>(1 == 0) <span class="comment">-- test whether two numbers are equal</span>
+
+<span class="keyword">false</span>
+
+&gt; <span class="library">print</span>(1 == 1)
+
+<span class="keyword">true</span>
+
+&gt; <span class="library">print</span>(1 ~= 0) <span class="comment">-- test whether two numbers are not equal</span>
+
+<span class="keyword">true</span>
+
+&gt; <span class="library">print</span>(<span class="keyword">true</span> ~= <span class="keyword">false</span>) <span class="comment">-- is true not equal to false?</span>
+
+<span class="keyword">true</span>
+
+</pre>
+
+</DL>
+<p>
+Note that for assignment you use a single equals sign (<code>=</code>), but for comparison you use a double equals sign (<code>==</code>). These two operators have different meanings but look similar, it's a common mistake to write one where you meant the other.
+<p>
+For more information on Lua's Boolean type you can look at the <a href="../wiki/ExpressionsTutorial.html" >ExpressionsTutorial</a>.
+<p>
+<H2>Tables</H2>
+<p>
+Lua has a general-purpose <em>aggregate</em> datatype called a table.  Aggregate data types are used for storing collections (such as lists, sets, arrays, and associative arrays) containing other objects (including numbers, strings, or even other aggregates).  Lua is a unique language in that tables (which are associative arrays) are used for representing all other aggregate types.
+<p>
+Tables are created using a pair of curly brackets <code> {} </code>. Let's create an empty table:
+<DL>
+<dt><dd><pre class="code">
+&gt; x = {}
+
+&gt; <span class="library">print</span>(x)
+
+<span class="library">table</span>: 0035C910
+
+</pre>
+
+</DL>
+(it is normal if your table does not have the same unique identifier as in the above example.)
+<p>
+The <a href="../wiki/TablesTutorial.html" >TablesTutorial</a> will later explain how to use tables.
+<p>
+<H2>Functions</H2>
+<p>
+In Lua, functions are assigned to variables, just like numbers and strings. Functions are created using the <code>function</code> keyword. Here we create a simple function which will print a friendly message.
+<DL>
+<dt><dd><pre class="code">
+&gt; foo = <span class="keyword">function</span> () <span class="library">print</span>(<span class="string">"hello"</span>) <span class="keyword">end</span> <span class="comment">-- declare the function</span>
+
+&gt; foo() <span class="comment">-- call the function</span>
+
+hello
+
+&gt; <span class="library">print</span>(foo) <span class="comment">-- get the value of the variable "foo"</span>
+
+<span class="keyword">function</span>: 0035D6E8
+
+</pre>
+
+</DL>
+Notice we can print the value of the variable <code>foo</code> and it displays (like tables) that the value is a function, and has unique identifier for that particular function. So, being a value just like any other, we should be able to assign functions to variables, just like the other values, and we can.
+<DL>
+<dt><dd><pre class="code">
+&gt; x = <span class="keyword">function</span>() <span class="library">print</span>(<span class="string">"hello"</span>) <span class="keyword">end</span>
+
+&gt; x()
+
+hello
+
+&gt; <span class="library">print</span>(x)
+
+<span class="keyword">function</span>: 0035EA20
+
+</pre>
+
+</DL>
+The ability to do this is because Lua has <em>first class values</em>. This means that all values are treated the same way. This is a very powerful and useful feature of Lua.
+<p>
+<p>
+A function can be part of a table:
+<DL>
+<dt><dd><pre class="code">
+&gt; a = <span class="string">"aeiou"</span> <span class="comment">-- a string</span>
+
+&gt; b = 13      <span class="comment">-- a number</span>
+
+&gt; c = <span class="keyword">function</span>()  <span class="comment">-- a function</span>
+
+&gt;  <span class="library">print</span> (<span class="string">"\n\n\tAin't it grand"</span>)
+
+&gt; <span class="keyword">end</span>
+
+&gt; d = { a, b ,c} <span class="comment">-- put them in a table</span>
+
+&gt; <span class="keyword">function</span> printit(tata)  <span class="comment">-- print their types.</span>
+
+&gt; <span class="library">table.unpack</span>(tata) <span class="comment">-- unpack the table</span>
+
+&gt; <span class="keyword">for</span> key, value <span class="keyword">in</span> <span class="library">ipairs</span>(tata) <span class="keyword">do</span> <span class="library">print</span>(key, <span class="library">type</span>(value)) <span class="keyword">end</span>
+
+&gt; <span class="keyword">end</span>
+
+&gt; printit(d)
+
+1       <span class="library">string</span>
+
+2       number
+
+3       <span class="keyword">function</span>
+
+        </pre>
+
+</DL>
+<p>
+The <a href="../wiki/FunctionsTutorial.html" >FunctionsTutorial</a> will later explain how to use functions.
+<p>
+<H2>nil values</H2>
+<p>
+<code>nil</code> is a special value which indicates the lack of a useful value. If you try getting a variable that doesn't exist you will get nil:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">print</span>(x)
+
+<span class="keyword">nil</span>
+
+&gt; x = 2.5
+
+&gt; <span class="library">print</span>(x)
+
+2.5
+
+</pre>
+
+</DL>
+<p>
+The other places where nil is used will be shown in other tutorials.
+<p>
+<H2>Userdata</H2>
+<p>
+Userdata values are objects foreign to Lua, such as objects implemented in C.  These typically come about when an object in a C library is exposed to Lua. You cannot do anything with a userdata value in Lua other than pass it around, it's only useful for giving to functions exposed by the same C library that made the userdata. But using metamethods (explained in a later tutorial), it's possible to make userdata work with operators and act similar to tables. Userdata is a more advanced topic discussed further in the <a href="http://www.lua.org/manual/5.1/manual.html">[Lua Reference Manual]</a>.
+<p>
+<H2>Thread</H2>
+<p>
+A thread value represents an independent (cooperative) thread of execution.  These are discussed further in <a href="../wiki/CoroutinesTutorial.html" >CoroutinesTutorial</a>.
+<p>
+<H2>Dynamic typing</H2>
+<p>
+You might have noticed that whilst we created the above variables, we did not have to specify which type of variable we were creating. For example,
+<DL>
+<dt><dd><pre class="code">
+a = 1
+
+b = <span class="string">"hello"</span>
+
+c = {}
+
+</pre>
+
+</DL>
+In other languages, such as C, we have to specify the type of a variable when we create it. In Lua we can also assign different types of values to the same variable, e.g.
+<DL>
+<dt><dd><pre class="code">
+a = 1
+
+a = <span class="string">"hello"</span>
+
+a = {}
+
+</pre>
+
+</DL>
+This is called <em>dynamic typing</em>. This means that you don't have to specify what type a variable is. The variable knows what type it is from the value, or object, assigned to it.
+<p>
+<H2>Querying type</H2>
+<p>
+As Lua is a <em>reflective</em> language, we can use the Lua function <code>type()</code> to get a description of the type of a particular object.
+<DL>
+<dt><dd><pre class="code">
+&gt; x = <span class="string">"123"</span>  <span class="comment">-- a string</span>
+
+&gt; <span class="library">print</span>(x, <span class="library">type</span>(x)) <span class="comment">-- show the value of x and its type</span>
+
+123     <span class="library">string</span>
+
+&gt; x = x + 7  <span class="comment">-- add a number to the string which forces coercion</span>
+
+&gt; <span class="library">print</span>(x, <span class="library">type</span>(x)) <span class="comment">-- again show the value and type</span>
+
+130     number
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaTypesTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaTypesTutorial" >history</a><br>Last edited December 22, 2013 11:16 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaTypesTutorial" >(diff)</a>
+</body>
+</html>

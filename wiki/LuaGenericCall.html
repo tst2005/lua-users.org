@@ -1,0 +1,757 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Generic Call</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaGenericCall&amp;body=1" title="List pages referring to LuaGenericCall">Lua Generic Call</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Introduction</H3>
+Using standard Lua API, calling a chunk function while passing input parameters and retrieving output results requires a lot of code and complete knowledge about Lua stack.
+As an example, here is how to ask Lua to perform the multiplication of 3 by 2.5, checking for possible syntax and runtime errors:
+<DL>
+<dt><dd><pre>
+
+const char* errmsg = NULL;
+
+double result;
+
+lua_settop(L, 0);
+
+if(luaL_loadstring(L, "local a,b = ...; return a*b"))
+
+  errmsg = lua_tostring(L, -1);
+
+else
+
+{
+
+  lua_pushinteger(L, 3);
+
+  lua_pushnumber(L, 2.5);
+
+  if(lua_pcall(L, 2, 1, 0))
+
+    errmsg = lua_tostring(L, -1);
+
+  else
+
+    result = lua_tonumber(L, -1);
+
+}
+
+</pre>
+</DL>
+The generic call feature is primarily aimed to simplify such calling tasks. It allows replacing all the previous code with a single function call:
+<DL>
+<dt><dd><pre>
+
+double result;
+
+const char* errmsg = lua_genpcall(L, "local a,b = ...; return a*b",
+
+  "%d %f &gt; %lf", 3, 2.5, &amp;result);
+
+</pre>
+</DL>
+The second goal is to minimize, ideally to only one, the number of functions needed in the API. This can for example simplify dynamic loading of Lua shared library, because for each exported function, you need to define a new type for the prototype of the function, instantiate a variable of this type and make a call to <code>GetProcAddress</code> or <code>dlsym</code>. However, for this job, it may be preferable to follow <a href="../wiki/EasyManualLibraryLoad.html" >EasyManualLibraryLoad</a> guideline.
+<p>
+The source code can be found here <a href="/files/wiki_insecure/users/PatrickRapin/lgencall.zip">[lgencall.zip]</a>
+<p>
+<H3>Variants</H3>
+Four versions of the general call function are in fact defined, but normally you only use one of them:
+<UL>
+<li> <strong>lua_gencallA</strong> is the base function. In case of an error (compile time, run time or coming from parameters), it calls <code>luaL_error</code> that throws an exception (or makes a <code>longjmp</code>, which is similar). It is the responsibility of the caller to catch this error, by using <code>lua_cpcall</code>, or by setting <code>lua_atpanic</code>. 
+<li> <strong>lua_genpcallA</strong> is the protected version of the same function. It calls <code>lua_gencallA</code>, enclosed with <code>lua_cpcall</code>. In case of errors, the exception is trapped and the error message is output as the function result. Otherwise, the function returns <code>NULL</code>.
+<li> <strong>lua_gencallW</strong> is the Unicode, or wide character, version of <code>lua_gencallA</code>. Its both string arguments (script chunk and format) must be of type <strong>wchar_t*</strong>. It will convert these into their <strong>char*</strong> counterpart and call <code>lua_gencallA</code>. The format string always contains ASCII characters, so the transformation is straightforward. The script string may contain arbitrary characters; most typically file names and user messages in localized languages. Two conversion methods are supported by the function, selected at compile time. Either using <code>wctomb</code> and <code>mbtowc</code> (system functions based on current locale) or converting to UTF-8 with custom code.
+<li> <strong>lua_genpcallW</strong> is the protected version of <code>lua_gencallW</code>. In case of errors, the message string is converted back to wide characters and returned.
+</UL>
+As with all include files under Windows OS, a compilation switch automatically redirects <code>lua_gencall</code> to either <code>lua_gencallA</code> or <code>lua_gencallW</code> depending whether <code>UNICODE</code> is defined or not. It is also possible to compile the library file without wide character support.
+<p>
+<H3>General form</H3>
+Each of these functions has a variable number of arguments, and three fixed ones.
+<DL>
+<dt><dd>1. <strong>lua_State* L</strong>: a pointer to an instance of a Lua state. If the pointer is <code>NULL</code>, the function automatically calls <code>lua_newstate</code> to create a new instance, and will also call <code>lua_close</code> to release its memory, unless the pointer to the instance is retrieved with <strong>%S</strong> option (see after). If the state is freed and an error occurred before, the function allocates a buffer to copy the error message, which must be closed with <code>free</code>.
+<dt><dd>2. <strong>script string</strong>: it contains some piece of Lua code to execute. It typically begins with parameter retrieval: <code>local var1, var2, var3 = ...;</code> and ends with returning results: <code>return res1, res2, res2</code>. If the pointer is <code>NULL</code>, it is equivalent to the empty script "".
+<dt><dd>3. <strong>format string</strong>: a string similar to the <code>printf</code> or <code>scanf</code> format strings, using the <strong>%</strong> character to describe the variable types of input and output values. If the pointer is <code>NULL</code>, it is equivalent to the empty format "".
+<dt><dd>4. <strong>zero or more value parameters.</strong> Input parameters are passed by value, while output results must be retrieved by passing addresses of variables. Allocation options may also change the expected types of variables.
+</DL>
+<p>
+For performance reasons, there is a cache of already compiled chunks. It is implemented as a Lua table in the Lua registry, indexed by chunk strings. So if you call several times <code>lua_genpcall</code> with the same script string, it is compiled only the first time. All successive calls will reuse the cached version. The cache table is <em>not</em> a weak table, to avoid having to recompile several times the same script, because of garbage collection going on. A drawback if that the cache may grow indefinitely when the script chunks can change arbitrary at runtime. This can for example happen on a server interpreter executing Lua chunks coming from a client program. But you can explicitly clear the cache by specifying it on the format string. 
+<p>
+As with <code>printf</code> and even more with <code>scanf</code>, you must be very careful with the types of the arguments and the corresponding format specifications. Any mismatch can lead to unexpected results, or even worse, to an application crash. 
+<p>
+The general form of the format string is this one:
+<DL>
+<dt><dd><pre>
+
+"[ Directives &lt; ] Inputs [ &gt; Outputs ]"
+
+</pre>
+</DL>
+In this general form, <code>Directives</code>, <code>Inputs</code> and <code>Outputs</code> are strings similar to <code>printf</code> and <code>scanf</code> formats, consisting in format items beginning with a percent sign. <code>Directives</code> and <code>Outputs</code> are optional parts. If they are present, there must be separated from <code>Inputs</code> with a <strong>&lt;</strong> or a <strong>&gt;</strong> character. <code>Inputs</code> can also be an empty string.
+<p>
+<H3>Input and output format strings</H3>
+As with standard <code>printf</code> format specifications, each input or output format item consists of up to 6 fields, as in the next example. Directive items have fewer options and are explained later. Any blank character (space, tabulation, carriage return and line feed) is ignored and may be used to increase clarity in the format string. Other characters are either interpreted as explained in this chapter, or throw a Lua error when invalid.
+<DL>
+<dt><dd><pre>
+
+%#12.4Ls
+
+</pre>
+<dt><dd>1. A mandatory percent sign ('<strong>%</strong>')
+<dt><dd>2. An optional flags argument ('<strong>#</strong>')
+<dt><dd>3. An optional width argument ('<strong>12</strong>')
+<dt><dd>4. An optional precision argument ('<strong>.4</strong>')
+<dt><dd>5. An optional size modifier ('<strong>L</strong>')
+<dt><dd>6. A mandatory conversion character ('<strong>s</strong>')
+</DL>
+<p>
+The <strong>flag</strong> argument may be one of these characters:
+<UL>
+<li> '<strong>#</strong>': the output string or array will be allocated by calling the Lua allocating function (the one passed to <code>lua_newstate</code>, which is by default implemented by calling standard <code>realloc</code> and <code>free</code> functions). You will need to <code>free</code> it after use.
+<li> '<strong>+</strong>': the output string or array will be allocated on Lua stack. You must use it or copy it to another buffer before the next call to Lua API, since the garbage collector may free the area at any moment during Lua execution.
+<li> <strong>(none)</strong>: the output string or array buffer is allocated by the caller and passed to the generic call, which fills it up to its allocated size.
+</UL>
+<p>
+The <strong>width</strong> parameter is used with strings, string lists and arrays. It represents the number of elements or characters of the memory buffer. It can be one of the following forms:
+the following forms:
+<UL>
+<li> '<strong>[0-9]+</strong>': A number in ASCII representation. 
+<li> '<strong>*</strong>': the width is passed as an additional argument of type <strong>int</strong> placed <em>before</em> the value itself. 
+<li> '<strong>&amp;</strong>': the actual width of the output array or string is returned through an additional argument of type <strong>int*</strong> placed <em>before</em> the value. If the flag argument is <strong>(none)</strong>, the variable must be initialized to the allocated size before the call.
+<li> <strong>(none)</strong>: For all types except strings, it denotes scalar values. For input strings, it indicates a zero terminated string, which length will be determined by <code>strlen</code>. For a string list, it means the list end up after two consecutive zero characters.
+</UL>
+<p>
+The <strong>precision</strong> argument is used with numerical types to indicate the size in bytes of the C type. It is important for numerical arrays, and for output values. This is because in both cases, a pointer to a variable and not the value itself it passed. It has one of these forms:
+<UL>
+<li> '<strong>.[0-9]+</strong>': a dot sign followed by a number in ASCII representation. 
+<li> '<strong>.*</strong>': the precision is passed as an additional argument of type <strong>int</strong> placed <em>before</em> the value itself (but after an optional '<strong>*</strong>' width argument). 
+<li> <strong>(none)</strong>: the precision is the size of the default type for the conversion character, see table below.
+</UL>
+<p>
+The <strong>size modifier</strong> argument is an alternative to the numerical precision value, and changes the expected C type of the value. It can be one of these characters. Please refer to size table below for correspondences:
+<UL>
+<li> '<strong>h</strong>': the type is shorter as the default
+<li> '<strong>hh</strong>': the type if the shortest one
+<li> '<strong>l</strong>' (small ell): the type is larger as the default one
+<li> '<strong>L</strong>' (big ell): the type is the largest one
+<li> <strong>(none)</strong>: the type is the default one
+</UL>
+<p>
+Most importantly, the <strong>conversion character</strong> specifies the type of data. It must be one of the following characters:
+<UL>
+<li> '<strong>f</strong>': floating point number
+<li> '<strong>d</strong>' or '<strong>i</strong>': a signed integer value
+<li> '<strong>u</strong>': an unsigned integer value
+<li> '<strong>p</strong>': a pointer value mapped to a light userdatum
+<li> '<strong>s</strong>': a string. Strings may contain arbitrary data, including embedded zeros.
+<li> '<strong>z</strong>': a zero terminated list of zero terminated strings. This is a C string mapped to a Lua array of strings, where each string element is separated from the others with a zero character. Windows uses such string lists for example in the lpstrFilter member of OPENFILENAME structure.
+<li> '<strong>b</strong>': a Boolean value
+<li> '<strong>t</strong>': a pointer to a thread (coroutine)
+<li> '<strong>c</strong>': a pointer to a C function (or closure)
+<li> '<strong>n</strong>': <strong>nil</strong>
+<li> '<strong>k</strong>': a pointer to a C callback function, for user specific data
+</UL>
+<p>
+For numerical values, here are the default and modified underlying C types listed in the following table:
+<DL>
+<dt><dd><pre>
+
+         (default)               'hh'       'h'       'l'           'L'
+
+                                                                   
+
+'f'      float                   ---        float     double        long double (*)
+
+                                                                   
+
+'d','i'  int                     char       short     long          int64_t (*)
+
+                                                                   
+
+'u'      unsigned                unsigned   unsigned  unsigned      uint64_t (*)
+
+         int                     char       short     long         
+
+                                                                   
+
+'b'      C89: int                ---        char      int           ---  
+
+         C99: _Bool                                                
+
+         C++: bool                                                 
+
+                                                                   
+
+'s','z'  gencallA: char*                                           
+
+         gencallW: wchar_t* (*)  ---        char*     wchar_t* (*)  ---
+
+</pre>
+</DL>
+(*) If supported by your compiler and enabled at compilation time
+<p>
+Other object values have the following associated C types:
+<UL>
+<li> '<strong>p</strong>': <strong>void*</strong> 
+<li> '<strong>t</strong>': <strong>lua_State*</strong>
+<li> '<strong>c</strong>': <strong>lua_CFunction</strong>: <em>int (*) (lua_State *L)</em>
+<li> '<strong>n</strong>': <strong>void</strong> : no associated value. In input, pushes a <strong>nil</strong> value to the stack. In output, skips a result value from the stack.
+<li> '<strong>k</strong>': Pointer to function. A second parameter of any type must be provided; <code>ptr</code> will receive its address. The pointer function has one of these two prototypes, depending of the data direction:
+<UL>
+<li> for intput <strong>lgencall_pushCB</strong>: <em>void (*)(lua_State* L, const void* ptr)</em>
+<li> for output <strong>lgencall_getCB</strong>: <em>void (*)(lua_State* L, int idx, void* ptr)</em>
+</UL>
+</UL>
+Finally, for each parameter its expected type depends on whether it is on input or output direction, and on its width and flag arguments. Let be <code>TYPE</code> the basic C type as stated in previous 2 tables. Except for '<strong>n</strong>' and '<strong>k</strong>' conversion characters, the composed types are:
+<DL>
+<dt><dd><pre>
+
+Width argument    (none)            number, '*' or '&amp;'   number, '*' or '&amp;'
+
+                                    
+
+Flag              (don't care)      (none)               '#' or '+'
+
+
+
+                                                         
+
+Input             TYPE              const TYPE*          const TYPE*
+
+                                                         
+
+Output            TYPE*             TYPE*                TYPE**
+
+</pre>
+</DL>
+<H3>Directive format string</H3>
+In the directive part of the format string, the following conversion characters (all uppercases) are supported:
+<UL>
+<li> '<strong>M</strong>': Set or get Lua memory allocation function. If flag is empty, the argument is of type <strong>lua_Alloc</strong>: <em>void*(*) (void *ud, void *ptr, size_t osize, size_t nsize)</em> and sets the allocation function. If flag is '<strong>&amp;</strong>', the expected type is <strong>lua_Alloc*</strong> and the current allocation function is returned.
+<li> '<strong>O</strong>': Standard libraries will be initialized by calling <code>luaL_openlibs</code>
+<li> '<strong>S</strong>': An argument of type <strong>lua_State**</strong> follows, that will retrieve the allocated Lua state
+<li> '<strong>C</strong>': Lua state will be freed with <code>lua_close</code> at the end of the call
+<li> '<strong>F</strong>': Flush the compilation cache before compiling this chunk. Useful to save memory when a lot of different script chunks have been compiled.
+<li> '<strong>G</strong>': Run a complete garbage collection before running the chunk
+</UL>
+<p>
+<H2>Source code</H2>
+<H3>Copyright</H3>
+Lua Generic call library has been placed under the same MIT license as Lua itself. This means that although the library is copyrighted by Olivetti Engineering SA, it is free software and can be used for both academic and commercial purposes at absolutely no cost.
+<p>
+<H3>Source files</H3>
+The library distribution consists in just one C implementation file <code>lgencall.c</code> and one header file <code>lgencall.h</code>. There is also a testing file <code>testwin.cpp</code>, which includes all test examples of the next chapter, including Windows header file <code>tchar.h</code>.  Using this utility header, it is possible to write code that compile for both ANSI and Unicode platforms. 
+<p>
+The main C file includes ANSI standard files, and the public Lua API header files. Like other standard Lua libraries, no private feature is used, and the file can be compiled in both C and C++ languages. However, it requires the new C99 include file <code>stdint.h</code> to define fixed size integers. If your compiler does not support this, there are several free versions available on the WWW. <a href="http://www.azillionmonkeys.com/qed/pstdint.h">[1]</a> <a href="http://msinttypes.googlecode.com/svn/trunk/stdint.h">[2]</a>
+<p>
+The source file can either be compiled together with the application, or placed inside Lua shared library if you can afford to recompile it.
+<p>
+<H3>Compilation switches</H3>
+In header file <code>lgencall.h</code> are defined 3 compilation macros which are used to customize the library for your platform. Each parameter can either be changed in the file itself, or specified on the compiler's command line. A small explanation for it is present in the header file, listing the possible values. Also, the compilation is affected by the following standard macros: <code>__cplusplus</code>, <code>INT_MAX</code>, <code>UINT_MAX</code> and <code>__STDC_VERSION__</code>.
+<p>
+<H2>Examples</H2>
+<H3>Directive elements</H3>
+For sure, examples will help you to understand the different features. The first examples show the usage of various directive formats.
+Let us begin with the simplest one, a <code>"Hello World"</code> program of course:
+<DL>
+<dt><dd><pre>
+
+lua_genpcall(NULL, "print 'Hello World!'", "%O&lt;");
+
+</pre>
+</DL>
+Here no Lua state is passed to the function, so it is automatically allocated. The <strong>%O</strong> in the directive part instructs to open standard libraries, with include the global <code>print</code> function. Since no <strong>%S</strong> option is passed, Lua state is freed at the end of the call.
+We haven't tested the return value, which is the error message.
+<p>
+Here is the same example, but as a more complete and realistic implementation:
+<DL>
+<dt><dd><pre>
+
+lua_State* L = lua_open();
+
+luaL_openlibs(L);
+
+const char* errmsg = lua_genpcall(L, "print 'Hello World!'", "");
+
+if(errmsg)
+
+  fprintf(stderr, "Lua error: %s\n", errmsg);
+
+lua_close(L);
+
+</pre>
+</DL>
+Here, Lua state is manually created, filled with standard libraries and freed. The return error message is tested and printed in case of trouble.
+<p>
+Again the same example, but using only <code>lua_genpcall</code>:
+<DL>
+<dt><dd><pre>
+
+lua_State* L;
+
+lua_Alloc falloc;
+
+lua_genpcall(NULL, NULL, "%O %S %&amp;M&lt;", &amp;L, &amp;falloc);
+
+char* errmsg = lua_genpcall(L, "print 'Hello World!'", "%C&lt;");
+
+if(errmsg)
+
+{
+
+  fprintf(stderr, "Lua error: %s\n", errmsg);
+
+  falloc(NULL, errmsg, 10, 0);
+
+}
+
+</pre>
+</DL>
+The first call will allocate a new Lua state, open standard libraries (<strong>%O</strong>), return the Lua state (<strong>%S</strong>) and also the memory allocation function (<strong>%&amp;M</strong>). The second call prints the message and destroys Lua state (<strong>%C</strong>). Because of this, the error message (if present) is allocated with Lua allocation function, and not taken from the stack. Therefore, it is best to free it with the same function (passing 0 as the new size).
+<p>
+<H3>Input elements</H3>
+There will be 6 examples of how to input data from C to Lua:
+<DL>
+<dt><dd>1. Numbers
+<dt><dd>2. Boolean, nil, simple strings and light userdata
+<dt><dd>3. C functions and call-backs
+<dt><dd>4. Numerical arrays
+<dt><dd>5. Advanced strings
+<dt><dd>6. String lists
+</DL>
+For all these examples, we will suppose that Lua state is already open and that it will be closed at the end. We are not testing for return errors to simplify the coding.
+<p>
+<strong>1. Numbers</strong>
+<DL>
+<dt><dd><pre>
+
+lua_genpcall(L, "for k,v in pairs{...} do print(k, type(v), v) end", 
+
+  "%i %d %u %f %f", -4, 0xFFFFFFFF, 0xFFFFFFFF, 
+
+  3.1415926535f, 3.1415926535);
+
+--&gt;
+
+1       number  -4
+
+2       number  -1
+
+3       number  4294967295
+
+4       number  3.1415927410126
+
+5       number  3.1415926535
+
+</pre>
+</DL>
+The script chunk loops over the arguments and for each one prints its type and value, as long as the index. Here, five numerical arguments are passed: three integers, a floating point and a double floating point (all seen as type <code>number</code> by Lua). Because in Lua all numbers are stored as <strong>double</strong>, there is a truncation error in the value of <code>Pi</code> for the float argument. Please note the difference in behaviour between <strong>%d</strong> and <strong>%u</strong> for the value <code>0xFFFFFFFF</code>. For the <strong>double</strong> parameter, it is not necessary to specify <strong>%lf</strong> instead of <strong>%f</strong> here, because floating point numbers are always converted to <strong>double</strong> when passed to a variable argument function in C. Integers smaller than <strong>int</strong> are also automatically converted to <strong>int</strong>. 
+<p>
+<strong>2. Boolean, nil, simple strings and light userdata</strong>
+<DL>
+<dt><dd><pre>
+
+lua_genpcall(L, "for k,v in pairs{...} do print(k, type(v), v) end", 
+
+  "%b %b %n %s %p", 0, 1, "Hello", L);
+
+--&gt;
+
+1       boolean false
+
+2       boolean true
+
+4       string  Hello
+
+5       userdata        userdata: 0096CE70
+
+</pre>
+</DL>
+Boolean values can be 0 or 1, or <code>true</code> and <code>false</code> if compiled in C++ or in C99 languages. The <strong>nil</strong> parameter <strong>%n</strong> is only present in the format string, no parameter is associated (it is not printed because function <code>pairs</code> skips <strong>nil</strong> values).  The string is here supposed to be zero terminated, and the last parameter <code>L</code> (the Lua state) is just an example of a generic pointer.
+<p>
+<strong>3. C functions and call-backs</strong>
+<DL>
+<dt><dd><pre>
+
+int cFunction(lua_State* L)
+
+{
+
+  printf("%s\n", luaL_checkstring(L, 1));
+
+  return 1;
+
+}
+
+void pushMessage(lua_State* L, const void* ptr)
+
+{
+
+  lua_pushstring(L, *(const char**)ptr);
+
+}
+
+...
+
+lua_genpcall(L, "local fct, msg = ...; fct(msg)", 
+
+  "%c %k", cFunction, pushMessage, "Hello from C!");
+
+</pre>
+</DL>
+The first Lua argument is of type function and is passed as a pointer to <code>cFunction</code>. The second argument is a call-back parameter consisting of the user function <code>pushMessage</code> and a string. Please note that the call-back function receives a <em>pointer</em> to the argument and not the argument itself!
+<p>
+<strong>4. Numerical arrays</strong>
+<DL>
+<dt><dd><pre>
+
+short array[] = { 1,2,3 };
+
+lua_genpcall(L, 
+
+  "for k,v in pairs{...} do print(k, #v, table.concat(v, ', ')) end", 
+
+  "%2hd %5.1u %*.*d", array, "Hello", 
+
+  sizeof(array)/sizeof(array[0]), sizeof(array[0]), array);
+
+--&gt;
+
+1       2       1, 2
+
+2       5       72, 101, 108, 108, 111
+
+3       3       1, 2, 3
+
+</pre>
+</DL>
+The code chunk prints the parameter index, the length of the array and a list with its values. For array data, it is necessary to specify the precision or a size modifier (unless it is the default type) and a width value. The first parameter declares a width of 2, therefore only the first two numbers of the <strong>short</strong> array are received. The second parameter is a string (<strong>char[]</strong>), so its precision is 1 and the width is the string length. On the third argument, both width and precision are passed though the argument list since the format specifies '<strong>*</strong>'.
+<p>
+<strong>5. Advanced strings</strong>
+<DL>
+<dt><dd><pre>
+
+unsigned char data[] = { 200, 100, 0, 3, 5, 0 };
+
+lua_genpcall(L, "for k,v in pairs{...} do print(k, v:gsub('.', "
+
+  "function(c) return '\\\\'.. c:byte() end)) end", 
+
+  "%s %6s %*s %ls", "Hello", "P1\0P2", sizeof(data), data, L"été"); 
+
+--&gt;
+
+1       \72\101\108\108\111     5
+
+2       \80\49\0\80\50\0        6
+
+3       \200\100\0\3\5\0        6
+
+4       \195\169\116\195\169    5 
+
+</pre>
+</DL>
+Strings are not necessarily zero terminated arrays of <strong>char</strong>. Here the script chunk prints the argument index, then the string in which each byte is replaced by a backslash and its decimal value. Note that the backslash has to be escaped <em>twice</em>: first for C (the chunk passed to Lua is <code>... return '\\' ...</code>), and second for Lua. The first argument is a zero terminated string; the second is a string containing a binary 0, specified by its length. The third argument is a binary array of data, for which the length is passed by argument. And the last argument is a wide character string, which is converted to a UTF-8 string or another form of multi-byte string, depending on how the module was compiled.
+<p>
+<strong>6. String lists</strong>
+<DL>
+<dt><dd><pre>
+
+lua_genpcall(L, 
+
+  "for k,v in pairs{...} do print(k, #v, table.concat(v, ',')) end",
+
+  "%z  %7z %hz %*lz", "s1\0s2\0s3\0", "s4\0\0s5\0", 
+
+  "c1\0c2\0c3\0", 7, L"w1\0\0w2\0"	);
+
+--&gt;
+
+1       3       s1,s2,s3
+
+2       3       s4,,s5
+
+3       3       c1,c2,c3
+
+4       3       w1,,w2
+
+</pre>
+</DL>
+An array of strings is expected to be a zero terminated list of zero terminated strings on the C side. In other words, it is a string containing one a more additional null characters inside it, delimiting elements. Because of this, it is impossible to support strings with embedded zeros. 
+In the first example, no width is specified, so the string list automatically ends on the first double zero bytes. The second list has its second string element of length 0. In this case, if no width was provided in the format string, the array would be erroneously of length 1, because there are two consecutive zero bytes in the middle. By specifying the width to be 7 (so not counting the last zero byte, as in usual strings), the number of received array elements is correctly 3. The third example simply specifies that the string list is of type <strong>char*</strong>. Otherwise, on Unicode support, <code>lua_genpcallW</code> expects wide character strings. The last list is a wide character version specifying its length with an addition '<strong>*</strong>' parameter.
+<p>
+<H3>Output elements</H3>
+In output mode, the main differences are that we must normally pass pointer to variables and not values, and we should always specify the precision field. Beware: on little endian processors like Intel ones, passing a wrong precision value might work anyway; but it will surely fail on big endian platforms! There are again 6 examples, demonstrating the same data types as for input elements.
+<p>
+<strong>1. Numbers</strong>
+<DL>
+<dt><dd><pre>
+
+char var1; unsigned short var2; int var3;
+
+float var4; double var5;
+
+lua_genpcall(L, "return 1, 2, 3, 4, 5", "&gt;%hhd %hu %d %f %lf", 
+
+  &amp;var1, &amp;var2, &amp;var3, &amp;var4, &amp;var5);
+
+printf("%d %u %d %f %f\n", var1, var2, var3, var4, var5);
+
+--&gt;
+
+1 2 3 4.000000 5.000000
+
+</pre>
+</DL>
+This sample retrieves 5 numerical values of different types and sizes. The second variable is unsigned, <code>var1</code> and <code>var3</code> are signed integers, and the last 2 are floating point numbers. In this case, the <strong>%lf</strong> format is mandatory!
+<p>
+<strong>2. Boolean, nil, simple strings and light userdata</strong>
+<DL>
+<dt><dd><pre>
+
+bool bool1; int bool2; 
+
+const char* str; void* ptr;
+
+lua_genpcall(L, "return true, false, 'dummy', 'Hello', io.stdin", 
+
+  "&gt;%hb %lb %n %+s %p", &amp;bool1, &amp;bool2, &amp;str, &amp;ptr);
+
+printf("%d %d %s %p\n", bool1, bool2, str, ptr);
+
+--&gt;
+
+1 0 Hello 00975598
+
+</pre>
+</DL>
+In this example the first two parameters retrieved are two Boolean values, of C different types. The third return value is discarded because of the <strong>%n</strong> format. A <code>'Hello'</code> string is received through Lua stack with <strong>%+s</strong> idiom. And the last result value, a userdatum value, is got by address into a generic pointer.
+<p>
+<strong>3. C functions and call-backs</strong>
+<DL>
+<dt><dd><pre>
+
+void getMessage(lua_State* L, int idx, void* ptr)
+
+{
+
+  *(const char**)ptr = lua_tostring(L, idx);
+
+}
+
+...
+
+lua_CFunction fct;
+
+const char* msg;
+
+lua_genpcall(L, "return print, 'Hello World!'", 
+
+  "&gt;%c %k", &amp;fct, getMessage, &amp;msg);
+
+lua_pushstring(L, msg);
+
+fct(L);
+
+</pre>
+</DL>
+This sample is a complicated way to implement the <code>Hello World</code> program. The first return value is a pointer to a Lua registered C function, the global <code>print</code> function. The second value, a simple string, is retrieved through a callback function, which receives as its <code>ptr</code> argument the address of variable <code>msg</code>. Then we can print the message by pushing the message onto Lua stack and call the <code>print</code> function directly by C (which is certainly not a good practice in normal situations). 
+<p>
+<strong>4. Numerical arrays</strong>
+<DL>
+<dt><dd><pre>
+
+unsigned int int_a[3];
+
+bool bool_a[4];
+
+char* str; 
+
+short* pshort;
+
+int short_len;
+
+int bool_len = sizeof(bool_a)/sizeof(bool_a[0]);
+
+lua_genpcall(L, "return {1,2,3,4},{72,101,108,108,111,0}, {5,6,7}, {false,true}", 
+
+  "&gt;%3u %+.1d %#&amp;hd %&amp;.*b", &amp;int_a, &amp;str, &amp;short_len, &amp;pshort, 
+
+  &amp;bool_len, sizeof(bool_a[0]), &amp;bool_a);
+
+printf("int_a = {%u,%u,%u}\nstr = %s\npshort[%d]=%d\nbool_a = #%d:{%d,%d,%d,%d}\n", 
+
+  int_a[0], int_a[1], int_a[2], str, short_len-1, pshort[short_len-1],
+
+  bool_len, bool_a[0], bool_a[1], bool_a[2], bool_a[3]);
+
+free(pshort);
+
+--&gt;
+
+int_a = {1,2,3}
+
+str = Hello
+
+pshort[2]=7
+
+bool_a = #2:{0,1,204,204}
+
+</pre>
+</DL>
+The first array is allocated in the C stack and filled up by Lua up to 3 values (the last one is lost). The second is allocated on Lua stack and because it is of type <strong>char</strong>, its precision is set to 1. Note that because the '<strong>+</strong>' sign is present, it is not necessary to specify a width. In the third array, the real length is returned (because of '<strong>&amp;</strong>') in addition to a pointer allocated by the current Lua allocation function (instructed by '<strong>#</strong>'). We have to free this buffer after use. In the fourth Boolean array, the precision is passed by the '<strong>*</strong>' feature. More interesting, the width argument is passed in both input and output directions with the '<strong>&amp;</strong>' sign. The value of <code>bool_len</code> must be initialized to the size of the array before the call, since we are using a C stack allocated buffer. Because the buffer is larger than the returned array, its last two values will remain not initialized. 
+<p>
+<strong>5. Advanced strings</strong>
+<DL>
+<dt><dd><pre>
+
+const char *str1;
+
+char *str2;
+
+char str3[10];
+
+unsigned char data[6];
+
+int len = sizeof(data);
+
+wchar_t* wstr;
+
+lua_genpcall(L, "return 'Hello', ' Wor', 'ld!', '\\0\\5\\200\\0', 'Unicode'",
+
+  "&gt;%+s %#s %*s %&amp;s %+ls", &amp;str1, &amp;str2, sizeof(str3), str3, &amp;len, data, &amp;wstr);
+
+printf("%s%s%s\ndata (%d bytes): %02X %02X %02X %02X %02X\nwstr = %S\n", 
+
+  str1, str2, str3, len, data[0],data[1],data[2],data[3],data[4], wstr);
+
+free(str2);
+
+--&gt;
+
+Hello World!
+
+data (4 bytes): 00 05 C8 00 00
+
+wstr = Unicode
+
+</pre>
+</DL>
+This sample retrieves five strings in different ways. The first string is taken from Lua stack ('<strong>+</strong>' sign). The second is allocated by Lua current allocation function, and must therefore be freed after its use. The third one is taken from the C stack and the buffer size is passed through the '<strong>*</strong>' width specification. The next return value is considered as a string on Lua side, but is defined as a raw byte buffer in C. Through the '<strong>&amp;</strong>' mechanism, we both set the buffer size by initializing variable len, and get back the real data size after the call. Note that there is always an additional zero byte copied to the destination buffer (if there is enough place). The last value is a wide character string, placed on Lua stack.
+<p>
+<strong>6. String lists</strong>
+<DL>
+<dt><dd><pre>
+
+void print_string_list(const char* title, const void* data, int fchar){
+
+  printf("%-4s = {", title);
+
+  if(fchar) {
+
+    const char* str = (const char*)data;
+
+    while(*str){
+
+      printf("'%s', ", str);
+
+      str += strlen(str) + 1;
+
+    }
+
+  }
+
+  else {
+
+    const wchar_t* str = (const wchar_t*)data;
+
+    while(*str) {
+
+      printf("'%S', ", str);
+
+      str += wcslen(str) + 1;
+
+    }
+
+  }
+
+  printf("}\n");
+
+}
+
+
+
+const char *str1;
+
+char *str2;
+
+char str3[10];
+
+int len;
+
+wchar_t* wstr;
+
+lua_genpcall(L, "return {1,2,3},{4,5,6},{10,9,8,7},{11,12}",
+
+  "&gt;%+hz %+&amp;z %*z %#lz", &amp;str1, &amp;len, &amp;str2, 
+
+  sizeof(str3)/sizeof(str3[0]), &amp;str3, &amp;wstr );
+
+print_string_list("str1", str1, 1);
+
+print_string_list("str2", str2, 1);
+
+printf("len = %d\n", len);
+
+print_string_list("str3", str3, 1);
+
+print_string_list("wstr", wstr, 0);
+
+free(wstr);
+
+--&gt;
+
+str1 = {'1', '2', '3', }
+
+str2 = {'4', '5', '6', }
+
+len = 6
+
+str3 = {'10', '9', '8', '7', }
+
+wstr = {'11', '12', }
+
+</pre>
+</DL>
+In this last example, the helper function <code>print_string_list</code> is just here to display the retrieved string lists in a readable form. The first string list is of type <strong>char*</strong>, whether or not the Unicode version is used, which is not the case for <code>str2</code> and <code>str3</code>. The first list is allocated on Lua stack; the second one also, with in addition the retrieval of the string list length (counted without the last zero byte). The buffer of <code>str3</code> is on the C stack; so its size is passed as an additional parameter instructed by the '<strong>*</strong>' flag. The last string list is a wide character version; its buffer is allocated with Lua allocator, requiring a call to <code>free</code> after use. 
+You have certainly noted the strong similarities between string and string list parameters.
+<p>
+-- <a href="../wiki/PatrickRapin.html" >PatrickRapin</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaGenericCall" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaGenericCall" >history</a><br>Last edited January 10, 2010 3:04 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaGenericCall" >(diff)</a>
+</body>
+</html>

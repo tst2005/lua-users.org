@@ -1,0 +1,975 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Resource Acquisition Is Initialization</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ResourceAcquisitionIsInitialization&amp;body=1" title="List pages referring to ResourceAcquisitionIsInitialization">Resource Acquisition Is Initialization</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page shall address approaches for achieving the effect of Resource Acquisition Is Initialization (RAII) <a href="http://en.wikipedia.org/wiki/Resource_Acquisition_Is_Initialization.html">[1]</a> in Lua. RAII is a quite useful paradigm that is not directly supported in Lua 5.1, though there are some ways to approximate it. Some discussions and proposed solutions are on the Lua list:
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2006-09/msg00836.html">LuaList:2006-09/msg00836.html</a> - "destructors"
+<li> <a href="/lists/lua-l/2007-05/msg00354.html">LuaList:2007-05/msg00354.html</a> - "scope-aware values"
+<li> <a href="/lists/lua-l/2009-01/msg00333.html">LuaList:2009-01/msg00333.html</a> - "state of the Lua nation on resource cleanup" <a href="http://john.neggie.net/2009/lua/resource_finalization">[2]</a>
+</UL>
+<p>
+<H2>The Problem</H2>
+<p>
+A very typical problem well suited to RAII is this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> dostuff()
+
+  <span class="keyword">local</span> f = <span class="library">assert</span>(<span class="library">io.open</span>(<span class="string">"out"</span>, <span class="string">"w"</span>))
+
+  domorestuff()  <span class="comment">-- this may raise an error</span>
+
+  f:close() <span class="comment">-- this is not called if that error was raised</span>
+
+<span class="keyword">end</span>
+
+
+
+dostuff()
+
+</pre>
+
+</DL>
+<p>
+If an error is raised, the file is not immediately closed (as RAII would ensure). Yes, the garbage collector will eventually close the file, but we don't know when. The program success or correctness may depend on the lock on the file being immediately released. Explicitly calling <code>collectgarbage('collect')</code> outside a <code>pcall</code> may help here though, in which case Lua calls the <code>__gc</code> (finalizer) metamethod, which closes the file, though you may have to call <code>collectgarbage</code> more than once [*1]. Furthermore, Lua doesn't allow objects implemented in pure Lua (without the help of C userdata) to define their own <code>__gc</code> metamethods.
+<p>
+<H2>Simulating RAII by maintaining a stack of destructible objects</H2>
+<p>
+Here is one approach in pure Lua that maintains a stack of all objects that need to be reclaimed. On scope exit or upon handling an exception, the objects to be reclaimed are removed from the stack and finalized (i.e. <code>close</code>, if exists, is called; otherwise, it is called as a function) to release their resources.
+<p>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- raii.lua</span>
+
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="keyword">local</span> frame_marker = {} <span class="comment">-- unique value delimiting stack frames</span>
+
+
+
+<span class="keyword">local</span> running = <span class="library">coroutine.running</span>
+
+
+
+<span class="comment">-- Close current stack frame for RAII, releasing all objects.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> close_frame(stack, e)
+
+  <span class="library">assert</span>(#stack ~= 0, <span class="string">'RAII stack empty'</span>)
+
+  <span class="keyword">for</span> i=#stack,1,-1 <span class="keyword">do</span>  <span class="comment">-- release in reverse order of acquire</span>
+
+    <span class="keyword">local</span> v; v, stack[i] = stack[i], <span class="keyword">nil</span>
+
+    <span class="keyword">if</span> v == frame_marker <span class="keyword">then</span>
+
+      <span class="keyword">break</span>
+
+    <span class="keyword">else</span>
+
+      <span class="comment">-- note: assume finalizer never raises error</span>
+
+      <span class="keyword">if</span> <span class="library">type</span>(v) == <span class="string">"table"</span> <span class="keyword">and</span> v.close <span class="keyword">then</span>
+
+        v:close()
+
+      <span class="keyword">else</span>
+
+        v(e)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> helper1(stack, ...) close_frame(stack); <span class="keyword">return</span> ... <span class="keyword">end</span>
+
+<span class="comment">-- Allow self to be used as a function modifier</span>
+
+<span class="comment">-- to add RAII support to function.</span>
+
+<span class="keyword">function</span> M.__call(self, f)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+    <span class="keyword">local</span> stack, co = self, running()
+
+    <span class="keyword">if</span> co <span class="keyword">then</span>  <span class="comment">-- each coroutine gets its own stack</span>
+
+      stack = self[co]
+
+      <span class="keyword">if</span> <span class="keyword">not</span> stack <span class="keyword">then</span>
+
+        stack = {}
+
+        self[co] = stack
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    stack[#stack+1] = frame_marker <span class="comment">-- new frame</span>
+
+    <span class="keyword">return</span> helper1(stack, f(...))
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Show variables in all stack frames.</span>
+
+<span class="keyword">function</span> M.__tostring(self)
+
+  <span class="keyword">local</span> stack, co = self, running()
+
+  <span class="keyword">if</span> co <span class="keyword">then</span> stack = stack[co] <span class="keyword">end</span>
+
+  <span class="keyword">local</span> ss = {}
+
+  <span class="keyword">local</span> level = 0
+
+  <span class="keyword">for</span> i,val <span class="keyword">in</span> <span class="library">ipairs</span>(stack) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> val == frame_marker <span class="keyword">then</span>
+
+      level = level + 1
+
+    <span class="keyword">else</span>
+
+      ss[#ss+1] = <span class="library">string.format</span>(<span class="string">'[%s][%d] %s'</span>, <span class="library">tostring</span>(co), level, <span class="library">tostring</span>(val))
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">table.concat</span>(ss, <span class="string">'\n'</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> helper2(stack, level, ok, ...)
+
+  <span class="keyword">local</span> e; <span class="keyword">if</span> <span class="keyword">not</span> ok <span class="keyword">then</span> e = <span class="library">select</span>(1, ...) <span class="keyword">end</span>
+
+  <span class="keyword">while</span> #stack &gt; level <span class="keyword">do</span> close_frame(stack, e) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> ...
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Construct new RAII stack set.</span>
+
+<span class="keyword">function</span> M.new()
+
+  <span class="keyword">local</span> self = <span class="library">setmetatable</span>({}, M)
+
+
+
+  <span class="comment">-- Register new resource(s), preserving order of registration.</span>
+
+  <span class="keyword">function</span> self.scoped(...)
+
+    <span class="keyword">local</span> stack, co = self, running()
+
+    <span class="keyword">if</span> co <span class="keyword">then</span> stack = stack[co] <span class="keyword">end</span>
+
+    <span class="keyword">for</span> n=1,<span class="library">select</span>(<span class="string">'#'</span>, ...) <span class="keyword">do</span>
+
+      stack[#stack+1] = <span class="library">select</span>(n, ...)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> ...
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- a variant of pcall</span>
+
+  <span class="comment">-- that ensures the RAII stack is unwound.</span>
+
+  <span class="keyword">function</span> self.pcall(f, ...)
+
+    <span class="keyword">local</span> stack, co = self, running()
+
+    <span class="keyword">if</span> co <span class="keyword">then</span> stack = stack[co] <span class="keyword">end</span>
+
+    <span class="keyword">local</span> level = #stack
+
+    <span class="keyword">return</span> helper2(stack, level, <span class="library">pcall</span>(f, ...))
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- Note: it's somewhat convenient having scoped and pcall be</span>
+
+  <span class="comment">-- closures....  local scoped = raii.scoped</span>
+
+
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- singleton.</span>
+
+<span class="keyword">local</span> raii = M.new()
+
+
+
+<span class="keyword">return</span> raii
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> raii = <span class="library">require</span> <span class="string">"raii"</span>
+
+<span class="keyword">local</span> scoped, <span class="library">pcall</span> = raii.scoped, raii.pcall
+
+
+
+<span class="comment">-- Define some resource type for testing.</span>
+
+<span class="comment">-- In practice, this is a resource we acquire and</span>
+
+<span class="comment">-- release (e.g. a file, database handle, Win32 handle, etc.).</span>
+
+<span class="keyword">local</span> Resource = {}; <span class="keyword">do</span>
+
+  Resource.__index = Resource
+
+  <span class="keyword">function</span> Resource:__tostring() <span class="keyword">return</span> self.name <span class="keyword">end</span>
+
+  <span class="keyword">function</span> Resource.open(name)
+
+    <span class="keyword">local</span> self = <span class="library">setmetatable</span>({name=name}, Resource)
+
+    <span class="library">print</span>(<span class="string">"open"</span>, name)
+
+    <span class="keyword">return</span> self
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> Resource:close() <span class="library">print</span>(<span class="string">"close"</span>, self.name) <span class="keyword">end</span>
+
+  <span class="keyword">function</span> Resource:foo()   <span class="library">print</span>(<span class="string">"hello"</span>, self.name) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> test3 = raii(<span class="keyword">function</span>()
+
+  <span class="keyword">local</span> f = scoped(Resource.open(<span class="string">'D'</span>))
+
+  f:foo()
+
+  <span class="library">print</span>(raii)
+
+  <span class="library">error</span>(<span class="string">"opps"</span>)
+
+<span class="keyword">end</span>)
+
+
+
+<span class="keyword">local</span> test2 = raii(<span class="keyword">function</span>()
+
+  scoped(<span class="keyword">function</span>(e) <span class="library">print</span>(<span class="string">"leaving"</span>, e) <span class="keyword">end</span>)
+
+  <span class="keyword">local</span> f = scoped(Resource.open(<span class="string">'C'</span>))
+
+  test3(st)
+
+<span class="keyword">end</span>)
+
+
+
+<span class="keyword">local</span> test1 = raii(<span class="keyword">function</span>()
+
+  <span class="keyword">local</span> g1 = scoped(Resource.open(<span class="string">'A'</span>))
+
+  <span class="keyword">local</span> g2 = scoped(Resource.open(<span class="string">'B'</span>))
+
+  <span class="library">print</span>(<span class="library">pcall</span>(test2))
+
+<span class="keyword">end</span>)
+
+
+
+test1()
+
+
+
+
+
+<span class="comment">--[[ OUTPUT:
+
+open    A
+
+open    B
+
+open    C
+
+open    D
+
+hello   D
+
+[nil][1] A
+
+[nil][1] B
+
+[nil][2] function: 0x68a818
+
+[nil][2] C
+
+[nil][3] D
+
+close   D
+
+close   C
+
+leaving complex2.lua:23: opps
+
+complex2.lua:23: opps
+
+close   B
+
+close   A
+
+]]</span>
+
+</pre>
+
+</DL>
+<p>
+Example using coroutines:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> raii = <span class="library">require</span> <span class="string">"raii"</span>
+
+<span class="keyword">local</span> scoped, <span class="library">pcall</span> = raii.scoped, raii.pcall
+
+
+
+<span class="comment">-- Define some resource type for testing.</span>
+
+<span class="comment">-- In practice, this is a resource we acquire and</span>
+
+<span class="comment">-- release (e.g. a file, database handle, Win32 handle, etc.).</span>
+
+<span class="keyword">local</span> Resource = {}; <span class="keyword">do</span>
+
+  Resource.__index = Resource
+
+  <span class="keyword">local</span> running = <span class="library">coroutine.running</span>
+
+  <span class="keyword">function</span> Resource:__tostring() <span class="keyword">return</span> self.name <span class="keyword">end</span>
+
+  <span class="keyword">function</span> Resource.open(name)
+
+    <span class="keyword">local</span> self = <span class="library">setmetatable</span>({name=name}, Resource)
+
+    <span class="library">print</span>(running(), <span class="string">"open"</span>, self.name)
+
+    <span class="keyword">return</span> self
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> Resource:close() <span class="library">print</span>(running(), <span class="string">"close"</span>, self.name) <span class="keyword">end</span>
+
+  <span class="keyword">function</span> Resource:foo()   <span class="library">print</span>(running(), <span class="string">"hello"</span>, self.name) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> test3 = raii(<span class="keyword">function</span>(n)
+
+  <span class="keyword">local</span> f = scoped(Resource.open(<span class="string">'D'</span> .. n))
+
+  f:foo()
+
+  <span class="library">print</span>(raii)
+
+  <span class="library">error</span>(<span class="string">"opps"</span>)
+
+<span class="keyword">end</span>)
+
+
+
+<span class="keyword">local</span> test2 = raii(<span class="keyword">function</span>(n)
+
+  scoped(<span class="keyword">function</span>(e) <span class="library">print</span>(<span class="library">coroutine.running</span>(), <span class="string">"leaving"</span>, e) <span class="keyword">end</span>)
+
+  <span class="keyword">local</span> f = scoped(Resource.open(<span class="string">'C'</span> .. n))
+
+  test3(n)
+
+<span class="keyword">end</span>)
+
+
+
+<span class="keyword">local</span> test1 = raii(<span class="keyword">function</span>(n)
+
+  <span class="keyword">local</span> g1 = scoped(Resource.open(<span class="string">'A'</span> .. n))
+
+  <span class="library">coroutine.yield</span>()
+
+  <span class="keyword">local</span> g2 = scoped(Resource.open(<span class="string">'B'</span> .. n))
+
+  <span class="library">coroutine.yield</span>()
+
+  <span class="library">print</span>(<span class="library">coroutine.running</span>(), <span class="library">pcall</span>(test2, n))
+
+  <span class="library">coroutine.yield</span>()
+
+<span class="keyword">end</span>)
+
+
+
+<span class="keyword">local</span> cos = {<span class="library">coroutine.create</span>(test1), <span class="library">coroutine.create</span>(test1)}
+
+<span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+  <span class="keyword">local</span> is_done = <span class="keyword">true</span>
+
+  <span class="keyword">for</span> n=1,#cos <span class="keyword">do</span>
+
+    <span class="keyword">if</span> <span class="library">coroutine.status</span>(cos[n]) ~= <span class="string">"dead"</span> <span class="keyword">then</span>
+
+      <span class="library">coroutine.resume</span>(cos[n], n)
+
+      is_done = <span class="keyword">false</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> is_done <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Note: all coroutines must terminate for RAII to work.</span>
+
+
+
+<span class="comment">--[[ OUTPUT:
+
+thread: 0x68a7f0        open    A1
+
+thread: 0x68ac10        open    A2
+
+thread: 0x68a7f0        open    B1
+
+thread: 0x68ac10        open    B2
+
+thread: 0x68a7f0        open    C1
+
+thread: 0x68a7f0        open    D1
+
+thread: 0x68a7f0        hello   D1
+
+[thread: 0x68a7f0][1] A1
+
+[thread: 0x68a7f0][1] B1
+
+[thread: 0x68a7f0][2] function: 0x68ada0
+
+[thread: 0x68a7f0][2] C1
+
+[thread: 0x68a7f0][3] D1
+
+thread: 0x68a7f0        close   D1
+
+thread: 0x68a7f0        close   C1
+
+thread: 0x68a7f0        leaving complex3.lua:24: opps
+
+thread: 0x68a7f0        complex3.lua:24: opps
+
+thread: 0x68ac10        open    C2
+
+thread: 0x68ac10        open    D2
+
+thread: 0x68ac10        hello   D2
+
+[thread: 0x68ac10][1] A2
+
+[thread: 0x68ac10][1] B2
+
+[thread: 0x68ac10][2] function: 0x684258
+
+[thread: 0x68ac10][2] C2
+
+[thread: 0x68ac10][3] D2
+
+thread: 0x68ac10        close   D2
+
+thread: 0x68ac10        close   C2
+
+thread: 0x68ac10        leaving complex3.lua:24: opps
+
+thread: 0x68ac10        complex3.lua:24: opps
+
+thread: 0x68a7f0        close   B1
+
+thread: 0x68a7f0        close   A1
+
+thread: 0x68ac10        close   B2
+
+thread: 0x68ac10        close   A2
+
+]]</span>
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>Scope Manager</H2>
+<p>
+<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a> suggested in <a href="/lists/lua-l/2007-05/msg00354.html">LuaList:2007-05/msg00354.html</a> [*2] implementing something like a D <code>scope</code> guard statement <a href="http://www.digitalmars.com/d/exception-safe.html">[3]</a><a href="http://www.digitalmars.com/d/statement.html#ScopeGuardStatement">[4]</a> construct in Lua.  The idea was for variable class (like <code>local</code>) named <code>scoped</code> that when provided a function (or callable table), it would call it on scope exit:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> test()
+
+  <span class="keyword">local</span> fh = <span class="library">io</span>:open()
+
+  scoped <span class="keyword">function</span>() fh:close() <span class="keyword">end</span>
+
+  foo()
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+It is possible to implement this in plain Lua.  This is described in Lua Programming Gems, Gem #13 "Exceptions in Lua" <a href="http://www.lua.org/gems/selected.html">[5]</a> to permit something like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> dostuff()
+
+  scope(<span class="keyword">function</span>()
+
+    <span class="keyword">local</span> fh1 = <span class="library">assert</span>(<span class="library">io.open</span>(<span class="string">'file1'</span>))
+
+    on_exit(<span class="keyword">function</span>() fh1:close() <span class="keyword">end</span>)
+
+    ...
+
+    <span class="keyword">local</span> fh2 = <span class="library">assert</span>(<span class="library">io.open</span>(<span class="string">'file2'</span>))
+
+    on_exit(<span class="keyword">function</span>() fh2:close() <span class="keyword">end</span>)
+
+    ...
+
+  <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>A Possible Syntax Extension for Scope Guard Statement</H2>
+<p>
+<p>
+<p>
+This requires the construction of an anonymous function, but there are advantages to avoid that from an efficiency standpoint.
+<p>
+Here's another idea ("finally ... end" construct) that is very basic:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> <span class="library">load</span>(filename)
+
+   <span class="keyword">local</span> h = <span class="library">io.open</span> (filename)
+
+   finally <span class="keyword">if</span> h <span class="keyword">then</span> h:close() <span class="keyword">end</span> <span class="keyword">end</span>
+
+   ...
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Note that the <code>scope</code> construct as implemented in D syntactically resembles an <code>if</code> statement that executes at the end of the scope.  That is, provided we consider <code>exit</code>, <code>success</code>, and <code>failure</code> to be real conditional expressions; in fact, it might be useful to make that generalization.  I had proposed the following syntax extension for Lua:
+<p>
+<DL>
+<dt><dd><pre>
+
+stat :: scopeif exp then block {elseif exp then block} [else block] end
+
+</pre>
+</DL>
+<p>
+where <code>err</code> is an implicit variable (like <code>self</code>) that can be used inside <em>exp</em> or <em>block</em> and represents the error being raised, or <code>nil</code> if no error was raised.  (Comment: after revisiting that syntax again many months later, I found the semantics not very intuitive, particularly concerning the special usage of <code>err</code>.)
+<p>
+The examples in "Exception Safe Programming" <a href="http://www.digitalmars.com/d/exception-safe.html">[3]</a> translate into Lua as
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> abc()
+
+  <span class="keyword">local</span> f = dofoo();
+
+  scopeif err <span class="keyword">then</span> dofoo_undo(f) <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> b = dobar();
+
+  scopeif err <span class="keyword">then</span> dobar_undo(b) <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> d = dodef();
+
+
+
+  <span class="keyword">return</span> Transaction(f, b, d)
+
+<span class="keyword">end</span>
+
+<span class="comment">-----</span>
+
+<span class="keyword">function</span> bar()
+
+  <span class="keyword">local</span> verbose_save = verbose
+
+  verbose = <span class="keyword">false</span>
+
+  scopeif <span class="keyword">true</span> <span class="keyword">then</span> verbose = verbose_save <span class="keyword">end</span>
+
+
+
+  ...lots of code...
+
+<span class="keyword">end</span>
+
+<span class="comment">-----</span>
+
+<span class="keyword">function</span> send(msg)
+
+  <span class="keyword">do</span>
+
+    <span class="keyword">local</span> origTitle = msg.Title()
+
+    scopeif <span class="keyword">true</span> <span class="keyword">then</span> msg.SetTitle(origTitle) <span class="keyword">end</span>
+
+    msg.SetTitle(<span class="string">"[Sending] "</span> .. origTitle)
+
+    Copy(msg, <span class="string">"Sent"</span>)
+
+  <span class="keyword">end</span>
+
+  scopeif err <span class="keyword">then</span>
+
+    Remove(msg.ID(), <span class="string">"Sent"</span>)
+
+  <span class="keyword">else</span>
+
+    SetTitle(msg.ID(), <span class="string">"Sent"</span>, msg.Title)
+
+  <span class="keyword">end</span>
+
+  SmtpSend(msg)	<span class="comment">-- do the least reliable part last</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The <code>scopeif true then ... end</code> is somewhat verbose though not unlike <code>while true do ... end</code>.  The use of <code>scopeif</code> rather than <code>scope if</code> follows the pattern of <code>elseif</code>.
+<p>
+<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>'s database example becomes shortened to
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> Database:commit()
+
+  <span class="keyword">for</span> attempt = 1, MAX_TRIES <span class="keyword">do</span>
+
+    scopeif instance_of(err, DatabaseConflictError) <span class="keyword">then</span>
+
+      <span class="keyword">if</span> attempt &lt; MAX_TRIES <span class="keyword">then</span>
+
+        log(<span class="string">'Database conflict (attempt '</span>..attempt..<span class="string">')'</span>)
+
+      <span class="keyword">else</span>
+
+        <span class="library">error</span>(<span class="string">'Commit failed after '</span>..attempt..<span class="string">' tries.'</span>)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span> <span class="comment">-- note: else no-op</span>
+
+    self.commit()
+
+    <span class="keyword">return</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Here's how a regular RAII would be simulated (the D article doesn't say that RAII is never useful):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> test()
+
+  <span class="keyword">local</span> resource = Resource(); scope <span class="keyword">if</span> <span class="keyword">true</span> <span class="keyword">then</span> resource:close() <span class="keyword">end</span>
+
+  foo()
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+That is, however, more verbose than the proposed
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> test()
+
+  scoped resource = Resource()
+
+  foo()
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Perhaps this can be prototyped in Metalua <a href="http://metalua.luaforge.net/">[6]</a>.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>Try/finally/scoped-guard patches</H2>
+<p>
+A few patches to Lua have been posted to handle this type of thing:
+<p>
+(2008-01-31) PATCH: for <strong>try/catch/finally</strong> support posted by Hu Qiwei <a href="/lists/lua-l/2008-01/msg00650.html">[10]</a><a href="/lists/lua-l/2008-01/msg00725.html">[11]</a><a href="/lists/lua-l/2008-02/msg00014.html">[12]</a>.  <code>return</code> and <code>break</code> are prohibited in the <code>try</code> block.
+<p>
+<DL>
+<dt><dd>(2008-01-07) PATCH: <strong>finalization of objects</strong> posted by Nodir Temirhodzhaev. <a href="/lists/lua-l/2008-01/msg00138.html">[13]</a>  This is an alternative to the above "try/catch/finally" exception handling mechanism and is related to <a href="http://www.digitalmars.com/d/exception-safe.html">[3]</a> and <a href="../wiki/ResourceAcquisitionIsInitialization.html" >ResourceAcquisitionIsInitialization</a>.
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd>Update 2009-02-14: <a href="/lists/lua-l/2009-02/msg00258.html">LuaList:2009-02/msg00258.html</a> ; <a href="/lists/lua-l/2009-03/msg00418.html">LuaList:2009-03/msg00418.html</a>
+</DL>
+</DL>
+<p>
+<DL>
+<dt><dd>(2008-02-12) PATCH: <strong>experimental finalize/guard</strong> posted by Alex Mania <a href="/lists/lua-l/2008-02/msg00243.html">[14]</a> supports <code>finalize</code> and <code>guard</code> blocks for RAII.
+</DL>
+<p>
+<p>
+<a href="/lists/lua-l/2009-03/msg00418.html">LuaList:2009-03/msg00418.html</a>
+<p>
+<H2>with statement (Metalua, Python)</H2>
+<p>
+<a href="../wiki/MetaLua.html" >MetaLua</a> 0.4 offers an RAII extension called "withdo". It works with every resources that are released by calling a method :close(). It protects against normal termination of the protected block, returns from within the block, and errors. The following would return the sum of the sizes of files filename1 and filename2 *after* having closed their handles:
+<p>
+<pre class="code">
+with h1, h2 = <span class="library">io.open</span> <span class="string">'filename1'</span>, <span class="library">io.open</span> <span class="string">'filename2'</span> <span class="keyword">do</span>
+
+   <span class="keyword">local</span> total = #h1:read<span class="string">'*a'</span> + #h2:read<span class="string">'*a'</span>
+
+   <span class="keyword">return</span> total
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+Note that the Metalua design is limited by the requirement that resource objects have a certain method ("close()" in this case).  In Python it was rejected in favor of "with ... as ..." syntax allowing a resource management object separate from the resource itself <a href="http://www.python.org/dev/peps/pep-0343/">[7]</a>.  Furthermore the Python statement allows the assignment to be elided, since in many situations the resource variable is not needed-- for example if you just want to hold a lock during the block.
+<p>
+<p>
+<H2>Additional Comments</H2>
+<p>
+[*1] It could be twice or more, depending on how intertwined the userdata are, but it definitely takes two collects to get rid of a userdata with a <code>__gc</code> meta if the userdata is the last reference to some other object which itself is/refers to a userdata, then the cycle continues. (noted by <a href="../wiki/RiciLake.html" >RiciLake</a>) 
+<p>
+[*2] The RAII pattern suffers from the need to create ad-hoc classes to manage resources, and from the clunky nesting needed when acquiring sequential resources.   See <a href="http://www.digitalmars.com/d/exception-safe.html">http://www.digitalmars.com/d/exception-safe.html</a>.  A better pattern is in Lua gem #13 "Exceptions in Lua" <a href="http://www.lua.org/gems/selected.html">[5]</a>.  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>
+<p>
+Here's my proposed example code illustrating a Google Go <code>defer</code> and D <code>scope(exit)</code> like syntax. --<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<DL>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Lua 5.1, example without exceptions</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> readfile(filename)
+
+  <span class="keyword">local</span> fh, err = <span class="library">io.open</span>(filename)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> fh <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span>, err <span class="keyword">end</span>
+
+  <span class="keyword">local</span> data, err = fh:read<span class="string">'*a'</span>
+
+  <span class="comment">-- note: in this case, the two fh:close()'s may be moved here, but in general that is not possible</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> data <span class="keyword">then</span> fh:close(); <span class="keyword">return</span> <span class="keyword">false</span>, err <span class="keyword">end</span>
+
+  fh:close()
+
+  <span class="keyword">return</span> data
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Lua 5.1, example with exceptions, under suitable definitions of given functions.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> readfile(filename)
+
+  <span class="keyword">return</span> scoped(<span class="keyword">function</span>(onexit)  <span class="comment">-- based on pcall</span>
+
+    <span class="keyword">local</span> fh = <span class="library">assert</span>(<span class="library">io.open</span>(filename)); onexit(<span class="keyword">function</span>() fh:close() <span class="keyword">end</span>)
+
+    <span class="keyword">return</span> <span class="library">assert</span>(fh:read<span class="string">'*a'</span>)
+
+  <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+<span class="comment">-- proposal, example without exceptions</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> readfile(filename)
+
+  <span class="keyword">local</span> fh, err = <span class="library">io.open</span>(filename); <span class="keyword">if</span> <span class="keyword">not</span> fh <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span>, err <span class="keyword">end</span>
+
+  defer fh:close()
+
+  <span class="keyword">local</span> data, err = fh:read<span class="string">'*a'</span>; <span class="keyword">if</span> <span class="keyword">not</span> data <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span>, err <span class="keyword">end</span>
+
+  <span class="keyword">return</span> data
+
+<span class="keyword">end</span>
+
+  <span class="comment">-- note: "local val, err = io.open(filename); if not val then return false, err end" is a common</span>
+
+  <span class="comment">-- pattern and perhaps warrants a syntax like "local val = returnunless io.open(filename)".</span>
+
+<span class="comment">-- proposal, example with exceptions</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> readfile(filename)
+
+  <span class="keyword">local</span> fh = <span class="library">assert</span>(<span class="library">io.open</span>(filename)); defer fh:close()
+
+  <span class="keyword">return</span> <span class="library">assert</span>(fh:read<span class="string">'*a'</span>)
+
+<span class="keyword">end</span>
+
+<span class="comment">-- proposal, example catching exceptions</span>
+
+<span class="keyword">do</span>
+
+  defer <span class="keyword">if</span> class(err) == <span class="string">'FileError'</span> <span class="keyword">then</span>
+
+    <span class="library">print</span>(err)
+
+    err:suppress()
+
+  <span class="keyword">end</span>
+
+  <span class="library">print</span>(readfile(<span class="string">"test.txt"</span>))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- alternate proposal - cleanup code by metamechanism</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> readfile(filename)
+
+  scoped fh = <span class="library">assert</span>(<span class="library">io.open</span>(filename)) <span class="comment">-- note: fh:close() or getmetatable(fh).__close(fh) called on scope exit</span>
+
+  <span class="keyword">return</span> <span class="library">assert</span>(fh:read<span class="string">'*a'</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+</DL>
+<p>
+<H3>See Also</H3>
+<p>
+<UL>
+<li> <a href="../wiki/ErrorHandling.html" >ErrorHandling</a> - other error handling links
+<li> <a href="http://en.wikipedia.org/wiki/Resource_Acquisition_Is_Initialization.html">[Wikipedia: Resource Acquisition Is Initialization]</a>
+<li> <a href="http://stackoverflow.com/questions/165723/do-programmers-of-other-languages-besides-c-use-know-or-understand-raii">[stackoverflow: Do programmers of other languages, besides C++, use, know or understand RAII?]</a>
+<li> <a href="http://www.digitalmars.com/d/exception-safe.html">[D: Exception Safe Programming]</a>
+<li> The Google Go language rejects try/catch and instead provides a "defer &lt;expression&gt;" statement <a href="http://golang.org/doc/go_lang_faq.html#exceptions">[8]</a><a href="http://golang.org/doc/effective_go.html#defer">[9]</a>.  Note that in Go, in the statement "defer f(x)", the values f and x are evaluated immediately, while the function call "f(x)" using those values is evaluated on scope exit.  The error can be suppressed and the error object queried by calling "recover()" from the defer: "defer function() { err := recover(); log.Stderr(err); }()" .
+<li> <a href="/lists/lua-l/2010-04/msg00104.html">LuaList:2010-04/msg00104.html</a> - FlorianWeimer<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FlorianWeimer" >?</a> postulates that finalization is inherently concurrent, and so there is no safe way to implement it in Lua without concurrency facilities.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ResourceAcquisitionIsInitialization" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ResourceAcquisitionIsInitialization" >history</a><br>Last edited March 13, 2012 3:36 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ResourceAcquisitionIsInitialization" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,254 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Display Functions</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteDisplayFunctions&amp;body=1" title="List pages referring to SciteDisplayFunctions">Scite Display Functions</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The script collects the functions and display in the usertable.
+It works with php file. There is no oop-design. I hope having time to
+develop this script.
+<pre class="code">
+<span class="comment">----------------------------------------------</span>
+
+<span class="comment">-- @ script  : SciTE_DisplayFunctions.lua</span>
+
+<span class="comment">-- @ creator : gongadze</span>
+
+<span class="comment">-- @ desc    : the script collects the functions and display in the usertable</span>
+
+<span class="comment">-- @ desc    : if you stand on a functionname and press Ctrl-2 you are </span>
+
+<span class="comment">-- @ desc    : immediately routed to the function definition</span>
+
+<span class="comment">-- @ version : v0.02 </span>
+
+<span class="comment">----------------------------------------------</span>
+
+<span class="keyword">function</span> UserListShow(list)
+
+
+
+   <span class="keyword">local</span> s = <span class="string">''</span>
+
+   <span class="keyword">local</span> sep = <span class="string">';'</span>
+
+   <span class="keyword">local</span> n = <span class="library">table.getn</span>(list)
+
+   <span class="keyword">for</span> i = 1,n-1 <span class="keyword">do</span>
+
+      s = s..list[i]..sep
+
+   <span class="keyword">end</span>
+
+   s = s..list[n]
+
+   editor.AutoCSeparator = <span class="library">string.byte</span>(sep)
+
+   editor:UserListShow(12,s)
+
+   editor.AutoCSeparator = <span class="library">string.byte</span>(<span class="string">' '</span>)
+
+ <span class="keyword">end</span>
+
+<span class="keyword">function</span> AllLinesWithText(txt,flags)
+
+
+
+    <span class="keyword">if</span> <span class="keyword">not</span> flags <span class="keyword">then</span> flags = 0 <span class="keyword">end</span>
+
+    <span class="keyword">local</span> s,e = editor:findtext(txt,flags,0)
+
+    <span class="keyword">local</span> result = {}
+
+    <span class="keyword">while</span> s <span class="keyword">do</span> 
+
+      <span class="keyword">local</span> l = editor:LineFromPosition(s)
+
+      <span class="comment">-- trace(l..' '..editor:GetLine(l))</span>
+
+      func = strip(editor:GetLine(l))
+
+      <span class="library">table.insert</span>(result,func)
+
+      s,e = editor:findtext(txt,flags,e+1)
+
+    <span class="keyword">end</span>    
+
+    <span class="keyword">return</span> result
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> strip(str)
+
+
+
+	str=<span class="library">string.gsub</span>(str, <span class="string">"^%s+"</span>,<span class="string">""</span>)
+
+	<span class="keyword">if</span> <span class="library">string.find</span>(str, <span class="string">"\r\n"</span>) <span class="keyword">then</span>
+
+	<span class="keyword">return</span> <span class="library">string.gsub</span>(str, <span class="string">"\r\n"</span>, <span class="string">""</span>)
+
+	<span class="keyword">else</span>
+
+	<span class="keyword">return</span> <span class="library">string.gsub</span>(str, <span class="string">"\n"</span>, <span class="string">""</span>)
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> charAt(n)
+
+
+
+	<span class="keyword">return</span> <span class="library">string.char</span>(editor.CharAt[n])
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> getCurrentWord()
+
+		
+
+	_curpos = editor.CurrentPos
+
+	regexp = <span class="string">"[a-zA-Z_]"</span> <span class="comment">--&gt; ProgLang-specific REGEXP</span>
+
+	curpos = _curpos
+
+	char=charAt(curpos)
+
+	right=<span class="string">''</span>
+
+	<span class="keyword">while</span> <span class="library">string.find</span>(char,regexp)  <span class="keyword">do</span>
+
+		right=right..char
+
+		curpos = curpos + 1
+
+		char=charAt(curpos)
+
+		<span class="comment">--trace(char)</span>
+
+	<span class="keyword">end</span>
+
+	regexp = <span class="string">"[a-zA-Z_]"</span>
+
+	curpos = _curpos-1
+
+	char=charAt(curpos)
+
+	left=<span class="string">''</span>
+
+	<span class="keyword">while</span> <span class="library">string.find</span>(char,regexp) <span class="keyword">do</span>
+
+		left=char..left
+
+		curpos = curpos - 1
+
+		char=charAt(curpos)
+
+	<span class="keyword">end</span>
+
+	result = left..right
+
+	<span class="keyword">if</span> result == <span class="string">''</span> <span class="keyword">then</span>
+
+		<span class="keyword">return</span> <span class="keyword">false</span>
+
+	<span class="keyword">else</span>
+
+		<span class="keyword">return</span> result
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> isInFunctionTable(<span class="library">table</span>,value)
+
+
+
+	indicator = <span class="keyword">false</span>
+
+	<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">table</span> <span class="keyword">do</span>
+
+		<span class="keyword">if</span> <span class="library">string.find</span>(v,(<span class="string">"^function "</span>..value)) <span class="keyword">then</span> indicator = <span class="keyword">true</span> <span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">return</span> indicator
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> DisplayFunctions()
+
+
+
+	function_catch = <span class="string">'^[ |\t]*function [a-zA-Z0-9_:&amp;]*([a-zA-Z0-9,_ \$\=\&amp;]*)'</span> <span class="comment">--&gt;  ProgLang-specific REGEXP</span>
+
+	ki = AllLinesWithText(function_catch,SCFIND_REGEXP)
+
+	current_word = getCurrentWord()
+
+	<span class="keyword">if</span>  (current_word) <span class="keyword">and</span> (isInFunctionTable(ki,current_word)) <span class="keyword">then</span>
+
+		<span class="keyword">local</span> s,e = editor:findtext(<span class="string">"^[ |\t]*function "</span>..current_word,SCFIND_REGEXP,0)
+
+		editor:GotoPos(s)
+
+		<span class="comment">-- editor:MarkerAdd(editor:LineFromPosition(editor.CurrentPos),1)</span>
+
+	<span class="keyword">else</span>
+
+		<span class="keyword">if</span> ( <span class="library">table.getn</span>(ki) &gt; 0 ) <span class="keyword">then</span>
+
+			UserListShow(ki)
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">return</span> 0
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> OnUserListSelection(listID, s)
+
+
+
+  <span class="keyword">local</span> s,e = editor:findtext(s,SCFIND_REGEXP,0)
+
+  editor:GotoPos(s)
+
+  <span class="keyword">return</span> 0
+
+<span class="keyword">end</span>
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteDisplayFunctions" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteDisplayFunctions" >history</a><br>Last edited September 3, 2006 8:08 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteDisplayFunctions" >(diff)</a>
+</body>
+</html>

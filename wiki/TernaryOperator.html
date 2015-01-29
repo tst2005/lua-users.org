@@ -1,0 +1,428 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Ternary Operator</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TernaryOperator&amp;body=1" title="List pages referring to TernaryOperator">Ternary Operator</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>The Problem</H2>
+<p>
+There are times when it would be preferable to use an if-then-else conditional statement as an expression.  Consider this code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">if</span> x &lt; 0 <span class="keyword">then</span>
+
+  <span class="library">print</span>(<span class="string">'x is negative'</span>)
+
+<span class="keyword">else</span>
+
+  <span class="library">print</span>(<span class="string">'x is non-negative'</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Stylistically, repetition like <code>print('x is ' ...)</code> is to be avoided (<a href="http://en.wikipedia.org/wiki/Don't_repeat_yourself.html">[DRY]</a>), particularly if this repeated code were instead something much more complicated.  One way to resolve that is with a variable:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> sign
+
+<span class="keyword">if</span> x &lt; 0 <span class="keyword">then</span>
+
+  sign = <span class="string">'negative'</span>
+
+<span class="keyword">else</span>
+
+  sign = <span class="string">'non-negative'</span>
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>(<span class="string">'x is '</span> .. sign)
+
+</pre>
+
+</DL>
+<p>
+But now we've introduced new style problems: although the naming of a value (<code>sign</code>) can be useful for documentation purposes, the name is repeated in four locations, its scope undesirably extends beyond the <code>print</code> statement, and the length and complexity of the code is arguably increased.  What we may really want to do is bring the if-then-else into the expression, like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> sign = <span class="keyword">if</span> x &lt; 0 <span class="keyword">then</span> <span class="string">'negative'</span> <span class="keyword">else</span> <span class="string">'non-negative'</span> <span class="keyword">end</span>
+
+<span class="library">print</span>(<span class="string">'x is '</span> .. sign)
+
+
+
+<span class="comment">-- or just this...</span>
+
+<span class="library">print</span>(<span class="string">'x is '</span> .. <span class="keyword">if</span> x &lt; 0 <span class="keyword">then</span> <span class="string">'negative'</span> <span class="keyword">else</span> <span class="string">'non-negative'</span> <span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+where the form <code>if a then b else c end</code> would be an expression that evaluates to <code>b</code> when <code>a</code> is true and otherwise evaluates to <code>c</code>.  However, this syntax is not supported in Lua.  Some languages do support this construct directly: it is called a conditional ternary operator <a href="http://en.wikipedia.org/wiki/Ternary_operation.html">[1]</a>.  It is "ternary" because there are three operands: <code>a</code>, <code>b</code>, and <code>c</code>.  For example, in the C language, the ternary operator is written like
+<p>
+<DL>
+<dt><dd><pre>
+
+sign = (x &lt; 0) ? "negative" : "non-negative";
+
+</pre>
+</DL>
+<p>
+Ternary operations can also be chained, analogous to "<code>elseif</code>" clauses:
+<p>
+<DL>
+<dt><dd><pre>
+
+x = (a &lt; amin) ? amin : (a &gt; amax) ? amax : a;
+
+</pre>
+</DL>
+<p>
+Here, the ternary operator has right-associativity, which means the parenthesis are implied according to the first (not second) line below:
+<p>
+<DL>
+<dt><dd><pre>
+
+x = (a &lt; amin) ? amin : ((a &gt; amax) ? amax : a);
+
+x = ((a &lt; amin) ? amin : (a &gt; amax)) ? amax : a;
+
+</pre>
+</DL>
+<p>
+This is analogous to how the following Lua if-then-else statements are equivalent:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">if</span> a &lt; amin <span class="keyword">then</span>
+
+  x = amin
+
+<span class="keyword">elseif</span> a &gt; amax <span class="keyword">then</span>
+
+  x = amax
+
+<span class="keyword">else</span>
+
+  x = a
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">if</span> a &lt; amin <span class="keyword">then</span>
+
+  x = amin
+
+<span class="keyword">else</span>
+
+  <span class="keyword">if</span> a &gt; amax <span class="keyword">then</span>
+
+    x = amax
+
+  <span class="keyword">else</span>
+
+    x = a
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Even though Lua lacks ternary operators explicitly, there are ways to closely approximate it, as described below.
+<p>
+<H2>Standard solution: and/or</H2>
+<p>
+A frequently used and highly recommend solution is to combine the <code>and</code> and <code>or</code> binary operators in a way that closely approximates the ternary operator:
+<p>
+<DL>
+<dt><dd><pre class="code">
+x = a <span class="keyword">and</span> b <span class="keyword">or</span> c
+
+x = a <span class="keyword">and</span> b <span class="keyword">or</span> c <span class="keyword">and</span> d <span class="keyword">or</span> e
+
+</pre>
+
+</DL>
+<p>
+See the book ProgrammingInLua<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ProgrammingInLua" >?</a> or <a href="../wiki/ExpressionsTutorial.html" >ExpressionsTutorial</a> for details on the special properties of these binary operators that allow them to work this way.
+<p>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(<span class="string">'x is '</span> .. (x &lt; 0 <span class="keyword">and</span> <span class="string">'negative'</span> <span class="keyword">or</span> <span class="string">'non-negative'</span>))  <span class="comment">-- this works!</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+The main caveat is that if <code>a</code> or <code>c</code> evaluates to true while <code>b</code> or <code>d</code> respectively evaluate to false, then this expression will not behave exactly like the ternary operator.  Here, "evaluate to false" means that the value is either <code>false</code> or <code>nil</code>, and "evaluate to true" means not evaluate to false.  In the first line above, <code>a and b or c</code> is interpreted as <code>(a and b) or c</code> (because <code>and</code> has higher precedence than <code>or</code>), and if <code>a</code> evaluates to true, then the expression becomes <code>b or c</code>, and if <code>b</code> evaluates to false, then the expression becomes <code>c</code> (not <code>b</code> as you might want).
+<p>
+Often, as in the case of our original example, the second operand of the tertiary operator can never evaluate to false, so you are free to use this idiom, but beware of the caveat. If the <code>b</code> will evaluate to false, change the <code>a</code> so that it evaluates exactly opposite and therefore swaps <code>b</code> and <code>c</code>
+<p>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>((x &lt; 0 <span class="keyword">and</span> <span class="keyword">false</span> <span class="keyword">or</span> <span class="keyword">true</span>))  <span class="comment">-- this fails!</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>((x &gt;= 0 <span class="keyword">and</span> <span class="keyword">true</span> <span class="keyword">or</span> <span class="keyword">false</span>))  <span class="comment">-- this works!</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Anonymous functions/closures</H2>
+<p>
+You can insert arbitrary statements inside expressions via an anonymous function (or closure), and this includes if-then-else statements:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(<span class="string">'x is '</span> .. (<span class="keyword">function</span>() <span class="keyword">if</span> x &lt; 0 <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">'negative'</span> <span class="keyword">else</span> <span class="keyword">return</span> <span class="string">'non-negative'</span> <span class="keyword">end</span> <span class="keyword">end</span>)())
+
+</pre>
+
+</DL>
+<p>
+A main downside is that this creates an anonymous closure on every execution, which may reduce performance in a tight loop.  Also, anonymous function syntax is a bit verbose in Lua (as detailed in <a href="../wiki/ShortAnonymousFunctions.html" >ShortAnonymousFunctions</a>).
+<p>
+See also [<a href="../wiki/ExpressionsAsStatements.html" >ExpressionsAsStatements</a>].
+<p>
+<H2>Functional-if</H2>
+<p>
+One can also write <code>if</code> as a function:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> fif(condition, if_true, if_false)
+
+  <span class="keyword">if</span> condition <span class="keyword">then</span> <span class="keyword">return</span> if_true <span class="keyword">else</span> <span class="keyword">return</span> if_false <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>( fif(condition, a, b) )
+
+</pre>
+
+</DL>
+<p>
+but this does not have the advantage of short-circuiting unless the conditions are expressed as anonymous closures for delayed evaluation:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> fif(condition, if_true, if_false)
+
+  <span class="keyword">if</span> condition <span class="keyword">then</span> <span class="keyword">return</span> if_true() <span class="keyword">else</span> <span class="keyword">return</span> if_false() <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> x = fif(condition, <span class="keyword">function</span>() <span class="keyword">return</span> a <span class="keyword">end</span>, <span class="keyword">function</span>() <span class="keyword">return</span> b <span class="keyword">end</span>)
+
+<span class="library">print</span>(x)  <span class="comment">--&gt; false</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Boxing/unboxing</H2>
+<p>
+To avoid the above problems with nil's, you may "box" those values in some expression that is never nil.  Unfortunately, the boxing imposes an overhead.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> condition, a, b = <span class="keyword">true</span>, <span class="keyword">false</span>, <span class="keyword">true</span>
+
+<span class="keyword">local</span> x = (condition <span class="keyword">and</span> {a} <span class="keyword">or</span> {b})[1]
+
+<span class="library">print</span>(x)  <span class="comment">--&gt; false</span>
+
+</pre>
+
+</DL>
+<p>
+Here's a similar solution but using functions:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> False = {}
+
+<span class="keyword">local</span> Nil = {}
+
+<span class="keyword">local</span> <span class="keyword">function</span> bwrap(o)
+
+  <span class="keyword">return</span> o == <span class="keyword">nil</span> <span class="keyword">and</span> Nil <span class="keyword">or</span> o == <span class="keyword">false</span> <span class="keyword">and</span> False <span class="keyword">or</span> o
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> bunwrap(o)
+
+  <span class="keyword">if</span> o == Nil <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span>
+
+  <span class="keyword">elseif</span> o == False <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span>
+
+  <span class="keyword">else</span> <span class="keyword">return</span> o <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> x = bunwrap(condition <span class="keyword">and</span> bwrap(a) <span class="keyword">or</span> b)
+
+<span class="library">print</span>(x)  <span class="comment">--&gt; false</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Stack</H2>
+<p>
+Here's an interesting (and rarely used) stack-like approach, with stack of size 1:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> save, restore <span class="keyword">do</span>
+
+  <span class="keyword">local</span> o_saved
+
+  save = <span class="keyword">function</span>(o) o_saved = o; <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+  restore = <span class="keyword">function</span>() <span class="keyword">return</span> o_saved <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> x = (condition <span class="keyword">and</span> save(a) <span class="keyword">or</span> save(b)) <span class="keyword">and</span> restore()
+
+<span class="library">print</span>(x)  <span class="comment">--&gt; false</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Syntax Extensions</H2>
+<p>
+The following are some proposals for extending Lua syntax to support the ternary operator more directly.
+<p>
+<H2>Simple syntax extension</H2>
+<p>
+Perhaps the most Lua-ish syntax extension, introducing no new keywords, and preserving the current conditional syntax as much as possible, is something like these:
+<p>
+<DL>
+<dt><dd><pre class="code">
+x = <span class="keyword">if</span> a <span class="keyword">then</span> b <span class="keyword">elseif</span> c <span class="keyword">then</span> d <span class="keyword">else</span> e <span class="keyword">end</span>
+
+x = (<span class="keyword">if</span> a <span class="keyword">then</span> b <span class="keyword">elseif</span> c <span class="keyword">then</span> d <span class="keyword">else</span> e <span class="keyword">end</span>)
+
+x = (a <span class="keyword">then</span> b <span class="keyword">elseif</span> c <span class="keyword">then</span> d <span class="keyword">else</span> e)
+
+</pre>
+
+</DL>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2010-09/msg00353.html">LuaList:2010-09/msg00353.html</a> - Roberto's comments on whether <code>end</code> should be used here
+<li> <a href="/lists/lua-l/2010-09/msg00598.html">LuaList:2010-09/msg00598.html</a> - argument for <code>x = (a then b else c)</code>, with parenthesis required
+</UL>
+<p>
+<H2>Syntax extension: then/or keywords</H2>
+<p>
+Some people propose syntaxes like these:
+<p>
+<DL>
+<dt><dd><pre class="code">
+x = a <span class="keyword">then</span> b <span class="keyword">else</span> c
+
+x = a <span class="keyword">then</span> b <span class="keyword">or</span> c
+
+</pre>
+
+</DL>
+<p>
+but they cause ambiguities when used inside conditional statements:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">if</span> a() <span class="keyword">then</span> b() <span class="keyword">else</span> c() <span class="keyword">then</span> d() <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Syntax extension: Pythonic "x if y else z"</H2>
+<p>
+There are syntactic advantages to having the condition as the middle argument of the conditional ternary operator, as John Backus pointed out many years ago:
+<p>
+<DL>
+<dt><dd><pre>x = a when a &lt; b else b</pre>
+</DL>
+<p>
+gives <code>x</code> the value of <code>a</code> if <code>c</code> is the first condition to be true. This could be accomplished with the current Lua syntax if <code>when</code> were defined as <code>and</code> but with arguments interchanged (so with lazy evaluation of its first argument).  Unfortunately this is not as straightforward to implement as might at first appear, because it means holding over the evaluation of an expression until a succeeding expression has been evaluated.  This is what was done for Python's new conditional expressions <a href="http://www.python.org/dev/peps/pep-0308/">[2]</a>.  --Anonymous
+<p>
+See also similar comments in <a href="/lists/lua-l/2006-09/msg00608.html">LuaList:2006-09/msg00608.html</a> .
+<p>
+<H2>Meta<code></code>Lua</H2>
+<p>
+<a href="../wiki/MetaLua.html" >MetaLua</a> includes an example (<a href="https://github.com/fab13n/metalua/blob/master/src/samples/ifexpr.mlua">[ifexpr.mlua]</a>) for adding this syntax:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> foo = <span class="keyword">if</span> bar <span class="keyword">then</span> 1 <span class="keyword">else</span> 2
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>, et al.
+<p>
+<H2>See Also</H2>
+<p>
+- <a href="http://www.lualearners.org/tutorial?tut=74">http://www.lualearners.org/tutorial?tut=74</a>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TernaryOperator" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TernaryOperator" >history</a><br>Last edited June 13, 2014 6:18 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TernaryOperator" >(diff)</a>
+</body>
+</html>

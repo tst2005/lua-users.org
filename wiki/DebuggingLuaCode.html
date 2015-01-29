@@ -1,0 +1,78 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Debugging Lua Code</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=DebuggingLuaCode&amp;body=1" title="List pages referring to DebuggingLuaCode">Debugging Lua Code</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em>Question: Is there a debugger for Lua?</em>
+<p>
+Lua comes with debugger interface, so that users can write their own monitoring code (e.g., for a debugger, tracer, or profiler) through the Lua Debug library <a href="http://www.lua.org/manual/5.1/manual.html#3.8">[1]</a>.  Some examples are below.
+<UL>
+<li> <strong>Inline / Command line debuggers</strong>
+<UL>
+<li> <a href="http://www.keplerproject.org/remdebug/example.html">[RemDebug]</a> - remote debugger in Kepler
+<li> <a href="http://luaforge.net/projects/clidebugger/">[clidebugger]</a> (5.1) - a simple portable Lua command line debugger, inspired by RemDebug<a href="/cgi-bin/wiki.pl?action=edit&amp;id=RemDebug" >?</a> but without its remote facilities
+<li> <a href="http://primero.ricilake.net:8008/ldb/index">[ldb]</a> by <a href="../wiki/RiciLake.html" >RiciLake</a> (broken link?)
+<UL>
+<li> A few versions may be found here: <a href="http://code.google.com/p/infon/source/browse/trunk/libs/ldb.lua">[2]</a>+<a href="http://code.google.com/p/infon/source/browse/trunk/libs/">[3]</a>, <a href="http://idle.thomaslauer.com/Licences.html">[4]</a> (also search "rici ldb" on <a href="http://lua-users.org/lists/lua-l/">http://lua-users.org/lists/lua-l/</a> )
+</UL>
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#ctrace">[ctrace]</a> (5.0/5.1) - a tool for tracing Lua API calls.
+<li> <a href="http://www.zeusedit.com/lua.html">[xdbLua]</a> (5.1) - a simple Lua command line debugger for Windows.
+<li> <a href="http://code.google.com/p/luainterface-debugger/">[LuaInterface-debugger]</a> (5.1) - a debugger extension for <a href="../wiki/LuaInterface.html" >LuaInterface</a>.
+<li> <a href="http://luaforge.net/projects/rldb/">[Rldb]</a> - remote lua debugger via sockets. written in C
+<li> <a href="https://github.com/pkulchenko/MobDebug">[MobDebug]</a> - remote Lua debugger using sockets (based on RemDebug<a href="/cgi-bin/wiki.pl?action=edit&amp;id=RemDebug" >?</a>); integrates with <a href="http://studio.zerobrane.com/">[ZeroBrane Studio Lua IDE]</a>
+<li> <a href="http://www.tecgraf.puc-rio.br/~tomas/ldb">[Ldb]</a> much older debugger by Tomás Guisasola
+<li> <a href="http://wiki.eclipse.org/Koneki/LDT/Concepts/Debugger">[LDT debugger]</a> Koneki LDT debugger based on the DBGp protocol.
+</UL>
+</UL>
+<p>
+<UL>
+<li> <strong>Graphical debuggers</strong>
+<UL>
+<li> See <a href="../wiki/LuaIntegratedDevelopmentEnvironments.html" >LuaIntegratedDevelopmentEnvironments</a>.
+<li> For SciTE, see <a href="../wiki/SciteDebug.html" >SciteDebug</a> (No watch window in debugging).
+<li> <a href="http://www.softwareverify.com/lua/memory/index.html">[Software Verification Lua Memory Validator]</a>
+<li> <a href="http://www.softwareverify.com/lua/flow_tracer/index.html">[Software Verification Lua Bug Validator]</a>
+<li> <a href="http://unknownworlds.com/decoda">[Decoda]</a> is Graphical debugger with remote debugging support (Debugging does not work "from the box")
+<li> <a href="http://www.cushy-code.com/grld">[GRLD]</a> - graphical remote lua debugger with source code, free of charge for non-commercial use. Works with lua-jit too. (Does not work "from the box". Very buggy.)
+<li> <a href="http://studio.zerobrane.com/">[ZeroBrane Studio]</a> Lua IDE with integrated remote debugger, stack view, watch view, remote console, static analyzer, and more. Works with LuaJIT, Love2d, Moai, and other Lua engines. Windows, OSX, and Linux. Open source.
+<li> <a href="https://babelua.codeplex.com/">[BabeLua]</a> vs2012/2013 extension. Debugger (Watch, Globals, Locals, Call Stack, Lua Stack, etc) 
+<li> <a href="http://sourceforge.net/projects/akdebugger">[akdebugger]</a> Debugger and editor for Lua. Plugin for Eclipse.
+<li> <a href="http://luaedit.sourceforge.net/">[LuaEdit]</a> Lua IDE for Windows with integrated remote debugger
+</UL>
+</UL>
+<p>
+<UL>
+<li> <strong>Other</strong>
+<UL>
+<li> <a href="https://github.com/ignacio/StackTracePlus">[StackTracePlus]</a> -- provides enhaced stack traces
+</UL>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DebuggingLuaCode" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=DebuggingLuaCode" >history</a><br>Last edited August 29, 2014 7:47 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=DebuggingLuaCode" >(diff)</a>
+</body>
+</html>

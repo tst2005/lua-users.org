@@ -1,0 +1,66 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Yet Another Lua Bot</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=YetAnotherLuaBot&amp;body=1" title="List pages referring to YetAnotherLuaBot">Yet Another Lua Bot</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Yalb is a (yet another) bot that runs Lua code in a sandbox. It resides in #lua and its prefix character is <code>%</code>
+<p>
+Unlike other bots, it can execute more than one version of Lua: everything from 3.2 to 5.3 and even <a href="../wiki/LuaJit.html" >LuaJit</a>.
+<p>
+<H3>Interface</H3>
+<p>
+<UL>
+<li> The command format is as follows: <code>%&lt;version&gt; &lt;code&gt;</code>
+<li> <code>&lt;version&gt;</code> is, for instance, <code>5.2</code> or <code>luajit</code> . You can leave it blank, and then the default (5.1) is used.
+<li> Besides Lua, there are a few other sandboxes, like <code>py</code>, <code>bc</code>, and even <code>c</code>. See <code>%list</code> for a complete list.
+<li> <code>&lt;code&gt;</code> can as well be a pastebin link, in which case the code is pulled from there, making it possible to provide long input for the bot. The current list of pastebins is incomplete, feel free to suggest missing ones.
+<li> If you double the <code>%</code> sign, i. e. <code>%%&lt;version&gt; &lt;code&gt;</code> , the output will be redirected to yalb's own pastebin ring, thus making it possible to also have long output without spamming the channel.
+<li> Another command is <code>%?&lt;version&gt; &lt;title&gt;</code> , which looks up a title (like <code>math.sin</code>, <code>lua_pcall</code>, or <code>6.4.1</code>) in the manual.
+</UL>
+<p>
+<H3>Sandbox</H3>
+<p>
+The sandbox prints whatever has been returned from the code, but unlike <a href="../wiki/BatBot.html" >BatBot</a>, it doesn't insert a <code>return</code> automatically.
+<p>
+There is a function called <code>pp</code> which is used for pretty-printing. It doesn't perform a deep inspection of tables, but displays identical tables/functions/userdata accordingly.
+<p>
+The sandbox doesn't remove any functions, but a lot of them are rendered useless, e. g. <code>os.execute</code> returns <code>-1</code> no matter what, because creating a new process is prohibited.
+<p>
+Execution time is capped at 3 seconds, memory is limited to roughly 45 megabytes.
+<p>
+You are allowed to read files in a few specific locations like <code>/dev/</code> or <code>/usr/include/</code>. Other filesystem access, including any kind of write access is forbidden.
+<p>
+Yes, it does take PMs.
+<p>
+<strong>Source:</strong> The backend is some ptrace mess, <a href="https://gist.github.com/mniip/10599541">[but here it is, anyway]</a>. The front-end is a 80-line Lua script which was hacked together in 15 minutes.
+<p>
+<strong>Author:</strong> mniip
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=YetAnotherLuaBot" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=YetAnotherLuaBot" >history</a><br>Last edited May 5, 2014 5:50 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=YetAnotherLuaBot" >(diff)</a>
+</body>
+</html>

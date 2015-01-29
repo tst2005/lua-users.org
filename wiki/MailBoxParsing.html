@@ -1,0 +1,236 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Mail Box Parsing</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MailBoxParsing&amp;body=1" title="List pages referring to MailBoxParsing">Mail Box Parsing</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Below is a simple library to parse mailbox files, as usually found in Unix systems.
+<strong>The code has been tested on Lua 5.0, 5.1 and 5.2(beta). </strong>
+<p>
+<H2>Parsing Mail box files</H2>
+<p>
+Say you save the source code in the current directory (or elsewhere in your <a href="../wiki/PackagePath.html" >PackagePath</a>) as <code>mboxparser.lua</code>.  In your code, put:
+<p>
+<DL>
+<dt><dd><pre class="code">
+parse = <span class="library">require</span> <span class="string">"mboxparser"</span> </pre>
+
+</DL>
+<p>
+The main function, <code>parse.mbox</code>, receives the mailbox file contents as a string and returns a table with one entry per message. Each entry has the following structure:
+<p>
+<DL>
+<dt><dd><pre class="code">
+message = {
+
+    headers = {
+
+        <span class="string">[["name_1"]]</span> = <span class="string">"value_1"</span>,
+
+        <span class="string">[["name_2"]]</span> = <span class="string">"value_2"</span>,
+
+        ...           ...
+
+        <span class="string">[["name_n"]]</span> = <span class="string">"value_n"</span>,
+
+    },
+
+    body = <span class="string">"message body"</span>
+
+}
+
+	</pre>
+
+</DL>
+<p>
+Therefore, if a mailbox has the following contents:
+<DL>
+<dt><dd><pre>
+
+From  whoever@tecgraf.puc-rio.br  Thu Nov 22 13:59:05 2001
+
+Date: Thu, 22 Nov 2001 13:59:04 -0200 (EDT)
+
+From: Whoever Smith &lt;whoever@tecgraf.puc-rio.br&gt;
+
+To: Other Smith &lt;other@tecgraf.puc-rio.br&gt;
+
+Subject: This is a test message
+
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+
+
+
+Hi, This is the message body.  Regards, Diego.
+
+	</pre>
+</DL>
+<p>
+Calling <code>parse.mbox</code> on it would return the following table:
+<p>
+<DL>
+<dt><dd><pre class="code">
+messages = {
+
+  { 
+
+    headers = {
+
+      from = <span class="string">"Whoever Smith &lt;whoever@tecgraf.puc-rio.br&gt;"</span>, 
+
+      subject = <span class="string">"This is a test message"</span>, 
+
+      to = <span class="string">"Other Smith &lt;other@tecgraf.puc-rio.br&gt;"</span>, 
+
+      date = <span class="string">"Thu, 22 Nov 2001 13:59:04 -0200 (EDT)"</span>, 
+
+      [<span class="string">"content-type"</span>] = <span class="string">"TEXT/PLAIN; charset=US-ASCII"</span>, 
+
+    }, 
+
+    body = <span class="string">"Hi, This is the message body.  Regards, Diego."</span>,
+
+  }
+
+}
+
+	</pre>
+
+</DL>
+<p>
+<H2>Source Code</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> Public = {}
+
+<span class="keyword">local</span> strfind, strlower, gsub = <span class="library">string.find</span>, <span class="library">string.lower</span>, <span class="library">string.gsub</span>
+
+<span class="keyword">local</span> strsub, tinsert = <span class="library">string.sub</span>, <span class="library">table.insert</span>
+
+
+
+<span class="keyword">function</span> Public.headers(headers_s)
+
+    <span class="keyword">local</span> headers = {}
+
+    headers_s = <span class="string">"\n"</span> .. headers_s .. <span class="string">"$$$:\n"</span>
+
+    <span class="keyword">local</span> i, j = 1, 1
+
+    <span class="keyword">local</span> name, value, _
+
+    <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+        j = strfind(headers_s, <span class="string">"\n%S-:"</span>, i+1)
+
+        <span class="keyword">if</span> <span class="keyword">not</span> j <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+        _, _, name, value = strfind(strsub(headers_s, i+1, j-1), <span class="string">"(%S-):(.*)"</span>)
+
+        value = gsub(value <span class="keyword">or</span> <span class="string">""</span>, <span class="string">"\r\n"</span>, <span class="string">"\n"</span>)
+
+        value = gsub(value, <span class="string">"\n%s*"</span>, <span class="string">" "</span>)
+
+        name = strlower(name)
+
+        <span class="keyword">if</span> headers[name] <span class="keyword">then</span> headers[name] = headers[name] .. <span class="string">", "</span> ..  value
+
+        <span class="keyword">else</span> headers[name] = value <span class="keyword">end</span>
+
+        i, j = j, i
+
+    <span class="keyword">end</span>
+
+    headers[<span class="string">"$$$"</span>] = <span class="keyword">nil</span>
+
+    <span class="keyword">return</span> headers
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Public.message(message_s)
+
+    message_s = gsub(message_s, <span class="string">"^.-\n"</span>, <span class="string">""</span>)
+
+    <span class="keyword">local</span> _, headers_s, body
+
+    _, _, headers_s, body = strfind(message_s, <span class="string">"^(.-\n)\n(.*)"</span>)
+
+    headers_s = headers_s <span class="keyword">or</span> <span class="string">""</span>
+
+    body = body <span class="keyword">or</span> <span class="string">""</span>
+
+    <span class="keyword">return</span> { headers = Public.headers(headers_s), body = body }
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Public.mbox(mbox_s)
+
+    <span class="keyword">local</span> mbox = {}
+
+    mbox_s = <span class="string">"\n"</span> .. mbox_s .. <span class="string">"\nFrom "</span>
+
+    <span class="keyword">local</span> i, j = 1, 1
+
+    <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+        j = strfind(mbox_s, <span class="string">"\nFrom "</span>, i + 1)
+
+        <span class="keyword">if</span> <span class="keyword">not</span> j <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+        tinsert(mbox, Public.message(strsub(mbox_s, i + 1, j - 1)))
+
+        i, j = j, i
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> mbox
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> Public
+
+	</pre>
+
+</DL>
+<p>
+<p>
+<p>
+<H2>Credits</H2>
+<p>
+The original Lua 4 code was created by <a href="../wiki/DiegoNehab.html" >DiegoNehab</a>, and is used to test the <code>LuaSocket</code><a href="http://www.tecgraf.puc-rio.br/luasocket">[1]</a> 1.4 SMTP code.  The Lua 5 version was made by <a href="../wiki/DirkLaurie.html" >DirkLaurie</a>.
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MailBoxParsing" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MailBoxParsing" >history</a><br>Last edited August 5, 2011 10:01 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MailBoxParsing" >(diff)</a>
+</body>
+</html>

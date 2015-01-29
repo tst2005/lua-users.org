@@ -1,0 +1,513 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: List Dep</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ListDep&amp;body=1" title="List pages referring to ListDep">List Dep</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  It does not run as is under Lua 5.</strong>
+<p>
+This program outputs a list of dependencies between Lua files, such as when one Lua file calls <code>dofile</code> on another Lua file.  (This is a CASE tool.)
+<p>
+<DL>
+<dt><dd><pre class="code">
+comment = <span class="string">[[
+
+
+
+  ListDep.lua: "List module dependencies"
+
+  Version 1.0 - April, 5, 2002
+
+
+
+  This program output a list of dependencies between Lua files,
+
+  such as when one Lua file calls {{dofile}} on another Lua file.
+
+  The output of this program is a graph which can be viewed by the aiSee program.
+
+  Download aiSee at http://www.aisee.com, available for unixes and windows
+
+
+
+  To see how to use it, call "lua ListDep.lua" for the usage description.
+
+
+
+  Please, send any comments to Luiz Carlos Silveira &lt;luiz@fabricadigital.com.br&gt;
+
+
+
+  
+
+  Limitations:
+
+  
+
+    - the "parser" don't have states, so it assumes your code behaves well.
+
+      For example, comment starters inside a string confuses the parser
+
+
+
+    - directories are not correctly resolved, so only the module's basename
+
+      is considered. In other words, the dependencies will not be correctly
+
+      listed if there are two modules with the same name.
+
+      
+
+    - dofile's that appear anywhere in the code are considered (except in
+
+      comments), including those that are in strings.
+
+
+
+]]</span>
+
+
+
+
+
+
+
+MODULES = {} 
+
+INFO = {} 
+
+
+
+<span class="keyword">function</span> newModule(module_label, module_title) 
+
+    MODULES[module_label] = {label = module_label, title = module_title, 
+
+dofiles={}} 
+
+<span class="keyword">end</span> 
+
+
+
+<span class="keyword">function</span> connectModules(from, to) 
+
+    <span class="keyword">if</span> (MODULES[to] == <span class="keyword">nil</span>) <span class="keyword">then</span> 
+
+        INFO.HAS_MODULE_NOT_FOUND = 1 
+
+        to = <span class="string">"MODULE_NOT_FOUND"</span> 
+
+    <span class="keyword">end</span> 
+
+    <span class="keyword">if</span> (MODULES[to].label == <span class="string">"UNKNOWN_REF"</span>) <span class="keyword">then</span> 
+
+        INFO.HAS_UNKNOWN_REF = 1 
+
+    <span class="keyword">end</span> 
+
+    tinsert(MODULES[from].dofiles, MODULES[to]) 
+
+<span class="keyword">end</span> 
+
+
+
+<span class="keyword">function</span> exportGraph(out_file)
+
+<span class="keyword">local</span> hndOUT
+
+    <span class="keyword">if</span> (out_file == <span class="string">"-"</span>) <span class="keyword">then</span>
+
+        hndOUT = _STDOUT
+
+    <span class="keyword">else</span>
+
+        hndOUT = openfile(out_file, <span class="string">"w"</span>)
+
+        <span class="keyword">if</span> (hndOUT == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+            <span class="library">error</span>(<span class="string">"Cannot write to "</span>..out_file)
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    write(hndOUT, <span class="string">"graph: {manhattanedges: yes\n"</span>) 
+
+    <span class="keyword">for</span> i, <span class="library">module</span> <span class="keyword">in</span> MODULES <span class="keyword">do</span> 
+
+        <span class="keyword">local</span> module_label = <span class="library">module</span>.label 
+
+        <span class="keyword">local</span> module_title = <span class="library">module</span>.title 
+
+        <span class="comment">-- only show MODULE_NOT_FOUD and UNKNOWN_REF if they are connected to someone</span>
+
+        <span class="keyword">if</span> <span class="keyword">not</span> (((module_label == <span class="string">"MODULE_NOT_FOUND"</span>) <span class="keyword">and</span> (INFO.HAS_MODULE_NOT_FOUND == <span class="keyword">nil</span>)) <span class="keyword">or</span> 
+
+            ((module_label == <span class="string">"UNKNOWN_REF"</span>) <span class="keyword">and</span> (INFO.HAS_UNKNOWN_REF == <span class="keyword">nil</span>))) <span class="keyword">then</span> 
+
+            write(hndOUT, <span class="string">'node: {label: "'</span>..module_label..<span class="string">'" title: "'</span>..module_title..<span class="string">'"}\n'</span>) 
+
+        <span class="keyword">end</span> 
+
+    <span class="keyword">end</span> 
+
+
+
+    <span class="keyword">for</span> i, <span class="library">module</span> <span class="keyword">in</span> MODULES <span class="keyword">do</span> 
+
+        <span class="keyword">for</span> i = 1, getn(<span class="library">module</span>.dofiles) <span class="keyword">do</span> 
+
+            <span class="keyword">local</span> <span class="library">dofile</span> = <span class="library">module</span>.dofiles[i] 
+
+            write(hndOUT, <span class="string">'edge: {sourcename: "'</span>..<span class="library">module</span>.label..<span class="string">'" targetname: "'</span>..<span class="library">dofile</span>.label..<span class="string">'"}\n'</span>) 
+
+        <span class="keyword">end</span> 
+
+    <span class="keyword">end</span> 
+
+    write(hndOUT, <span class="string">"}\n"</span>) 
+
+    closefile(hndOUT) 
+
+<span class="keyword">end</span> 
+
+
+
+
+
+<span class="comment">-- returns the 'basename' and the 'basedir' </span>
+
+<span class="keyword">function</span> getBases(filename) 
+
+    <span class="keyword">return</span>  gsub(filename, <span class="string">"(.*/)(.*)"</span>, <span class="string">"%2"</span>) <span class="keyword">or</span> filename, 
+
+            gsub(filename, <span class="string">"(.*/)(.*)"</span>, <span class="string">"%1"</span>) 
+
+<span class="keyword">end</span> 
+
+
+
+
+
+<span class="comment">-- processes the modules listed in the 'hnd' file</span>
+
+<span class="keyword">function</span> getReferenceForModules(hnd) 
+
+   <span class="keyword">local</span> filename 
+
+   <span class="keyword">local</span> modules = {} 
+
+   <span class="keyword">local</span> dirname 
+
+   <span class="keyword">local</span> filename 
+
+   <span class="keyword">local</span> basedir 
+
+   <span class="keyword">local</span> basename 
+
+
+
+   newModule(<span class="string">"UNKNOWN_REF"</span>, <span class="string">"UNKNOWN_REF"</span>) 
+
+   newModule(<span class="string">"MODULE_NOT_FOUND"</span>, <span class="string">"MODULE_NOT_FOUND"</span>) 
+
+
+
+   filename = read(hnd) 
+
+   <span class="keyword">while</span> (filename) <span class="keyword">do</span> 
+
+      <span class="keyword">if</span> (filename ~= <span class="string">''</span>) <span class="keyword">then</span> 
+
+         basename, basedir = getBases(filename) 
+
+         tinsert(modules, filename) 
+
+         newModule(basename, basename) 
+
+      <span class="keyword">end</span> 
+
+      filename = read(hnd) 
+
+   <span class="keyword">end</span> 
+
+
+
+   <span class="keyword">for</span> i = 1, getn(modules) <span class="keyword">do</span> 
+
+      processFile(modules[i]) 
+
+   <span class="keyword">end</span> 
+
+<span class="keyword">end</span> 
+
+
+
+
+
+<span class="comment">-- processes a module</span>
+
+<span class="keyword">function</span> processFile(filename) 
+
+
+
+    <span class="keyword">local</span> wholefile, result 
+
+    <span class="keyword">local</span> hndIN 
+
+    <span class="keyword">local</span> basename, basedir = getBases(filename)
+
+
+
+
+
+    <span class="keyword">local</span> execute_function_param = <span class="keyword">function</span> (param) 
+
+        <span class="keyword">local</span> n
+
+        <span class="keyword">local</span> module_name
+
+        <span class="keyword">local</span> module_basename 
+
+        
+
+        <span class="comment">-- detect '' and "" strings</span>
+
+        module_name, n  = gsub(param, <span class="string">".*([\"'])([^%1]*)%1.*"</span>, <span class="string">"%2"</span>)
+
+        <span class="keyword">if</span> (n == 0) <span class="keyword">then</span>
+
+            <span class="comment">-- detect [[]] strings</span>
+
+            module_name, n = gsub(param, <span class="string">".*%[%[[^%]*]%]%].*"</span>, <span class="string">"%1"</span>)
+
+        <span class="keyword">end</span>
+
+        
+
+        <span class="keyword">if</span> (n ~= 1) <span class="keyword">then</span> 
+
+            module_basename = <span class="string">"UNKNOWN_REF"</span> 
+
+        <span class="keyword">else</span>
+
+            module_name = gsub(module_name, <span class="string">"%."</span>..CONFIG.luac_extension, <span class="string">".lua"</span>) 
+
+            module_basename = getBases(module_name)
+
+        <span class="keyword">end</span>
+
+
+
+        connectModules(%basename, module_basename) 
+
+    <span class="keyword">end</span>
+
+
+
+
+
+
+
+    <span class="library">print</span>(<span class="string">"processing file "</span>..filename) 
+
+
+
+    hndIN = openfile(filename, <span class="string">"r"</span>) 
+
+    <span class="keyword">if</span> (hndIN == <span class="keyword">nil</span>) <span class="keyword">then</span> 
+
+       <span class="library">print</span>(<span class="string">"** error opening file "</span>..fname) 
+
+    <span class="keyword">end</span> 
+
+
+
+    wholefile = read(hndIN, <span class="string">"*a"</span>)
+
+
+
+    <span class="comment">-- remove comments (don't work if -- is inside a string)</span>
+
+    wholefile = gsub(wholefile, <span class="string">"%-%-[^\n\r]*"</span>, <span class="string">""</span>)
+
+
+
+    <span class="comment">-- find "dofile"s </span>
+
+    <span class="keyword">for</span> i, execute_function <span class="keyword">in</span> CONFIG.lua_file_execute_functions <span class="keyword">do</span> 
+
+        <span class="comment">-- for beginning of the file </span>
+
+        gsub(wholefile, <span class="string">"^"</span>..execute_function..<span class="string">"[^0-9A-Za-z_]*(%b())"</span>, execute_function_param) 
+
+        <span class="comment">-- for the middle and the end of the file </span>
+
+        gsub(wholefile, <span class="string">"[^0-9A-Za-z_]"</span>..execute_function..<span class="string">"[^0-9A-Za-z_]*(%b())"</span>, execute_function_param) 
+
+    <span class="keyword">end</span> 
+
+
+
+   closefile(hndIN) 
+
+
+
+<span class="keyword">end</span> 
+
+
+
+
+
+<span class="comment">-- main </span>
+
+
+
+
+
+CONFIG = {
+
+    output = <span class="string">"-"</span>,
+
+    exclude_from_path = <span class="string">""</span>,
+
+    luac_extension = <span class="string">"luac"</span>,
+
+    lua_file_execute_functions = {<span class="string">"dofile"</span>}, 
+
+} 
+
+
+
+
+
+<span class="keyword">if</span> (<span class="keyword">not</span> list) <span class="keyword">then</span> 
+
+    <span class="library">print</span>(<span class="string">'Usage: lua &lt;list="luafiles.list"|"-"&gt; [output="file"|"-"]'</span>)
+
+    <span class="library">print</span>(<span class="string">'           [luac_extension="ext"]'</span>)
+
+    <span class="library">print</span>(<span class="string">'           [lua_file_execute_functions="{\'func1\', ..., \'funcn\'}"]'</span>)
+
+    <span class="library">print</span>(<span class="string">'           ListDeps.lua"'</span>) 
+
+    <span class="library">print</span>()
+
+    <span class="library">print</span>()
+
+    <span class="library">print</span>(<span class="string">'  list: A file with the list of lua files to process. One file per line.'</span>)
+
+    <span class="library">print</span>(<span class="string">'        Use "-" to read from standard input'</span>)
+
+    <span class="library">print</span>(<span class="string">'        example: find project/lua -name "*.lua" | lua list="-" ListDeps.lua'</span>)
+
+    <span class="library">print</span>()
+
+    <span class="library">print</span>(<span class="string">'  output: The GDL output file, or "-" to write to the standard output.'</span>)
+
+    <span class="library">print</span>()
+
+    <span class="library">print</span>(<span class="string">'  exclude_from_path: A gsub pattern to exclude from each lua file path'</span>)
+
+    <span class="library">print</span>()
+
+    <span class="library">print</span>(<span class="string">'  luac_extension: The lua compiled files extension used in dofiles'</span>)
+
+    <span class="library">print</span>()
+
+    <span class="library">print</span>(<span class="string">'  lua_file_execute_functions: a table with the functions that do files'</span>)
+
+    <span class="library">print</span>()
+
+    <span class="library">print</span>()
+
+    <span class="library">print</span>(<span class="string">'Note: it only works over source code files!'</span>) 
+
+    exit() 
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">if</span> (output) <span class="keyword">then</span>
+
+    CONFIG.output = output
+
+    output = <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">if</span> (luac_extension ~= <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+    CONFIG.luac_extension = luac_extension
+
+    luac_extension = <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">if</span> (lua_file_execute_functions ~= <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+    CONFIG.lua_file_execute_functions = dostring(<span class="string">'return '</span>..lua_file_execute_functions)
+
+    lua_file_execute_functions = <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">if</span> (list == <span class="string">"-"</span>) <span class="keyword">then</span> 
+
+   getReferenceForModules(_STDIN) 
+
+<span class="keyword">else</span> 
+
+   hnd = openfile(list, <span class="string">"r"</span>) 
+
+   <span class="keyword">if</span> (hnd == <span class="keyword">nil</span>) <span class="keyword">then</span> 
+
+          <span class="library">print</span>(<span class="string">"File "</span>..list..<span class="string">" not found!"</span>) 
+
+          exit() 
+
+       <span class="keyword">end</span> 
+
+   getReferenceForModules(hnd) 
+
+   closefile(hnd) 
+
+<span class="keyword">end</span> 
+
+
+
+exportGraph(CONFIG.output)
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ListDep" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ListDep" >history</a><br>Last edited January 2, 2007 1:45 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ListDep" >(diff)</a>
+</body>
+</html>

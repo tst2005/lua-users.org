@@ -1,0 +1,435 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Table Preallocation</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TablePreallocation&amp;body=1" title="List pages referring to TablePreallocation">Table Preallocation</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+In stock Lua 5.1, there is no built-in function accessible to Lua code that is equivalent to the <code>lua_createtable</code> <a href="http://www.lua.org/manual/5.1/manual.html#lua_createtable">[1]</a> C API function.  <code>lua_createtable</code> creates a Lua table with array and hash regions preallocated to the given sizes.
+<p>
+Preallocation can be more efficient than doing <code>local t = {}; for i=1,N do t[i] = 0 end</code>, in which case approximately O(log(N)) allocations are performed--once each time the array is reallocated to a multiple of the previous size upon overflow.
+<p>
+Below are some solutions to this.
+<p>
+<H3>Solution: Bind to a C Function</H3>
+<p>
+Here, we build a Lua binding to the <code>lua_createtable</code> C function.  This is the most robust, efficient, and straightforward approach in general, if you can bind to C.
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2009-03/msg00332.html">LuaList:2009-03/msg00332.html</a>
+</UL>
+<p>
+<H3>Solution: table constructor and loadstring hacks</H3>
+<p>
+If we use table constructor syntax in Lua, e.g. <code>local t = {0,0,0,0,0</code>}, the Lua parser generates opcodes that pre-allocate the required space in the table and fill the table.  This is mostly what we want, except perhaps the part about filling the table:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ echo 'local t = {0,0,0,0,0}' | luac -p -l -
+
+main &lt;stdin:0,0&gt; (8 instructions, 32 bytes at 0x680e00)
+
+0+ params, 6 slots, 0 upvalues, 1 local, 1 constant, 0 functions
+
+        1       [1]     NEWTABLE        0 5 0
+
+        2       [1]     LOADK           1 -1    ; 0
+
+        3       [1]     LOADK           2 -1    ; 0
+
+        4       [1]     LOADK           3 -1    ; 0
+
+        5       [1]     LOADK           4 -1    ; 0
+
+        6       [1]     LOADK           5 -1    ; 0
+
+        7       [1]     SETLIST         0 5 1   ; 1
+
+        8       [1]     RETURN          0 1
+
+</pre>
+</DL>
+<p>
+Even better, we can fill the table with <code>nil</code>'s, <code>local t =  {nil,nil,nil,nil,nil</code>}, which uses more efficient LOADNIL and SETLIST instructions:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ echo 'local t = {nil,nil,nil,nil,nil}' | luac -p -l -
+
+main &lt;stdin:0,0&gt; (4 instructions, 16 bytes at 0x680df8)
+
+0+ params, 6 slots, 0 upvalues, 1 local, 0 constants, 0 functions
+
+       1       [1]     NEWTABLE        0 5 0
+
+       2       [1]     LOADNIL         1 5
+
+       3       [1]     SETLIST         0 5 1   ; 1
+
+       4       [1]     RETURN          0 1
+
+</pre>
+</DL>
+<p>
+The  main problem is that if the required allocation size is large, this is cumbersome to write, and if the size is not known until run-time, then we need to build the string of code at run-time and call <code>loadstring</code>:
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2009-06/msg00438.html">LuaList:2009-06/msg00438.html</a>
+<li> <a href="/lists/lua-l/2009-04/msg00425.html">LuaList:2009-04/msg00425.html</a>
+</UL>
+<p>
+This is workable.  It is not that efficient to build and compile the function that builds the table, but on the other hand, this step might only need to be done once (or could be memoized).  A possibly minor point is that the LOADNIL and SETLIST instructions are unnecessary on every call.
+<p>
+<H3>Solution: bytecode hacks</H3>
+<p>
+The table constructor function in the previous solution can be constructed more efficiently by hacking bytecodes.  We can even avoid initializing the table entries.  Here, we patch the NEWTABLE opcode in the bytecode for <code> return {} </code>,
+<p>
+<DL>
+<dt><dd><pre>
+
+$ echo 'return {}' | luac -p -l -
+
+main &lt;stdin:0,0&gt; (3 instructions, 12 bytes at 0x680df8)
+
+0+ params, 2 slots, 0 upvalues, 0 locals, 0 constants, 0 functions
+
+        1       [1]     NEWTABLE        0 0 0
+
+        2       [1]     RETURN          0 2
+
+        3       [1]     RETURN          0 1
+
+</pre>
+</DL>
+<p>
+with new table sizes and then load the function defined by the new bytecode into memory.  This involves no additional parsing of Lua source and less string manipulation.  However, this relies on assumptions about the Lua bytecode format.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- opcreatetable.lua</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Creates table preallocated in array and hash sizes.</span>
+
+<span class="comment">-- Implemented in pure Lua.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Warning: This code may be somewhat fragile since it depends on</span>
+
+<span class="comment">-- the Lua 5.1 bytecode format and little-endian byte order.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- This code has not been well tested.  Please review prior to using</span>
+
+<span class="comment">-- in production.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- (c) 2009 David Manura. Licensed under the same terms as Lua (MIT license).</span>
+
+
+
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="keyword">local</span> <span class="library">loadstring</span> = <span class="library">loadstring</span>
+
+<span class="keyword">local</span> <span class="library">assert</span> = <span class="library">assert</span>
+
+<span class="keyword">local</span> <span class="library">string</span> = <span class="library">string</span>
+
+<span class="keyword">local</span> string_dump = <span class="library">string.dump</span>
+
+<span class="keyword">local</span> string_char = <span class="library">string.char</span>
+
+
+
+<span class="comment">-- Encodes integer for NEWTABLE opcode. Based on lobject.c:luaO_int2fb.</span>
+
+<span class="keyword">local</span> xmax = 15*2^30
+
+<span class="keyword">local</span> <span class="keyword">function</span> int2fb(x)
+
+  <span class="library">assert</span>(x &gt;= 0 <span class="keyword">and</span> x &lt;= xmax)
+
+  <span class="keyword">local</span> e = 0
+
+  <span class="keyword">while</span> x &gt;= 16 <span class="keyword">do</span>
+
+    x = (x+1)
+
+    <span class="keyword">local</span> b = x % 2
+
+    x = (x-b) / 2
+
+    e = e + 1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> x &lt; 8 <span class="keyword">then</span>
+
+    <span class="keyword">return</span> x
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">return</span> (e+1) * 8 + (x - 8)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Packs and unpacks 4-byte little-endian unsigned int.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> pack_int4(x1,x2,x3,x4)
+
+  <span class="keyword">return</span> ((x4*256 + x3)*256 + x2)*256 + x1
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> unpack_int4(x)
+
+  <span class="keyword">local</span> x1 = x % 256; x = (x - x1) / 256
+
+  <span class="keyword">local</span> x2 = x % 256; x = (x - x2) / 256
+
+  <span class="keyword">local</span> x3 = x % 256; x = (x - x3) / 256
+
+  <span class="keyword">local</span> x4 = x
+
+  <span class="keyword">return</span> x1,x2,x3,x4
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Packs and unpacks iABC type instruction.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> unpack_iABC(x)
+
+  <span class="keyword">local</span> instopid = x % 64;  x = (x - instopid) / 64
+
+  <span class="keyword">local</span> insta    = x % 256; x = (x - insta)    / 256
+
+  <span class="keyword">local</span> instc    = x % 512; x = (x - instc)    / 512
+
+  <span class="keyword">local</span> instb    = x
+
+  <span class="keyword">return</span> instopid, insta, instb, instc
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> pack_iABC(instopid, insta, instb, instc)
+
+  <span class="keyword">return</span> ((instb * 512 + instc) * 256 + insta) * 64 + instopid
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Returns a function that when called creates and returns a new table.</span>
+
+<span class="comment">-- The table has array size asize and hash size hsize (both default to 0).</span>
+
+<span class="comment">-- Calling this function may be slow and you may want to cache the</span>
+
+<span class="comment">-- returned function.  Calling the returned function should be fast.</span>
+
+<span class="keyword">local</span> code
+
+<span class="keyword">local</span> pos
+
+<span class="keyword">local</span> insta
+
+<span class="keyword">local</span> <span class="keyword">function</span> new_table_builder(asize, hsize)
+
+  asize = asize <span class="keyword">or</span> 0
+
+  hsize = hsize <span class="keyword">or</span> 0
+
+  <span class="keyword">if</span> <span class="keyword">not</span> code <span class="keyword">then</span>
+
+    <span class="comment">-- See "A No-Frills Introduction to Lua 5.1 VM Instructions"</span>
+
+    <span class="comment">-- by Kein-Hong Man for details on the bytecode format.</span>
+
+
+
+    code = string_dump(<span class="keyword">function</span>() <span class="keyword">return</span> {} <span class="keyword">end</span>)
+
+
+
+    <span class="comment">-- skip headers</span>
+
+    <span class="keyword">local</span> int_size = code:byte(8)
+
+    <span class="keyword">local</span> size_t_size = code:byte(9)
+
+    <span class="keyword">local</span> instruction_size = code:byte(10)
+
+    <span class="keyword">local</span> endian = code:byte(7)
+
+    <span class="library">assert</span>(size_t_size == 4)
+
+    <span class="library">assert</span>(instruction_size == 4)
+
+    <span class="library">assert</span>(endian == 1) <span class="comment">-- little endian</span>
+
+    <span class="keyword">local</span> source_size =
+
+      pack_int4(code:byte(13), code:byte(14), code:byte(15), code:byte(16))
+
+    pos = 1 + 12           <span class="comment">-- chunk header</span>
+
+            + size_t_size  <span class="comment">-- string size</span>
+
+            + source_size  <span class="comment">-- string data</span>
+
+            + 2 * int_size + 4 <span class="comment">-- rest of function block header</span>
+
+            + 4            <span class="comment">-- number of instructions</span>
+
+
+
+    <span class="comment">-- read first instruction (NEWTABLE)</span>
+
+    <span class="keyword">local</span> a1 = code:byte(pos)
+
+    <span class="keyword">local</span> a2 = code:byte(pos+1)
+
+    <span class="keyword">local</span> a3 = code:byte(pos+2)
+
+    <span class="keyword">local</span> a4 = code:byte(pos+3)
+
+    <span class="keyword">local</span> inst = pack_int4(a1,a2,a3,a4)
+
+
+
+    <span class="comment">-- parse instruction</span>
+
+    <span class="keyword">local</span> instopid, instc, instb
+
+    instopid, insta, instb, instc = unpack_iABC(inst)
+
+    <span class="library">assert</span>(instopid == 10)
+
+    <span class="library">assert</span>(instb == 0)
+
+    <span class="library">assert</span>(instc == 0)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- build new instruction</span>
+
+  <span class="keyword">local</span> instopid = 10
+
+  <span class="keyword">local</span> instb = int2fb(asize)
+
+  <span class="keyword">local</span> instc = int2fb(hsize)
+
+  <span class="keyword">local</span> inst = pack_iABC(instopid, insta, instb, instc)
+
+
+
+  <span class="comment">-- encode new instruction into code.</span>
+
+  <span class="keyword">local</span> inst1,inst2,inst3,inst4 = unpack_int4(inst)
+
+  <span class="keyword">local</span> code2 =
+
+    code:sub(1,pos-1)..string_char(inst1,inst2,inst3,inst4)..code:sub(pos+4)
+
+  <span class="keyword">local</span> f2 = <span class="library">assert</span>(<span class="library">loadstring</span>(code2))
+
+
+
+  <span class="keyword">return</span> f2
+
+<span class="keyword">end</span>
+
+M.new_table_builder = new_table_builder
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+Test:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> new_table_builder = <span class="library">require</span> <span class="string">"opcreatetable"</span> . new_table_builder
+
+
+
+<span class="keyword">local</span> nt = new_table_builder(1e6,1e6)
+
+<span class="keyword">local</span> t1 = nt()
+
+<span class="keyword">local</span> t2 = nt()
+
+<span class="library">print</span>(t1, t2)
+
+
+
+<span class="comment">-- wait for user to observe process memory usage</span>
+
+<span class="library">io.stdin</span>:read<span class="string">'*l'</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Lua 5.2</H2>
+<p>
+Should Lua 5.2 provide a better way of doing this?
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2009-06/msg00438.html">LuaList:2009-06/msg00438.html</a>
+<li> <a href="/lists/lua-l/2009-04/msg00425.html">LuaList:2009-04/msg00425.html</a>
+<li> <a href="/lists/lua-l/2009-03/msg00324.html">LuaList:2009-03/msg00324.html</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TablePreallocation" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TablePreallocation" >history</a><br>Last edited July 25, 2011 1:54 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TablePreallocation" >(diff)</a>
+</body>
+</html>

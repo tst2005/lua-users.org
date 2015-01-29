@@ -1,0 +1,633 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Math Library Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MathLibraryTutorial&amp;body=1" title="List pages referring to MathLibraryTutorial">Math Library Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The math library is documented in section 5.6 of the Reference Manual.<a href="http://www.lua.org/manual/5.1/manual.html#5.6">[1]</a> Below is a summary of the functions and variables provided. Each is described, with an example, on this page.
+<DL>
+<dt><dd><pre>
+
+math.abs   math.acos  math.asin  math.atan math.atan2 math.ceil
+
+math.cos   math.cosh  math.deg   math.exp  math.floor math.fmod
+
+math.frexp math.huge  math.ldexp math.log  math.log10 math.max
+
+math.min   math.modf  math.pi    math.pow  math.rad   math.random
+
+math.randomseed       math.sin   math.sinh math.sqrt  math.tanh
+
+math.tan
+
+</pre>
+</DL>
+<p>
+<p>
+<H3>math.abs</H3>
+Return the absolute, or non-negative value, of a given value.
+<DL>
+<dt><dd><pre>
+
+&gt; = math.abs(-100)
+
+100
+
+&gt; = math.abs(25.67)
+
+25.67
+
+&gt; = math.abs(0)
+
+0
+
+</pre>
+</DL>
+<p>
+<H3>math.acos , math.asin</H3>
+Return the inverse cosine and sine of the given value.
+<DL>
+<dt><dd><pre>
+
+&gt; = math.acos(1)
+
+0
+
+&gt; = math.acos(0)
+
+1.5707963267949
+
+&gt; = math.asin(0)
+
+0
+
+&gt; = math.asin(1)
+
+1.5707963267949
+
+</pre>
+</DL>
+<p>
+<H3>math.atan , math.atan2</H3>
+Return the inverse tangent. We can do this by supplying y/x ourselves
+using <code>math.atan</code> or we can pass y and x to <code>math.atan2</code> to do this
+for us.
+<DL>
+<dt><dd><pre>
+
+&gt; c, s = math.cos(0.8), math.sin(0.8)
+
+&gt; = math.atan(s/c)
+
+0.8
+
+&gt; = math.atan2(s,c)
+
+0.8
+
+</pre>
+</DL>
+<p>
+<code>math.atan2</code> should usually be preferred, particularly when converting rectangular co-ordinates to polar co-ordinates. <code>math.atan2</code> uses the sign of both arguments to place the result into the correct quadrant, and also produces correct values when one of its arguments is 0 or very close to 0.
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; = math.atan2(1, 0), math.atan2(-1, 0), math.atan2(0, 1), math.atan2(0, -1)
+
+1.5707963267949 -1.5707963267949        0        3.1415926535898
+
+</pre>
+</DL>
+<p>
+<H3>math.ceil , math.floor</H3>
+Return the integer no greater than or no less than the given value.
+<DL>
+<dt><dd><pre>
+
+&gt; = math.floor(0.5)
+
+0
+
+&gt; = math.ceil(0.5)
+
+1
+
+</pre>
+</DL>
+<p>
+<H3>math.cos , math.sin , math.tan</H3>
+Return the cosine, sine and tangent value for a given value in radians.
+<DL>
+<dt><dd><pre>
+
+&gt; = math.cos(math.pi / 4)
+
+0.70710678118655
+
+&gt; = math.sin(0.123)
+
+0.12269009002432
+
+&gt; = math.tan(5/4)
+
+3.0095696738628
+
+&gt; = math.tan(.77)
+
+0.96966832796149
+
+</pre>
+</DL>
+<p>
+<H3>math.cosh , math.sinh , math.tanh</H3>
+Return the hyperbolic cosine, hyperbolic sine, and hyperbolic tangent<a href="http://en.wikipedia.org/wiki/Hyperbolic_function.html">[2]</a> value for a given value.
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; = math.sinh(1)
+
+1.1752011936438
+
+</pre>
+</DL>
+<p>
+<H3>math.deg , math.rad</H3>
+Convert from radians to degrees and vice versa.
+<DL>
+<dt><dd><pre>
+
+&gt; = math.deg(math.pi)
+
+180
+
+&gt; = math.deg(math.pi / 2)
+
+90
+
+&gt; = math.rad(180)
+
+3.1415926535898
+
+&gt; = math.rad(1)
+
+0.017453292519943
+
+</pre>
+</DL>
+<p>
+<p>
+<H3>math.exp , math.log</H3>
+<code>math.exp(myval)</code> returns <em>e</em> (the base of natural logarithms) raised to the power <code>myval</code>. 
+<code>math.log()</code> returns the inverse of this. <code>math.exp(1)</code> returns <em>e</em>.
+<DL>
+<dt><dd><pre>
+
+&gt; = math.exp(0)
+
+1
+
+&gt; = math.exp(1)
+
+2.718281828459
+
+&gt; = math.exp(27)
+
+532048240601.8
+
+&gt; = math.log(532048240601)
+
+26.999999999998
+
+&gt; = math.log(3)
+
+1.0986122886681
+
+</pre>
+</DL>
+<p>
+<H3>math.log10</H3>
+Return the base 10 logarithm of a given number. The number must be positive.
+<DL>
+<dt><dd><pre>
+
+&gt; = math.log10(100)
+
+2
+
+&gt; = math.log10(256)
+
+2.4082399653118
+
+&gt; = math.log10(-1)  -- can return -1.#INF on some Windows installs
+
+nan
+
+</pre>
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><em>-- I get math.log10(-1) == -1.#IND and math.log10(0) == -1.#INF (MSVC2008), as I think it should be.  --<a href="../wiki/DavidManura.html" >DavidManura</a></em>
+</DL>
+</DL>
+<p>
+<H3>math.pow , x^y</H3>
+<code>math.pow()</code> raises the first parameter to the power of the second parameter and returns the result. The binary <code>^</code> operator performs the same job as <code>math.pow()</code>, i.e. <em>math.pow(x,y) == x^y</em>.
+<DL>
+<dt><dd><pre>
+
+&gt; = math.pow(100,0)
+
+1
+
+&gt; = math.pow(7,2)
+
+49
+
+&gt; = math.pow(2,8)
+
+256
+
+&gt; = math.pow(3,2.7)
+
+19.419023519771
+
+&gt; = 5 ^ 2
+
+25
+
+&gt; = 2^8
+
+256
+
+</pre>
+</DL>
+<p>
+<H3>math.min , math.max</H3>
+Return the minimum or maximum value from a variable length list of arguments.
+<DL>
+<dt><dd><pre>
+
+&gt; = math.min(1,2)
+
+1
+
+&gt; = math.min(1.2, 7, 3)
+
+1.2
+
+&gt; = math.min(1.2, -7, 3)
+
+-7
+
+&gt; = math.max(1.2, -7, 3)
+
+3
+
+&gt; = math.max(1.2, 7, 3)
+
+7
+
+</pre>
+</DL>
+<p>
+<p>
+<H3>math.modf</H3>
+Return the integral and fractional parts of the given number.
+<DL>
+<dt><dd><pre>
+
+&gt; = math.modf(5)
+
+5       0
+
+&gt; = math.modf(5.3)
+
+5       0.3
+
+&gt; = math.modf(-5.3)
+
+-5      -0.3
+
+</pre>
+</DL>
+<p>
+If you want the modulus (remainder), look for the modulo <code>%</code> operator instead.<a href="http://www.lua.org/manual/5.1/manual.html#2.5.1">[3]</a>
+<p>
+<H3>math.sqrt</H3>
+Return the square root of a given number. Only non-negative arguments are allowed.
+<DL>
+<dt><dd><pre>
+
+&gt; = math.sqrt(100)
+
+10
+
+&gt; = math.sqrt(1234)
+
+35.128336140501
+
+&gt; = math.sqrt(-7)
+
+-1.#IND
+
+</pre>
+</DL>
+<p>
+<H3>math.random , math.randomseed</H3>
+<code>math.random()</code> generates pseudo-random numbers uniformly distributed. Supplying argument alters its behaviour:
+<UL>
+<li> <code>math.random()</code> with no arguments generates a real number between 0 and 1.
+<li> <code>math.random(upper)</code> generates integer numbers between 1 and <em>upper</em>.
+<li> <code>math.random(lower, upper)</code> generates integer numbers between <em>lower</em> and <em>upper</em>.
+</UL><DL>
+<dt><dd><pre>
+
+&gt; = math.random()
+
+0.0012512588885159
+
+&gt; = math.random()
+
+0.56358531449324
+
+&gt; = math.random(100)
+
+20
+
+&gt; = math.random(100)
+
+81
+
+&gt; = math.random(70,80)
+
+76
+
+&gt; = math.random(70,80)
+
+75
+
+</pre>
+</DL>
+<em>upper</em> and <em>lower</em> must be integer. In other case Lua casts <em>upper</em> into an integer, sometimes giving <code>math.floor(upper)</code> and others <code>math.ceil(upper)</code>, with unexpected results (the same for <em>lower</em>).
+<p>
+The <code>math.randomseed()</code> function sets a <em>seed</em> for the pseudo-random generator: Equal seeds produce equal sequences of numbers.
+<DL>
+<dt><dd><pre>
+
+&gt; math.randomseed(1234)
+
+&gt; = math.random(), math.random(), math.random()
+
+0.12414929654836        0.0065004425183874      0.3894466994232
+
+&gt; math.randomseed(1234)
+
+&gt; = math.random(), math.random(), math.random()
+
+0.12414929654836        0.0065004425183874      0.3894466994232
+
+</pre>
+</DL>
+<p>
+A good* 'seed' is os.time(), but wait a second before calling the function to obtain another sequence! To get nice random numbers use:
+<DL>
+<dt><dd><pre>
+
+math.randomseed( os.time() )
+
+</pre>
+</DL>
+If Lua could get milliseconds from <code>os.time()</code> the init could be better done. Another thing to be aware of is truncation of the seed provided. <code>math.randomseed</code> will call the underlying C function <code>srand</code> which takes an unsigned integer value. Lua will cast the value of the seed to this format. In case of an overflow the seed will actually become a bad seed, without warning <a href="http://lua-users.org/lists/lua-l/2013-05/msg00275.html">[4]</a> (note that Lua 5.1 actually casts to a signed int <a href="http://lua-users.org/lists/lua-l/2013-05/msg00290.html">[5]</a>, which was corrected in 5.2).
+<p>
+Nevertheless, in some cases we need a controlled sequence, like the obtained with a known seed.
+<p>
+But beware! The first random number you get is not really 'randomized' (at least in Windows 2K and OS X). To get better pseudo-random number just pop some random number before using them for real:
+<DL>
+<dt><dd><pre>
+
+-- Initialize the pseudo random number generator
+
+math.randomseed( os.time() )
+
+math.random(); math.random(); math.random()
+
+-- done. :-)
+
+</pre>
+</DL>
+<p>
+<em>-- This not exactly true. The first random number is as good (or bad) as the second one and the others. The goodness of the generator depends on other things. To improve somewhat the built-in generator we can use a table in the form:</em>
+<DL>
+<dt><dd><pre>
+
+-- improving the built-in pseudorandom generator
+
+do
+
+   local oldrandom = math.random
+
+   local randomtable
+
+   math.random = function ()
+
+      if randomtable == nil then
+
+         randomtable = {}
+
+         for i = 1, 97 do
+
+            randomtable[i] = oldrandom()
+
+         end
+
+      end
+
+      local x = oldrandom()
+
+      local i = 1 + math.floor(97*x)
+
+      x, randomtable[i] = randomtable[i], x
+
+      return x
+
+   end
+
+end
+
+</pre>
+</DL>
+<p>
+<a href="http://lua-users.org/lists/lua-l/2007-03/msg00564.html">[6]</a> : Why math.random() might give weird results on OSX and FreeBSD?
+<p>
+*<em>...The problem seems to be that when the seeds differ very little the first value of generated by BSD rand() also differ very little. This difference is lost when Lua converts the integer returned by rand() into a real number, effectively preserving only the high bits in the result. When you call math.random(1,100) from Lua, the low-bit difference vanishes and you see the same integer result.</em>
+<p>
+<DL>
+<dt><dd><pre>
+
+-- improve seeding on these platforms by throwing away the high part of time, 
+
+-- then reversing the digits so the least significant part makes the biggest change
+
+-- NOTE this should not be considered a replacement for using a stronger random function
+
+-- ~ferrix
+
+math.randomseed( tonumber(tostring(os.time()):reverse():sub(1,6)) )
+
+</pre>
+</DL>
+<p>
+<p>
+There is also lrandom<a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lrandom">[7]</a> A library for generating random numbers based on the Mersenne Twister.
+<p>
+<H3>math.frexp , math.ldexp</H3>
+These are normalisation functions <a href="http://www.gnu.org/manual/glibc-2.0.6/html_node/libc_266.html">[8]</a>.
+The <code>math.frexp()</code> function is used to split the number value into a normalized fraction and an exponent. Two values are returned: the first is a value always in the range 1/2 (inclusive) to 1 (exclusive) and the second is an exponent.The number value will be returned in the operation: 
+<DL>
+<dt><dd><pre>
+
+&gt; = normalized_fraction * 2 ^ exponent
+
+</pre>
+</DL>
+The <code>math.ldexp()</code> function takes a normalised number and returns the floating point representation. This is the value multiplied by 2 to the power of the exponent, i.e.:
+<DL>
+<dt><dd><pre>
+
+&gt; = math.ldexp(x, exp) == x * 2 ^ exp 
+
+true
+
+</pre>
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; = math.frexp(2)
+
+0.5     2
+
+&gt; = math.frexp(3)
+
+0.75    2
+
+&gt; = math.frexp(128)
+
+0.5     8
+
+&gt; = math.frexp(3.1415927)
+
+0.785398175     2
+
+&gt; = math.ldexp(0.785,2)
+
+3.14
+
+&gt; = math.ldexp(0.5,8)
+
+128
+
+</pre>
+</DL>
+<p>
+<H3>math.huge</H3>
+<p>
+<code>math.huge</code> is a constant.  It represents +infinity.
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; = math.huge
+
+inf
+
+&gt; = math.huge / 2
+
+inf
+
+&gt; = -math.huge
+
+-inf
+
+&gt; = math.huge/math.huge   -- indeterminate
+
+nan
+
+&gt; = math.huge * 0         -- indeterminate
+
+nan
+
+&gt; = 1/0
+
+inf
+
+&gt; = (math.huge == math.huge)
+
+true
+
+&gt; = (1/0 == math.huge)
+
+true
+
+</pre>
+</DL>
+<p>
+Note that some operations on <code>math.huge</code> return a special "not-a-number" value that displays as <code>nan</code>.  This is a bit of a misnomer.  <code>nan</code> is a number type, though it's different from other numbers:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; = type(math.huge * 0)
+
+number
+
+</pre>
+</DL>
+<p>
+See also <a href="../wiki/FloatingPoint.html" >FloatingPoint</a>.
+<p>
+<H3>math.pi</H3>
+<p>
+This is a part of the constant Pi.
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; = math.pi
+
+3.1415926535898
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MathLibraryTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MathLibraryTutorial" >history</a><br>Last edited May 13, 2013 10:17 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MathLibraryTutorial" >(diff)</a>
+</body>
+</html>

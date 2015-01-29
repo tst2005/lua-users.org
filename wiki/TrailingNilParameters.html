@@ -1,0 +1,251 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Trailing Nil Parameters</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TrailingNilParameters&amp;body=1" title="List pages referring to TrailingNilParameters">Trailing Nil Parameters</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<hr><DL>
+<dt><dd><strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  It does not run as is under Lua 5.</strong>
+</DL>
+<hr>In pure Lua, passing a nil argument is equivalent to omitting this argument. 
+However, C-Functions called from Lua can detect the number of arguments given to them (including nils!). 
+This leads to a lot of confusion and ugly code.
+<p>
+In my opinion, the lua standard libraries should be cleaned up to not use the number of arguments passed in determining how to behave.
+<p>
+<code>strfind(s,exp)</code>
+should lead to the same result as:
+<code>strfind(s,exp,nil,nil)</code>
+<p>
+then you can write a wrapper for any function by using the maximum number of arguments:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> mystrfind(a,b,c,d)
+
+    <span class="comment">-- do some extra handling here...</span>
+
+    <span class="keyword">return</span> strfind(a,b,c,d)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example (a mail of <a href="../wiki/ReubenThomas.html" >ReubenThomas</a> on the lua-l list):
+<DL>
+<dt><dd>If I run the following script:
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><pre class="code">
+t = {}
+
+tinsert(t, 3, <span class="string">"hello"</span>, 1)
+
+<span class="library">print</span>(t[3])
+
+</pre>
+
+</DL>
+</DL>
+<p>
+<DL>
+<dt><dd>I get <code>1</code> when I expect <code>hello</code>.
+</DL>
+<p>
+<DL>
+<dt><dd>[...] I was bitten by this because I was trying to execute a statement of the form:
+<DL>
+<dt><dd><pre class="code">
+tinsert(t, n, gsub(...))
+
+</pre>
+
+</DL>
+</DL>
+<p>
+<DL>
+<dt><dd>and was getting the number of replacements rather than the result of the replacement inserted. Surely this is wrong?
+</DL>
+<p>
+<em>Now that i am reading this again, i realize that this is the opposite of the trailing nils problem - lua functions ignore extra arguments, while c functions get them all (and tinsert happens to insert its LAST parameter) - Perhaps it would be better to title this page "Problems arising from the different treatment of arguments to lua-functions and c-functions" -- <a href="../wiki/PeterPrade.html" >PeterPrade</a></em>
+<p>
+<em>However, later in the thread, when people were trying to fix the oddity with tinsert, they encountered the trailing nils problem - they finally had to realize that you cannot write a proper wrapper function for tinsert in lua. Let me quote ETs last message to that thread:</em>
+<DL>
+<dt><dd>[...] Compatible (fixed) version would be:
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> tinsert(t, ...)
+
+  <span class="keyword">if</span> arg.n == 1 <span class="keyword">then</span>
+
+    %tinsert(t, arg[1])
+
+  <span class="keyword">elseif</span> arg.n == 2 <span class="keyword">then</span>
+
+    %tinsert(t, arg[1], arg[2])
+
+  <span class="keyword">else</span>
+
+    <span class="library">error</span>(<span class="string">"wronger number of args ("</span>..arg.n+1..<span class="string">") for tinsert"</span>);
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<dt><dd>But that still gives unexpected results for:
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><code>tinsert(t, foo())</code>  --&gt; may generate to <code>tinsert(t,a,b)</code>
+</DL>
+</DL>
+<p>
+<DL>
+<dt><dd>or
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><code>tinsert(t, x, foo())</code>  --&gt; may generate to <code>tinsert(t, x)</code>
+</DL>
+</DL>
+<p>
+<DL>
+<dt><dd>when foo does not return the expected number of results.
+</DL>
+<p>
+<DL>
+<dt><dd>For a long time I advocate to make C-functions behave similar to Lua functions regarding argument handling (make missing args nil). IMHO tinsert has a particularly good example of what can happen...
+</DL>
+<p>
+<DL>
+<dt><dd>Ciao, ET.
+</DL>
+Another example is on the <a href="../wiki/FileInputOutput.html" >FileInputOutput</a> page - ugly code, because readfrom(nil) results in an error (while readfrom() is perfectly legal):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> readfrom(f)
+
+  <span class="keyword">local</span> h, err
+
+  <span class="keyword">if</span> f <span class="keyword">then</span> h, err = %readfrom(f)
+
+  <span class="keyword">else</span>      h, err = %readfrom()
+
+  <span class="keyword">end</span>
+
+  ...
+
+</pre>
+
+</DL>
+<p>
+another example appeared on the mailing list:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; I just noticed that contrary to what you might expect, if you 
+
+&gt; pass "nil" as the fourth argument of strfind, it does a plain match. 
+
+&gt; Looking at the source, str_find indeed simply looks to see whether it
+
+&gt; has a fourth argument.
+
+
+
+Sigh, another example of the arg handling ad hockery...
+
+
+
+&gt; This is rather annoying, as in some other cases where it's nice to be
+
+&gt; able to pass "nil" instead of omitting the argument.
+
+
+
+You say it...
+
+
+
+&gt; It would not be contrary to the 4.0 manual to change this behaviour
+
+&gt;[...]
+
+&gt; Could this be done?
+
+
+
+Sure, it _could_.  One could fix this place by converting the test
+
+lua_gettop(L)&gt;3  to  luaL_opt_int(L,3,0)==1,  or one could finally
+
+start thinking about cleaning up argument handling in the C-API...
+
+
+
+&gt;[...] is there any way around this?
+
+
+
+function strfind(a,b,c,d)
+
+  c = c or 1  -- c has a similar problem...
+
+  if d then
+
+    return %strfind(a,b,c,d)
+
+  else
+
+    return %strfind(a,b,c)
+
+  end
+
+end
+
+</pre>
+</DL>
+<p>
+<em>add more examples here...</em>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TrailingNilParameters" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TrailingNilParameters" >history</a><br>Last edited July 7, 2007 7:23 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TrailingNilParameters" >(diff)</a>
+</body>
+</html>

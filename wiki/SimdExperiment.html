@@ -1,0 +1,1049 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Simd Experiment</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SimdExperiment&amp;body=1" title="List pages referring to SimdExperiment">Simd Experiment</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following patch to Lua provides an experimental implementation of a type of Single Instruction Multiple Data (SIMD) <a href="http://en.wikipedia.org/wiki/SIMD.html">[1]</a> capability in the Lua VM.
+<p>
+Importantly, the initial implementation here is ANSI C, and it does not use any SSE instructions or multithreading.  How can this be?  The opcode dispatch in the Lua VM imposes a non-negligible overhead.  If, however, we interpret each opcode (instruction) once and execute that opcode on multiple data elements, we could expect to reduce the relative overhead of the opcode dispatch, even if the data is processed serially in each opcode.
+<p>
+The current implementation is an experimental prototype and not fully implemented.  The initial goal was merely to estimate conceivable performance gains.  The design favored implementation simplicity.  In fact, the simplest approach, requiring the least patching, seemed to be to redefine the TValue type to contain an array of values.  This obviously imposes overhead on non-SIMD operations, but that is ok for now given the goal above.  (Redefining the lua_Number type in luaconf.h may be another somewhat simple approach, but it too is a global change.)  A more refined implementation might leave TValue as is and define SIMD operations over a sequence of TValue's, possibly with new SIMD opcodes, thereby allowing both SIMD and non-SIMD operations.
+<p>
+In this implementation, each Lua number contains a certain number of sub-values (this number is defined in the global variable _SIMD_LEN and can be adjusted in luaconf.h).  Individual sub-values in each Lua number can be indexed with the "packed" operator. Syntactically, the operator looks like a function call here, but semantically it is more like an indexing operator on register lexicals, and it has it's own op-codes.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- ex1.lua</span>
+
+
+
+<span class="comment">-- If you don't use the SIMD features, numbers will behave</span>
+
+<span class="comment">-- as usual.  This is because any SIMD unaware operations</span>
+
+<span class="comment">-- (e.g. print) only use the first sub-value of a number. </span>
+
+<span class="keyword">local</span> x = 10
+
+<span class="library">print</span>(x + 50)  <span class="comment">--&gt; 60</span>
+
+
+
+<span class="comment">-- Individual subvalues can be accessed with the packed operator:</span>
+
+<span class="library">assert</span>(packed(x,1) == 10)  <span class="comment">-- success</span>
+
+packed(x,2) = 20
+
+<span class="library">assert</span>(packed(x,1) == 10)
+
+<span class="library">assert</span>(packed(x,2) == 20)
+
+
+
+<span class="keyword">local</span> y; packed(y,1) = 100; packed(y,2) = 200;
+
+<span class="keyword">local</span> z = x + y     <span class="comment">-- this is a SIMD instruction</span>
+
+<span class="library">assert</span>(packed(z,1) == 110)
+
+<span class="library">assert</span>(packed(z,2) == 220)
+
+<span class="library">print</span>(z) <span class="comment">--&gt; 110   (print is not currently SIMD-aware)</span>
+
+
+
+<span class="library">print</span>(_SIMD_LEN) <span class="comment">--&gt; prints some number (e.g. 2)</span>
+
+</pre>
+
+</DL>
+<p>
+Here's what the opcodes look like for that. Note the new GETPACKED and SETPACKED instructions.  All other opcodes are unchanged.
+<p>
+<DL>
+<dt><dd><pre>
+
+$ ./src/luac -p -l ex1.lua
+
+
+
+main &lt;ex.lua:0,0&gt; (51 instructions, 204 bytes at 0x682930)
+
+0+ params, 5 slots, 0 upvalues, 3 locals, 12 constants, 0 functions
+
+        1       [4]     LOADK           0 -1    ; 10
+
+        2       [5]     GETGLOBAL       1 -2    ; print
+
+        3       [5]     ADD             2 0 -3  ; - 50
+
+        4       [5]     CALL            1 2 1
+
+        5       [8]     GETGLOBAL       1 -4    ; assert
+
+        6       [8]     GETPACKED       2 0 -5  ; 1
+
+        7       [8]     EQ              1 2 -1  ; - 10
+
+        8       [8]     JMP             1       ; to 10
+
+        9       [8]     LOADBOOL        2 0 1
+
+        10      [8]     LOADBOOL        2 1 0
+
+        11      [8]     CALL            1 2 1
+
+        12      [9]     SETPACKED       0 -6 -7 ; 2 20
+
+        13      [10]    GETGLOBAL       1 -4    ; assert
+
+        14      [10]    GETPACKED       2 0 -5  ; 1
+
+        15      [10]    EQ              1 2 -1  ; - 10
+
+        16      [10]    JMP             1       ; to 18
+
+        17      [10]    LOADBOOL        2 0 1
+
+        18      [10]    LOADBOOL        2 1 0
+
+        19      [10]    CALL            1 2 1
+
+        20      [11]    GETGLOBAL       1 -4    ; assert
+
+        21      [11]    GETPACKED       2 0 -6  ; 2
+
+        22      [11]    EQ              1 2 -7  ; - 20
+
+        23      [11]    JMP             1       ; to 25
+
+        24      [11]    LOADBOOL        2 0 1
+
+        25      [11]    LOADBOOL        2 1 0
+
+        26      [11]    CALL            1 2 1
+
+        27      [13]    LOADNIL         1 1
+
+        28      [13]    SETPACKED       1 -5 -8 ; 1 100
+
+        29      [13]    SETPACKED       1 -6 -9 ; 2 200
+
+        30      [14]    ADD             2 0 1
+
+        31      [15]    GETGLOBAL       3 -4    ; assert
+
+        32      [15]    GETPACKED       4 2 -5  ; 1
+
+        33      [15]    EQ              1 4 -10 ; - 110
+
+        34      [15]    JMP             1       ; to 36
+
+        35      [15]    LOADBOOL        4 0 1
+
+        36      [15]    LOADBOOL        4 1 0
+
+        37      [15]    CALL            3 2 1
+
+        38      [16]    GETGLOBAL       3 -4    ; assert
+
+        39      [16]    GETPACKED       4 2 -6  ; 2
+
+        40      [16]    EQ              1 4 -11 ; - 220
+
+        41      [16]    JMP             1       ; to 43
+
+        42      [16]    LOADBOOL        4 0 1
+
+        43      [16]    LOADBOOL        4 1 0
+
+        44      [16]    CALL            3 2 1
+
+        45      [17]    GETGLOBAL       3 -2    ; print
+
+        46      [17]    MOVE            4 2
+
+        47      [17]    CALL            3 2 1
+
+        48      [19]    GETGLOBAL       3 -2    ; print
+
+        49      [19]    GETGLOBAL       4 -12   ; _SIMD_LEN
+
+        50      [19]    CALL            3 2 1
+
+        51      [19]    RETURN          0 1
+
+</pre>
+</DL>
+<p>
+Now, let's do some benchmarks: summing the integers from 1 to 2^28.  In standard Lua it would look like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- test1-standard.lua</span>
+
+<span class="keyword">local</span> sum = 0
+
+<span class="keyword">for</span> i=1,2^28 <span class="keyword">do</span> sum = sum + i <span class="keyword">end</span>
+
+<span class="library">print</span>(sum)
+
+</pre>
+
+</DL>
+<p>
+Using this SIMD patch, we could rewrite it like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- test1-simd.lua</span>
+
+
+
+<span class="keyword">local</span> N=_SIMD_LEN
+
+
+
+<span class="keyword">local</span> j;    <span class="keyword">for</span> k=1,N <span class="keyword">do</span> packed(j,k)   = k <span class="keyword">end</span>
+
+<span class="keyword">local</span> psum; <span class="keyword">for</span> k=1,N <span class="keyword">do</span> packed(psum,k)= 0 <span class="keyword">end</span>
+
+<span class="keyword">local</span> fi;   <span class="keyword">for</span> k=1,N <span class="keyword">do</span> packed(fi,k)  = k <span class="keyword">end</span>
+
+<span class="keyword">local</span> fs;   <span class="keyword">for</span> k=1,N <span class="keyword">do</span> packed(fs,k)  = N <span class="keyword">end</span>
+
+
+
+<span class="keyword">for</span> i=fi,2^28,fs <span class="keyword">do</span>
+
+  psum = psum + i
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> sum = 0
+
+<span class="keyword">for</span> i=1,N <span class="keyword">do</span>
+
+  <span class="comment">-- print('partial sum', i, packed(psum,i))</span>
+
+  sum = sum + packed(psum,i)
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>(<span class="string">'sum:'</span>, sum)
+
+</pre>
+
+</DL>
+<p>
+The SIMD version computes N partial sums (each computed in parallel) and then sums the partial sums.
+<p>
+Here's the benchmark runtimes as a function of the compiled value of _SIMD_LEN (N). 
+<p>
+<DL>
+<dt><dd><pre>
+
+Lua version       run-time
+
+----------------  --------
+
+unpatched         8.095s
+
+SIMD patch N=1    9.265s
+
+SIMD patch N=2    5.660s
+
+SIMD patch N=3    3.566s
+
+SIMD patch N=4    3.248s
+
+SIMD patch N=8    2.688s
+
+SIMD patch N=32   2.406s
+
+SIMD patch N=256  2.529s
+
+SIMD patch N=1024 2.894s
+
+</pre>
+</DL>
+<p>
+Using the SIMD patch with N=1 effectively negates the patch and is useful to compare to the unpatched version.  With N set to 32, the runtimes are reduced by a significant 70%, at least on this very simple example.
+<p>
+The patch against Lua 5.1.4 is in Appendix A below.
+<p>
+A simple extension to this patch would be to use real SSE operations <a href="http://en.wikipedia.org/wiki/Streaming_SIMD_Extensions.html">[2]</a> (which hopefully will improve performance performance further).
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>Appendix A - Lua Patch</H2>
+<p>
+<DL>
+<dt><dd><pre>
+
+diff -ur lua-5.1.4/src/lbaselib.c lua-5.1.4-simd/src/lbaselib.c
+
+--- lua-5.1.4/src/lbaselib.c	2008-02-14 11:46:22.000000000 -0500
+
++++ lua-5.1.4-simd/src/lbaselib.c	2009-01-01 22:43:22.671875000 -0500
+
+@@ -642,6 +642,11 @@
+
+   lua_setfield(L, -2, "__mode");  /* metatable(w).__mode = "kv" */
+
+   lua_pushcclosure(L, luaB_newproxy, 1);
+
+   lua_setglobal(L, "newproxy");  /* set global `newproxy' */
+
++
+
++  /* SIMD-PATCH */
+
++  lua_pushnumber(L, LUA_SIMD_LEN);
+
++  lua_setglobal(L, "_SIMD_LEN");
+
++
+
+ }
+
+ 
+
+ 
+
+diff -ur lua-5.1.4/src/lcode.c lua-5.1.4-simd/src/lcode.c
+
+--- lua-5.1.4/src/lcode.c	2007-12-28 10:32:23.000000000 -0500
+
++++ lua-5.1.4-simd/src/lcode.c	2009-01-01 22:20:37.890625000 -0500
+
+@@ -317,6 +317,16 @@
+
+       e-&gt;k = VRELOCABLE;
+
+       break;
+
+     }
+
++
+
++    /* SIMD-PATCH */
+
++    case VPACKED: {
+
++      freereg(fs, e-&gt;u.s.aux);
+
++      freereg(fs, e-&gt;u.s.info);
+
++      e-&gt;u.s.info = luaK_codeABC(fs, OP_GETPACKED, 0, e-&gt;u.s.info, e-&gt;u.s.aux);
+
++      e-&gt;k = VRELOCABLE;
+
++      break;
+
++    }
+
++
+
+     case VINDEXED: {
+
+       freereg(fs, e-&gt;u.s.aux);
+
+       freereg(fs, e-&gt;u.s.info);
+
+@@ -486,6 +496,14 @@
+
+       luaK_codeABx(fs, OP_SETGLOBAL, e, var-&gt;u.s.info);
+
+       break;
+
+     }
+
++
+
++    /* SIMD-PATCH */
+
++    case VPACKED: {
+
++      int e = luaK_exp2RK(fs, ex);
+
++      luaK_codeABC(fs, OP_SETPACKED, var-&gt;u.s.info, var-&gt;u.s.aux, e);
+
++      break;
+
++    }
+
++
+
+     case VINDEXED: {
+
+       int e = luaK_exp2RK(fs, ex);
+
+       luaK_codeABC(fs, OP_SETTABLE, var-&gt;u.s.info, var-&gt;u.s.aux, e);
+
+diff -ur lua-5.1.4/src/llex.c lua-5.1.4-simd/src/llex.c
+
+--- lua-5.1.4/src/llex.c	2007-12-27 08:02:25.000000000 -0500
+
++++ lua-5.1.4-simd/src/llex.c	2009-01-01 22:20:17.531250000 -0500
+
+@@ -37,7 +37,11 @@
+
+ const char *const luaX_tokens [] = {
+
+     "and", "break", "do", "else", "elseif",
+
+     "end", "false", "for", "function", "if",
+
+-    "in", "local", "nil", "not", "or", "repeat",
+
++    "in", "local", "nil", "not", "or",
+
++
+
++    "packed", /* SIMD-PATCH */
+
++    
+
++    "repeat",
+
+     "return", "then", "true", "until", "while",
+
+     "..", "...", "==", "&gt;=", "&lt;=", "~=",
+
+     "&lt;number&gt;", "&lt;name&gt;", "&lt;string&gt;", "&lt;eof&gt;",
+
+diff -ur lua-5.1.4/src/llex.h lua-5.1.4-simd/src/llex.h
+
+--- lua-5.1.4/src/llex.h	2007-12-27 08:02:25.000000000 -0500
+
++++ lua-5.1.4-simd/src/llex.h	2009-01-01 22:21:41.859375000 -0500
+
+@@ -25,7 +25,11 @@
+
+   /* terminal symbols denoted by reserved words */
+
+   TK_AND = FIRST_RESERVED, TK_BREAK,
+
+   TK_DO, TK_ELSE, TK_ELSEIF, TK_END, TK_FALSE, TK_FOR, TK_FUNCTION,
+
+-  TK_IF, TK_IN, TK_LOCAL, TK_NIL, TK_NOT, TK_OR, TK_REPEAT,
+
++  TK_IF, TK_IN, TK_LOCAL, TK_NIL, TK_NOT, TK_OR,
+
++  
+
++  TK_PACKED, /* SIMD-PATCH */
+
++  
+
++  TK_REPEAT,
+
+   TK_RETURN, TK_THEN, TK_TRUE, TK_UNTIL, TK_WHILE,
+
+   /* other terminal symbols */
+
+   TK_CONCAT, TK_DOTS, TK_EQ, TK_GE, TK_LE, TK_NE, TK_NUMBER,
+
+diff -ur lua-5.1.4/src/lobject.h lua-5.1.4-simd/src/lobject.h
+
+--- lua-5.1.4/src/lobject.h	2008-08-06 09:29:48.000000000 -0400
+
++++ lua-5.1.4-simd/src/lobject.h	2009-01-01 22:42:06.609375000 -0500
+
+@@ -70,8 +70,16 @@
+
+ 
+
+ #define TValuefields	Value value; int tt
+
+ 
+
++/* SIMD-PATCH */
+
++typedef struct lua_TValueItem {
+
++  TValuefields;
+
++} TValueItem;
+
++
+
+ typedef struct lua_TValue {
+
+   TValuefields;
+
++
+
++  TValueItem more[LUA_SIMD_LEN - 1]; /* SIMD-PATCH */
+
++
+
+ } TValue;
+
+ 
+
+ 
+
+@@ -102,6 +110,9 @@
+
+ 
+
+ #define l_isfalse(o)	(ttisnil(o) || (ttisboolean(o) &amp;&amp; bvalue(o) == 0))
+
+ 
+
++/* SIMD-PATCH */
+
++#define packeditem(o,i) ( (TValue*)((TValueItem*)(o) + (i)) )
+
++
+
+ /*
+
+ ** for internal debug only
+
+ */
+
+diff -ur lua-5.1.4/src/lopcodes.c lua-5.1.4-simd/src/lopcodes.c
+
+--- lua-5.1.4/src/lopcodes.c	2007-12-27 08:02:25.000000000 -0500
+
++++ lua-5.1.4-simd/src/lopcodes.c	2009-01-01 22:19:43.640625000 -0500
+
+@@ -52,6 +52,11 @@
+
+   "CLOSE",
+
+   "CLOSURE",
+
+   "VARARG",
+
++
+
++  /* SIMD-PATCH */
+
++  "GETPACKED",
+
++  "SETPACKED",
+
++
+
+   NULL
+
+ };
+
+ 
+
+@@ -98,5 +103,10 @@
+
+  ,opmode(0, 0, OpArgN, OpArgN, iABC)		/* OP_CLOSE */
+
+  ,opmode(0, 1, OpArgU, OpArgN, iABx)		/* OP_CLOSURE */
+
+  ,opmode(0, 1, OpArgU, OpArgN, iABC)		/* OP_VARARG */
+
++
+
++ /* SIMD-PATCH */
+
++ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_GETPACKED */
+
++ ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_SETPACKED */
+
++
+
+ };
+
+ 
+
+diff -ur lua-5.1.4/src/lopcodes.h lua-5.1.4-simd/src/lopcodes.h
+
+--- lua-5.1.4/src/lopcodes.h	2007-12-27 08:02:25.000000000 -0500
+
++++ lua-5.1.4-simd/src/lopcodes.h	2009-01-01 22:23:40.531250000 -0500
+
+@@ -205,10 +205,18 @@
+
+ OP_CLOSURE,/*	A Bx	R(A) := closure(KPROTO[Bx], R(A), ... ,R(A+n))	*/
+
+ 
+
+ OP_VARARG/*	A B	R(A), R(A+1), ..., R(A+B-1) = vararg		*/
+
+-} OpCode;
+
++
+
++/* SIMD-PATCH */
+
++,OP_GETPACKED/*	A B C	R(A) := packed(R(B), RK(C))				*/
+
++,OP_SETPACKED/*	A B C	packed(R(A), RK(B)) := RK(C)				*/
+
+ 
+
+ 
+
++} OpCode;
+
++
+
++#if 0 /* SIMD-PATCH */
+
+ #define NUM_OPCODES	(cast(int, OP_VARARG) + 1)
+
++#endif
+
++#define NUM_OPCODES	(cast(int, OP_SETPACKED) + 1)
+
+ 
+
+ 
+
+ 
+
+diff -ur lua-5.1.4/src/lparser.c lua-5.1.4-simd/src/lparser.c
+
+--- lua-5.1.4/src/lparser.c	2007-12-28 10:32:23.000000000 -0500
+
++++ lua-5.1.4-simd/src/lparser.c	2009-01-01 22:20:07.343750000 -0500
+
+@@ -691,6 +691,22 @@
+
+   /* primaryexp -&gt;
+
+         prefixexp { `.' NAME | `[' exp `]' | `:' NAME funcargs | funcargs } */
+
+   FuncState *fs = ls-&gt;fs;
+
++
+
++  /* SIMD-PATCH */
+
++  if (ls-&gt;t.token == TK_PACKED) {
+
++    expdesc t;
+
++    expdesc k;
+
++    luaX_next(ls);
+
++    checknext(ls, '(');
+
++    expr(ls, &amp;t);
+
++    checknext(ls, ',');
+
++    expr(ls, &amp;k);
+
++    checknext(ls, ')');
+
++    init_exp(v, VPACKED, luaK_exp2anyreg(fs, &amp;t));
+
++    v-&gt;u.s.aux = luaK_exp2RK(fs, &amp;k);
+
++    return;
+
++  }
+
++
+
+   prefixexp(ls, v);
+
+   for (;;) {
+
+     switch (ls-&gt;t.token) {
+
+diff -ur lua-5.1.4/src/lparser.h lua-5.1.4-simd/src/lparser.h
+
+--- lua-5.1.4/src/lparser.h	2007-12-27 08:02:25.000000000 -0500
+
++++ lua-5.1.4-simd/src/lparser.h	2009-01-01 22:48:25.640625000 -0500
+
+@@ -26,12 +26,17 @@
+
+   VLOCAL,	/* info = local register */
+
+   VUPVAL,       /* info = index of upvalue in `upvalues' */
+
+   VGLOBAL,	/* info = index of table; aux = index of global name in `k' */
+
++
+
++  /* SIMD-PATCH */
+
++  VPACKED,	/* info = local register; aux = index register (or `k') */
+
++
+
+   VINDEXED,	/* info = table register; aux = index register (or `k') */
+
+   VJMP,		/* info = instruction pc */
+
+   VRELOCABLE,	/* info = instruction pc */
+
+   VNONRELOC,	/* info = result register */
+
+   VCALL,	/* info = instruction pc */
+
+   VVARARG	/* info = instruction pc */
+
++
+
+ } expkind;
+
+ 
+
+ typedef struct expdesc {
+
+diff -ur lua-5.1.4/src/luaconf.h lua-5.1.4-simd/src/luaconf.h
+
+--- lua-5.1.4/src/luaconf.h	2008-02-11 11:25:08.000000000 -0500
+
++++ lua-5.1.4-simd/src/luaconf.h	2009-01-01 23:42:57.625000000 -0500
+
+@@ -510,6 +510,12 @@
+
+ */
+
+ #define LUAI_UACNUMBER	double
+
+ 
+
++/* SIMD-PATCH */
+
++/*
+
++@@ LUA_SIMD_LEN is the number of values computed in parallel.
+
++** This is readable via the global _SIMD_LEN.
+
++*/
+
++#define LUA_SIMD_LEN 8
+
+ 
+
+ /*
+
+ @@ LUA_NUMBER_SCAN is the format for reading numbers.
+
+diff -ur lua-5.1.4/src/lvm.c lua-5.1.4-simd/src/lvm.c
+
+--- lua-5.1.4/src/lvm.c	2007-12-28 10:32:23.000000000 -0500
+
++++ lua-5.1.4-simd/src/lvm.c	2009-01-01 22:43:45.437500000 -0500
+
+@@ -357,6 +357,7 @@
+
+ #define Protect(x)	{ L-&gt;savedpc = pc; {x;}; base = L-&gt;base; }
+
+ 
+
+ 
+
++#if 0 /* SIMDPATCH */
+
+ #define arith_op(op,tm) { \
+
+         TValue *rb = RKB(i); \
+
+         TValue *rc = RKC(i); \
+
+@@ -367,6 +368,23 @@
+
+         else \
+
+           Protect(Arith(L, ra, rb, rc, tm)); \
+
+       }
+
++#endif
+
++#define arith_op(op,tm) { \
+
++        TValue *rb = RKB(i); \
+
++        TValue *rc = RKC(i); \
+
++        if (ttisnumber(rb) &amp;&amp; ttisnumber(rc)) { \
+
++          int j; \
+
++          for (j=0; j &lt; LUA_SIMD_LEN; j++) { \
+
++            TValue * rai = packeditem(ra,j); \
+
++            lua_Number nb = nvalue(rb), nc = nvalue(rc); \
+
++            setnvalue(rai, op(nb, nc)); \
+
++            (*(TValueItem**)(void*)&amp;rb) ++; \
+
++            (*(TValueItem**)(void*)&amp;rc) ++; \
+
++          } \
+
++        } \
+
++        else \
+
++          Protect(Arith(L, ra, rb, rc, tm)); \
+
++      }
+
+ 
+
+ 
+
+ 
+
+@@ -401,7 +419,15 @@
+
+     lua_assert(L-&gt;top == L-&gt;ci-&gt;top || luaG_checkopenop(i));
+
+     switch (GET_OPCODE(i)) {
+
+       case OP_MOVE: {
+
++
+
++        #if 0 /* SIMD-PATCH */
+
+         setobjs2s(L, ra, RB(i));
+
++        #endif
+
++        int j;
+
++        for (j=0; j &lt; LUA_SIMD_LEN; j++) {
+
++          setobjs2s(L, packeditem(ra,j), packeditem(RB(i),j));
+
++        }
+
++
+
+         continue;
+
+       }
+
+       case OP_LOADK: {
+
+@@ -654,8 +680,21 @@
+
+         if (luai_numlt(0, step) ? luai_numle(idx, limit)
+
+                                 : luai_numle(limit, idx)) {
+
+           dojump(L, pc, GETARG_sBx(i));  /* jump back */
+
++
+
++          #if 0 /* SIMD-PATCH */
+
+           setnvalue(ra, idx);  /* update internal index... */
+
+           setnvalue(ra+3, idx);  /* ...and external index */
+
++          #endif
+
++          { int j;
+
++            for (j=0; j&lt;LUA_SIMD_LEN; j++) {
+
++              TValue* ra_ = packeditem(ra, j);
+
++              TValue* step_ = packeditem(ra+2, j);
+
++              lua_Number idx_ = luai_numadd(nvalue(ra_), nvalue(step_));
+
++              setnvalue(ra_, idx_);
+
++              setnvalue(ra_+3, idx_);
+
++            }
+
++          }
+
++
+
+         }
+
+         continue;
+
+       }
+
+@@ -670,7 +709,19 @@
+
+           luaG_runerror(L, LUA_QL("for") " limit must be a number");
+
+         else if (!tonumber(pstep, ra+2))
+
+           luaG_runerror(L, LUA_QL("for") " step must be a number");
+
++
+
++        #if 0 /* SIMD-PATCH */
+
+         setnvalue(ra, luai_numsub(nvalue(ra), nvalue(pstep)));
+
++        #endif
+
++        { int j;
+
++          for (j=0; j &lt; LUA_SIMD_LEN; j++) {
+
++            setnvalue(packeditem(ra,j),
+
++              luai_numsub(nvalue(packeditem(ra,j)),
+
++                          nvalue(packeditem(pstep,j))) );
+
++          }
+
++        }
+
++
+
++
+
+         dojump(L, pc, GETARG_sBx(i));
+
+         continue;
+
+       }
+
+@@ -757,6 +808,26 @@
+
+         }
+
+         continue;
+
+       }
+
++
+
++      /* SIMD-PATCH */
+
++      case OP_GETPACKED: {
+
++        size_t off = (size_t)nvalue(RKC(i));
+
++        if (off &lt; 1 || off &gt; LUA_SIMD_LEN) {
+
++          luaG_runerror(L, "packed offset out of range");
+
++        }
+
++        setobjs2s(L, ra, (TValue*)((TValueItem*)RB(i) + off - 1) );
+
++        continue;
+
++      }
+
++      case OP_SETPACKED: {
+
++        size_t off = (size_t)nvalue(RKB(i));
+
++        if (off &lt; 1 || off &gt; LUA_SIMD_LEN) {
+
++          luaG_runerror(L, "packed offset out of range");
+
++        }
+
++        setobjs2s(L, (TValue*)((TValueItem*)ra + off - 1), RKC(i) );
+
++        continue;
+
++      }
+
++
+
++
+
+     }
+
+   }
+
+ }
+
+diff -ur lua-5.1.4/src/print.c lua-5.1.4-simd/src/print.c
+
+--- lua-5.1.4/src/print.c	2007-03-25 20:17:38.000000000 -0400
+
++++ lua-5.1.4-simd/src/print.c	2009-01-01 22:19:20.562500000 -0500
+
+@@ -116,6 +116,9 @@
+
+     printf("\t; %s",svalue(&amp;f-&gt;k[bx]));
+
+     break;
+
+    case OP_GETTABLE:
+
++
+
++   case OP_GETPACKED: /* SIMD-PATCH */
+
++
+
+    case OP_SELF:
+
+     if (ISK(c)) { printf("\t; "); PrintConstant(f,INDEXK(c)); }
+
+     break;
+
+@@ -128,6 +131,9 @@
+
+    case OP_EQ:
+
+    case OP_LT:
+
+    case OP_LE:
+
++
+
++   case OP_SETPACKED: /* SIMD-PATCH */
+
++
+
+     if (ISK(b) || ISK(c))
+
+     {
+
+      printf("\t; ");
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SimdExperiment" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SimdExperiment" >history</a><br>Last edited May 2, 2009 1:32 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SimdExperiment" >(diff)</a>
+</body>
+</html>

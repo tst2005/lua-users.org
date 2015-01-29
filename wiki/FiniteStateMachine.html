@@ -1,0 +1,199 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Finite State Machine</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FiniteStateMachine&amp;body=1" title="List pages referring to FiniteStateMachine">Finite State Machine</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This article provides a design pattern for doing finite state machines (FSMs) in Lua.
+<p>
+This was originally asked for on the mailing list:
+<p>
+<DL>
+<dt><dd><pre>
+
+ &gt; From: romeo kalebic &lt;romeo.kalebic@k...&gt;
+
+ &gt;
+
+ &gt; I'm learning lua with small fsm machine built in C and all actions are
+
+ &gt; built in lua.
+
+ &gt; FSM is described with: old_state, event, new_state and action.
+
+ &gt;
+
+ &gt;  state1, event1, state2, action1
+
+ &gt;  state1, event2, state3, action2
+
+ &gt;  etc..
+
+ &gt;
+
+ &gt; Now, I like to describe fsm in lua, maybe in lua table or ?.
+
+</pre>
+</DL>
+<p>
+One easy way to do this in Lua would be to create a table in exactly the form above:
+<p>
+<DL>
+<dt><dd><pre class="code">
+fsm = FSM{ 
+
+  {state1, event1, state2, action1},
+
+  {state1, event2, state3, action2},
+
+  ...
+
+}
+
+</pre>
+
+</DL>
+<p>
+where FSM is a function to be described soon.
+<p>
+Then, to run the machine, do something like this in a loop:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> a = fsm[state][event]
+
+a.action()
+
+state = a.new
+
+</pre>
+
+</DL>
+<p>
+plus some error checking if needed (eg, if <code>a</code> is <code>nil</code>, then the transition (<code>state</code>, <code>event</code>) is invalid).  Also, you might want to do <code>a.action(state, event, a.new)</code>} if the action can use this info.
+<p>
+The function <code>FSM</code> takes the simple syntax above and creates tables for (<code>state</code>, <code>event</code>) pairs with fields (<code>action</code>, <code>new</code>):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> FSM(t)
+
+  <span class="keyword">local</span> a = {}
+
+  <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> old, event, new, action = v[1], v[2], v[3], v[4]
+
+    <span class="keyword">if</span> a[old] == <span class="keyword">nil</span> <span class="keyword">then</span> a[old] = {} <span class="keyword">end</span>
+
+    a[old][event] = {new = new, action = action}
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> a
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Note that this scheme works for states and events of any type: number, string,
+functions, tables, anything. Such is the power of associate arrays. 
+<p>
+Have fun. --<a href="../wiki/LuizHenriqueDeFigueiredo.html" >LuizHenriqueDeFigueiredo</a>
+<p>
+running version:
+<pre>
+
+
+
+
+
+function action1()
+
+ print("action1")
+
+end
+
+
+
+function action2()
+
+ print("action2")
+
+end
+
+
+
+
+
+function FSM(t)
+
+  local a = {}
+
+  for _,v in ipairs(t) do
+
+    local old, event, new, action = v[1], v[2], v[3], v[4]
+
+    if a[old] == nil then a[old] = {} end
+
+    a[old][event] = {new = new, action = action}
+
+  end
+
+  return a
+
+end
+
+
+
+fsm = FSM{
+
+  {"state1", "event1", "state2", action1},
+
+  {"state1", "event2", "state3", action2},
+
+}
+
+
+
+local a = fsm["state1"]["event1"]
+
+a.action()
+
+state = a.new
+
+
+
+</pre>
+<p>
+Note: above code is Lua 5.0 and 5.1 compatible.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FiniteStateMachine" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FiniteStateMachine" >history</a><br>Last edited August 8, 2010 4:24 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FiniteStateMachine" >(diff)</a>
+</body>
+</html>

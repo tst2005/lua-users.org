@@ -1,0 +1,480 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Coroutines As Event Handlers</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CoroutinesAsEventHandlers&amp;body=1" title="List pages referring to CoroutinesAsEventHandlers">Coroutines As Event Handlers</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a very basic Supervisor (or event dispatcher), similar to ones found in Copas and ProgrammingInLua<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ProgrammingInLua" >?</a> (but
+not based on any of those). It was written partly in response to a question on the mailing list, and
+I've tried to comment it fully; there is an example of using it at the end. The question it
+attempts to respond to is:
+<p>
+<DL>
+<dt><dd><em>So, how would one do something like...</em>
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+result = block(self, event)
+
+</pre>
+
+<dt><dd><em>...where <code>block()</code> is a SWIG wrapped function that takes the script context (i.e. state) and an event as arguments, and blocks (yields) the script until the event occurs, after which the details are copied into a result structure (resumes)?</em>
+</DL>
+<p>
+The response was, why not do it in Lua? The scaffolding below can
+handle hundreds of thousands of event dispatches per second, so it
+is not likely that writing it in C will help much; CPU time will be
+dominated by the cost of actually processing the requests.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> cocreate, resume, yield, costatus =
+
+  <span class="library">coroutine.create</span>, <span class="library">coroutine.resume</span>, <span class="library">coroutine.yield</span>, <span class="library">coroutine.status</span>
+
+
+
+<span class="keyword">local</span> LOG = <span class="keyword">function</span>(...)
+
+  <span class="library">io.stderr</span>:write(<span class="library">os.date</span><span class="string">"!%F %T "</span>)
+
+  <span class="library">io.stderr</span>:write(...)
+
+  <span class="library">io.stderr</span>:write<span class="string">"\n"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- This function expects to be a coroutine. When it is started,</span>
+
+<span class="comment">-- it initializes itself, and then awaits further instructions.</span>
+
+<span class="comment">-- Whenever it has nothing else to do it yields, unless it was</span>
+
+<span class="comment">-- told to quit in which case it returns.</span>
+
+
+
+<span class="keyword">function</span> supervisor(...)
+
+  <span class="comment">-- each event is a table of sets of coroutines;</span>
+
+  <span class="comment">-- we assume we can handle the events in any order.</span>
+
+  <span class="keyword">local</span> events = {}
+
+  <span class="comment">-- This table associates coroutines with names, mostly</span>
+
+  <span class="comment">-- for debugging</span>
+
+  <span class="keyword">local</span> name = {}
+
+  <span class="comment">-- to signal that we're done</span>
+
+  <span class="keyword">local</span> done = <span class="keyword">false</span>
+
+
+
+  <span class="comment">-- This function removes all references to a coro</span>
+
+  <span class="comment">-- from all events, which we do when the coro dies.</span>
+
+  <span class="comment">-- We could use weak tables to do the same thing.</span>
+
+  <span class="comment">-- On the other hand, we might want to clean up other</span>
+
+  <span class="comment">-- data associated with the coroutine. Anyway, this is easy:</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> remove(coro)
+
+    <span class="keyword">for</span> _, coros <span class="keyword">in</span> <span class="library">pairs</span>(events) <span class="keyword">do</span>
+
+      coros[coro] = <span class="keyword">nil</span>
+
+    <span class="keyword">end</span>
+
+    name[coro] = <span class="keyword">nil</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- Convenience function to log tracebacks</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> log_traceback(coro, msg, err)
+
+    LOG(<span class="string">"Coroutine "</span>, name[coro], <span class="string">" "</span>, msg, <span class="string">":"</span>)
+
+    <span class="keyword">local</span> tb = <span class="library">debug.traceback</span>(coro, err)
+
+    <span class="keyword">for</span> line <span class="keyword">in</span> tb:gmatch<span class="string">"[^\n]+"</span> <span class="keyword">do</span> LOG(<span class="string">"  "</span>, line) <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- The core routine, which handles the results of a</span>
+
+  <span class="comment">-- coroutine.resume. First argument is the coro, rest</span>
+
+  <span class="comment">-- are the return values from coro.resume(). The only</span>
+
+  <span class="comment">-- thing we're expecting from the coro is a "waitfor"</span>
+
+  <span class="comment">-- command, but other ones could be added...</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> handle_resume(coro, ok, todo, ...)
+
+    <span class="keyword">if</span> costatus(coro) == <span class="string">"dead"</span> <span class="keyword">then</span>
+
+      remove(coro) <span class="comment">-- always get rid of it.</span>
+
+      <span class="comment">-- log a traceback on error</span>
+
+      <span class="keyword">if</span> <span class="keyword">not</span> ok <span class="keyword">then</span> log_traceback(coro, <span class="string">"failed with error"</span>, todo) <span class="keyword">end</span>
+
+    <span class="keyword">elseif</span> todo ~= <span class="string">"waitfor"</span> <span class="keyword">then</span>
+
+      <span class="comment">-- todo should be "waitfor" and ... the event.</span>
+
+      <span class="comment">-- If we had more verbs, we could use a case-table.</span>
+
+      log_traceback(coro, <span class="string">"unknown request "</span>..<span class="library">tostring</span>(todo),
+
+                          <span class="string">"bad return value"</span>)
+
+      remove(coro)
+
+    <span class="keyword">else</span>
+
+      <span class="comment">-- We don't care if the event doesn't exist (should we?)</span>
+
+      <span class="keyword">local</span> q = events[...]
+
+      <span class="keyword">if</span> q == <span class="keyword">nil</span> <span class="keyword">then</span> q = {}; events[...] = q <span class="keyword">end</span>
+
+      <span class="comment">-- We might want to tell the upper level that a new</span>
+
+      <span class="comment">-- event needs to be recognized, though.</span>
+
+      <span class="comment">-- if next(q) == nil then addevent((...)) end</span>
+
+      q[coro] = <span class="keyword">true</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span> 
+
+      
+
+  <span class="comment">-- A table of actions; essentially a case statement</span>
+
+  <span class="keyword">local</span> handler = {}
+
+
+
+  <span class="comment">-- do a clean exit (although actually there's no</span>
+
+  <span class="comment">-- cleanup necessary, but there might be.)</span>
+
+  <span class="keyword">function</span> handler.done()
+
+    done = <span class="keyword">true</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- debugging: report on status</span>
+
+  <span class="keyword">function</span> handler.status()
+
+    <span class="comment">-- invert the events table for nicer printing</span>
+
+    <span class="keyword">local</span> n, e = {}, {}
+
+    <span class="keyword">for</span> evt, coros <span class="keyword">in</span> <span class="library">pairs</span>(events) <span class="keyword">do</span>
+
+      <span class="keyword">for</span> coro <span class="keyword">in</span> <span class="library">pairs</span>(coros) <span class="keyword">do</span>
+
+        <span class="keyword">local</span> who = name[coro]
+
+        n[#n+1] = who
+
+        e[who] = evt
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="comment">-- sort the names</span>
+
+    <span class="library">table.sort</span>(n)
+
+    <span class="comment">-- and produce the report</span>
+
+    <span class="keyword">for</span> _, who <span class="keyword">in</span> <span class="library">ipairs</span>(n) <span class="keyword">do</span>
+
+      LOG(who, <span class="string">" is waiting for "</span>, <span class="library">tostring</span>(e[who]))
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- introduce a new actor (coroutine) into the system, and run</span>
+
+  <span class="comment">-- it until it blocks</span>
+
+  <span class="keyword">function</span> handler.introduce(who, func, ...)
+
+    <span class="keyword">local</span> coro = cocreate(func)
+
+    name[coro] = who
+
+    <span class="comment">-- let it initialize itself</span>
+
+    <span class="keyword">return</span> handle_resume(coro, resume(coro, ...))
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- send an event to whoever cares</span>
+
+  <span class="keyword">function</span> handler.signal(what, ...)
+
+    <span class="keyword">local</span> q = events[what]
+
+    <span class="keyword">if</span> q <span class="keyword">and</span> <span class="library">next</span>(q) <span class="keyword">then</span>
+
+      <span class="keyword">for</span> coro <span class="keyword">in</span> <span class="library">pairs</span>(q) <span class="keyword">do</span>
+
+        q[coro] = <span class="keyword">nil</span>  <span class="comment">-- handled</span>
+
+        handle_resume(coro, resume(coro, what, ...))
+
+      <span class="keyword">end</span>
+
+      <span class="comment">-- Maybe tell the top-level whether the event is</span>
+
+      <span class="comment">-- still active?</span>
+
+      <span class="keyword">return</span> <span class="library">next</span>(q) ~= <span class="keyword">nil</span>
+
+    <span class="keyword">else</span>
+
+      <span class="comment">-- No-one cares, sniff. "Log" the fact</span>
+
+      LOG(<span class="string">"Event "</span>, <span class="library">tostring</span>(what), <span class="string">" dropped into the bit bucket"</span>)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- Set the __index meta for the handler table to avoid having</span>
+
+  <span class="comment">-- to test for bad commands explicitly</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> logargs(...)
+
+    <span class="keyword">local</span> t = {n = <span class="library">select</span>(<span class="string">"#"</span>, ...), ...}
+
+    <span class="keyword">if</span> t.n &gt; 0 <span class="keyword">then</span>
+
+      <span class="keyword">for</span> i = 1, t.n <span class="keyword">do</span>
+
+        <span class="keyword">local</span> ti = t[i]
+
+        t[i] = (<span class="library">type</span>(ti) == <span class="string">"string"</span> <span class="keyword">and</span> <span class="string">"%q"</span> <span class="keyword">or</span> <span class="string">"%s"</span>)
+
+               :format(<span class="library">tostring</span>(ti))
+
+      <span class="keyword">end</span>
+
+      LOG(<span class="string">"..with arguments: "</span>, <span class="library">table.concat</span>(t, <span class="string">", "</span>))
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> handler:__index(what)
+
+    LOG(<span class="string">"Supervisor received unknown message "</span>, what)
+
+    <span class="keyword">return</span> logargs
+
+  <span class="keyword">end</span>
+
+  <span class="library">setmetatable</span>(handler, handler)
+
+
+
+  <span class="comment">-- auxiliary function to handle a command, necessary to</span>
+
+  <span class="comment">-- capture multiple returns from yield()</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> handle(simonsays, ...)
+
+    <span class="keyword">return</span> handler[simonsays](...)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- The main loop is a bit anti-climactic</span>
+
+  LOG<span class="string">"Starting up"</span>
+
+  <span class="keyword">local</span> rv = handle(...)
+
+  <span class="keyword">repeat</span> 
+
+    rv = handle(yield(rv))
+
+  <span class="keyword">until</span> done
+
+  LOG<span class="string">"Shutting down"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">------------------------------------------------------------------------------</span>
+
+<span class="comment">--  Sample very simple processor</span>
+
+<span class="comment">------------------------------------------------------------------------------</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> block(event) <span class="keyword">return</span> yield(<span class="string">"waitfor"</span>, event) <span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> process(n)
+
+  <span class="keyword">for</span> i = 1, n <span class="keyword">do</span>
+
+    <span class="keyword">local</span> e, howmany = block<span class="string">"TICK"</span>
+
+    <span class="library">assert</span>(e == <span class="string">"TICK"</span> <span class="keyword">and</span> howmany == i)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">------------------------------------------------------------------------------</span>
+
+<span class="comment">-- Test driver in Lua</span>
+
+<span class="comment">------------------------------------------------------------------------------</span>
+
+
+
+<span class="keyword">local</span> super = cocreate(supervisor)
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> check(ok, rv)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> ok <span class="keyword">then</span>
+
+    LOG(<span class="string">"supervisor crashed"</span>)
+
+    <span class="keyword">local</span> tb = <span class="library">debug.traceback</span>(super, rv)
+
+    <span class="keyword">for</span> line <span class="keyword">in</span> tb:gmatch<span class="string">"[^\n]+"</span> <span class="keyword">do</span> LOG(<span class="string">"  "</span>, line) <span class="keyword">end</span>
+
+    <span class="library">os.exit</span>(1)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> rv
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> send(msg, ...) <span class="keyword">return</span> check(resume(super, msg, ...)) <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> nprocess, nreps = <span class="library">tonumber</span>(arg[1]) <span class="keyword">or</span> 10, <span class="library">tonumber</span>(arg[2] <span class="keyword">or</span> 12)
+
+<span class="keyword">for</span> i = 1, <span class="library">tonumber</span>(nprocess) <span class="keyword">do</span>
+
+  send(<span class="string">"introduce"</span>, (<span class="string">"p%04i"</span>):format(i), process, nreps)
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> j = 1
+
+<span class="keyword">while</span> send(<span class="string">"signal"</span>, <span class="string">"TICK"</span>, j) <span class="keyword">do</span>
+
+  j = j + 1
+
+<span class="keyword">end</span>
+
+<span class="comment">-- This should be empty</span>
+
+send<span class="string">"status"</span>
+
+send<span class="string">"done"</span>
+
+LOG(<span class="string">"Endcount "</span>, j)
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd>Define <em>Supervisor</em>.  <a href="http://citeseer.ist.psu.edu/494528.html">[1]</a> ? --<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+<DL>
+<dt><dd><em>This definition comes from a paper about Erlang, and is somewhat circular, but it sums it up pretty well: "a behaviour that implements a specific style of supervisor-worker programming which allows supervision trees to be constructed dynamically."</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>In other words, a Supervisor is responsible for the care and maintenance of a bunch of workers, organizing their workload, sending them events (as in this example) and handling errors.</em>
+</DL>
+<p>
+<DL>
+<dt><dd>There are also some nice examples in <a href="http://toute.ca/termite.pdf">[Termite]</a> (pdf document, readable if you like parentheses).
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CoroutinesAsEventHandlers" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CoroutinesAsEventHandlers" >history</a><br>Last edited March 2, 2007 4:23 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CoroutinesAsEventHandlers" >(diff)</a>
+</body>
+</html>

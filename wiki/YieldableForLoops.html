@@ -1,0 +1,375 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Yieldable For Loops</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=YieldableForLoops&amp;body=1" title="List pages referring to YieldableForLoops">Yieldable For Loops</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Changing Lua so that "anything can yield" is (probably) desirable, but it's a long term project. In the meantime, I find it irritating that the iterator function in a <code>for</code> loop is not allowed to yield; it makes it messy to write simple responder loops where the iterator might be, for example, an asychronous input function.
+<p>
+Instead of just being able to write:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> msg <span class="keyword">in</span> eachmsg() <span class="keyword">do</span>
+
+  <span class="comment">-- handle msg</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- end of messages, clean up</span>
+
+</pre>
+
+</DL>
+<p>
+you need:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">repeat</span>
+
+  <span class="keyword">local</span> msg = getmsg()
+
+  <span class="keyword">if</span> msg == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+  <span class="comment">-- handle msg</span>
+
+<span class="keyword">until</span> <span class="keyword">false</span>
+
+<span class="comment">-- end of messages, clean up</span>
+
+</pre>
+
+</DL>
+<p>
+However, it is very simple to get the first code sample to work. It is only necessary to split the <code>TFORLOOP</code> VM operation into two opcodes. The first one sets up an ordinary Lua call and then falls into the OP_CALL implementation. The following op code does a conditional move and branch based on the first value returned by the first op code.
+<p>
+Some very rough testing seems to show that performance is actually slightly improved by this change, although the results are not definitive. I suppose that is because the VM can handle the call without recursing, making up for the overhead of an extra opcode.
+<p>
+At any rate, the patch is at <a href="http://primero.ricilake.net/lua/lua-5.1.2-for.patch">[dead link]</a>.
+<p>
+(Also available here<a href="http://25thandClement.com/~william/lua-5.1.2-for.patch">[1]</a>, taken from Google Code Search cache<a href="http://www.google.com/codesearch?q=file:lua-5.1.2-for.patch">[2]</a>.)
+<p>
+(<a href="https://github.com/dubiousjim/luafiveq/blob/master/patches/yieldable-for-loops.patch">[Updated for Lua 5.1.5]</a>)
+<p>
+<H2>Example</H2>
+<p>
+Here's a test program. The key function here is <code>responder</code>, which shows the yieldable <code>for</code> in action. Test output follows the code
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> yield, resume, create, costatus =
+
+  <span class="library">coroutine.yield</span>, <span class="library">coroutine.resume</span>, <span class="library">coroutine.create</span>, <span class="library">coroutine.status</span>
+
+ 
+
+<span class="keyword">local</span> <span class="keyword">function</span> input(prompt)
+
+  <span class="keyword">local</span> inf, outf = <span class="library">io.stdin</span>, <span class="library">io.stderr</span>
+
+  <span class="keyword">return</span> <span class="keyword">function</span>()
+
+    outf:write(prompt,<span class="string">" "</span>)
+
+    <span class="keyword">return</span> inf:read()
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+ 
+
+<span class="comment">-- These could be quite a bit more complex</span>
+
+<span class="keyword">function</span> eachmsg()
+
+  <span class="keyword">return</span> yield
+
+<span class="keyword">end</span>
+
+ 
+
+<span class="comment">-- This isn't actually used in this demo, but it could be :)</span>
+
+getmsg = <span class="library">coroutine.yield</span>
+
+
+
+<span class="comment">-- This would probably be more complicated in a real app, too. </span>
+
+<span class="keyword">function</span> responder(name)
+
+ <span class="keyword">local</span> n = 0 
+
+ <span class="library">print</span>(name..<span class="string">" is born!"</span>)
+
+ <span class="keyword">for</span> msg <span class="keyword">in</span> eachmsg() <span class="keyword">do</span>
+
+   n = n + 1
+
+   <span class="keyword">if</span> msg == <span class="string">"goodbye"</span> <span class="keyword">then</span> <span class="keyword">break</span>
+
+   <span class="keyword">else</span> <span class="library">print</span>(name..<span class="string">" heard "</span>..msg)
+
+   <span class="keyword">end</span>
+
+ <span class="keyword">end</span>
+
+ <span class="library">print</span>(name..<span class="string">" departs this vale of tears, after listening to "</span>..n..<span class="string">" utterances"</span>)
+
+<span class="keyword">end</span>
+
+ 
+
+<span class="keyword">function</span> driver()
+
+ <span class="keyword">local</span> cmd = {}
+
+ <span class="keyword">local</span> kids = {}
+
+ <span class="comment">-- the commands we understand</span>
+
+ <span class="keyword">function</span> cmd.quit()   
+
+   <span class="library">print</span> <span class="string">"Exiting!"</span>
+
+   <span class="keyword">for</span> _, kid <span class="keyword">in</span> <span class="library">pairs</span>(kids) <span class="keyword">do</span>
+
+     resume(kid)
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> <span class="keyword">false</span>
+
+ <span class="keyword">end</span>
+
+ <span class="keyword">function</span> cmd.kill(arg)
+
+   <span class="keyword">local</span> _, _, who = <span class="library">string.find</span>(arg, <span class="string">"(%w+)"</span>)
+
+   <span class="keyword">if</span> <span class="keyword">not</span> who <span class="keyword">then</span>
+
+     <span class="keyword">return</span> <span class="string">"Kill who?"</span>
+
+   <span class="keyword">elseif</span> <span class="keyword">not</span> kids[who] <span class="keyword">then</span>
+
+     <span class="keyword">return</span> who..<span class="string">"? I don't know any "</span>..who
+
+   <span class="keyword">else</span>
+
+     <span class="keyword">local</span> status, result = resume(kids[who])
+
+     kids[who] = <span class="keyword">nil</span>
+
+     <span class="keyword">if</span> status <span class="keyword">then</span>
+
+       <span class="keyword">return</span>
+
+     <span class="keyword">else</span>
+
+       <span class="keyword">return</span> result
+
+     <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+ <span class="keyword">end</span>
+
+ <span class="keyword">function</span> cmd.spawn(arg)
+
+   <span class="keyword">local</span> _, _, who = <span class="library">string.find</span>(arg, <span class="string">"(%w+)"</span>)
+
+   <span class="keyword">if</span> <span class="keyword">not</span> who <span class="keyword">then</span>
+
+     <span class="keyword">return</span> <span class="string">"Spawn who?"</span>
+
+   <span class="keyword">elseif</span> kids[who] <span class="keyword">then</span>
+
+     <span class="keyword">return</span> who .. <span class="string">" already exists"</span>
+
+   <span class="keyword">else</span>
+
+     kids[who] = create(responder)
+
+     <span class="keyword">local</span> status, result = resume(kids[who], who)
+
+     <span class="keyword">if</span> <span class="keyword">not</span> status <span class="keyword">then</span>
+
+       kids[who] = <span class="keyword">nil</span>
+
+       <span class="keyword">return</span> result
+
+     <span class="keyword">end</span>    
+
+   <span class="keyword">end</span>
+
+ <span class="keyword">end</span>
+
+ <span class="keyword">function</span> cmd.list()
+
+   <span class="library">print</span><span class="string">"Currently active:"</span>
+
+   <span class="keyword">for</span> k <span class="keyword">in</span> <span class="library">pairs</span>(kids) <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"  "</span>..k) <span class="keyword">end</span>
+
+ <span class="keyword">end</span>
+
+ 
+
+ <span class="comment">-- main loop starts here --</span>
+
+ <span class="keyword">for</span> msg <span class="keyword">in</span> input(<span class="string">"-&gt;"</span>) <span class="keyword">do</span>
+
+   <span class="keyword">local</span> _, _, verb, rest = <span class="library">string.find</span>(msg, <span class="string">"%s*(%w+)%s*(.*)"</span>)
+
+   <span class="keyword">if</span> cmd[verb] <span class="keyword">then</span>
+
+     <span class="keyword">local</span> res = cmd[verb](rest)
+
+     <span class="keyword">if</span> res <span class="keyword">then</span> <span class="library">print</span>(res)
+
+     <span class="keyword">elseif</span> res == <span class="keyword">false</span> <span class="keyword">then</span> <span class="keyword">return</span>
+
+     <span class="keyword">end</span>
+
+   <span class="keyword">elseif</span> kids[verb] <span class="keyword">then</span>
+
+     <span class="keyword">local</span> status, result = <span class="library">coroutine.resume</span>(kids[verb], rest)
+
+     <span class="keyword">if</span> <span class="keyword">not</span> status <span class="keyword">then</span>
+
+       <span class="library">print</span>(verb..<span class="string">" exited with error "</span>..result)
+
+       kids[verb] = <span class="keyword">nil</span>
+
+     <span class="keyword">elseif</span> <span class="library">coroutine.status</span>(kids[verb]) ~= <span class="string">"suspended"</span> <span class="keyword">then</span>
+
+       <span class="library">print</span>(verb..<span class="string">" decided to go away"</span>)
+
+       kids[verb] = <span class="keyword">nil</span>
+
+     <span class="keyword">end</span>
+
+   <span class="keyword">else</span>
+
+     <span class="library">print</span> <span class="string">"I don't understand what you're talking about"</span>
+
+   <span class="keyword">end</span>
+
+ <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Sample run:
+<p>
+<DL>
+<dt><dd><pre>  
+
+&gt; driver()
+
+-&gt; list
+
+Currently active:
+
+-&gt; spawn bob
+
+bob is born!
+
+-&gt; spawn sally
+
+sally is born!
+
+-&gt; bob hi
+
+bob heard hi
+
+-&gt; sally hi
+
+sally heard hi
+
+-&gt; bob meet sally
+
+bob heard meet sally
+
+-&gt; fred hi
+
+I don't understand what you're talking about
+
+-&gt; spawn fred
+
+fred is born!
+
+-&gt; list
+
+Currently active:
+
+  sally
+
+  fred
+
+  bob
+
+-&gt; fred how are you
+
+fred heard how are you
+
+-&gt; fred goodbye
+
+fred departs this vale of tears, after listening to 2 utterances
+
+fred decided to go away
+
+-&gt; kill bob
+
+bob departs this vale of tears, after listening to 2 utterances
+
+-&gt; sally ?
+
+sally heard ?
+
+-&gt; spawn sue
+
+sue is born!
+
+-&gt; quit
+
+Exiting!
+
+sally departs this vale of tears, after listening to 2 utterances
+
+sue departs this vale of tears, after listening to 0 utterances
+
+</pre>
+</DL>
+<p>
+-- <a href="../wiki/RiciLake.html" >RiciLake</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=YieldableForLoops" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=YieldableForLoops" >history</a><br>Last edited May 20, 2012 2:10 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=YieldableForLoops" >(diff)</a>
+</body>
+</html>

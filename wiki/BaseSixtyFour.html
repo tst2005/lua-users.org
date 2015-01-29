@@ -1,0 +1,266 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Base Sixty Four</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BaseSixtyFour&amp;body=1" title="List pages referring to BaseSixtyFour">Base Sixty Four</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following implementation provides some samples of Base64 encoder/decoder functions (for background see <a href="http://en.wikipedia.org/wiki/Base64.html">[Wikipedia: Base64]</a>).<p>
+Since the last implementation, I had a small competition for the smallest Base64 codec in <a href="../wiki/JavaScript.html" >JavaScript</a> - converting the new results to lua gave the following, very small as fast codec:<p>
+<DL>
+<dt><dd><pre>!Lua
+#!/usr/bin/env lua
+-- Lua 5.1+ base64 v3.0 (c) 2009 by Alex Kloss &lt;alexthkloss@web.de&gt;
+-- licensed under the terms of the LGPL2
+
+-- character table string
+local b='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+
+-- encoding
+function enc(data)
+    return ((data:gsub('.', function(x) 
+        local r,b='',x:byte()
+        for i=8,1,-1 do r=r..(b%2^i-b%2^(i-1)&gt;0 and '1' or '0') end
+        return r;
+    end)..'0000'):gsub('%d%d%d?%d?%d?%d?', function(x)
+        if (#x &lt; 6) then return '' end
+        local c=0
+        for i=1,6 do c=c+(x:sub(i,i)=='1' and 2^(6-i) or 0) end
+        return b:sub(c+1,c+1)
+    end)..({ '', '==', '=' })[#data%3+1])
+end
+
+-- decoding
+function dec(data)
+    data = string.gsub(data, '[^'..b..'=]', '')
+    return (data:gsub('.', function(x)
+        if (x == '=') then return '' end
+        local r,f='',(b:find(x)-1)
+        for i=6,1,-1 do r=r..(f%2^i-f%2^(i-1)&gt;0 and '1' or '0') end
+        return r;
+    end):gsub('%d%d%d?%d?%d?%d?%d?%d?', function(x)
+        if (#x ~= 8) then return '' end
+        local c=0
+        for i=1,8 do c=c+(x:sub(i,i)=='1' and 2^(8-i) or 0) end
+        return string.char(c)
+    end))
+end
+
+-- command line if not called as library
+if (arg ~= nil) then
+	local func = 'enc'
+	for n,v in ipairs(arg) do
+		if (n &gt; 0) then
+			if (v == "-h") then print "base64.lua [-e] [-d] text/data" break
+			elseif (v == "-e") then func = 'enc'
+			elseif (v == "-d") then func = 'dec'
+			else print(_G[func](v)) end
+		end
+	end
+else
+	module('base64',package.seeall)
+end
+</pre></DL>
+<p>
+Base64 is also implemented in the <code>b64</code>/<code>unb64</code> methods in LuaSocket<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaSocket" >?</a> (<a href="http://www.cs.princeton.edu/~diego/professional/luasocket/mime.html#b64">[1]</a>), but you may still want to use this snippet for its few requirements -- and it is a nice example with educational value for how to perform logical operations without actual bit-shift or OR operators.<p>
+I want to apologize if somebody encountered a serious error with the former version of base64 - Not all logical functions can be easily replaced with mathematical ones, so I had to find a way around. The following code is not as fast as the mime C-Module - yet on smaller values the loading time can make a program slower, too. Find the newest (and corrected) version here:<p>
+<DL>
+<dt><dd><pre>!Lua
+#!/usr/bin/env lua
+-- working lua base64 codec (c) 2006-2008 by Alex Kloss
+-- compatible with lua 5.1
+-- http://www.it-rfc.de
+-- licensed under the terms of the LGPL2
+
+-- bitshift functions (&lt;&lt;, &gt;&gt; equivalent)
+-- shift left
+function lsh(value,shift)
+	return (value*(2^shift)) % 256
+end
+
+-- shift right
+function rsh(value,shift)
+	return math.floor(value/2^shift) % 256
+end
+
+-- return single bit (for OR)
+function bit(x,b)
+	return (x % 2^b - x % 2^(b-1) &gt; 0)
+end
+
+-- logic OR for number values
+function lor(x,y)
+	result = 0
+	for p=1,8 do result = result + (((bit(x,p) or bit(y,p)) == true) and 2^(p-1) or 0) end
+	return result
+end
+
+-- encryption table
+local base64chars = {[0]='A',[1]='B',[2]='C',[3]='D',[4]='E',[5]='F',[6]='G',[7]='H',[8]='I',[9]='J',[10]='K',[11]='L',[12]='M',[13]='N',[14]='O',[15]='P',[16]='Q',[17]='R',[18]='S',[19]='T',[20]='U',[21]='V',[22]='W',[23]='X',[24]='Y',[25]='Z',[26]='a',[27]='b',[28]='c',[29]='d',[30]='e',[31]='f',[32]='g',[33]='h',[34]='i',[35]='j',[36]='k',[37]='l',[38]='m',[39]='n',[40]='o',[41]='p',[42]='q',[43]='r',[44]='s',[45]='t',[46]='u',[47]='v',[48]='w',[49]='x',[50]='y',[51]='z',[52]='0',[53]='1',[54]='2',[55]='3',[56]='4',[57]='5',[58]='6',[59]='7',[60]='8',[61]='9',[62]='-',[63]='_'}
+
+-- function encode
+-- encodes input string to base64.
+function enc(data)
+	local bytes = {}
+	local result = ""
+	for spos=0,string.len(data)-1,3 do
+		for byte=1,3 do bytes[byte] = string.byte(string.sub(data,(spos+byte))) or 0 end
+		result = string.format('%s%s%s%s%s',result,base64chars[rsh(bytes[1],2)],base64chars[lor(lsh((bytes[1] % 4),4), rsh(bytes[2],4))] or "=",((#data-spos) &gt; 1) and base64chars[lor(lsh(bytes[2] % 16,2), rsh(bytes[3],6))] or "=",((#data-spos) &gt; 2) and base64chars[(bytes[3] % 64)] or "=")
+	end
+	return result
+end
+
+-- decryption table
+local base64bytes = {['A']=0,['B']=1,['C']=2,['D']=3,['E']=4,['F']=5,['G']=6,['H']=7,['I']=8,['J']=9,['K']=10,['L']=11,['M']=12,['N']=13,['O']=14,['P']=15,['Q']=16,['R']=17,['S']=18,['T']=19,['U']=20,['V']=21,['W']=22,['X']=23,['Y']=24,['Z']=25,['a']=26,['b']=27,['c']=28,['d']=29,['e']=30,['f']=31,['g']=32,['h']=33,['i']=34,['j']=35,['k']=36,['l']=37,['m']=38,['n']=39,['o']=40,['p']=41,['q']=42,['r']=43,['s']=44,['t']=45,['u']=46,['v']=47,['w']=48,['x']=49,['y']=50,['z']=51,['0']=52,['1']=53,['2']=54,['3']=55,['4']=56,['5']=57,['6']=58,['7']=59,['8']=60,['9']=61,['-']=62,['_']=63,['=']=nil}
+
+-- function decode
+-- decode base64 input to string
+function dec(data)
+	local chars = {}
+	local result=""
+	for dpos=0,string.len(data)-1,4 do
+		for char=1,4 do chars[char] = base64bytes[(string.sub(data,(dpos+char),(dpos+char)) or "=")] end
+		result = string.format('%s%s%s%s',result,string.char(lor(lsh(chars[1],2), rsh(chars[2],4))),(chars[3] ~= nil) and string.char(lor(lsh(chars[2],4), rsh(chars[3],2))) or "",(chars[4] ~= nil) and string.char(lor(lsh(chars[3],6) % 192, (chars[4]))) or "")
+	end
+	return result
+end
+
+-- command line if not called as library
+if (arg ~= nil) then
+	local func = 'enc'
+	for n,v in ipairs(arg) do
+		if (n &gt; 0) then
+			if (v == "-h") then print "base64.lua [-e] [-d] text/data" break
+			elseif (v == "-e") then func = 'enc'
+			elseif (v == "-d") then func = 'dec'
+			else print(_G[func](v)) end
+		end
+	end
+else
+	module('base64',package.seeall)
+end
+</pre></DL>
+<p>
+See also the same version but compatible with lua 5.0.<p>
+<DL>
+<dt><dd><pre>!Lua
+-- working lua base64 codec (c) 2006-2008 by Alex Kloss
+-- compatible with lua 5.0
+-- http://www.it-rfc.de
+-- licensed under the terms of the LGPL2
+
+-- bitshift functions (&lt;&lt;, &gt;&gt; equivalent)
+-- shift left
+function lsh(value,shift)
+	return math.mod((value*(2^shift)), 256)
+end
+
+-- shift right
+function rsh(value,shift)
+	return math.mod(math.floor(value/2^shift), 256)
+end
+
+-- return single bit (for OR)
+function bit(x,b)
+	return (math.mod(x, 2^b) - math.mod(x, 2^(b-1)) &gt; 0)
+end
+
+-- logic OR for number values
+function lor(x,y)
+	result = 0
+	for p=1,8 do result = result + (((bit(x,p) or bit(y,p)) == true) and 2^(p-1) or 0) end
+	return result
+end
+
+-- encryption table
+local base64chars = {[0]='A',[1]='B',[2]='C',[3]='D',[4]='E',[5]='F',[6]='G',[7]='H',[8]='I',[9]='J',[10]='K',[11]='L',[12]='M',[13]='N',[14]='O',[15]='P',[16]='Q',[17]='R',[18]='S',[19]='T',[20]='U',[21]='V',[22]='W',[23]='X',[24]='Y',[25]='Z',[26]='a',[27]='b',[28]='c',[29]='d',[30]='e',[31]='f',[32]='g',[33]='h',[34]='i',[35]='j',[36]='k',[37]='l',[38]='m',[39]='n',[40]='o',[41]='p',[42]='q',[43]='r',[44]='s',[45]='t',[46]='u',[47]='v',[48]='w',[49]='x',[50]='y',[51]='z',[52]='0',[53]='1',[54]='2',[55]='3',[56]='4',[57]='5',[58]='6',[59]='7',[60]='8',[61]='9',[62]='-',[63]='_'}
+
+-- function encode
+-- encodes input string to base64.
+function enc(data)
+	local bytes = {}
+	local result = ""
+	for spos=0,string.len(data)-1,3 do
+		for byte=1,3 do bytes[byte] = string.byte(string.sub(data,(spos+byte))) or 0 end
+		result = string.format('%s%s%s%s%s',
+			result,
+			base64chars[rsh(bytes[1],2)],
+			base64chars[lor(lsh((math.mod(bytes[1], 4)),4), rsh(bytes[2],4))] or "=",
+			((string.len(data)-spos) &gt; 1) and base64chars[lor(lsh(
+				math.mod(bytes[2], 16)
+			,2), rsh(bytes[3],6))] or "=",
+			((string.len(data)-spos) &gt; 2) and base64chars[(math.mod(bytes[3], 64))] or "="
+		)
+	end
+	return result
+end
+
+-- decryption table
+local base64bytes = {['A']=0,['B']=1,['C']=2,['D']=3,['E']=4,['F']=5,['G']=6,['H']=7,['I']=8,['J']=9,['K']=10,['L']=11,['M']=12,['N']=13,['O']=14,['P']=15,['Q']=16,['R']=17,['S']=18,['T']=19,['U']=20,['V']=21,['W']=22,['X']=23,['Y']=24,['Z']=25,['a']=26,['b']=27,['c']=28,['d']=29,['e']=30,['f']=31,['g']=32,['h']=33,['i']=34,['j']=35,['k']=36,['l']=37,['m']=38,['n']=39,['o']=40,['p']=41,['q']=42,['r']=43,['s']=44,['t']=45,['u']=46,['v']=47,['w']=48,['x']=49,['y']=50,['z']=51,['0']=52,['1']=53,['2']=54,['3']=55,['4']=56,['5']=57,['6']=58,['7']=59,['8']=60,['9']=61,['-']=62,['_']=63,['=']=nil}
+
+-- function decode
+-- decode base64 input to string
+function dec(data)
+	local chars = {}
+	local result=""
+	for dpos=0,string.len(data)-1,4 do
+		for char=1,4 do chars[char] = base64bytes[(string.sub(data,(dpos+char),(dpos+char)) or "=")] end
+		result = string.format('%s%s%s%s',
+			result,
+			string.char(lor(lsh(chars[1],2), rsh(chars[2],4))),
+			(chars[3] ~= nil) and string.char(lor(lsh(chars[2],4), rsh(chars[3],2))) or "",
+			(chars[4] ~= nil) and string.char(lor(math.mod(lsh(chars[3],6), 192), (chars[4]))) or ""
+		)
+	end
+	return result
+end
+
+-- command line if not called as library
+if (arg ~= nil) then
+	local func = 'enc'
+	for n,v in ipairs(arg) do
+		if (n &gt; 0) then
+			if (v == "-h") then print "base64.lua [-e] [-d] text/data" break
+			elseif (v == "-e") then func = 'enc'
+			elseif (v == "-d") then func = 'dec'
+			else print(_G[func](v)) end
+		end
+	end
+else
+	module('base64',package.seeall)
+end
+</pre></DL>
+<p>
+<p>
+On a further notice, I received a mail from someone using my code without acknowledgement of my copyright and license. If you need another license as explicitly stated in the code, feel free to contact me on my email address.<p>
+<H2>See Also</H2>
+<UL>
+<li> <a href="https://github.com/ErnieE5/ee5_base64">[ee5_base64]</a> faster natural Lua 5.2 base64 encoding/decoding<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lbase64">[lbase64]</a> lhf's lbase64 library (Lua library implemented in C)<li> <a href="http://www.cs.princeton.edu/~diego/professional/luasocket/mime.html#b64">[luasocket/mime.html#b64]</a> base64 in LuaSocket<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaSocket" >?</a> (Lua library implemented in C)<li> <a href="http://libb64.sourceforge.net/">http://libb64.sourceforge.net/</a> is a fast, public domain base64 encoder/decoder.  It's implemented in a coroutine-like style in C.  Something similar might be done in Lua, perhaps using real coroutines, or you could bind directly to this library (or just use the base64 routines in luasocket mentioned above).<li> Lua/APR provides <a href="http://peterodding.com/code/lua/apr/docs/#base64_encoding">[base64 encoding and decoding functions]</a> (wraps APR functions in C).<li> <a href="../wiki/RiscluaExamples.html" >RiscluaExamples</a> shows base64 encoding/decoding functions in <a href="../wiki/RiscLua.html" >RiscLua</a>. This might be of interest syntactically: <a href="../wiki/RiscLua.html" >RiscLua</a> adds bit-twiddling operators (&amp;, |, ^^, ~, &gt;&gt;, &lt;&lt;) to the VM. <code>\</code> and <code>=&gt;</code> are alternatives for <code>function</code> and <code>return</code>.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BaseSixtyFour" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BaseSixtyFour" >history</a><br>Last edited March 30, 2014 12:23 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BaseSixtyFour" >(diff)</a>
+</body>
+</html>

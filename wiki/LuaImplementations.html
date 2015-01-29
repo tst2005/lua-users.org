@@ -1,0 +1,189 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Implementations</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaImplementations&amp;body=1" title="List pages referring to LuaImplementations">Lua Implementations</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em><a href="../wiki/LuaDirectory.html" >LuaDirectory</a> &gt; <a href="../wiki/LuaAddons.html" >LuaAddons</a> &gt;</em> Lua<code></code>Implementations
+<hr>There are quite a few reimplementations of Lua.  The simplicity of Lua is a factor in this.
+<p>
+<strong>Reimplementations of Lua compilers and interpreters:</strong> (sorted by target/host platform)
+<p>
+<UL>
+<li> <strong>ANSI C / Lua Bytecodes</strong>
+<UL>
+<li> <a href="http://www.lua.org">[Lua]</a> (5.1) - Compiles Lua source to standard Lua bytecodes.  Lua VM interprets Lua bytecodes.  Implemented in ANSI C.  This is the standard reference implementation of Lua.  Highly robust.
+</UL>
+<li> <strong>x86, x64, ARM, PPC, MIPS</strong>
+<UL>
+<li> <a href="http://luajit.org/">[LuaJIT]</a> (5.1) - A just-in-time (JIT) compiler for Lua 5.1. Much better performance <a href="http://luajit.org/performance.html">[1]</a>.
+<li> <a href="https://github.com/katlogic/ljx">[LJX]</a> (5.2/5.3) - Experimental fork of LuaJIT 2.1 implementing 5.2+ API/ABI and <a href="https://github.com/katlogic/ljx/commits?author=katlogic">[various other hacks]</a>. 
+</UL>
+<li> <strong>LLVM (JIT)</strong>
+<UL>
+<li> <a href="../wiki/LlvmLua.html" >LlvmLua</a> (5.1) - Converts Lua bytecode to LLVM IR code.  Supports both JIT and static compiling.  Limited to the CPUs LLVM supports.  Implemented in C/C++.
+</UL>
+<li> <strong>Lua</strong>
+<UL>
+<li> <a href="http://yueliang.luaforge.net/">[Yueliang]</a> (5.1/5.0) - Compiles Lua source to standard Lua byte codes.  Implemented in Lua.  This is a no-brainer port, but it also includes an optional more native style port of the parser/lexer.
+<li> <a href="http://lulu.luaforge.net/">[LuLu]</a> (5.1) - Lua 5.1 VM implemented in Lua.  Implements a VM interpreter and coroutine library, but reuses the host Lua environment for data types and standard library functions.
+<li> <a href="http://metalua.luaforge.net/">[Metalua]</a> (5.1) - Compiles a superset of Lua, supporting Lisp-style macros and syntax extensions, to standard Lua bytecodes.  Implemented in Lua (with some C).  Parser (source -&gt; AST translator), which is reusable separately, implemented in Lua via the gg parser translator (implemented in Lua), which is partially based on Yueliang.
+<li> See also <a href="../wiki/LuaCompilerInLua.html" >LuaCompilerInLua</a>, <a href="../wiki/LuaInterpreterInLua.html" >LuaInterpreterInLua</a>, <a href="../wiki/StringLibraryInLua.html" >StringLibraryInLua</a>
+</UL>
+<li> <strong>Java</strong>
+<UL>
+<li> <a href="http://code.google.com/p/kahlua/">[Kahlua]</a><a href="/lists/lua-l/2007-05/msg00174.html">[24]</a> (5.1) - Virtual Machine and compiler for (a subset of) Lua in Java J2ME (CLDC 1.1).  Implemented in Java.  VM interprets standard Lua bytecodes.  Uses Java's garbage collection<a href="http://code.google.com/p/kahlua/wiki/java_api.html">[2]</a>.  <a href="http://code.google.com/p/kahlua/wiki/KahluaManual#Differences_compared_with_regular_Lua.html">[Differences]</a>  Compiler forked from LuaJ.
+<li> <a href="http://code.google.com/p/mochalua/">[Mochalua]</a> (5.1) - Lua virtual machine, libraries and API ported to Java J2ME CLDC 1.1 <a href="/lists/lua-l/2008-11/msg00316.html">[25]</a>.  VM interprets standard Lua bytecodes.
+<li> <a href="http://sourceforge.net/projects/luaj/">[luaj]</a> (5.1) - Lightweight, fast Java-centric Lua interpreter written for both J2ME and J2SE, including libraries for basic, string, table, package, math, coroutine packages, an optional compiler, luajava bindings, and <a href="http://jcp.org/en/jsr/detail?id=223">[JSR-223]</a> pluggable scripting engine bindings
+</UL><DL>
+<dt><dd>Lua 5.2 support as of version 3.0, which is in Beta at this time (2014-01-18).
+</DL><UL>
+<li> <a href="http://jillcode.googlecode.com">[Jill]</a> (5.1) - Java Implementation of Lua Language.  Originally produced under a commercial contract, now open source.  VM, compiler, API, and libraries running on JME CLDC 1.1.  VM interprets standard Lua bytecodes.  The libraries exist to the extent that CLDC supports them (no io.*, and math.* is reduced).  Runs on JSE as well.  33 classes.
+<li> Older: <a href="http://lua-users.org/lists/lua-l/2002-10/msg00206.html">[JLua]</a> <a href="http://sourceforge.net/projects/jua/">[jua]</a>
+</UL>
+<li> <strong>.NET</strong>
+<UL>
+<li> <a href="http://github.com/mascarenhas/luaclr">[LuaCLR]</a> - (5.1) Compiles Lua source to .NET CLR.  Implemented in Lua.
+<li> <a href="http://www.lua.inf.puc-rio.br/post/7">[Lua2IL]</a> Note: Link dead 14/10/13- (5.0) Translates Lua 5.0 bytecodes to .NET CLR (IL instructions).  This is the precursor of LuaCLR. <a href="http://www.lua.inf.puc-rio.br/luanet/lua2il_jucs.pdf">[3]</a> (FIX:what is the translator implemented in?)
+<li> <a href="http://www.codeplex.com/Nua">[Nua]</a> (5.1) - Compiles Lua source to the .NET Dynamic Languages Runtime (DLR).  Implemented in C#. <a href="http://callvirt.net/blog/entry.aspx?entryid=745a1eb7-bd8e-45bf-8bbf-7b391e08799a">[4]</a>
+<li> <a href="http://www.xnua.com">[XNua]</a> NOTE: link dead 14/10/13 - (5.1). Compiles Lua source to .NET bytecodes (particularly Xbox 360).  Implemented in C#.  Uses .NET's garbage collection<a href="http://www.xnua.com/xna_lua_docs_what_is_it">[5]</a> and has other differences/limitations<a href="http://www.xnua.com/xna_lua_docs_limitiations">[6]</a>.
+<li> <a href="http://www.ppl-pilot.com/KopiLua.aspx">[Kopi Lua]</a> - (5.1) A line-for-line port of the Lua source code (compiler, VM, GC, libraries etc.) to C#.  Byte-code compatible with the C version.
+<li> <a href="https://www.github.com/mlnlover11/SharpLua">[SharpLua]</a> - A Lua implementation in C# based off of Lua 5.1.5.
+<li> <a href="https://github.com/chkn/AluminumLua">[AluminumLua]</a> - "A fast, lightweight Lua scripting engine written entirely in C#."
+<li> <a href="http://quorra.sf.net/">[Quorra]</a> - Aims to provide full functionality and compatibility with Lua in .NET / Mono
+<li> <a href="https://github.com/xebecnan/UniLua">[UniLua]</a> - (5.2) A pure C# implementation of Lua 5.2 focus on compatibility with Unity3D.
+<li> <a href="http://nlua.org">[NLua]</a> - (5.1.5/5.2.2) A mix of C# implementation with native binding, compatible with .NET/iOS/Android/WinPhone<a href="/cgi-bin/wiki.pl?action=edit&amp;id=WinPhone" >?</a>.
+<li> <a href="http://neolua.codeplex.com">[NeoLua]</a> - NeoLua<a href="/cgi-bin/wiki.pl?action=edit&amp;id=NeoLua" >?</a>, A Lua 5.2 implementation for the Dynamic Language Runtime (DLR). 
+</UL>
+</UL>
+<p>
+<UL>
+<li> <strong>Parrot VM</strong>
+<UL>
+<li> <a href="http://www.parrotcode.org/">[Parrot VM]</a> (5.1) - Compiles Lua source to Parrot VM byte codes (PMC).  Implemented in Perl.  Standard libraries implemented in PIR<a href="http://www.parrotcode.org/languages/#Lua">[7]</a>.  <a href="https://svn.perl.org/parrot/trunk/languages/lua/">[SVN]</a>
+</UL>
+<li> <strong>C API</strong>
+<UL>
+<li> <a href="../wiki/LuaToCee.html" >LuaToCee</a> (5.1) - Translates Lua source to C API calls.  Implemented in Lua (based on Metalua's parser implemented in Lua).
+<li> <a href="http://lua-users.org/lists/lua-l/2006-07/msg00144.html">[luac2c]</a> (5.1) - Translates Lua byte codes to C API calls.  Implemented in Lua.
+</UL>
+<li> <strong>Java<code></code>Script</strong>
+<UL>
+<li> <a href="http://luaforge.net/projects/lua2js/">[Lua2js]</a> - Initial work<a href="http://lists.luaforge.net/pipermail/metalua-list/2008-November/000108.html">[8]</a><a href="/lists/lua-l/2008-11/msg00243.html">[26]</a><a href="/lists/lua-l/2008-11/msg00260.html">[27]</a> (5.1) - Translates Lua subset to Java<code></code>Script.  Implemented in Lua.
+<li> <a href="https://github.com/mherkender/lua.js">[lua.js]</a> - converts Lua code directly to ECMAscript or Action<code></code>Script.
+<li> <a href="http://code.matthewwild.co.uk/ljs/">[ljs]</a> - Lua VM implemented in Java<code></code>Script, in development
+<li> <a href="http://github.com/agladysh/js-lua">[js-lua]</a> - Uses aelua, a GWT (Java to Java<code></code>Script compiler) port of Jill, a Lua implementation in Java.
+<li> <a href="https://github.com/creationix/brozula">[brozula]</a> - LuaJIT bytecode compiler generating ES5 Java<code></code>Script.
+<li> See also <a href="http://stackoverflow.com/questions/176235/are-there-any-recent-lua-to-javascript-converters-or-interpreters-somewhere">[9]</a> <a href="/lists/lua-l/2009-10/msg00764.html">LuaList:2009-10/msg00764.html</a> <a href="/lists/lua-l/2010-07/msg00560.html">LuaList:2010-07/msg00560.html</a>
+</UL>
+<li> <strong>Action<code></code>Script</strong> - variant of Java<code></code>Script included in Flash.
+<UL>
+<li> <a href="http://flua.gcre8.com/">[flua]</a> (5.0) NOTE: link dead 14/10/13 - Lua 5.0 VM in Action<code></code>Script.  VM interprets standard Lua bytecodes.  Implemented in Action<code></code>Script.
+<li> <a href="http://code.google.com/p/lua-alchemy/">[lua-alchemy]</a><a href="http://arcanearcade.blogspot.com/2008/12/lua-actionscript-alchemy.html">[Lua under Alchemy]</a><a href="/lists/lua-l/2008-12/msg00032.html">[28]</a> (5.1) - Standard Lua 5.1 compiler and VM implemented in Action<code></code>Script (Flash variant of Java<code></code>Script) with inline AVM2 bytecodes in an .swc file.  This .swc was machine translated from the standard Lua sources using Alchemy<a href="http://labs.adobe.com/technologies/alchemy/">[10]</a><a href="http://www.automatastudios.com/2008/11/21/understanding-adobe-alchemy/">[11]</a>, which is a backend to LLVM<a href="http://llvm.org/">[12]</a>.  (So, this is not a manual reimplementation but rather an interesting machine translation.)  <a href="http://lua-users.org/lists/lua-l/2010-07/msg00223.html">[example:Phyzios]</a>
+<li> <a href="https://github.com/mherkender/lua.js">[lua.js]</a> - converts Lua code directly to ECMAscript or Action<code></code>Script.
+</UL>
+<li> <strong>Leonardo VM</strong>
+<UL>
+<li> <a href="http://www.dis.uniroma1.it/pub/demetres/LeonardoPrograms/lua.sit.bin">[LuaLeo]</a> (3.1) - Lua implemented on <a href="http://www.dis.uniroma1.it/~demetres/Leonardo/">[Leonardo VM]</a>
+</UL>
+<li> <strong>OCaml</strong>
+<UL>
+<li> <a href="http://www.cminusminus.org/code.html#luaml">[Lua-ML]</a> (2.5) - Lua  2.5 interpreter.  Implemented in Objective Caml.
+</UL>
+<li> <strong>Erlang</strong>
+<UL>
+<li> <a href="https://github.com/rvirding/luerl">[luerl]</a> - Lua implemented in Erlang, by Robert Virding, one of the creators of Erlang. <a href="http://thread.gmane.org/gmane.comp.lang.erlang.general/59161">[13]</a><a href="http://news.ycombinator.com/item?id=3610332">[14]</a>
+</UL>
+<li> <strong>Go</strong>
+<UL>
+<li> <a href="https://github.com/akavel/goluago">[goluago]</a> - port of the Lua 5.1 interpreter to the Go Language Toolchain (first 8c/6c/5c, ultimately maybe pure Go) -- preliminary <a href="/lists/lua-l/2012-02/msg00886.html">[29]</a>
+</UL>
+</UL>
+<p>
+<strong>Reimplementations only of the Lua lexer or parser (no code generator or VM):</strong>
+<p>
+<UL>
+<li> See <a href="../wiki/LuaGrammar.html" >LuaGrammar</a>.
+</UL>
+<p>
+<strong>Bindings to Standard Lua:</strong>
+<p>
+<UL>
+<li>  <a href="../wiki/BindingCodeToLua.html" >BindingCodeToLua</a>
+</UL>
+<p>
+<strong>Other languages implemented in Lua:</strong>
+<p>
+<UL>
+<li> <strong>Lisp</strong>:
+<UL>
+<li> <a href="http://blog.davber.com/2006/09/07/embedded-lisp-via-lua/">[LuaLisp]</a> (5.0?)
+<li> <a href="http://github.com/harold/mun/commits/master">[Mun]</a> (5.1) Lisp on Lua (sorta)
+<li> Related: <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lcl">[lcl]</a> (Lhf);
+<li> <a href="http://raphamiard.posterous.com/clojurescriptlua-lives">[ClojureScript/Lua]</a> NOTE: link dead 14/10/13- backend for Clojure<code></code>Script that targets Lua.  Still requires Java for the compiler.
+</UL>
+<li> <strong>Forth</strong>: see "Chapter 6: Boostraping a Forth in 40 lines of Lua code" by <a href="../wiki/EduardoOchs.html" >EduardoOchs</a> in Lua Programming Gems (see <a href="../wiki/LuaBooks.html" >LuaBooks</a>) <a href="http://angg.twu.net/miniforth-article.html">[15]</a> (5.1)
+<li> <strong>ANSI C</strong>: <a href="http://cluecc.sourceforge.net/">[Clue]</a> (5.1) - Translates C to Lua source code.  Implemented in C, using sparse<a href="http://www.kernel.org/pub/software/devel/sparse/">[16]</a>, which is also implemented in C.
+<li> <strong>Lua</strong>: see Yueliang above (5.1)
+<li> <a href="http://moonscript.org/">[MoonScript]</a> - Language inspired by <a href="http://coffeescript.org/">[CoffeeScript]</a>.  Compiles to Lua source.
+<li> <a href="https://github.com/whoopdedo/number-lua">[number-lua]</a> Number<code></code>Script to Lua converter (based on <a href="https://github.com/substack/number-script">[JavaScript NumberScript]</a>) - <a href="http://en.wikipedia.org/wiki/Esoteric_languages.html">[esoteric]</a> programming language using only numbers.  <a href="/lists/lua-l/2012-06/msg00627.html">LuaList:2012-06/msg00627.html</a>
+<li> <a href="https://github.com/richardhundt/gaia">[Gaia]</a> (5.1) - Gaia aims to provide a parser and bytecode generator for the Lua VM to aid in targetting the Lua VM as a runtime for other dynamic languages. At this stage only Lua 5.1 is supported.
+<li> <a href="https://github.com/richardhundt/lupa">[Lupa]</a> (Luajit) - Lupa - multi-paradigm object oriented, dynamic language.
+<li> <a href="https://github.com/richardhundt/nyanga">[Nyanga]</a> (Luajit) - Nyanga - Object Oriented Lua Dialect.
+</UL>
+<p>
+<strong>Languages based on Lua</strong>
+<p>
+These languages are based on the Lua implementation (e.g. adapted VM).
+<p>
+<UL>
+<li> Agena<a href="http://agena.sourceforge.net/">[17]</a><a href="/lists/lua-l/2009-03/msg00541.html">[30]</a> - based on Lua C source, but has significant syntax differences
+<li> Idle<a href="http://idle.thomaslauer.com/">[18]</a>
+<li> Dao<a href="http://www.daovm.net/">[19]</a><a href="/lists/lua-l/2006-11/msg00398.html">[31]</a><a href="/lists/lua-l/2009-03/msg00137.html">[32]</a>
+<li> <a href="http://luaplus.org/">[LuaPlus]</a> - based on 5.0work, no longer appears maintained
+<li> Bright<a href="http://bluedino.net/luapix/Bright.pdf">[20]</a><a href="http://www.lua.org/wshop08.html#moore">[21]</a> - more C like syntax, based on Lua 4.0, no longer appears maintained
+<li> Squirrel<a href="http://squirrel-lang.org/">[22]</a>
+<li> <a href="http://code.google.com/p/squilu/">[SquiLu]</a> - A mix between Squirrel and Lua, trying to get the best of both. 
+<li> Objective Lua<a href="http://olua.sourceforge.net/">[23]</a>
+<li> Python: <a href="http://code.google.com/p/tinypy/">[tinypy]</a> - a small subset of Python written in the style of Lua (but not based on Lua code).
+<li> <a href="../wiki/MetaLua.html" >MetaLua</a> - brings compile-time metaprogramming to Lua.  Compiles to standard Lua 5.1 bytecodes.
+<li> <a href="http://github.com/ex/Killa">[Killa]</a>: a scripting language based in Lua 5.2 with a <a href="../wiki/JavaScript.html" >JavaScript</a>-like syntax
+</UL>
+<p>
+<H3>Lua test suites</H3>
+<p>
+For test suites to check the correctness of Lua implementations, see <a href="../wiki/UnitTesting.html" >UnitTesting</a>.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaDistributions.html" >LuaDistributions</a> / <a href="../wiki/LuaBinaries.html" >LuaBinaries</a> - These are compilations or adaptations of Lua to different platforms.  These differ from the above in that they are not complete reimplementations of Lua but rather have minor or no changes to the Lua source code.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaImplementations" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaImplementations" >history</a><br>Last edited August 23, 2014 4:31 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaImplementations" >(diff)</a>
+</body>
+</html>

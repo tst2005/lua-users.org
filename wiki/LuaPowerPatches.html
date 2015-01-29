@@ -1,0 +1,1123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Power Patches</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaPowerPatches&amp;body=1" title="List pages referring to LuaPowerPatches">Lua Power Patches</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+A <em>power patch</em> is a small patch to a source code distribution that makes some useful change.  Power patches are judged based on how few lines of code are changed, general usefulness, and backwards compatibility.  By limiting them to localized changes, the chance that several such patches can work together is high.  It also keeps maintenance work to a minimum as new versions of the source package are released.  Truly good patches will have a short life, as the authors of the original program will incorporate them into their code.
+<p>
+<p>
+New power patches, ports of existing patches to different Lua versions, and bug fixes are welcome.
+<p>
+If you apply a patch that changes the syntax or semantics of Lua, the resulting language should not be called "Lua".
+<p>
+See <a href="../wiki/LuaPowerPatchesArchive.html" >LuaPowerPatchesArchive</a> for patches for old versions of Lua. Where a patch exists for multiple versions of Lua including the current one, it will appear on this page.
+<p>
+<p>
+<H3>How to Apply a Patch</H3>
+<p>
+Unpack the correct Lua distribution into a clean directory.  Do a <code>cd</code> to the top of the directory and run:
+<DL>
+<dt><dd><code>patch -p1 &lt; patchfile</code>
+</DL>
+<p>
+<p>
+<H3>Patch Tools</H3>
+<p>
+<UL>
+<li> <strong>Unix, etc.</strong> users should have <code>diff</code> and <code>patch</code> in the standard installation.  Some versions of patch (for example the
+</UL>
+one that comes with Solaris) don't support unified diffs properly (the ones with + and - at the start of each line.  GNU patch does.
+<UL>
+<li> <strong>Windows</strong>.
+<UL>
+<li> There is a version of the patch command for DOS (part of the DJGPP toolset) <a href="ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2gnu/pat21b.zip">[1]</a>.  This has been tested, and  works.
+<li> Another, more general solution for doing Unix tasks in Windows is Cygwin <a href="http://sources.redhat.com/cygwin/">[2]</a>.
+<li> UnxUtils<a href="/cgi-bin/wiki.pl?action=edit&amp;id=UnxUtils" >?</a> <a href="http://sourceforge.net/projects/unxutils/">[3]</a> contains a working patch utility.  This version of the patch utility expects files to be CRLF line terminated, and will fail if they are not.  The "--binary" command line option can be used to work around this.
+</UL>
+</UL>
+<p>
+<p>
+<H3>Patch Guidelines</H3>
+<p>
+<UL>
+<li> <strong>adhere to style of surrounding code</strong> - This makes it easier for everyone to read your patch.  Be sure to match the indenting style (both width and use of real tabs or spaces).
+<li> <strong>make patches adhere to guidelines in "NOTES FOR PATCH SENDERS" section of <code>patch</code> man page</strong> - The patch is made using the <code>diff</code> utility.  For example assume you have a directory <code>lua</code> with the original Lua distribution, and adjacent to that is a copy called <code>lua_new</code> which includes your patches.  Use the following sequence to make the patch.  Be sure to look over the resulting patch file in case you had some extraneous temporary files in your patched tree.  Also beware of "false diffs" that can be caused by lines with whitespace differences.  (Emacs users can use <code>whitespace-mode</code> to avoid these.)
+</UL><DL>
+<DL>
+<dt><dd><pre>
+
+cd lua
+
+make clean
+
+cd ../lua_new
+
+make clean
+
+cd ..
+
+diff -urN lua lua_new &gt; mychange.patch
+
+</pre>
+</DL>
+</DL><UL>
+<li> <strong>the patch file should have LF line endings</strong>
+</UL>
+<p>
+<H3>References for Patch Writers</H3>
+<p>
+In general, documentation on Lua's internals is hard to find -- and current versions of such docs are even rarer <a href="/lists/lua-l/2013-02/msg00013.html">[5]</a>.  Here's a list of resources that may be helpful:
+<p>
+<UL>
+<li> <a href="http://www.lua.org/doc/jucs05.pdf">[The Implementation of Lua 5.0]</a>
+<li> <a href="http://www.lua.org/doc/hopl.pdf">[The Evolution of an Extension Language: A History of Lua]</a>
+<li> <a href="http://luaforge.net/docman/83/99/ANoFrillsIntroToLua51VMInstructions.odt">[A No-Frills Introduction to Lua 5 VM Instructions]</a>
+</UL>
+<p>
+<p>
+<hr><H2>Lua 5.2 patches</H2>
+<p>
+<H3>Type Metatables for Table and Userdata (5.2.1)</H3>
+<p>
+Lua supports per-object metatables for Table and Userdata types and a per-type metatable for each of the other types. There are some use cases for a type metatable for Table type (fewer for Userdata type). For example, we could expose the Table Library functions as methods of table objects in the same way that the String Library does for strings.
+<p>
+This patch makes use of the convenient fact that there are already type metatable pointers for all the types in the Lua state. When a Table or Userdata is created, the patch copies the type metatable pointer into the new object. This means that the object uses any type metatable automatically until and unless its metatable is explicitly overwritten by setting it in the usual way. The type metatable is accessible via a newly created object from 'C' or Lua ('getmetatable') and can be used used in delegation schemes from an object metatable that replaces it.
+<p>
+We need a way of setting the type metatable distinctly from the object metatables. This is only supported from the C API and the Debug Library in line with the existing type metatables. It has always bothered me that you have to supply a 'dummy' object to 'lua_setmetatable' just to specify the type. I have added the API function 'lua_settypemt' which takes a type constant and sets the type metatable for any type. As always, 'lua_setmetatable' is used to set the object metatable of Table and Userdata objects. It is deprecated as a way of setting type metatables, but continues to work in that role for types other than Table and Userdata. From the Debug Library, use for example:
+<pre>
+
+debug.settypemt("table", {__add=table.insert})
+
+</pre>
+<p>
+Define the symbol 'JH_LUA_TYPEMETA' to compile the patch.
+<p>
+Optionally also define the symbol 'JH_LUA_TABLECLASS' to install a type metatable for Table type which exposes the Table Library in method form.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> not tested prior to 5.2.1.
+<li><strong>Lines changed/added/deleted:</strong> 0/82/0
+<li><strong>Lua authors' position:</strong> Unknown.
+<li><strong>Author:</strong> <a href="../wiki/JohnHind.html" >JohnHind</a>
+<li><strong>Last update:</strong> 2012-December-06
+<li> <a href="/files/wiki_insecure/power_patches/5.2/jh-lua-typemeta-5.2.1.patch">[Download (5.2.1)]</a>
+</UL>
+<p>
+<p>
+<H3>Binary Number Literals (5.2)</H3>
+<p>
+This patch adds binary literals. This is implemented differently to my 5.1 patch due to extensive changes in the underlying
+code. I did not support Octal this time as it is rarely used these days (although it could easily be added following the
+same pattern as this patch). I also added Java/Perl style embedded underscore support as it makes it easier to format
+long binary strings (suggested by <a href="../wiki/RobHoelz.html" >RobHoelz</a> below, though this patch only enables underscores in binary literals).
+<p>
+Valid binary literals: 0b1101; 0B100100; 0b1001_1111_0000_1010; 0b11______01
+<p>
+The underscore character is for readability only and is ignored. A string of any number of underscores may be embedded, but
+there must be at least one binary digit before the first and after the last.
+<p>
+For this patch to be compiled, the symbol 'JH_LUA_BINCONST' must be defined.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> a different implementation is provided for 5.1 below.
+<li><strong>Lines changed/added/deleted:</strong> 0/23/0
+<li><strong>Lua authors' position:</strong> Regard it as 'bloat' - probably!
+<li><strong>Author:</strong> <a href="../wiki/JohnHind.html" >JohnHind</a>
+<li><strong>Last update:</strong> 2012-August-04
+<li> <a href="/files/wiki_insecure/power_patches/5.2/jh-lua-bin-5.2.1.patch">[Download (5.2.1)]</a>
+<li> <a href="/files/wiki_insecure/power_patches/5.2/jh-lua-bin-5.2.patch">[Download (5.2.0)]</a>
+</UL>
+<p>
+<p>
+<H3>Advanced readline support (5.3-alpha, 5.2, 5.1, 5.0)</H3>
+<p>
+This patch adds the following features to the existing readline support in Lua 5.x:
+<p>
+<UL>
+<li> Completion of keywords and global variable names.
+<li> Recursive and metatable-aware completion of variable names.
+<li> Context sensitive delimiter completion.
+<li> Save/restore the history to/from a file (<code>LUA_HISTORY</code> env variable).
+<li> Set a limit for the size of the history (<code>LUA_HISTSIZE</code> env variable).
+<li> Set the app name to allow for <code>$if lua ... $endif</code> in <code>~/.inputrc</code>.
+</UL>
+<p>
+After applying the patch start Lua and try these (replace <code>~</code> with the TAB key):
+<DL>
+<dt><dd><pre>~~
+
+fu~foo() ret~fa~end&lt;CR&gt;
+
+io~~~s~~~o~~~w~"foo\n")&lt;CR&gt;
+
+</pre>
+</DL>
+<p>
+It has been verified to work with Lua 5.0, 5.0.2, 5.1, 5.2, and 5.3-alpha. Compatible readline libraries include GNU readline 2.2.1, 4.0, 4.3, 5.0, 5.1, 6.0, 6.2; Mac OS X libedit 2.11; or NetBSD libedit 2.6.5, 2.6.9. Note that, despite the version number, the 5.2 patch works with all 5.2.x releases.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> ~250
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/MikePall.html" >MikePall</a>
+<li><strong>Maintainer:</strong> <a href="../wiki/SeanBolton.html" >SeanBolton</a>
+<li><strong>Last update:</strong> 2014-Aug-08
+<li> <a href="http://luajit.org/patches/lua-5.3.0-alpha-advanced_readline.patch">[download (for Lua 5.3-alpha)]</a>
+<li> <a href="http://luajit.org/patches/lua-5.2.0-advanced_readline.patch">[download (for Lua 5.2)]</a>
+<li> <a href="http://luajit.org/patches/lua-5.1.4-advanced_readline.patch">[download (for Lua 5.1)]</a>
+<li> <a href="http://luajit.org/patches/lua-5.0-advanced-readline.patch">[download (for Lua 5.0)]</a>
+</UL>
+<p>
+<p>
+<H3>Better signal handling in the interpreter on POSIX systems (5.2.3, 5.1.5)</H3>
+<p>
+Use <code>sigaction</code> instead of <code>signal</code>. This means that, for example, you don't have to press Ctrl-C twice to quit a Lua script blocked on I/O.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> -/12/4
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/ReubenThomas.html" >ReubenThomas</a>
+<li><strong>Last update:</strong> 2013-Dec-24
+<li> <a href="/files/wiki_insecure/power_patches/5.2/lua-5.2.3-sig_catch.patch">[download (for Lua 5.2.3)]</a>
+<li> <a href="/files/wiki_insecure/power_patches/5.1/sig_catch.patch">[download (for Lua 5.1.5)]</a>
+</UL>
+<p>
+<H3>Add default module paths for /usr as well as /usr/local (5.2.0)</H3>
+<p>
+This patch adds default module paths under /usr as well as the default /usr/local, enabling Lua to find libraries installed as part of the system (e.g. libraries installed by your GNU/Linux distribution).
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> -/5/2
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/ReubenThomas.html" >ReubenThomas</a> (derived from Debian packaging)
+<li><strong>Last update:</strong> 2012-Feb-18
+<li> <a href="/files/wiki_insecure/power_patches/5.2/lua-5.2.0-module_paths.patch">[download (for Lua 5.2.0)]</a>
+<li> <a href="/files/wiki_insecure/power_patches/5.1/module_paths.patch">[download (for Lua 5.1.5)]</a>
+</UL>
+<p>
+<H3>C/C++-style comments</H3>
+<p>
+Allow the use of C-style (<code>/*...*/</code>) and C++-style (<code>//...</code>) comments in Lua source. Either or both styles can be enabled via #defines in llex.h or luaconf.h. Standard Lua comments remain available.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> -/39/-
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> criptych
+<li><strong>Last update:</strong> 2012-Jan-07
+<li> <a href="/files/wiki_insecure/power_patches/5.2/cppcomt.diff">[download (for Lua 5.2.0)]</a>
+</UL>
+<p>
+<H3>Function fields</H3>
+<p>
+Allow the use of special syntax for function fields in tables, such that
+<DL>
+<dt><dd><pre>
+
+tbl = {}
+
+function tbl:my_method(x, y) end
+
+</pre>
+</DL>
+or
+<DL>
+<dt><dd><pre>
+
+tbl = { my_method = function(self, x, y) end }
+
+</pre>
+</DL>
+can instead be written:
+<DL>
+<dt><dd><pre>
+
+tbl = { function my_method(x, y) end }
+
+</pre>
+</DL>
+That is, functions declared with this syntax get methods' automatic "self" parameter.
+<p>
+19 Jan: Fixed a bug that broke declaration of anonymous functions, e.g. <code>t = { function(args) end } </code>
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> -/31/-
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> criptych
+<li><strong>Last update:</strong> 2012-Jan-19
+<li> <a href="/files/wiki_insecure/power_patches/5.2/oofunc.diff">[download (for Lua 5.2.0)]</a>
+</UL>
+<p>
+<p>
+<H3>Self-iterating Objects (5.2, 5.1.4)</H3>
+<p>
+UPDATE: Following an idea sent to me by Sam Lie from Indonesia, I have extended this patch to establish <code>pairs</code> as the last-resort
+default iterator for tables. The patch is re-titled to reflect this expanded scope.
+<p>
+This patch adds a new event for metatables <code>__iter</code>. If this is included in a metatable, its value must be a function with the same signature as <code>pairs</code> or <code>ipairs</code>. It provides a default iterator for the object simplifying the generic <code>for</code> statement. If there is no such
+metamethod, the <code>pairs</code> iterator is used (for tables only).
+<pre>
+
+t = {[3]="three",[2]="two",[1]="one"}
+
+for k,v in t do print(k,v) end        -- uses pairs
+
+setmetatable(t, {["__iter"]=ipairs})
+
+for k,v in t do print(k,v) end        -- uses ipairs
+
+for k,v in pairs(t) do print(k,v) end -- uses pairs (per standard Lua)
+
+</pre>
+Of course, a custom function or closure can be used in place of <code>pairs</code> or <code>ipairs</code>. For lists, a closure could be used to avoid the need for the key variable for example.
+<p>
+I offered this as an alternative to the <code>__pairs</code> and <code>__ipairs</code> events which have been implemented in Lua 5.2. I still believe this approach is better and continue to offer it as a patch. The two approaches can coexist, indeed you could specify all three metamethods for the same object so <code>pairs</code> and <code>ipairs</code> would both be available with customised behaviour and one of them would also be specified as the default iterator.
+<p>
+The patch modifies the Lua Virtual Machine to test the type of the first parameter of the TFORLOOP bytecode instruction. If it is a function, the original code is used. If it is other than a function, an attempt is made to reference its <code>__iter</code> metamethod. If this does not yield a
+function and the object being iterated is a table, an attempt is made to reference the global <code>pairs</code> function. If a function is obtained by either of these methods, that function is called and its three return values overwrite the original three parameters to TFORLOOP. The original code is then used to process the generic <code>for</code> with the iteration parameters provided by the function. Note that this introduces a subtle change in the standard Lua processing: The case of the first parameter not being a function is detected before the first iteration rather than during it, and it is a test for function type rather than for the ability to be called. This will break some subtle code tricks such as using the <code>__call</code> event to "fake" self-iteration.
+<p>
+For this patch to be compiled, the symbol 'JH_LUA_ITER' must be defined.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> 5.1.4
+<li><strong>Lines changed/added/deleted:</strong> 0/32/0
+<li><strong>Lua authors' position:</strong> See above.
+<li><strong>Author:</strong> <a href="../wiki/JohnHind.html" >JohnHind</a>
+<li><strong>Last update:</strong> 2012-November-16
+<li> <a href="/files/wiki_insecure/power_patches/5.2/jh-lua-iter-5.2.patch">[Download (5.2, 5.2.1)]</a>
+<li> <a href="/files/wiki_insecure/power_patches/5.1/jh-lua-iter-5.1.4.patch">[Download (5.1.4)]</a>
+</UL>
+<p>
+<H3>Set syntax shortcut for table constructors (5.2, 5.1.4)</H3>
+<p>
+This patch adds a new syntax shortcut for constructing set-like tables. If the value of a field is missing it is defaulted to boolean <code>true</code>, so for example {["saturday"], ["sunday"]} constructs the same table as {["saturday"] = true, ["sunday"] = true}.
+<p>
+For this patch to be compiled, the symbol 'JH_LUA_SETINIT' must be defined.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> 5.1.4
+<li><strong>Lines changed/added/deleted:</strong> 0/14/0
+<li><strong>Lua authors' position:</strong> Not buying it.
+<li><strong>Author:</strong> <a href="../wiki/JohnHind.html" >JohnHind</a>
+<li><strong>Last update:</strong> 2012-August-04
+<li> <a href="/files/wiki_insecure/power_patches/5.2/jh-lua-setinit-5.2.patch">[Download (5.2)]</a>
+<li> <a href="/files/wiki_insecure/power_patches/5.1/jh-lua-setinit-5.1.4.patch">[Download (5.1.4)]</a>
+</UL>
+<p>
+<p>
+<H3>Unpack Tables by Name (5.2, 5.1, 5.0.2)</H3>
+<p>
+Enhancement to the assignment statement to unpack named values from tables using the <code>in</code> keyword.  (See lua-l message "patch: local a,b from t" <a href="/lists/lua-l//2005-09/msg00219.html">[6]</a>.)
+<DL>
+<dt><dd><pre>
+
+    local a, b, c in some_table_expression
+
+</pre>
+</DL>
+is syntactic sugar for
+<DL>
+<dt><dd><pre>
+
+    local t = some_table_expression
+
+    local a, b, c = t.a, t.b, t.c
+
+</pre>
+</DL>
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 12/73/0
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/PeterShook.html" >PeterShook</a> (5.2.0, 5.2.2 ports by Xavier Wang, <a href="../wiki/SvenOlsen.html" >SvenOlsen</a>)
+<li><strong>Last update:</strong> 2012-Feb-17
+<li> <a href="/files/wiki_insecure/power_patches/5.2/unpack-5.2.2.patch">[download (for Lua 5.2.2)]</a>
+<li> <a href="/files/wiki_insecure/power_patches/5.2/basic-from.patch">[download (for Lua 5.2.0)]</a> (note: this version, and those before it, may generate buggy code for expressions like: `local v in v`.)
+<li> <a href="/files/wiki_insecure/power_patches/5.1/basic-from.patch">[download (for Lua 5.1)]</a>
+<li> <a href="/files/wiki_insecure/power_patches/5.0/basic-from.patch">[download (for Lua 5.0.2)]</a>
+</UL>
+<p>
+<H3>Compound Assignment Operators (5.2)</H3>
+<p>
+A patch to allow C-style compound assignment; i.e., statements like "object.counter+=2".  The operators supported are +,-,..,/, and *.  The details of the syntax are discussed on my personal page (see: <a href="../wiki/SvenOlsen.html" >SvenOlsen</a>).  For a rather different (and 5.1 compatible) approach to the same problem, see <a href="/lists/lua-l//2011-06/msg01223.html">[7]</a>. 
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lua authors' position:</strong> unenthusiastic
+<li><strong>Author:</strong> <a href="../wiki/SvenOlsen.html" >SvenOlsen</a>
+<li><strong>Last update:</strong> 2013-Aug-15
+<li> <a href="/files/wiki_insecure/power_patches/5.2/compound-5.2.2.patch">[download (for Lua 5.2.2)]</a>
+</UL>
+<p>
+<H3>Safe Table Navigation (5.2)</H3>
+<p>
+A syntax patch for the safe navigation semantic discussed here <a href="/lists/lua-l//2013-02/msg00733.html">[8]</a> -- an indexing operation 't?.v' which suppresses errors on accesses into undefined tables.  While there seems to be broad interest in patch of this type, opinions varied on how best to handle the details.  I've posted a simple, light-weight version below; my personal page (<a href="../wiki/SvenOlsen.html" >SvenOlsen</a>) includes code and docs for a more feature-heavy version.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lua authors' position:</strong> ???
+<li><strong>Author:</strong> <a href="../wiki/SvenOlsen.html" >SvenOlsen</a>
+<li><strong>Last update:</strong> 2013-March-3
+<li> <a href="/files/wiki_insecure/power_patches/5.2/safe2.patch">[download (for Lua 5.2)]</a>
+</UL>
+<p>
+<H2>Lua 5.1 patches</H2>
+<p>
+These are in order of Lua version, newest to oldest.
+<p>
+<H3>Make os.exit close lua_State (5.1.5)</H3>
+<p>
+If an optional second argument is true, calls lua_close before exiting, so
+finalizers will be run. The Lua interpreter already calls lua_close when
+exiting normally, but other applications embedding Lua may not; and you may
+want this behavior when using os.exit (to force non-zero exit statuses).
+<p>
+This behavior cannot be provided by a library, but only by patching the Lua
+source and rebuilding.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>files changed/added/deleted:</strong> 1/7/0
+<li><strong>Lua authors' position:</strong> Implemented in Lua 5.2
+<li><strong>Author:</strong> Dubiousjim
+<li><strong>Last update:</strong> 2012-May-17
+<li> <a href="https://github.com/dubiousjim/luafiveq/blob/master/patches/os-exit.patch">[Download for Lua 5.1.5]</a>
+</UL>
+<p>
+<p>
+<H3>Make tables honor __len (5.1.5)</H3>
+<p>
+This patch makes #tbl honor a __len metamethod on tbl, as in Lua 5.2. It also provides a new global function, rawlen.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>files changed/added/deleted:</strong> 16/3/1
+<li><strong>Lua authors' position:</strong> Implemented in Lua 5.2
+<li><strong>Author:</strong> Dubiousjim
+<li><strong>Last update:</strong> 2012-May-17
+<li> <a href="https://github.com/dubiousjim/luafiveq/blob/master/patches/table-len.patch">[Download for Lua 5.1.5]</a>
+</UL>
+<p>
+<H3>Second Hash (5.1.5)</H3>
+<p>
+This patch strengthens Lua 5.1 against Hash DoS attacks.  For more details see <a href="../wiki/HashDos.html" >HashDos</a>.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>files changed/added/deleted:</strong> 9/421/21
+<li><strong>Lua authors' position:</strong>
+<li><strong>Author:</strong> <a href="../wiki/RobertGabrielJakabosky.html" >RobertGabrielJakabosky</a>
+<li><strong>Last update:</strong> 2012-May-1
+<li> <a href="/files/wiki_insecure/power_patches/5.1/lua_5.1_second_hash_fix.patch">[download (for Lua 5.1.5)]</a>
+</UL>
+<p>
+<p>
+<H3>Print NULs (5.1.5)</H3>
+<p>
+Make print print NUL characters, by using fwrite instead of fputs. Someone else tidied it up by patching luaconf.h to let the user supply a luai_puts macro.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> no
+<li><strong>Lines changed/added/deleted:</strong> -/14/7
+<li><strong>Lua authors' position:</strong> Implemented in Lua 5.2
+<li><strong>Author:</strong> <a href="../wiki/ReubenThomas.html" >ReubenThomas</a> / Unknown
+<li><strong>Last update:</strong> 2012-Feb-18
+<li> <a href="/files/wiki_insecure/power_patches/5.1/print_nuls.patch">[download (for Lua 5.1.5)]</a>
+</UL>
+<p>
+<p>
+<H3>Autotoolized Lua (5.1.5)</H3>
+<p>
+This patch autotoolizes the Lua distribution, i.e. makes it build with autoconf, automake, and libtool. For Lua 5.1.5.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> no
+<li><strong>Lines changed/added/deleted:</strong> unknown
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> Petri Lehtinen / <a href="../wiki/ReubenThomas.html" >ReubenThomas</a>
+<li><strong>Last update:</strong> 2012-Feb-18
+<li> <a href="http:/files/wiki_insecure/power_patches/5.1/autotoolize.patch.bz2">[download (for Lua 5.1.5)]</a>
+</UL>
+<p>
+You must unpack the file before patching:
+<DL>
+<dt><dd><pre>bunzip2 lua-X.Y.Z-autotoolize-rW.patch.bz2</pre>
+</DL>
+<p>
+Note: This patch incorrectly references version 5.1.3 in several places and you may want to fix that.
+<p>
+Next, apply the patch.
+<p>
+After the patching you need to add executable flag to some files:
+<DL>
+<dt><dd><pre>chmod u+x autogen.sh config.guess config.sub configure depcomp install-sh missing</pre>
+</DL>
+<p>
+Now you are ready to run <code>./configure</code>.
+<p>
+<p>
+<H3>Emergency Garbage Collector (5.1.5)</H3>
+<p>
+This patch is described in <a href="../wiki/EmergencyGarbageCollector.html" >EmergencyGarbageCollector</a>.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>files changed/added/deleted:</strong> 18/427/95
+<li><strong>Lua authors' position:</strong> Implemented in Lua 5.2
+<li><strong>Author:</strong> <a href="../wiki/RobertGabrielJakabosky.html" >RobertGabrielJakabosky</a>
+<li><strong>Last update:</strong> 2010-Dec-7
+<li> <a href="/files/wiki_insecure/power_patches/5.1/emergency_gc-5.1.4-r6.patch">[Download (5.1.4) release 6]</a>
+<li> <a href="https://github.com/dubiousjim/luafiveq/blob/master/patches/emergency-gc.patch">[Updated for Lua 5.1.5]</a>
+</UL>
+<p>
+<p>
+<H3>Yieldable For Loop (5.1.5)</H3>
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes if LUA_COMPAT_TFORLOOP defined
+<li><strong>Lines changed/added/deleted:</strong>
+<li><strong>Author:</strong> <a href="../wiki/RiciLake.html" >RiciLake</a>
+<li><strong>Last update:</strong> 2007-Sep-01
+<li> <a href="http://primero.ricilake.net/lua/lua-5.1.2-for.patch">[Download for 5.1.2]</a>
+<li> <a href="https://github.com/dubiousjim/luafiveq/blob/master/patches/yieldable-for-loops.patch">[Updated for Lua 5.1.5]</a>
+</UL>
+<p>
+Modifies the code generator so that the iterator in <code>for ... in</code> loops can call <code>yield</code>. Details and test code are available at <a href="../wiki/YieldableForLoops.html" >YieldableForLoops</a>.
+<p>
+Note that the current version of the patch orders op codes so as to maintain binary compatibility with compiled Lua scripts, if LUA_COMPAT_TFORLOOP is defined in luaconf.h. This adds a few instructions to the VM, and quite a bit of complexity to the patch, which would otherwise only be about 25 lines.
+<p>
+<p>
+<H3>string.format %s patched to use __tostring (5.1.5)</H3>
+<p>
+Changes string.format %s to apply __tostring to non-string %s arguments.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 1/6/-
+<li><strong>Lua authors' position:</strong> seated
+<li><strong>Author:</strong> <a href="../wiki/DougCurrie.html" >DougCurrie</a>
+<li><strong>Last update:</strong> 2006-Oct-03
+<li> <a href="/files/wiki_insecure/power_patches/5.1/sformat511.patch">[download (for Lua 5.1.1)]</a>
+<li> See <a href="http://lua-users.org/lists/lua-l/2006-10/msg00001.html">[mail]</a> for details on this patch.
+<li> <a href="https://github.com/dubiousjim/luafiveq/blob/master/patches/string-format.patch">[Updated for Lua 5.1.5]</a>
+</UL>
+<p>
+<p>
+<H3>Custom error object support (5.1.5)</H3>
+<p>
+This patch improves Lua's support for custom error objects.  Changes:
+<p>
+<UL>
+<li> Uncaught error handler in standard Lua interpreter calls tostring() on error object.  This ensures that a call stack is displayed even for non-string error objects.  It also allows use of the __tostring hook for human-readable error messages.
+</UL>
+<p>
+<UL>
+<li> Base library error() will set the _WHERE field of any table error object to the value of luaL_where().  Uncaught error handler in the standard Lua interpreter will use this, so that for custom error object the error location is shown in the call stack.  This is a bit of a hack and implies that any thrown table should be a unique
+</UL>
+instance of the error (since it will be mutated).  Rather than this scheme, the ideal solution would be to have the Lua core manage the location separate from the error object.
+<p>
+See "Exception Patterns in Lua"<a href="http://memebeam.org/john/lua/exception_patterns.pdf">[4]</a> for more information.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> ~20
+<li><strong>Lua authors' position:</strong>  "Where's the pcall/coroutine patch?"
+<li><strong>Author:</strong> <a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>
+<li><strong>Last update:</strong> 2006-Sep-8
+<li> <a href="http://memebeam.org/john/lua/custom_errors.patch">[download]</a>
+<li> <a href="https://github.com/dubiousjim/luafiveq/blob/master/patches/custom-error-object.patch">[Updated for Lua 5.1.5]</a>
+</UL>
+<p>
+<p>
+<H3>Equality operators that work like arithmetic operators (5.1.5)</H3>
+<p>
+This modifies the behavior of the equality operator functions so they are able to handle values with dissimilar types. For instance, in standard Lua if the left operand is a userdata and the right is a number, the equality test will fail. This patch causes the __eq metamethod of the userdata to be used, if available. But note, one reason Lua does not support this is because the __eq, __lt and __le metamethods are used for ~=, &gt; and &gt;= as well, by reversing the operands. Therefore, if both the right and left operands have metamethods, you might be surprised by which one gets chosen. As it is, the left metamethod is preferred. But of course, this is the RIGHT metamethod for the ~=, &gt; and &gt;= tests! A good solution to this might be to add __ne, __gt and __ge metamethods. Then the equality operators would truly behave exactly like the arithmetic operators.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 14/7/8
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> Chris Marrin
+<li><strong>Last update:</strong> 2005-Sep-20
+<li> <a href="/files/wiki_insecure/power_patches/5.1-alpha/UniformCompare.patch">[download (for Lua 5.1-alpha)]</a>
+<li> <a href="https://github.com/dubiousjim/luafiveq/blob/master/patches/equality-operators.patch">[Updated for Lua 5.1.5]</a>
+</UL>
+<p>
+<p>
+<p>
+<H3>Octal and Binary Number Constants (5.1.4)</H3>
+<p>
+This simple patch adds octal and binary constants. These will be recognised in source code literals or in string contents converted implicitly or explicitly by <code>tonumber</code>.  Binary constants take the form <code>0b10101</code>. Octal constants take the form <code>0o176</code>. Upper-case radix specifier is also supported for consistency with the hexadecimal format but for obvious reasons it is not recommended for octal!
+<p>
+For this patch to be compiled, the symbol 'JH_LUA_BINOCTAL' must be defined.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> unknown
+<li><strong>Lines changed/added/deleted:</strong> 0/6/0
+<li><strong>Lua authors' position:</strong> Regard it as 'bloat' - probably!
+<li><strong>Author:</strong> <a href="../wiki/JohnHind.html" >JohnHind</a>
+<li><strong>Last update:</strong> 2010-January-14
+<li> <a href="/files/wiki_insecure/power_patches/5.1/jh-lua-binoctal-5.1.4.patch">[Download (5.1.4)]</a>
+</UL>
+<p>
+<p>
+<H3>Use NaN packing for TValue (5.1.4)</H3>
+<p>
+Use NaN packing for TValue on x86 to reduce memory usage and tiny performance gain (same as in LuaJIT 2).
+<p>
+It's fully ABI compatible with standard Lua libraries.
+<p>
+On one test script memory consumption reduced from 28Mb to 21Mb and performance improved about 3.5-5%
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 5/138/2
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> Sokolov Yura aka funny_falcon
+<li><strong>Last update:</strong> 2011-February-24
+<li> <a href="http://lua-users.org/files/wiki_insecure/power_patches/5.1/pack_value.patch">[download]</a>
+</UL>
+<p>
+<p>
+<H3>Multi-dimensional array indexing with comma syntax (5.1.4)</H3>
+<p>
+Modifies the parser to support multi-dimensional array indexing with comma syntax, i.e. m[1,2] istreated by the parser as being identical to m[1][2], thus allowing for code such as the following:
+<p>
+<DL>
+<dt><dd><pre>
+
+   -- test multi-dimensional arrays with comma syntax. also test
+
+   -- constructors and multiple assignment to show they're not broken.
+
+   m = {[1]={}, [2]="foo"}
+
+   m[1,2] = "bar"
+
+   print(m[2], m[1][2], m[1,2])  --&gt; foo  bar bar
+
+   m.foo = {}
+
+   m.foo.bar = "baz"
+
+   print(m["foo","bar"])         --&gt; baz
+
+</pre>
+</DL>
+<p>
+The virtual machine is unchanged.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 1/7/2
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> Mark Feldman (lua@ppl-pilot.com)
+<li><strong>Last update:</strong> 2009-Nov-09
+<li> <a href="/files/wiki_insecure/power_patches/5.1/mda.patch">[Download (5.1.4)]</a>
+</UL>
+<p>
+<p>
+<H3>C function names in backtrace (5.1.4)</H3>
+<p>
+Currently GNU/Linux only, this patch will add the names of Lua C functions to the traceback if debugging information has been compiled into the shared library from which they were loaded.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 2/27/0
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/RobHoelz.html" >RobHoelz</a>
+<li><strong>Last update:</strong> 2009-May-06
+<li> <a href="http://hoelzro.net/c-func-names.patch">[download]</a>
+</UL>
+<p>
+<p>
+<H3>Allow underscores in numbers (5.1.4)</H3>
+<p>
+One thing I like about Perl is the ability to break up large numbers using underscores, so instead of this:
+<DL>
+<dt><dd><pre>
+
+local num = 1000000000000
+
+</pre>
+</DL>
+<p>
+you can do this:
+<DL>
+<dt><dd><pre>
+
+local num = 1_000_000_000_000
+
+</pre>
+</DL>
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 3/4/0
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/RobHoelz.html" >RobHoelz</a>
+<li><strong>Last update:</strong> 2009-April-06
+<li> <a href="http://hoelzro.net/perl-numbers.patch">[download]</a>
+</UL>
+<p>
+<p>
+<H3>Bitwise operators, integer division and != (5.1.4)</H3>
+<p>
+<UL>
+<li> Infix bitwise operators for AND (&amp;, __and), OR (|, __or), XOR (^^, __xor).
+<li> Infix bitwise operators for SHIFT LEFT (&lt;&lt;, __shl) and SHIFT RIGHT (&gt;&gt;, __shr).
+<li> Unary bitwise negation operator (~, __not).
+<li> Infix arithmetic operator for INTEGER DIVISION (\, __intdiv).
+<li> accepts both ~= and != for comparison.
+</UL>
+<p>
+All these features can be disabled by undefining LUA_BITWISE_OPERATORS in luaconf.h.
+<p>
+Bitwise operators first convert a lua_Number to a lua_Integer and then convert the result back to a lua_Number.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> no (new byte code)
+<li><strong>Lines changed/added/deleted:</strong> ?
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> Thierry Grellier, darkmist (at) mail.ru, Joshua Simmons
+<li><strong>Last update:</strong> 2009-Mar-29
+<li> <a href="/files/wiki_insecure/power_patches/5.1/bitwise_operators_5.1.4_1.patch">[download (for Lua 5.1.4)]</a>
+<li> <a href="http://darkmist.newmail.ru/bitwise_operators_for_lua_5.1.3.patch">[download (for Lua 5.1.3)]</a>
+<li> <a href="/files/wiki_insecure/power_patches/5.1/newluaoperators.patch">[download (for Lua 5.1.1)]</a>
+</UL>
+<p>
+<p>
+<H3>Remove auto string&lt;-&gt;number conversion (5.1.4)</H3>
+<p>
+Prevent auto-conversion between strings and numbers in arithmetic and concatenation. This is good because it prevents bugs; when auto-conversion is a good idea (as in the print function) it can still be done by calling the relevant conversion functions.
+<p>
+The current version does not scrupulously remove all undesirable casting from the libraries; I have preferred correctness over completeness.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> no
+<li><strong>Lines changed/added/deleted:</strong> -/16/31
+<li><strong>Lua authors' position:</strong> Under discussion
+<li><strong>Author:</strong> <a href="../wiki/ReubenThomas.html" >ReubenThomas</a>
+<li><strong>Last update:</strong> 2009-Aug-20
+<li> <a href="/files/wiki_insecure/power_patches/5.1/no_auto_conversion.patch">[download (for Lua 5.1.4)]</a>
+</UL>
+<p>
+<p>
+<H3>Use defaults for LUA_INIT, LUA_PATH and LUA_CPATH (5.1.4)</H3>
+<p>
+Adds a -t switch to the standalone interpreter that uses the default values for the above variables, making it easier to run Lua in a controlled way.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> no
+<li><strong>Lines changed/added/deleted:</strong> -/20/5
+<li><strong>Lua authors' position:</strong> Under discussion
+<li><strong>Author:</strong> <a href="../wiki/ReubenThomas.html" >ReubenThomas</a>
+<li><strong>Last update:</strong> 2009-Aug-20
+<li> <a href="/files/wiki_insecure/power_patches/5.1/no_init_or_paths.patch">[download (for Lua 5.1.4)]</a>
+</UL>
+<p>
+<p>
+<H3>No varargs (5.1.4)</H3>
+<p>
+Varargs are arguably a needless complication. This patch removes them.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> no
+<li><strong>Lines changed/added/deleted:</strong> -/9/106
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/ReubenThomas.html" >ReubenThomas</a>
+<li><strong>Last update:</strong> 2009-Aug-20
+<li> <a href="/files/wiki_insecure/power_patches/5.1/no_vararg.patch">[download (for Lua 5.1.4)]</a>
+</UL>
+<p>
+<p>
+<H3>Interpreter Bailout Flag (5.1.3)</H3>
+<p>
+At <a href="http://www.simopsstudios.com">[Sim Ops Studios]</a>, we embedded Lua by spawning a kernel-supported thread that called a Lua script using the C API. In that configuration, a script could hang forever, making it impossible to cleanly escape from the thread without killing it outright. This script provides an alternative: the "bailout" state flag, and two commands (luaL_getbailout and luaL_setbailout) to manage the flag. When the flag is true, every opcode is interpreted as a return operation, forcing the Lua interpreter unconditionally back to the top level. The C code can then check the status of the flag and cleanly exit the thread if the bailout flag is true. Using this flag makes it impossible to write a script that can run without interruption (although it is possible that a script could be terminated in an unexpected place).
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> unknown
+<li><strong>Lines changed/added/deleted:</strong> -/-/-
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/MarkTomczak.html" >MarkTomczak</a>
+<li><strong>Last update:</strong> 2008-July-16
+<li> <a href="/files/wiki_insecure/power_patches/5.1/interpreter-bailout-5.1.3.patch">[Download (5.1.3)]</a>
+<li><strong>Note</strong> This patch is missing two vital stages. It should add "int bailout;" to lua_State in lstate.h:127 and "L-&gt;bailout = 0;" to preinit_state in lstate.c:101.
+</UL>
+<p>
+<p>
+<H3>Check for undefined globals (5.1.3)</H3>
+<p>
+This patch is described in <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 0/38/0
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/DavidManura.html" >DavidManura</a>
+<li><strong>Last update:</strong> 2008-Mar-22
+<li> <a href="/files/wiki_insecure/power_patches/5.1/checkglobals-5.1.3.patch">[Download (5.1.3)]</a>
+</UL>
+<p>
+<p>
+<H3>Continue Statement (5.1.3)</H3>
+<p>
+A "continue" statement is added to the parser.  The virtual machine is unchanged.  Comes with a small test suite.
+<p>
+Instead of patching Lua, one might consider luaSub, which contains a syntax mod for this same purpose.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 2/26/- (excluding tests)
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> Leszek Buczkowski, Wolfgang Oertl, <a href="../wiki/AskoKauppi.html" >AskoKauppi</a>
+<li><strong>Last update:</strong> 2008-Mar-10
+<li> <a href="/files/wiki_insecure/power_patches/5.1/continue-5.1.3.patch">[Download (5.1.3)]</a>
+</UL>
+<p>
+<p>
+<H3>Table scope patch (5.1.3)</H3>
+<p>
+Allows table constructs to enclose a scope so that variables used inside the table have special meaning.  See <a href="../wiki/TableScope.html" >TableScope</a>.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> -/39/-
+<li><strong>Lua authors' position:</strong> open
+<li><strong>Author:</strong> <a href="../wiki/DavidManura.html" >DavidManura</a>
+<li><strong>Last update:</strong> 2008-Feb-2
+<li> Patch for 5.1.3 is in <a href="../wiki/TableScope.html" >TableScope</a>.
+</UL>
+<p>
+<p>
+<H3>LNUM - number mode patch ("integer patch") (5.1.3)</H3>
+<p>
+Allows Lua built-in numbers to be a combination of any of the following:
+LNUM_DOUBLE / LNUM_FLOAT / LNUM_LDOUBLE (long double)
+LNUM_INT32 / LNUM_INT64
+LNUM_COMPLEX
+<p>
+Uses: 32- or 64-bit integer accuracy internally for any Lua numbers. Intensively (40-500%) boosts Lua performance on non-FPU platforms. Totally transparent to the application (script) level, as well as existing Lua/C API.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 252/1616/207
+<li><strong>Lua authors' position:</strong> open
+<li><strong>Author:</strong> <a href="../wiki/AskoKauppi.html" >AskoKauppi</a>
+<li><strong>Last update:</strong> 2008-Mar-19
+</UL>
+<p>
+Latest svn (with test suite):
+<pre>svn export svn://slugak.dyndns.org/public/2008/LuaPatches/LNUM2</pre>
+<p>
+Latest release:
+<a href="http://luaforge.net/frs/?group_id=214">[LuaForge LNUM Files]</a>
+<p>
+Real-world testing and performance data from applications are still appreciated. The patch is essentially "ready"; apart from LDOUBLE mode there are no known bugs; if you find any, please share your experience.
+<p>
+The patch leaves the integer realm graciously, falling into floating point accuracy if results won't fit in integers.
+<p>
+For performance results, there is a spreadsheet and easy to use "make-plain/float/double/ldouble/complex" targets to run on your own system.
+<p>
+<p>
+<H3>Integer ASCII values (5.1.2)</H3>
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> -/8/-
+<li><strong>Author:</strong> Karel Tuma
+<li><strong>Last update:</strong> 2007-Sep-25
+<li> <a href="http://blua.leet.cz/asciival.patch">[Download for 5.1.2]</a>
+</UL>
+Yet another syntactic bloat for the lexer:
+<pre>print(#'a',#'\n')
+
+97      10</pre>
+<p>
+Note that this could be probably done via token filter as well, but this is useful for ASCII value mangling (base64, obscure protocol parsing). I just wanted something more expressive than if c&gt;=b2a("A") and c&lt;=b2a("Z"). There was no way to get ASCII value as a constant in Lua at this point.
+<p>
+<em>This syntax already has a meaning (string length) because strings can be given inside single quotes. --lhf</em>
+<p>
+<p>
+<H3>Module Execution Proposal (5.1.2)</H3>
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> -/116/31
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/DavidManura.html" >DavidManura</a>
+<li><strong>Last update:</strong> 2007-Sep-01
+</UL>
+<p>
+Provides a new command-line switch (<code>-p</code>) that loads a function with the given package name via the searchers in <code>package.loaded</code> and then executes that function as a script, passing the command-line arguments to the function as arguments.  Patch and description are in <a href="../wiki/ModuleExecutionProposal.html" >ModuleExecutionProposal</a>.
+<p>
+<p>
+<H3>Concise anonymous functions (5.1.2)</H3>
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 3/26/0
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> Brian Palmer
+<li><strong>Last update:</strong> 2007-Jun-10
+<li> <a href="http://svn.codekitchen.net/lua_patches/lambda.patch">[Download for 5.1.2]</a>
+</UL>
+<p>
+Some syntactic sugar for writing more concise anonymous functions, very useful when passing arguments to higher-order functions. Completely backwards compatible and only modifies the parser, emits the same bytecode as the old syntax. See <a href="http://svn.codekitchen.net/lua_patches/lambda.readme.txt">[The Readme]</a> for details.
+<p>
+<p>
+<H3>Extend table constructor syntax to allow multiple expansion of multi-return functions (5.1.1)</H3>
+<p>
+As discussed several times on the mailing list, and implemented in Aranha, here is a patch which modifies table constructor syntax so that <code>;</code> allows the preceding list item to be expanded.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> no (modifies arguments to <code>OP_SETLIST</code>)
+<li><strong>Lines changed/added/deleted:</strong> 21/73/86
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/RiciLake.html" >RiciLake</a>
+<li><strong>Last update:</strong> 2007-Feb-08
+<li> <a href="http://primero.ricilake.net/lua/newtable.patch">[Download for Lua 5.1.1]</a>
+</UL>
+<p>
+With this patch,<code> {foo(); bar()} </code>creates a table with all the return values of <code>foo</code> followed by all the return values of <code>bar</code>, while<code> {foo(), bar()} </code> continues to have the same semantics as current Lua. To be more precise, if a list-item is followed by a comma then it is truncated to one return value; otherwise it represents all the return values (possibly none). Consequently, <code> {foo(),} </code> truncates, but <code> {foo();} </code> and <code> {foo()} </code> do not.
+<p>
+The patch also makes the order of field definitions precisely left to right, unlike the current Lua implementation in which <code> {[3] = "foo", 1, 2, 3} </code> has undefined behaviour. That may lead to performance problems with very large tables which are defined like this:
+<DL>
+<dt><dd><pre class="code">
+t = {
+
+  <span class="string">"a"</span>, a = 1,
+
+  <span class="string">"b"</span>, b = 2,
+
+  <span class="string">"c"</span>, c = 3,
+
+  <span class="comment">-- etc</span>
+
+}
+
+</pre>
+
+</DL>
+<p>
+Other than that, the performance implications are minimal; sometimes it is a bit faster, sometimes it is a bit slower, but there is little difference. Personally, I prefer the precise ordering guarantee, but the patch can be easily modified to come closer to current semantics. Contact me for more details.
+<p>
+The implementation is straight-forward. When a semi-colon is encountered, the compiler emits code to append the current list of expressions, leaving the last one as multi-return. In order to do this, it's necessary to keep the current table array insertion point on the stack, instead of hard-coding it into the vm code, so the opcode to create a new table is modified to use two stack slots, putting the table in the first one and initializing the second one to 1. The opcode which adds array values to a table uses the second stack slot as the starting index, and updates it to the next starting index. Although this uses one extra stack slot, it is roughly the same speed
+as the existing code.
+<p>
+<p>
+<H3>Let files combined with luac access arguments (5.1.1)</H3>
+<p>
+When <code>luac</code> combines multiple files into a single bytecode chunk, the resulting chunk does not accept any arguments. This small patch passes <code>...</code> into all files in the combined chunk
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 3/2/0
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/RiciLake.html" >RiciLake</a>
+<li><strong>Last update:</strong> 2007-Jan-18
+<li> <a href="http://primero.ricilake.net/lua/luac.patch">[Download for Lua 5.1.1]</a> (Should work on 5.1 but untested)
+</UL>
+<p>
+<p>
+<H3>__usedindex metamethod (5.1.1)</H3>
+<p>
+__usedindex behaves exactly like __newindex but when the indexed key actually exists (value is overwritten). This allows simple implementation of read-only tables, mirroring C structures etc. without slow/lengthy/fragile table proxying constructs. Known to be broken with LuaJIT, fixes are welcome.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 2/3/0
+<li><strong>Lua authors' position:</strong>
+<li><strong>Author:</strong> <a href="http://blua.leet.cz/">[Karel Tuma]</a> (original patch by Christopher Dunn - <a href="../wiki/LuaPowerPatchesArchive.html" >LuaPowerPatchesArchive</a>)
+<li><strong>Last update:</strong> 2006-Nov-14
+<li> <a href="http://blua.leet.cz/sep/USEDINDEX_PATCH.patch">[download (for Lua 5.1.1)]</a>
+</UL>
+<p>
+<p>
+<H3>PHP-like 'break N' to break across multiple loops (5.1.1)</H3>
+<p>
+Allows syntax like:
+while foo do
+while bar do
+if baz then
+eek()
+break 2
+end
+end
+end
+<p>
+if "foo and bar and baz" condition holds, 'break 2' escapes loops immediately. The number is counted towards breakable scopes (thus, "if", "do" etc are not counted).
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 2/3/1
+<li><strong>Lua authors' position:</strong>
+<li><strong>Author:</strong> Karel Tuma
+<li><strong>Last update:</strong> 2006-Oct-31
+<li> <a href="http://blua.leet.cz/sep/BREAKN_PATCH.patch">[download (for Lua 5.1.1)]</a>
+</UL>
+<p>
+<p>
+<H3>Enum/bit operations patch (5.1.1)</H3>
+<p>
+Adds C API functions (toenum, isenum, ...) for handling unsigned 32-bit bitfields. Such enum values have overloaded [], () operations for performing bitwise operations on the Lua side. Enums are grouped in 'families', to prevent accidential use of wrong bitmask in wrong function.
+<p>
+The implementation uses negative 'tt' (Lua type) values for enums, and they are not garbage collectable (= should be fast). 'type()' function returns two values: "enum" and the family name. Documentation is lacking.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 51/740/-
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/AskoKauppi.html" >AskoKauppi</a>
+<li><strong>Last update:</strong> 2006-Oct-1
+</UL>
+<p>
+<pre>svn cat svn://slugak.dyndns.org/public/lua-bitwise/lua-5.1.1-enum-patch.diff
+
+svn cat svn://slugak.dyndns.org/public/lua-bitwise/test.lua
+
+svn cat svn://slugak.dyndns.org/public/lua-bitwise/README
+
+</pre>
+<p>
+<p>
+<H3>Go Long Lua! (5.1)</H3>
+<p>
+This patch removes floating point operations used by Lua 5.1 by changing the type of Lua numbers from double to long.  It implements division and modulus so that x == (x / y) * y + x % y.  The exponentiation function returns zero for negative exponents.  The patch removes the difftime function, and the math module should not be used.  The string.format function no longer handles the floating point directives %e, %E, %f, %g, and %G.  By removing the definition of LUA_NUMBER_INTEGRAL in src/luaconf.h, one obtains a Lua number implementation based on doubles.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> purges math functions and the behavior of exponentiation changed
+<li><strong>Lines changed/added/deleted:</strong> -/64/6
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> John D. Ramsdell
+<li><strong>Last update:</strong> 2006-Apr-17
+<li> <a href="http://www.ccs.neu.edu/home/ramsdell/tools/lua-5.1-no-fp.patch">[download (for Lua 5.1)]</a>
+</UL>
+<p>
+<p>
+<H3>CNUMBER patch (5.1)</H3>
+<p>
+Provides a more efficient mechanism for accessing numeric C variables from Lua.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 2/121/- (not including test suite)
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/DavidManura.html" >DavidManura</a>
+<li><strong>Last update:</strong> 2006-Feb-18
+<li> <a href="/files/wiki_insecure/power_patches/5.1/cnumber.patch">[download (for Lua 5.1)]</a>
+<li> See <a href="../wiki/CnumberPatch.html" >CnumberPatch</a> for details on this patch.
+</UL>
+<p>
+<p>
+<H3>Kilobyte/Megabyte Number Suffix (5.1)</H3>
+<p>
+Add 'K' and 'M' suffixes for numbers (e.g. 150K or 12M); binary (K=2^10) not metric (K=10^3).
+<p>
+Useful when using Lua as a configuration language in some domains (in our case, a build process).
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 2/16/0
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/EricTetz.html" >EricTetz</a>
+<li><strong>Last update:</strong> 2007-Dec-14
+<li> <a href="/files/wiki_insecure/power_patches/5.1/k-m-number-suffix.patch">[download (for Lua 5.1)]</a>
+</UL>
+<p>
+<p>
+<H3>Do patch (5.1 beta)</H3>
+<p>
+Makes "= do ... end" be syntactic sugar for "= function() ... end" (handy with simple callbacks).
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> -/40/1
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/AskoKauppi.html" >AskoKauppi</a>
+<li><strong>Last update:</strong> 2006-Jan-12
+</UL>
+<p>
+<pre>svn cat svn://slugak.dyndns.org/public/lua-patches/do.patch
+
+svn cat svn://slugak.dyndns.org/public/lua-patches/do.txt</pre>
+<p>
+Instead of patching Lua, one might consider luaSub, which contains a syntax mod for this same purpose.
+<p>
+<p>
+<H3>Literals (hex, UTF-8) (5.1 beta)</H3>
+<p>
+Allows \x00..\xFFFF (hex) and \u0000..\uFFFF (UTF-8 encoded) characters within strings.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> -/94/1
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/AskoKauppi.html" >AskoKauppi</a>
+<li><strong>Last update:</strong> 2006-Jan-12
+</UL>
+<p>
+<pre>svn cat svn://slugak.dyndns.org/public/lua-patches/literals.patch
+
+svn cat svn://slugak.dyndns.org/public/lua-patches/literals.txt</pre>
+<p>
+<p>
+<H3>Mutate Operators (5.1-work6)</H3>
+<p>
+This patch adds mutate operators to Lua.  Specifically, the ":=" operator can now be used for value assignment (or whatever else you wish) by attaching a "__mutate_asn" metamethod to a Lua object. Adding additional mutate operators (such as +=, or &lt;&lt; for example) is straightforward.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> ~70
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/AndrewLauritzen.html" >AndrewLauritzen</a>
+<li><strong>Last update:</strong> 2005-Jun-23
+<li> <a href="/files/wiki_insecure/power_patches/5.1-work6/mutate.patch">[download (for Lua 5.1-work6)]</a>
+</UL>
+<p>
+<H3>Retrieve function arity with debug.getinfo (5.1.5)</H3>
+<p>
+Sometimes it's useful to know how many arguments a function expects.  This patch allows you to specify 'a' to debug.getinfo (or alternatively to lua_getinfo), which
+makes the function's arity available in a field named 'arity'.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 0/13/0
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/RobHoelz.html" >RobHoelz</a>
+<li><strong>Last update:</strong> 2012-Sep-25
+<li> <a href="/files/wiki_insecure/power_patches/5.1/function-arity.patch">[download]</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaPowerPatches" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaPowerPatches" >history</a><br>Last edited August 11, 2014 5:01 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaPowerPatches" >(diff)</a>
+</body>
+</html>

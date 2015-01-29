@@ -1,0 +1,233 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Table Funcs Two</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TableFuncsTwo&amp;body=1" title="List pages referring to TableFuncsTwo">Table Funcs Two</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here is a version of <a href="../wiki/TableFuncs.html" >TableFuncs</a> in which there is both a private and a public persistent state.
+<p>
+For efficiency, this has the restriction that private keys cannot have the value <code>nil</code> (setting a private key to nil will publish the key). Now that we have <code>false</code> I don't think this is so crucial. (OK, maybe <code>false</code> was not a bad idea :) )
+<p>
+The interesting thing is that there are no reserved keys in the public state table, and client programs can freely use keys which happen to be private. In this case, the client program and the tablefunc see different tables.
+<p>
+<em>I didn't put in any inheritance here, but that is not very difficult. The private table needs to check the private table of the object it inherits from before trying the public table, and the public table just has an <code>__index</code> metamethod whose value is the public table of the same object. This is more like object prototyping than class inheritance, but it is often a useful programming style.</em>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+
+
+  <span class="comment">-- the private table just forwards to the public table.</span>
+
+
+
+  <span class="keyword">local</span> private_meta = {
+
+    __index = <span class="keyword">function</span>(t, k)
+
+                <span class="keyword">return</span> t.__public[k]
+
+              <span class="keyword">end</span>,
+
+
+
+    __newindex = <span class="keyword">function</span>(t, k, v)
+
+                   t.__public[k] = v
+
+                 <span class="keyword">end</span>,
+
+
+
+    __call = <span class="keyword">function</span>(t, ...)
+
+               <span class="keyword">return</span> t.__function(t, <span class="library">unpack</span>(arg))
+
+             <span class="keyword">end</span>
+
+  }
+
+
+
+  <span class="keyword">function</span> Tablefunc(fn, private)
+
+    <span class="comment">-- this is what the caller will see</span>
+
+    <span class="keyword">local</span> public = {}
+
+
+
+    <span class="comment">-- remember what we do and where we do it</span>
+
+    private.__function = fn
+
+    private.__public = public
+
+ 
+
+    <span class="comment">-- normally I'm not in favour of privatisation, but</span>
+
+    <span class="comment">-- sometimes you have to do it.</span>
+
+    <span class="comment">-- Call this as follows:</span>
+
+    <span class="comment">--   self:privatise {private_key = initial_value,</span>
+
+    <span class="comment">--                   other_private_key = initial_value}</span>
+
+
+
+    <span class="keyword">function</span> private.privatise(self, vars)
+
+      <span class="keyword">for</span> k, v <span class="keyword">in</span> vars <span class="keyword">do</span>
+
+        <span class="library">rawset</span>(self, k, v)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- set up the deferral metamethods</span>
+
+    <span class="library">setmetatable</span>(private, private_meta)
+
+
+
+    <span class="comment">-- create a new metatable with a __call metamethod which</span>
+
+    <span class="comment">-- accesses the private table through a closure.</span>
+
+
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>(public,
+
+      {
+
+       __call = <span class="keyword">function</span>(t, ...)
+
+                  <span class="keyword">return</span> private.__function(private, <span class="library">unpack</span>(arg))
+
+                <span class="keyword">end</span>
+
+      })
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Let's take it for a little spin.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> test(self, x)
+
+  <span class="keyword">if</span> x <span class="keyword">then</span> self:privatise({public = <span class="string">"public hidden"</span>}) <span class="keyword">end</span>
+
+  <span class="library">print</span>(<span class="string">"hidden:"</span>, self.hidden)
+
+  <span class="library">print</span>(<span class="string">"public:"</span>, self.public)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+$lua
+
+Lua 5.0 (beta)  Copyright (C) 1994-2002 Tecgraf, PUC-Rio
+
+&gt; a = Tablefunc(test, {hidden = "hidden"})
+
+&gt; a()
+
+hidden: hidden
+
+public: nil
+
+&gt; a.public = "public"
+
+&gt; a()
+
+hidden: hidden
+
+public: public
+
+&gt; a.hidden = "change hidden"
+
+&gt; a()
+
+hidden: hidden
+
+public: public
+
+&gt; = a.hidden
+
+change hidden
+
+&gt; -- here we tell the function to make "public" private
+
+&gt; a(1)
+
+hidden: hidden
+
+public: public hidden
+
+&gt; = a.public
+
+public
+
+&gt; a.public = "change public"
+
+&gt; a()
+
+hidden: hidden
+
+public: public hidden
+
+&gt; = a.public
+
+change public
+
+</pre>
+</DL>
+<p>
+--<a href="../wiki/RiciLake.html" >RiciLake</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TableFuncsTwo" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TableFuncsTwo" >history</a><br>Last edited May 28, 2007 4:16 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TableFuncsTwo" >(diff)</a>
+</body>
+</html>

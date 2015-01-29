@@ -1,0 +1,505 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Optimized Str Rep</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=OptimizedStrRep&amp;body=1" title="List pages referring to OptimizedStrRep">Optimized Str Rep</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<hr><DL>
+<dt><dd><strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  It does not run as is under Lua 5.</strong>
+</DL>
+<hr><DL>
+<dt><dd>Here follows a lua version of the <strong>strrep</strong> function faster than the original, written in C. In the average, it is about 3 times faster.
+</DL>
+<p>
+<DL>
+<dt><dd>All the tests were performed on a Pentium II, running linux in single-user mode, with enough memory to prevent swapping and Lua version 4.0.
+</DL>
+<p>
+<DL>
+<dt><dd>The algorithm was inspired on LTN 9, by <a href="../wiki/RobertoIerusalimschy.html" >RobertoIerusalimschy</a> and was written by <a href="../wiki/LuizCarlosSilveira.html" >LuizCarlosSilveira</a>.
+</DL>
+<p>
+<DL>
+<dt><dd>The essence of the algorithm is to do the minimum number of concatenations possible.
+</DL>
+<p>
+<DL>
+<dt><dd>Just for curiosity: compared to the original <strong>strrep</strong>, <strong>lua strrep</strong> has a questionably lower <em>O()</em> function, but this has to be studied better.
+</DL>
+<p>
+<p>
+<pre>
+
+
+
+</pre>
+<DL>
+<dt><dd>Plotting their "repetition number" x "time" curve, we can observe the behavior of both functions
+<dt><dd>(<em>time</em> is in seconds and <em>repetition number</em> is in bytes):
+</DL>
+<p>
+<DL>
+<dt><dd><img src="/files/wiki_insecure/users/lcs/LuaStrrep/lua_strrep_x_c_strrep.gif">
+</DL>
+<pre>
+
+
+
+
+
+</pre>
+<DL>
+<dt><dd>Here follows a program with the algorithm. It was used for both testing the correctness of the implementation and generating the data to plot the curve.
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+function log2(n)
+
+local _n = 2
+
+local x = 1
+
+    if (_n &lt; n) then
+
+        repeat
+
+            x = x + 1
+
+            _n = _n + _n
+
+        until (_n &gt;= n)
+
+    elseif (_n &gt; n) then
+
+        if (n == 1) then
+
+            return 0
+
+        else
+
+            return nil
+
+        end
+
+    end 
+
+    if (_n &gt; n) then
+
+        return x-1
+
+    else
+
+        return x
+
+    end 
+
+end 
+
+    
+
+function get_bits(n)
+
+    local bits = {}
+
+    local rest = n
+
+    repeat
+
+        local major_bit = log2(rest)
+
+        rest = rest - 2^major_bit
+
+        bits[major_bit] = 1
+
+        if (bits.count == nil) then
+
+            bits.count = major_bit
+
+        end
+
+    until (rest == 0)
+
+    return bits
+
+end
+
+
+
+
+
+
+
+function fast_strrep(str, times)
+
+    local bits = get_bits(times)
+
+    local strs = {[0] = str}
+
+
+
+    local count = bits.count
+
+
+
+    for i = 1, count do
+
+        strs[i] = strs[i-1] .. strs[i-1]
+
+    end
+
+
+
+    local result = ''
+
+    for i = 0, count do
+
+        if (bits[i]) then
+
+            result = result .. strs[i]
+
+        end
+
+    end
+
+
+
+    return result
+
+
+
+end
+
+
+
+for numreps = 1024, 30*1024*1024, 1024*64 do
+
+
+
+    a = nil
+
+    b = nil
+
+    collectgarbage()
+
+
+
+    start = clock()
+
+    a = fast_strrep("a", numreps)
+
+    print("L:"..numreps.." "..(clock() - start))
+
+    start = clock()
+
+    b = strrep("a", numreps)
+
+    print("C:"..numreps.." "..(clock() - start))
+
+
+
+    if (a~=b) then
+
+        print("the algorithm is wrong!")
+
+    else
+
+        print("ok")
+
+    end
+
+
+
+    flush(_STDOUT)
+
+
+
+end
+
+
+
+        </pre>
+</DL>
+<p>
+<hr><DL>
+<dt><dd><em>It doesn't surprise me that your version is faster, actually; the lua library version of strrep (v 4.0 at least) has a very heavy overhead in function calls (one per character) which is not shared by the concatenation function. I find it curious that the library version doesn't simply work out how many characters it will need, malloc them, and then repetitively memcpy the source string, which I would think would be an order of magnitude faster and O(MN + M) (M copies of a string of length N). But I suppose that making concatenations of megabyte size wasn't really contemplated.</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>The algorithm you use is reminiscent of the minimal multiplication algorithm for computing exponentials. Here is a version which takes advantage of the fact that Lua optimises <code>a .. b .. c </code> into a single operation, and which also avoids creating a temporary vector. I think you'll find it to be about twice as fast as yours (and a lot shorter). It might also be interesting as an example of how to do stuff that looks like bit manipulation without too much pain.</em> -- <a href="../wiki/RiciLake.html" >RiciLake</a> 
+</DL>
+<p>
+<p>
+<DL>
+<dt><dd><pre>
+
+  -- Suppose that x = b[n]*2^n + b[n-1]*2^(n-1) + ... + b[0]*2^0
+
+  --   (where every b[i] is either 0 or 1)
+
+  -- This is exactly equivalent to:
+
+  --    b[0] + 2 * (b[1] + 2 * (b[2] + (... + b[n])))
+
+  -- So we've effectively eliminated all the multiplications, replacing them with doubling.
+
+
+
+  -- Now, x * y (for any y) can be calculated by distributing multiplication over the
+
+  -- above, which effectively replaces every b[i] with b[i] * y. However, every b[i]
+
+  -- is either 0 or 1, so the product is either 0 or y.
+
+
+
+  -- Now, if k is an integer and str1 and str2 are strings, and we write:
+
+  --   str1 + str2       for the concatenation of str1 and str2
+
+  --   k * str1          for "k copies of str1 concatenated"
+
+  -- we can see that we have + and * are "just like" integer arithmetic in the sense that
+
+  -- + and * are commutative and associative, and * distributes over +. So the equivalence
+
+  -- continues to work, except that every term must be either "" (for 0) or y (the string).
+
+
+
+  -- All that is left is to compute the expression from the inside out: each step is
+
+  -- either 2 * r or y + 2 * r, where r is the cumulated value and y is the original string.
+
+  -- In string terms, we can write these as result .. result (2 * r) and
+
+  -- result .. result .. str (2 * r + y)
+
+
+
+  -- We could use the same idea to compute integer exponents in the minimum number of
+
+  -- multiplications, using * and ^ instead of + and * (which is where this algorithm
+
+  -- comes from.)
+
+
+
+  -- This makes use of the fact that Lua optimises a .. b .. c into a single concatenation.
+
+  -- With a bit more work, we could use any base we wanted to, not just base 2. But it would
+
+  -- require more options in the if statement.
+
+
+
+function another_strrep(str, times)
+
+  local result = ""
+
+  local high_bit = 1
+
+  while high_bit &lt; times do high_bit = high_bit * 2 end
+
+
+
+  -- at this point, high_bit is the largest (integral) power of 2 smaller than times
+
+  -- (unless times &lt; 1 in which case high_bit is 1)
+
+  -- The computation of highbit could be:
+
+  --   local high_bit = 2 ^ floor(log(times) / log(2))
+
+  -- which is probably faster but requires the math library
+
+
+
+  -- we are now going to work through times, bit by bit, making use of the above formula:
+
+
+
+  while high_bit &gt;= 1 do
+
+    if high_bit &lt;= times then           -- the bit is 1 if times is &gt;= high_bit
+
+      times = times - high_bit          -- we "turn it off" for the next iteration
+
+      result = result .. result .. str  -- and the next step is 2 * r + y
+
+    else                                -- the bit is 0
+
+      result = result .. result         -- so the next step is 2 * r
+
+    end
+
+    high_bit = high_bit / 2             -- Now go for the next bit
+
+  end
+
+  return result
+
+end
+
+
+
+</pre>
+</DL>
+<p>
+<hr><DL>
+<dt><dd><strong>Your algorithm is really good. Thank you. The idea of them both (yours and mine) are almost the same, right? You did the excellent optimization that I couldn't realize how to do it by the time I wrote it, which is preventing the creation of auxiliary pieces. I plotted the curve for the 3 algorithms, that you can see below. For the data plotted in this curve, the exact average relations of the 3 functions are:</strong>
+<dt><dd><pre>
+
+luiz/rici = 1.41  (rici is  1.41  times faster than luiz)
+
+c/luiz    = 2.98  (luiz is  2.98  times faster than c)
+
+c/rici    = 4.19  (rici is  4.19  times faster than c)
+
+        </pre>
+</DL>
+<p>
+<DL>
+<dt><dd><img src="/files/wiki_insecure/users/lcs/LuaStrrep/rici_strrep_x_luiz_strrep_x_c_strrep.gif">
+</DL>
+<p>
+<p>
+<p>
+<DL>
+<dt><dd><strong>Since your algorithm is faster (and appears to use less memory), it is the one that belongs to this page. Unless you dislike the idea, I'll remove mine and give the place to your's. But, before, let me ask you something: could you please put some comments on your code in order to make the algorithm clearer? Due to your optimization, the idea behind it has been obscured...</strong> --<a href="../wiki/LuizCarlosSilveira.html" >LuizCarlosSilveira</a>
+</DL>
+<p>
+<DL>
+<dt><dd><em>OK, I compulsively commented it. I hope that it is clear; sometimes I think the code itself is clearer. The function is not as optimal as it could be because it does one more concatenation than is necessary... I was trying to make the code short rather, and counting on Lua to do <code>"" .. "" .. str</code> very rapidly.</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Just for fun, and to demonstrate something (I'm not sure what), I throw in the base 10 version of the above algorithm. Rather than using a case statement and doing the bit-by-bit computation, I use gsub to do the loop and convert the repetition count to a string to work out the digits. Table lookup is (probably) a lot faster than a string of if statements, so I used that, too. <code>%state</code> is a standard trick for getting around the fact that Lua 4.0 doesn't have real closures.</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>I do not claim that this function is easy to read, but my tests indicate that it is even faster. (Sorry, no other comments, but the idea is the same, so you should be able to work it out. :-) ) Just shows what you can do if you're warped enough. I have another example of this sort of thing somewhere: a <code>join</code> function which I wrote which lazily compiles subroutines to do the same sort of exponential decomposition of the problem; even though it has to compose and compile functions, it turns out to be <strong>much</strong> faster than the naive <code>join</code>. Of course, the functions have to be memoised to take advantage of that. I'll try to post that one, too.</em> -- <a href="../wiki/RiciLake.html" >RiciLake</a>
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+do
+
+  local concats = {
+
+    ["0"] = function(a, b) return a .. a .. a .. a .. a .. a .. a .. a .. a .. a end,
+
+    ["1"] = function(a, b) return a .. a .. a .. a .. a .. a .. a .. a .. a .. a
+
+                                    .. b end,
+
+    ["2"] = function(a, b) return a .. a .. a .. a .. a .. a .. a .. a .. a .. a
+
+                                    .. b .. b end,
+
+    ["3"] = function(a, b) return a .. a .. a .. a .. a .. a .. a .. a .. a .. a
+
+                                    .. b .. b .. b end,
+
+    ["4"] = function(a, b) return a .. a .. a .. a .. a .. a .. a .. a .. a .. a
+
+                                    .. b .. b .. b .. b end,
+
+    ["5"] = function(a, b) return a .. a .. a .. a .. a .. a .. a .. a .. a .. a
+
+                                    .. b .. b .. b .. b .. b end,
+
+    ["6"] = function(a, b) return a .. a .. a .. a .. a .. a .. a .. a .. a .. a
+
+                                    .. b .. b .. b .. b .. b .. b end,
+
+    ["7"] = function(a, b) return a .. a .. a .. a .. a .. a .. a .. a .. a .. a
+
+                                    .. b .. b .. b .. b .. b .. b .. b end,
+
+    ["8"] = function(a, b) return a .. a .. a .. a .. a .. a .. a .. a .. a .. a
+
+                                    .. b .. b .. b .. b .. b .. b .. b .. b end,
+
+    ["9"] = function(a, b) return a .. a .. a .. a .. a .. a .. a .. a .. a .. a
+
+                                    .. b .. b .. b .. b .. b .. b .. b .. b .. b end,
+
+  }
+
+
+
+  function decimal_strrep(str, times)
+
+    local state = {r = "" }
+
+    local concats = %concats
+
+    times = tostring(times)
+
+    if strfind(times, "^[0-9]+$") then
+
+      gsub(times, "(.)",
+
+           function(digit)
+
+             %state.r = %concats[digit](%state.r, %str)
+
+           end)
+
+    end
+
+    return state.r
+
+  end
+
+end
+
+
+
+        </pre>
+</DL>
+<p>
+<p>
+<hr><DL>
+<dt><dd><em>By the way, the test is not all that great because the time will vary with the number of 1 bits in the binary expansion of the repetition count. (I think my version is slightly less sensitive to that, but it will still be a factor.) The test counts you use all have mostly 0's in their binary expansion.</em> -- <a href="../wiki/RiciLake.html" >RiciLake</a>
+</DL>
+<p>
+<hr><DL>
+<dt><dd><strong>I belive this is why you told your algorithm should be twice as fast as mine. What really happens is that when I use the repetition number formed by only 1 bit turned on, it is the best case for memory consumption. In the worse case, my algorithm appears to use twice as memory as yours. I agree that the measurements I did should be reviewed, but this page is only starting...</strong> --<a href="../wiki/LuizCarlosSilveira.html" >LuizCarlosSilveira</a>
+</DL>
+<p>
+<p>
+<hr><DL>
+<dt><dd><em>Fair enough. It would also be interesting to try the test with a longer string than "a". I've never quite figured out how to adequately benchmark Lua programs, because garbage collection times vary with the total heap size. It would probably be best to run everything a few times to get the heap size to stabilise, and then do the timing.</em> --<a href="../wiki/RiciLake.html" >RiciLake</a>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=OptimizedStrRep" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=OptimizedStrRep" >history</a><br>Last edited December 30, 2006 11:22 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=OptimizedStrRep" >(diff)</a>
+</body>
+</html>

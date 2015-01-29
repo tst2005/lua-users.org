@@ -1,0 +1,83 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Syntax Addition</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SyntaxAddition&amp;body=1" title="List pages referring to SyntaxAddition">Syntax Addition</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+By making a small change to the function <code>llex</code> and the array <code>luaX_tokens</code> in <code>"llex.c"</code> we can achieve the same syntax as C, Java<code></code>Script and other languages for the "not" and "not equal" operators.
+<p>
+After the changes bellow in the Lua source we can write:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">if</span> !b <span class="keyword">then</span> a = c <span class="keyword">end</span>
+
+<span class="keyword">if</span> a != c <span class="keyword">then</span> a = c <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+and it still works with the originals
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">if</span> <span class="keyword">not</span> b <span class="keyword">then</span> a = c <span class="keyword">end</span>
+
+<span class="keyword">if</span> a ~= c <span class="keyword">then</span> a = c <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Comments</H3>
+<p>
+<em>I agree with <code>!=</code>, especially as <code>~=</code> is not widely used elsewhere and could be confused with Perl's <code>=~</code>. However, <code>!</code> for <code>not</code> is bad, as it goes against Lua's rule of using words rather than symbols (compare with <code>and</code> and <code>or</code>). -- <a href="../wiki/ReubenThomas.html" >ReubenThomas</a></em>
+<p>
+<code>~</code> is a valid mathematical symbol for logical negation <a href="http://en.wikipedia.org/wiki/Logical_negation.html">[1]</a>.  In programming languages, it is less common.  However, even in languages like C, <code>~</code> is used for the closely related bitwise negation, while <code>!</code> is used for logical negation, and <code>!=</code> is used for inequality (i.e. <code>!(a==b)</code>).  So, Lua's <code>~=</code> has a small resemblance.  However, C is inconsistent between bitwise and logical operations: <code>&amp;</code> and <code>&amp;&amp;</code>, <code>|</code> and <code>||</code>, and <code>~</code> and <code>!</code> -- why not <code>~~</code> for logical negation to avoid a different character?  In Lua, you might alternately do <code>not(a==b)</code>.  -- <a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<em>Or perhaps instead use <code>&lt;&gt;</code> as per Basic... thus requiring only the three comparison characters <code>&lt;, &gt;, =</code> for all tests. The <code>~</code> character is currently unique in Lua as being the only one that starts a multi-character lexical item while not being one itself! Also, <code>&lt;&gt;</code> matches the <code>&lt;=</code> usage, so that <code>x&lt;=y</code> means <code>x&lt;y or x=y</code> while <code>x&lt;&gt;y</code> means <code>x&lt;y or x&gt;y</code>. Consistent. -- <a href="../wiki/PeterHill.html" >PeterHill</a></em>
+<p>
+<DL>
+<dt><dd>IMO, <code>&lt;&gt;</code> for inequality is a bad idea. The are data for which <code>&lt;</code> and <code>&gt;</code> may make no sense at all. For points in space, e.g., you may define equality and inequality, but there is no linear ordering. Yet you may still want to have a test for (in)equality of points, and <code>&lt;&gt;</code> might be misleading. -- Hgr
+</DL>
+<p>
+It is only consistent if you have complete <a href="http://en.wikipedia.org/wiki/Total_order.html">[2]</a> ordering. Otherwise it is possible for all three of <code>&lt;</code>, <code>&gt;</code> and <code>==</code> to be false. Even though <code>~</code> is annoyingly difficult to type on a Spanish Windows keyboard, which I am currently using to write this message, I have gotten used to it -- and I certainly wouldn't want to have to change all of the code I've got kicking around. Someday we will all have Unicode and be able to use <code>&amp;U+2260;</code> which refuses to render itself on this Wiki. -- <a href="../wiki/RiciLake.html" >RiciLake</a>
+<p>
+<em>Using <code>!</code> as negation would certainly make picking up Lua somewhat less annoying for programmers of most other languages. Which other languages even use <code>~</code> as negation? It's just odd, especially when <code>~</code> is used in other languages for things other than negation. Nobody said anything about replacing <code>~</code> as negation, simply adding <code>!</code> as an alternative. So all your existing code continues to work perfectly and doesn't have to be touched at all. --DanHollis<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DanHollis" >?</a></em>
+<p>
+<em>For what it's worth: Smalltalk, Dylan, and Matlab all use <code>~=</code> for some kind of inequality according to the <a href="http://merd.sourceforge.net/pixel/language-study/syntax-across-languages.html#Vrsqltnqlt">[Syntax Across Languages]</a> page.  (They also use <code>~</code> as the prefix for logical not.)  As I understand, it's fairly common to write logical negation (in the mathematical sense) with a <code>~</code> prefix, so the use of <code>~=</code> to mean not equivalent seems like a perfectly natural extension.  --<a href="../wiki/TaylorVenable.html" >TaylorVenable</a></em>
+<p>
+Supporting both symbols, as suggested above, complicates an otherwise simple language.  -- <a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<em>On some keyboards, the <code>~</code> is difficult to find and to use. For instance, on azerty, you have to do [alt gr]+[3]+[anykey] to type one. -- anonymous</em>
+<p>
+Wiki Note: The name of this page (<a href="../wiki/SyntaxAddition.html" >SyntaxAddition</a>) is not very descriptive.  Perhaps NegationSyntax<a href="/cgi-bin/wiki.pl?action=edit&amp;id=NegationSyntax" >?</a> would be better.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SyntaxAddition" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SyntaxAddition" >history</a><br>Last edited May 2, 2009 1:43 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SyntaxAddition" >(diff)</a>
+</body>
+</html>

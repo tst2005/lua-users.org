@@ -1,0 +1,104 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Documenting Lua Code</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=DocumentingLuaCode&amp;body=1" title="List pages referring to DocumentingLuaCode">Documenting Lua Code</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here's some notes on documenting Lua code:
+<p>
+<UL>
+<li> <a href="http://luadoc.luaforge.net/">[LuaDoc]</a> - documentation generator tool for Lua source code, in the style of Javadoc.  Fairly popular.
+<li> <a href="https://github.com/stevedonovan/LDoc">[LDoc]</a> - enhanced version of LuaDoc<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaDoc" >?</a> that can use Markdown and integrate readmes and example snippets.
+<li> For the external API + user documentation, there is an HTML+CSS style popularized by Kepler - see <a href="http://www.keplerproject.org/luafilesystem/">[luafilesystem]</a> as an example.  
+<li> <a href="../wiki/ExpLua.html" >ExpLua</a> - code comment format and a tool for extracting said comments and exporting HTML, LaTeX, and whatnot
+<li> <a href="http://www.lua.inf.puc-rio.br/~sergio/luapod/">[LuaPOD]</a> - translates a POD file into HTML using Lua and the LPeg library.
+<li> <a href="../wiki/LuaStyleGuide.html" >LuaStyleGuide</a> - has a few notes on commenting
+<li> <a href="../wiki/DecoratorsAndDocstrings.html" >DecoratorsAndDocstrings</a> - associate documentation with objects at runtime
+</UL>
+<p>
+<H2>Comments: Integration Module Documentation for Distributions</H2>
+<p>
+On providing providing integrated documentation for many modules,
+for inclusion in <a href="../wiki/LuaDistributions.html" >LuaDistributions</a>, here's my overview of the situation... README's
+hidden in tarballs (example [10]) are not especially effective.  The
+Kepler effort resulted in the prevalence of what might be called this
+"doc.css" HTML format (example [4]).  Overall it isn't bad.  It's a
+somewhat loose (unrestrictive) format that often effectively covers
+both qualitative and reference API sections, reminiscent of the
+character of Perl POD (except that it would be better if more Lua
+modules started with a SYNOPSIS section as prevalent in POD).  It's
+important to note that the Lua Reference manual also kind-of follows
+this loose format.  Then came the more structured
+class-browser/Java<code></code>Doc like Lua<code></code>Doc (example [5]), though I think this
+"fill in the blank" style for function parameter documentation
+(@param) doesn't always encourage clear documentation.  The Lua
+Reference Manual doesn't take this approach, and I don't see people
+complaining.  One advantage of the more structured format though is
+that it allows systematic inter-linking between the API of
+independently developed modules, even if those documents are moved or
+translated into different formats; however, even the more loosely
+structured POD offers the basics of that.  Years ago, I proposed that
+Lua standardize on POD [6], which, although a bit quirky, works in
+Perl and will work in Lua, but it didn't catch on.  More recently,
+there's the Python inspired reStructuredText/Sphinx (example [7]),
+which goes a little beyond POD and offers targeting multiple output
+formats (DHTML, PDF, HTML Help .chm, etc.).  Sphinx is proven and well
+supported system (like cmake) though a bit heavy for some tastes and
+likewise might not catch on in the Lua community (if anything would).
+Markdown is popular, especially for the lightweight README files that
+github encourages, and github is becoming very popular in the Lua
+community, but markdown is is a little too lightweight for things like
+interlinking APIs. --<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<UL>
+<li> [4] <a href="http://keplerproject.github.com/luafilesystem/">http://keplerproject.github.com/luafilesystem/</a>
+<li> [5] <a href="http://penlight.luaforge.net/api/index.html">http://penlight.luaforge.net/api/index.html</a>
+<li> [6] <a href="http://lua-users.org/wiki/LuaSearch.html">http://lua-users.org/wiki/LuaSearch</a>
+<li> [7] <a href="http://www.nongnu.org/gsl-shell/">http://www.nongnu.org/gsl-shell/</a>
+<li> [8] <a href="http://lua-users.org/wiki/DocumentingLuaCode.html">http://lua-users.org/wiki/DocumentingLuaCode</a>
+<li> [10] <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/">http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/</a>
+</UL>
+<p>
+In the end I think people often like to follow examples. Like Kepler
+followed the loose doc format of the Reference Manual, and ended up
+setting a trend with doc.css which a number of non-Kepler projects
+followed (even Roberto's lpeg). IIRC the Xavante installation from the
+Kepler all-in-one package used to generate an index.html page linking
+to each subproject's index. Short from reformatting/rewriting
+documentation, which no one will do, I think adding support for
+rendering to HTML a few popular formats (Lua<code></code>Doc, Markdown) and
+generating a main index.html page for all installed projects is about
+as far as we can go. Some projects will integrate more nicely than
+others, and hopefully that will set an example.  --<a href="../wiki/HishamMuhammad.html" >HishamMuhammad</a>
+<p>
+<DL>
+<dt><dd>Something like that was in the Windows Help (chm) documentation on the, apparently abandoned, Lua All In One (AIO) Distribution: <a href="http://luaaio.luaforge.net/documentation.html">http://luaaio.luaforge.net/documentation.html</a> (screenshot) or <a href="http://luaaio.luaforge.net/download.html">http://luaaio.luaforge.net/download.html</a> (CHM download).  It's not the best, but it's better than nothing, and it's a start.
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DocumentingLuaCode" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=DocumentingLuaCode" >history</a><br>Last edited June 18, 2012 10:07 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=DocumentingLuaCode" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,514 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lunatic Python</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LunaticPython&amp;body=1" title="List pages referring to LunaticPython">Lunatic Python</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lunatic<code></code>Python is a two-way bridge between Python and Lua.
+<p>
+<strong>Web site:</strong> <a href="http://labix.org/lunatic-python">http://labix.org/lunatic-python</a>
+<p>
+<H3>User Comments 1</H3>
+<p>
+Lunatic Python 1.0 does work on Python 2.5 with Lua 5.1.1 on Windows using the MinGW compiler on Cygwin, but some hacking was necessary.
+<p>
+First, this patch was made, otherwise gcc wouldn't compile it:
+<p>
+<DL>
+<dt><dd><pre>
+
+diff -ur src-orig/luainpython.c src/luainpython.c
+
+--- src-orig/luainpython.c      2007-01-03 03:03:29.156250000 -0500
+
++++ src/luainpython.c   2007-01-03 03:05:11.203125000 -0500
+
+@@ -374,7 +374,7 @@
+
+         0,                      /*tp_clear*/
+
+         0,                      /*tp_richcompare*/
+
+         0,                      /*tp_weaklistoffset*/
+
+-        PyObject_SelfIter,      /*tp_iter*/
+
++        0, /* set later: PyObject_SelfIter, */     /*tp_iter*/
+
+         (iternextfunc)LuaObject_iternext, /*tp_iternext*/
+
+         0,                     /*tp_methods*/
+
+         0,                     /*tp_members*/
+
+@@ -385,9 +385,9 @@
+
+         0,                      /*tp_descr_set*/
+
+         0,                      /*tp_dictoffset*/
+
+         0,                     /*tp_init*/
+
+-        PyType_GenericAlloc,    /*tp_alloc*/
+
+-        PyType_GenericNew,      /*tp_new*/
+
+-       _PyObject_Del,          /*tp_free*/
+
++        0, /* set later: PyType_GenericAlloc, */ /*tp_alloc*/
+
++        0, /* set later: PyType_GenericNew, */   /*tp_new*/
+
++       0, /* set later: _PyObject_Del, */      /*tp_free*/
+
+         0,                      /*tp_is_gc*/
+
+ };
+
+
+
+@@ -493,7 +493,9 @@
+
+                luaopen_io(L);
+
+                luaopen_string(L);
+
+                luaopen_debug(L);
+
+-               luaopen_loadlib(L);
+
++
+
++                luaopen_package(L);
+
++
+
+                luaopen_python(L);
+
+                lua_settop(L, 0);
+
+        }
+
+Only in src: luainpython.c~
+
+diff -ur src-orig/luainpython.h src/luainpython.h
+
+--- src-orig/luainpython.h      2007-01-03 03:03:29.156250000 -0500
+
++++ src/luainpython.h   2007-01-03 03:04:31.359375000 -0500
+
+@@ -29,7 +29,8 @@
+
+        int refiter;
+
+ } LuaObject;
+
+
+
+-PyAPI_DATA(PyTypeObject) LuaObject_Type;
+
++/* PyAPI_DATA(PyTypeObject) LuaObject_Type;*/
+
++extern PyTypeObject LuaObject_Type;
+
+
+
+ #define LuaObject_Check(op) PyObject_TypeCheck(op, &amp;LuaObject_Type)
+
+
+
+Only in src: luainpython.h~
+
+diff -ur src-orig/pythoninlua.c src/pythoninlua.c
+
+--- src-orig/pythoninlua.c      2007-01-03 03:03:29.156250000 -0500
+
++++ src/pythoninlua.c   2007-01-03 03:01:20.343750000 -0500
+
+@@ -559,6 +559,12 @@
+
+ {
+
+        int rc;
+
+
+
++        LuaObject_Type.tp_alloc = PyType_GenericAlloc;
+
++        LuaObject_Type.tp_new = PyType_GenericNew;
+
++        LuaObject_Type.tp_free = _PyObject_Del;
+
++        LuaObject_Type.tp_iter = PyObject_SelfIter;
+
++
+
++
+
+        /* Register module */
+
+        luaL_openlib(L, "python", py_lib, 0);
+
+</pre>
+</DL>
+<p>
+Then I compiled as such:
+<p>
+<DL>
+<dt><dd>$ gcc -mno-cygwin -c -DLUA_BUILD_AS_DLL -DLUA_LIB -I/test/lib/Python25/include/ -I/test/lua-5.1.1/include src/luainpython.c src/pythoninlua.c
+</DL>
+<p>
+I then used the pexports trick <a href="http://docs.python.org/inst/tweak-flags.html">[1]</a> to generate a libpython25.a from the python25.dll in the c:\windows\system32 directory.
+<p>
+Then it was linked:
+<p>
+<DL>
+<dt><dd>$ gcc -mno-cygwin -shared luainpython.o pythoninlua.o /test/lua-5.1.1/bin/lua51.dll libpython25.a -o python.dll
+</DL>
+<p>
+I moved python.py out of the way (this seems for older versions of Lua I suppose):
+<p>
+<DL>
+<dt><dd>$ mv python.py junk.py
+</DL>
+<p>
+Then it was usable:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ /test/lua-5.1.1/bin/lua
+
+Lua 5.1.1  Copyright (C) 1994-2006 Lua.org, PUC-Rio
+
+&gt; require "python"
+
+&gt; print(python.globals())
+
+{'__builtins__': &lt;module '__builtin__' (built-in)&gt;, '__name__': '__main__', '__d
+
+oc__': None, 'lua': &lt;module 'lua' (built-in)&gt;}
+
+</pre>
+</DL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<p>
+<H3>User Comments 2</H3>
+<p>
+In order to get Lua5.1 working with lunatic python on Unix platforms you don't need to to such elaborate lengths.
+The following patch does the job based on <a href="http://www.lua.org/manual/5.1/manual.html#5">[2]</a>.
+<p>
+Without the following patch, python's readline modules has an internal contention within the terminal handling code 
+which results in when lua module is loaded you get a error  from malloc() saying that your memory is corrupt. 
+<p>
+There is also another issue that <code>luaopen_loadlib()</code> has been deprecated which doesn't seem to be documented in the 
+manual but is on the mailing list post <a href="/lists/lua-l//2005-09/msg00322.html">LuaList:/2005-09/msg00322.html</a> .
+<p>
+<pre>
+
+diff -ru lunatic-python-1.0/src/luainpython.c lunatic-python-1.0-lua5.1/src/luainpython.c
+
+--- lunatic-python-1.0/src/luainpython.c	2005-10-19 00:07:02.000000000 +0100
+
++++ lunatic-python-1.0-lua5.1/src/luainpython.c	2007-02-05 20:04:33.869590048 +0000
+
+@@ -488,12 +488,12 @@
+
+ 
+
+ 	if (!L) {
+
+ 		L = lua_open();
+
+-		luaopen_base(L);
+
+-		luaopen_table(L);
+
+-		luaopen_io(L);
+
+-		luaopen_string(L);
+
+-		luaopen_debug(L);
+
+-		luaopen_loadlib(L);
+
++
+
++		/* loading each lib separately has some deep conflict
+
++		 * with python's readline module so we obey the holy
+
++		 * docs by lua people and use the magic loader.
+
++		 */
+
++		luaL_openlibs(L);
+
+ 		luaopen_python(L);
+
+ 		lua_settop(L, 0);
+
+ 	}
+
+</pre>
+<p>
+AlexSayle<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AlexSayle" >?</a>
+<p>
+<H3>User Comments - Compiling on Ubuntu with lua5.1.2</H3>
+<p>
+I tried the above patch and found that a few other were necessary to get everything working.  python.lua calls loadlib directly rather than package.loadlib.  Here is the patch for python.lua (with a patch for every file further below):
+<p>
+<pre>
+
+diff -ru lunatic-python-1.0/python.lua lunatic-python-1.0-lua5.1/python.lua 
+
+--- lunatic-python-1.0/python.lua	2003-12-12 20:37:57.000000000 -0800
+
++++ lunatic-python-1.0-lua5.1/python.lua	2008-06-26 22:48:34.000000000 -0700
+
+@@ -1,6 +1,6 @@
+
+ local path = os.getenv("LUA_SOPATH")
+
+ if path then
+
+-	func = loadlib(path.."/lua-python.so", "luaopen_python")
+
++	func = package.loadlib(path.."/lua-python.so", "luaopen_python")
+
+ 	if func then
+
+ 		func()
+
+ 		return
+
+@@ -10,7 +10,7 @@
+
+ local loaded = false
+
+ for i = 10, 2, -1 do
+
+ 	for j = 10, 2, -1 do
+
+-		func = loadlib(string.format(modmask, i, j), "luaopen_python")
+
++		func = package.loadlib(string.format(modmask, i, j), "luaopen_python")
+
+ 		if func then
+
+ 			loaded = true
+
+ 			func()
+
+</pre>
+<p>
+I was also required fix the paths and library names from lua to lua5.1 equivalents.  Here is all of the above patches combined into one.  This worked for me on Ubuntu Hardy Heron lua5.1.2 with lua installed via apt-get.
+<p>
+<pre>
+
+diff -ru lunatic-python-1.0 lunatic-python-1.0-lua5.1Only in lunatic-python-1.0-lua5.1: build
+
+diff -ru lunatic-python-1.0/python.lua lunatic-python-1.0-lua5.1/python.lua
+
+--- lunatic-python-1.0/python.lua	2003-12-12 20:37:57.000000000 -0800
+
++++ lunatic-python-1.0-lua5.1/python.lua	2008-06-26 22:48:34.000000000 -0700
+
+@@ -1,6 +1,6 @@
+
+ local path = os.getenv("LUA_SOPATH")
+
+ if path then
+
+-	func = loadlib(path.."/lua-python.so", "luaopen_python")
+
++	func = package.loadlib(path.."/lua-python.so", "luaopen_python")
+
+ 	if func then
+
+ 		func()
+
+ 		return
+
+@@ -10,7 +10,7 @@
+
+ local loaded = false
+
+ for i = 10, 2, -1 do
+
+ 	for j = 10, 2, -1 do
+
+-		func = loadlib(string.format(modmask, i, j), "luaopen_python")
+
++		func = package.loadlib(string.format(modmask, i, j), "luaopen_python")
+
+ 		if func then
+
+ 			loaded = true
+
+ 			func()
+
+diff -ru lunatic-python-1.0/setup.py lunatic-python-1.0-lua5.1/setup.py
+
+--- lunatic-python-1.0/setup.py	2005-10-18 16:10:07.000000000 -0700
+
++++ lunatic-python-1.0-lua5.1/setup.py	2008-06-26 22:48:34.000000000 -0700
+
+@@ -9,7 +9,7 @@
+
+ # You may have to change these
+
+ PYLIBS = ["python"+get_python_version(), "pthread", "util"]
+
+ PYLIBDIR = [get_python_lib(standard_lib=True)+"/config"]
+
+-LUALIBS = ["lua", "lualib"]
+
++LUALIBS = ["lua5.1"]
+
+ LUALIBDIR = []
+
+ 
+
+ setup(name="lunatic-python",
+
+diff -ru lunatic-python-1.0/src/luainpython.c lunatic-python-1.0-lua5.1/src/luainpython.c
+
+--- lunatic-python-1.0/src/luainpython.c	2005-10-18 16:07:02.000000000 -0700
+
++++ lunatic-python-1.0-lua5.1/src/luainpython.c	2008-06-26 22:48:34.000000000 -0700
+
+@@ -22,9 +22,9 @@
+
+ */
+
+ #include &lt;Python.h&gt;
+
+ 
+
+-#include &lt;lua.h&gt;
+
+-#include &lt;lauxlib.h&gt;
+
+-#include &lt;lualib.h&gt;
+
++#include &lt;lua5.1/lua.h&gt;
+
++#include &lt;lua5.1/lauxlib.h&gt;
+
++#include &lt;lua5.1/lualib.h&gt;
+
+ 
+
+ #include "pythoninlua.h"
+
+ #include "luainpython.h"
+
+@@ -488,12 +488,12 @@
+
+ 
+
+ 	if (!L) {
+
+ 		L = lua_open();
+
+-		luaopen_base(L);
+
+-		luaopen_table(L);
+
+-		luaopen_io(L);
+
+-		luaopen_string(L);
+
+-		luaopen_debug(L);
+
+-		luaopen_loadlib(L);
+
++
+
++		/* loading each lib separately has some deep conflict
+
++		 * with python's readline module so we obey the holy
+
++		 * docs by lua people and use the magic loader.
+
++		 */
+
++		luaL_openlibs(L);
+
+ 		luaopen_python(L);
+
+ 		lua_settop(L, 0);
+
+ 	}
+
+diff -ru lunatic-python-1.0/src/pythoninlua.c lunatic-python-1.0-lua5.1/src/pythoninlua.c
+
+--- lunatic-python-1.0/src/pythoninlua.c	2005-10-18 16:07:07.000000000 -0700
+
++++ lunatic-python-1.0-lua5.1/src/pythoninlua.c	2008-06-26 22:48:34.000000000 -0700
+
+@@ -22,8 +22,8 @@
+
+ */
+
+ #include &lt;Python.h&gt;
+
+ 
+
+-#include &lt;lua.h&gt;
+
+-#include &lt;lauxlib.h&gt;
+
++#include &lt;lua5.1/lua.h&gt;
+
++#include &lt;lua5.1/lauxlib.h&gt;
+
+ 
+
+ #include "pythoninlua.h"
+
+ #include "luainpython.h"
+
+</pre>
+<p>
+--ZachDwiel<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ZachDwiel" >?</a>
+<p>
+<H2>Forks</H2>
+<p>
+<UL>
+<li> <a href="http://labix.org/lunatic-python">http://labix.org/lunatic-python</a> - original source tarball
+<li> <a href="https://github.com/bastibe/lunatic-python">https://github.com/bastibe/lunatic-python</a> - git
+<li> <a href="https://github.com/dmcooke/Lunatic-Python">https://github.com/dmcooke/Lunatic-Python</a> - git
+<li> <a href="https://code.launchpad.net/lunatic-python">https://code.launchpad.net/lunatic-python</a> - Bazaar
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LunaticPython" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LunaticPython" >history</a><br>Last edited April 11, 2013 11:13 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LunaticPython" >(diff)</a>
+</body>
+</html>

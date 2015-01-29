@@ -1,0 +1,453 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Portable Network Graphics Parser</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PortableNetworkGraphicsParser&amp;body=1" title="List pages referring to PortableNetworkGraphicsParser">Portable Network Graphics Parser</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a simple example of parsing portable network graphics (PNG) files <a href="http://en.wikipedia.org/wiki/Portable_Network_Graphics.html">[1]</a><a href="http://www.w3.org/TR/PNG/">[2]</a> using pure Lua code (no C code like libpng <a href="http://en.wikipedia.org/wiki/Libpng.html">[3]</a> or zlib <a href="http://en.wikipedia.org/wiki/Zlib.html">[4]</a><a href="http://luaforge.net/projects/luazlib/">[5]</a>).  In its current form, it does not fully decode PNG files but rather only the top-level structure, including metadata.  A full implementation would need to implement zlib <a href="http://en.wikipedia.org/wiki/Zlib.html">[4]</a> too (see <a href="../wiki/ModuleCompressDeflateLua.html" >ModuleCompressDeflateLua</a>).  Extend if you wish.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- pngparse.lua</span>
+
+<span class="comment">-- Simple example of parsing the main sections of a PNG file.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- This is mostly just an example.  Not intended to be complete,</span>
+
+<span class="comment">-- robust, modular, or well tested.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- (c) 2008 David Manura. Licensed under the same terms as Lua (MIT license).</span>
+
+
+
+
+
+<span class="comment">-- Unpack 32-bit unsigned integer (most-significant-byte, MSB, first)</span>
+
+<span class="comment">-- from byte string.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> unpack_msb_uint32(s)
+
+  <span class="keyword">local</span> a,b,c,d = s:byte(1,#s)
+
+  <span class="keyword">local</span> num = (((a*256) + b) * 256 + c) * 256 + d
+
+  <span class="keyword">return</span> num
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Read 32-bit unsigned integer (most-significant-byte, MSB, first) from file.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> read_msb_uint32(fh)
+
+  <span class="keyword">return</span> unpack_msb_uint32(fh:read(4))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Read unsigned byte (integer) from file</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> read_byte(fh)
+
+  <span class="keyword">return</span> fh:read(1):byte()
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> parse_zlib(fh, len)
+
+  <span class="keyword">local</span> byte1 = read_byte(fh)
+
+  <span class="keyword">local</span> byte2 = read_byte(fh)
+
+
+
+  <span class="keyword">local</span> compression_method = byte1 % 16
+
+  <span class="keyword">local</span> compression_info = <span class="library">math.floor</span>(byte1 / 16)
+
+
+
+  <span class="keyword">local</span> fcheck = byte2 % 32
+
+  <span class="keyword">local</span> fdict = <span class="library">math.floor</span>(byte2 / 32) % 1
+
+  <span class="keyword">local</span> flevel = <span class="library">math.floor</span>(byte2 / 64)
+
+
+
+  <span class="library">print</span>(<span class="string">"compression_method="</span>, compression_method)
+
+  <span class="library">print</span>(<span class="string">"compression_info="</span>, compression_info)
+
+  <span class="library">print</span>(<span class="string">"fcheck="</span>, fcheck)
+
+  <span class="library">print</span>(<span class="string">"fdict="</span>, fdict)
+
+  <span class="library">print</span>(<span class="string">"flevel="</span>, flevel)
+
+
+
+  fh:read(len - 6)
+
+  <span class="library">print</span>(<span class="string">"(deflate data not displayed)"</span>)
+
+
+
+  <span class="keyword">local</span> checksum = read_msb_uint32(fh)
+
+  <span class="library">print</span>(<span class="string">"checksum="</span>, checksum)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> parse_IHDR(fh, len)
+
+  <span class="library">assert</span>(len == 13, <span class="string">'format error'</span>)
+
+  <span class="keyword">local</span> width = read_msb_uint32(fh)
+
+  <span class="keyword">local</span> height = read_msb_uint32(fh)
+
+  <span class="keyword">local</span> bit_depth = read_byte(fh)
+
+  <span class="keyword">local</span> color_type = read_byte(fh)
+
+  <span class="keyword">local</span> compression_method = read_byte(fh)
+
+  <span class="keyword">local</span> filter_method = read_byte(fh)
+
+  <span class="keyword">local</span> interlace_method = read_byte(fh)
+
+
+
+  <span class="library">print</span>(<span class="string">"width="</span>, width)
+
+  <span class="library">print</span>(<span class="string">"height="</span>, height)
+
+  <span class="library">print</span>(<span class="string">"bit_depth="</span>, bit_depth)
+
+  <span class="library">print</span>(<span class="string">"color_type="</span>, color_type)
+
+  <span class="library">print</span>(<span class="string">"compression_method="</span>, compression_method)
+
+  <span class="library">print</span>(<span class="string">"filter_method="</span>, filter_method)
+
+  <span class="library">print</span>(<span class="string">"interlace_method="</span>, interlace_method)
+
+
+
+  <span class="keyword">return</span> compression_method
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> parse_sRGB(fh, len)
+
+  <span class="library">assert</span>(len == 1, <span class="string">'format error'</span>)
+
+  <span class="keyword">local</span> rendering_intent = read_byte(fh)
+
+  <span class="library">print</span>(<span class="string">"rendering_intent="</span>, rendering_intent)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> parse_gAMA(fh, len)
+
+  <span class="library">assert</span>(len == 4, <span class="string">'format error'</span>)
+
+  <span class="keyword">local</span> rendering_intent = read_msb_uint32(fh)
+
+  <span class="library">print</span>(<span class="string">"rendering_intent="</span>, rendering_intent)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> parse_cHRM(fh, len)
+
+  <span class="library">assert</span>(len == 32, <span class="string">'format error'</span>)
+
+
+
+  <span class="keyword">local</span> white_x = read_msb_uint32(fh)
+
+  <span class="keyword">local</span> white_y = read_msb_uint32(fh)
+
+  <span class="keyword">local</span> red_x = read_msb_uint32(fh)
+
+  <span class="keyword">local</span> red_y = read_msb_uint32(fh)
+
+  <span class="keyword">local</span> green_x = read_msb_uint32(fh)
+
+  <span class="keyword">local</span> green_y = read_msb_uint32(fh)
+
+  <span class="keyword">local</span> blue_x = read_msb_uint32(fh)
+
+  <span class="keyword">local</span> blue_y = read_msb_uint32(fh)
+
+  <span class="library">print</span>(<span class="string">'white_x='</span>, white_x)
+
+  <span class="library">print</span>(<span class="string">'white_y='</span>, white_y)
+
+  <span class="library">print</span>(<span class="string">'red_x='</span>, red_x)
+
+  <span class="library">print</span>(<span class="string">'red_y='</span>, red_y)
+
+  <span class="library">print</span>(<span class="string">'green_x='</span>, green_x)
+
+  <span class="library">print</span>(<span class="string">'green_y='</span>, green_y)
+
+  <span class="library">print</span>(<span class="string">'blue_x='</span>, blue_x)
+
+  <span class="library">print</span>(<span class="string">'blue_y='</span>, blue_y)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> parse_IDAT(fh, len, compression_method)
+
+  <span class="keyword">if</span> compression_method == 0 <span class="keyword">then</span>
+
+    <span class="comment">-- fh:read(len)</span>
+
+    parse_zlib(fh, len)
+
+  <span class="keyword">else</span>
+
+    <span class="library">print</span>(<span class="string">'(unrecognized compression method)'</span>)
+
+  <span class="keyword">end</span>  
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> parse_png(fh)
+
+  <span class="comment">-- parse PNG header</span>
+
+  <span class="keyword">local</span> bytes = fh:read(8)
+
+  <span class="keyword">local</span> expect = <span class="string">"\137\080\078\071\013\010\026\010"</span>
+
+  <span class="keyword">if</span> bytes ~= expect <span class="keyword">then</span>
+
+    <span class="library">error</span> <span class="string">'not a PNG file'</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- parse chunks</span>
+
+  <span class="keyword">local</span> compression_method
+
+  <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+    <span class="keyword">local</span> len = read_msb_uint32(fh)
+
+    <span class="keyword">local</span> stype = fh:read(4)
+
+    <span class="library">print</span>(<span class="string">"chunk:"</span>, <span class="string">"type="</span>, stype, <span class="string">"len="</span>, len)
+
+
+
+    <span class="keyword">if</span> stype == <span class="string">'IHDR'</span> <span class="keyword">then</span>
+
+      compression_method = parse_IHDR(fh, len)
+
+    <span class="keyword">elseif</span> stype == <span class="string">'sRGB'</span> <span class="keyword">then</span>
+
+      parse_sRGB(fh, len)
+
+    <span class="keyword">elseif</span> stype == <span class="string">'gAMA'</span> <span class="keyword">then</span>
+
+      parse_gAMA(fh, len)
+
+    <span class="keyword">elseif</span> stype == <span class="string">'cHRM'</span> <span class="keyword">then</span>
+
+      parse_cHRM(fh, len)
+
+    <span class="keyword">elseif</span> stype == <span class="string">'IDAT'</span> <span class="keyword">then</span>
+
+      parse_IDAT(fh, len, compression_method)
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">local</span> data = fh:read(len)
+
+      <span class="library">print</span>(<span class="string">"data="</span>, len == 0 <span class="keyword">and</span> <span class="string">"(empty)"</span> <span class="keyword">or</span> <span class="string">"(not displayed)"</span>)
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">local</span> crc = read_msb_uint32(fh)
+
+    <span class="library">print</span>(<span class="string">"crc="</span>, crc)
+
+
+
+    <span class="keyword">if</span> stype == <span class="string">'IEND'</span> <span class="keyword">then</span>
+
+      <span class="keyword">break</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> filename = arg[1]
+
+
+
+<span class="keyword">if</span> <span class="keyword">not</span> filename <span class="keyword">then</span>
+
+  <span class="library">io.stderr</span>:write(<span class="string">"usage: lua pngparse.lua &lt;filename&gt;"</span>)
+
+  <span class="library">os.exit</span>(1)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> fh = <span class="library">assert</span>(<span class="library">io.open</span>(filename, <span class="string">'rb'</span>))
+
+parse_png(fh)
+
+</pre>
+
+</DL>
+<p>
+Example output:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua pngparse.lua myfile.png
+
+chunk:  type=   IHDR    len=    13
+
+width=  676
+
+height= 647
+
+bit_depth=      8
+
+color_type=     2
+
+compression_method=     0
+
+filter_method=  0
+
+interlace_method=       0
+
+crc=    3625766246
+
+chunk:  type=   sRGB    len=    1
+
+rendering_intent=       0
+
+crc=    2932743401
+
+chunk:  type=   gAMA    len=    4
+
+rendering_intent=       45455
+
+crc=    201089285
+
+chunk:  type=   cHRM    len=    32
+
+white_x=        31270
+
+white_y=        32900
+
+red_x=  64000
+
+red_y=  33000
+
+green_x=        30000
+
+green_y=        60000
+
+blue_x= 15000
+
+blue_y= 6000
+
+crc=    2629456188
+
+chunk:  type=   IDAT    len=    60975
+
+compression_method=     8
+
+compression_info=       7
+
+fcheck= 30
+
+fdict=  0
+
+flevel= 1
+
+(deflate data not displayed)
+
+checksum=       2411816191
+
+crc=    1804717936
+
+chunk:  type=   IEND    len=    0
+
+data=   (empty)
+
+crc=    2923585666
+
+</pre>
+</DL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PortableNetworkGraphicsParser" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PortableNetworkGraphicsParser" >history</a><br>Last edited May 2, 2009 1:32 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PortableNetworkGraphicsParser" >(diff)</a>
+</body>
+</html>

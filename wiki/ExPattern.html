@@ -1,0 +1,1347 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Ex Pattern</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ExPattern&amp;body=1" title="List pages referring to ExPattern">Ex Pattern</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+xpattern is a Lua pattern matching library based on Lua patterns and in the style of <a href="../wiki/LuaPeg.html" >LuaPeg</a>.
+<p>
+<H2>Description</H2>
+<p>
+Lua patterns [1] are a limited form of regular expressions.  Unlike regular expressions, patterns do not support grouping and quantification [2] operations on anything except single character sets.  For full regular expression (or Perl-style regular expression) support, you may instead compile a regular expression module such as lrexlib [3].  For even greater flexibility, for parsing and lexical analysis applications or even for the simpler case, one can use parsing expression grammars (PEG) via the <a href="../wiki/LuaPeg.html" >LuaPeg</a> library [4] implemented in C.
+<p>
+Sometimes, however, Lua patterns are almost sufficient, as we may want to extend the functionality of patterns just a bit more without compiling in any additional C code.  That's where this module comes in.  This module builds extended pattern matching on top of Lua patterns.  It takes a pattern expression written in a form somewhat similar to LPeg and translates it to a string of Lua code containing <code>string.match</code> calls, which is then compiled to a Lua function via <code>loadstring</code>.  This is similar to the code you might write yourself, although this module automates it with code generation.  It should have similar efficiency assuming you precompile any match objects that are used repeatedly.
+<p>
+Here is a simple example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> M = <span class="library">require</span> <span class="string">"xpattern"</span>
+
+<span class="keyword">local</span> P = M.P
+
+<span class="keyword">local</span> m = ( (P<span class="string">'(b+)'</span> + P<span class="string">'(c+)'</span>) * P<span class="string">'[A-Z][a-z]'</span>^0 * P<span class="string">'(.)()'</span> ):compile()
+
+<span class="keyword">local</span> a,b,c,d = m(<span class="string">'mmcccZzYybbZzYyddd'</span>) <span class="comment">-- match c not b first</span>
+
+<span class="library">assert</span>(a == <span class="keyword">nil</span> <span class="keyword">and</span> b == <span class="string">'ccc'</span> <span class="keyword">and</span> c == <span class="string">'b'</span> <span class="keyword">and</span> d == 11)
+
+</pre>
+
+</DL>
+<p>
+which internally generates this Lua function:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> match = ...  <span class="comment">-- string.match</span>
+
+<span class="keyword">return</span> <span class="keyword">function</span>(s,pos)
+
+  <span class="keyword">for</span> pos1=(pos <span class="keyword">or</span> 1),#s <span class="keyword">do</span>
+
+    <span class="keyword">local</span> pos2
+
+    <span class="keyword">local</span> c1,c2,c3,c4
+
+    <span class="keyword">local</span> pos3 = pos1
+
+    c1,pos3 = match(s, <span class="string">"^(b+)()"</span>, pos1)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> pos3 <span class="keyword">then</span>
+
+      c2,pos3 = match(s, <span class="string">"^(c+)()"</span>, pos1)
+
+    <span class="keyword">end</span>
+
+    pos2 = pos3
+
+    <span class="keyword">if</span> pos2 <span class="keyword">then</span>
+
+      <span class="keyword">do</span>
+
+        <span class="keyword">local</span> pos3=pos2
+
+        pos2 = pos2
+
+        <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+          pos3 = match(s, <span class="string">"^[A-Z][a-z]()"</span>, pos3)
+
+          <span class="keyword">if</span> pos3 <span class="keyword">then</span>
+
+            pos2=pos3
+
+          <span class="keyword">else</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> pos2 <span class="keyword">then</span>
+
+      c3,c4,pos2 = match(s, <span class="string">"^(.)()()"</span>, pos2)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> pos2 <span class="keyword">then</span> <span class="keyword">return</span> c1,c2,c3,c4 <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+See the test suite below for additional examples.
+<p>
+<H2>Status</H2>
+<p>
+Warning: this code should be considered somewhat experimental.  It is not fully developed or tested.  Fix up the code if you want to use it in production.
+<p>
+<H2>Appendix: xpattern.lua</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- xpattern.lua</span>
+
+<span class="comment">-- Preliminary regular expression-like support in Lua</span>
+
+<span class="comment">-- Uses Lua patterns as the core building block.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Implemented in pure Lua with code generation technique.</span>
+
+<span class="comment">-- It translates an expression into a snippet of Lua code</span>
+
+<span class="comment">-- having a series of `string.match` calls, which is then</span>
+
+<span class="comment">-- compiled (via `loadstring`).</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Like lpeg, does not support backtracking.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- WARNING: This is experimental code.  The design and implementation</span>
+
+<span class="comment">-- has not been thoroughly tested.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Version v20091021.</span>
+
+<span class="comment">-- (c) 2008-2009 David Manura. Licensed under the same terms as Lua (MIT license).</span>
+
+<span class="comment">-- Please post patches.</span>
+
+
+
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="keyword">local</span> <span class="library">string</span> = <span class="library">string</span>
+
+<span class="keyword">local</span> format = <span class="library">string.format</span>
+
+<span class="keyword">local</span> match  = <span class="library">string.match</span>
+
+<span class="keyword">local</span> <span class="library">assert</span> = <span class="library">assert</span>
+
+<span class="keyword">local</span> <span class="library">error</span>  = <span class="library">error</span>
+
+<span class="keyword">local</span> <span class="library">ipairs</span> = <span class="library">ipairs</span>
+
+<span class="keyword">local</span> <span class="library">loadstring</span>   = <span class="library">loadstring</span>
+
+<span class="keyword">local</span> <span class="library">setmetatable</span> = <span class="library">setmetatable</span>
+
+<span class="keyword">local</span> <span class="library">type</span>   = <span class="library">type</span>
+
+<span class="keyword">local</span> <span class="library">print</span>  = <span class="library">print</span>
+
+
+
+
+
+<span class="comment">-- Adds whitespace to string `s`.</span>
+
+<span class="comment">-- Whitespace string `ws` (default to '' if omitted) is prepended to each line</span>
+
+<span class="comment">-- of `s`.  Also ensures `s` is is terminated by a newline.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> add_whitespace(s, ws)
+
+  ws = ws <span class="keyword">or</span> <span class="string">''</span>
+
+  s = s:gsub(<span class="string">'[^\r\n]+'</span>, ws .. <span class="string">'%1'</span>)
+
+  <span class="keyword">if</span> s:match(<span class="string">'[^\r\n]$'</span>) <span class="keyword">then</span>
+
+    s = s .. <span class="string">'\n'</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> s
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Counts the number `count` of captures '()' in Lua pattern string `pat`.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> count_captures(pat)
+
+  <span class="keyword">local</span> count = 0
+
+  <span class="keyword">local</span> pos = 1
+
+  <span class="keyword">while</span> pos &lt;= #pat <span class="keyword">do</span>
+
+    <span class="keyword">local</span> pos2 = pat:match(<span class="string">'^[^%(%%%[]+()'</span>, pos)
+
+    <span class="keyword">if</span> pos2 <span class="keyword">then</span>
+
+      pos = pos2
+
+    <span class="keyword">elseif</span> pat:match(<span class="string">'^%('</span>, pos) <span class="keyword">then</span>
+
+      count = count + 1
+
+      pos = pos + 1
+
+    <span class="keyword">elseif</span> pat:match(<span class="string">'^%%b..'</span>, pos) <span class="keyword">then</span>
+
+      pos = pos + 3
+
+    <span class="keyword">elseif</span> pat:match(<span class="string">'^%%.'</span>, pos) <span class="keyword">then</span>
+
+      pos = pos + 2
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">local</span> pos2 = pat:match(<span class="string">'^%[[^%]%%]*()'</span>, pos)
+
+      <span class="keyword">if</span> pos2 <span class="keyword">then</span>
+
+        pos = pos2
+
+        <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+          <span class="keyword">local</span> pos2 = pat:match(<span class="string">'^%%.[^%]%%]*()'</span>, pos)
+
+          <span class="keyword">if</span> pos2 <span class="keyword">then</span>
+
+            pos = pos2
+
+          <span class="keyword">elseif</span> pat:match(<span class="string">'^%]'</span>, pos) <span class="keyword">then</span>
+
+            pos = pos + 1
+
+            <span class="keyword">break</span>
+
+          <span class="keyword">else</span>
+
+            <span class="library">error</span>(<span class="string">'syntax'</span>, 2)
+
+          <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">else</span>
+
+        <span class="library">error</span>(<span class="string">'syntax'</span>, 2)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> count
+
+<span class="keyword">end</span>
+
+M._count_captures = count_captures
+
+
+
+
+
+<span class="comment">-- Appends '()' to Lua pattern string `pat`.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> pat_append_pos(pat)
+
+  <span class="keyword">local</span> prefix = pat:match<span class="string">'^(.*)%$$'</span>
+
+  pat = prefix <span class="keyword">and</span> prefix .. <span class="string">'()$'</span> <span class="keyword">or</span> pat .. <span class="string">'()'</span>
+
+  <span class="keyword">return</span> pat
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Prepends '()' to Lua pattern string `pat`.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> pat_prepend_pos(pat)
+
+  <span class="keyword">local</span> postfix = pat:match<span class="string">'^%^(.*)'</span>
+
+  pat = postfix <span class="keyword">and</span> <span class="string">'^()'</span> .. postfix <span class="keyword">or</span> <span class="string">'()'</span> .. pat
+
+  <span class="keyword">return</span> pat
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Prepends '^' to Lua pattern string `pat`.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> pat_prepend_carrot(pat)
+
+  <span class="keyword">local</span> postfix = pat:match<span class="string">'^%^(.*)'</span>
+
+  pat = postfix <span class="keyword">and</span> pat <span class="keyword">or</span> <span class="string">'^'</span> .. pat
+
+  <span class="keyword">return</span> pat
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Return a string listing pattern capture variables with indices `firstidx`</span>
+
+<span class="comment">-- to `lastidx`.</span>
+
+<span class="comment">-- Ex: code_vars(1,2) --&gt; 'c1,c2'</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> code_vars(firstidx, lastidx)
+
+  <span class="keyword">local</span> code = <span class="string">''</span>
+
+  <span class="keyword">for</span> i=firstidx,lastidx <span class="keyword">do</span>
+
+    code = code .. (i == firstidx <span class="keyword">and</span> <span class="string">''</span> <span class="keyword">or</span> <span class="string">','</span>) .. <span class="string">'c'</span> .. i
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> code
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Metatable for expression objects</span>
+
+<span class="keyword">local</span> epat_mt = {}
+
+epat_mt.__index = epat_mt
+
+
+
+
+
+<span class="comment">-- Builds an extended pattern object `epat` from Lua string pattern `pat`.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> pattern(pat)
+
+  <span class="keyword">local</span> epat = <span class="library">setmetatable</span>({}, epat_mt)
+
+  epat.call = <span class="keyword">function</span>(srcidx0, destidx0, totncaptures0)
+
+    <span class="keyword">local</span> ncaptures = count_captures(pat)
+
+    <span class="keyword">local</span> lvars =
+
+      code_vars(totncaptures0+1, totncaptures0+ncaptures)
+
+      .. (ncaptures == 0 <span class="keyword">and</span> <span class="string">''</span> <span class="keyword">or</span> <span class="string">','</span>) .. <span class="string">'pos'</span> .. destidx0
+
+    <span class="keyword">local</span> pat = pat_append_pos(pat)
+
+
+
+    pat = pat_prepend_carrot(pat)
+
+
+
+    <span class="keyword">local</span> str = format(<span class="string">'%q'</span>, pat)
+
+    <span class="keyword">local</span> code = lvars .. <span class="string">' = match(s, '</span> .. str .. <span class="string">', pos'</span> .. srcidx0 .. <span class="string">')\n'</span>
+
+    <span class="keyword">return</span> code, ncaptures
+
+  <span class="keyword">end</span>
+
+  epat.anchored = pat:sub(1,1) == <span class="string">'^'</span>
+
+  <span class="keyword">return</span> epat
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Generates code from pattern `anypat` (either Lua pattern string or extended</span>
+
+<span class="comment">-- pattern object).</span>
+
+<span class="comment">--  `anypat`    - either Lua pattern string or extended pattern object</span>
+
+<span class="comment">--  `srcidx0`   - index of variable holding position to start matching at</span>
+
+<span class="comment">--  `destidx0`  - index of variable holding position to store subsequent</span>
+
+<span class="comment">--                match position at.  stores nil if no match</span>
+
+<span class="comment">--  `totncaptures0` - number of captures prior to this match</span>
+
+<span class="comment">--  `code`      - Lua code string (code) and number of</span>
+
+<span class="comment">--  `ncaptures` - number of captures in pattern.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> gen(anypat, srcidx0, destidx0, totncaptures0)
+
+  <span class="keyword">if</span> <span class="library">type</span>(anypat) == <span class="string">'string'</span> <span class="keyword">then</span>
+
+    anypat = pat_prepend_carrot(anypat)
+
+    anypat = pattern(anypat)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> code, ncaptures = anypat(srcidx0, destidx0, totncaptures0)
+
+  <span class="keyword">return</span> code, ncaptures
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Creates a new extended pattern object `epat` that is the concatenation of</span>
+
+<span class="comment">-- the given list (of size &gt;= 0) of pattern objects.</span>
+
+<span class="comment">-- Specify a single string argument to convert a Lua pattern to an extended</span>
+
+<span class="comment">-- pattern object.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> seq(...) <span class="comment">-- epats...</span>
+
+  <span class="comment">-- Ensure args are extended pattern objects.</span>
+
+  <span class="keyword">local</span> epats = {...}
+
+  <span class="keyword">for</span> i=1,#epats <span class="keyword">do</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(epats[i]) == <span class="string">'string'</span> <span class="keyword">then</span>
+
+      epats[i] = pattern(epats[i])
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> epat = <span class="library">setmetatable</span>({}, epat_mt)
+
+  epat.call = <span class="keyword">function</span>(srcidx0, destidx0, totncaptures0, ws)
+
+    <span class="keyword">if</span> #epats == 0 <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="string">'pos'</span> .. destidx0 .. <span class="string">' = pos'</span> .. srcidx0 .. <span class="string">'\n'</span>, 0
+
+    <span class="keyword">elseif</span> #epats == 1 <span class="keyword">then</span>
+
+      <span class="keyword">return</span> epats[1](srcidx0, destidx0, totncaptures0, ws)
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">local</span> ncaptures = 0
+
+      <span class="keyword">local</span> pat_code, pat_ncaptures =
+
+          gen(epats[1], srcidx0, destidx0, totncaptures0+ncaptures, <span class="keyword">true</span>)
+
+      ncaptures = ncaptures + pat_ncaptures
+
+      <span class="keyword">local</span> code = add_whitespace(pat_code, <span class="string">''</span>)
+
+
+
+      <span class="keyword">for</span> i=2,#epats <span class="keyword">do</span>
+
+        <span class="keyword">local</span> pat_code, pat_ncaptures =
+
+            gen(epats[i], destidx0, destidx0, totncaptures0+ncaptures, <span class="keyword">true</span>)
+
+        ncaptures = ncaptures + pat_ncaptures
+
+        code =
+
+          code ..
+
+          <span class="string">'if pos'</span> .. destidx0 .. <span class="string">' then\n'</span> ..
+
+            add_whitespace(pat_code, <span class="string">'  '</span>) ..
+
+          <span class="string">'end\n'</span>
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> code, ncaptures
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> epats[1] <span class="keyword">and</span> epats[1].anchored <span class="keyword">then</span>
+
+    epat.anchored = <span class="keyword">true</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> epat
+
+<span class="keyword">end</span>
+
+M.P = seq
+
+
+
+
+
+<span class="comment">-- Creates new extended pattern object `epat` that is the alternation of the</span>
+
+<span class="comment">-- given list of pattern objects `epats...`.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> alt(...) <span class="comment">-- epats...</span>
+
+  <span class="comment">-- Ensure args are extended pattern objects.</span>
+
+  <span class="keyword">local</span> epats = {...}
+
+  <span class="keyword">for</span> i=1,#epats <span class="keyword">do</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(epats[i]) == <span class="string">'string'</span> <span class="keyword">then</span>
+
+      epats[i] = pattern(epats[i])
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> epat = <span class="library">setmetatable</span>({}, epat_mt)
+
+  epat.call = <span class="keyword">function</span>(srcidx0, destidx0, totncaptures0)
+
+    <span class="keyword">if</span> #epats == 0 <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="string">'pos'</span> .. destidx0 .. <span class="string">' = pos'</span> .. srcidx0 .. <span class="string">'\n'</span>, 0
+
+    <span class="keyword">elseif</span> #epats == 1 <span class="keyword">then</span>
+
+      <span class="keyword">return</span> epats[1](srcidx0, destidx0, totncaptures0)
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">local</span> ncaptures = 0
+
+      <span class="keyword">local</span> pat_code, pat_ncaptures =
+
+          gen(epats[1], srcidx0, destidx0+1, totncaptures0+ncaptures, <span class="keyword">true</span>)
+
+      ncaptures = ncaptures + pat_ncaptures
+
+      <span class="keyword">local</span> code = <span class="string">'local pos'</span> .. destidx0+1 .. <span class="string">' = pos'</span> .. srcidx0 .. <span class="string">'\n'</span> ..
+
+                   add_whitespace(pat_code, <span class="string">''</span>)
+
+
+
+      <span class="keyword">for</span> i=2,#epats <span class="keyword">do</span>
+
+        <span class="keyword">local</span> pat_code, pat_ncaptures =
+
+            gen(epats[i], srcidx0, destidx0+1, totncaptures0+ncaptures, <span class="keyword">true</span>)
+
+        ncaptures = ncaptures + pat_ncaptures
+
+        code =
+
+          code ..
+
+          <span class="string">'if not pos'</span> .. destidx0+1 .. <span class="string">' then\n'</span> ..
+
+            add_whitespace(pat_code, <span class="string">'  '</span>) ..
+
+          <span class="string">'end\n'</span>
+
+      <span class="keyword">end</span>
+
+      code = code .. <span class="string">'pos'</span> .. destidx0 .. <span class="string">' = pos'</span> .. destidx0+1 .. <span class="string">'\n'</span>
+
+      <span class="keyword">return</span> code, ncaptures
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> epat
+
+<span class="keyword">end</span>
+
+M.alt = alt
+
+
+
+
+
+<span class="comment">-- Creates new extended pattern object `epat` that is zero or more repetitions</span>
+
+<span class="comment">-- of the given pattern object `pat` (if one evaluates to false) or one or more</span>
+
+<span class="comment">-- (if one evaluates to true).</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> star(pat, one)
+
+  <span class="keyword">local</span> epat = <span class="library">setmetatable</span>({}, epat_mt)
+
+  epat.call = <span class="keyword">function</span>(srcidx0, destidx0, totncaptures0)
+
+    <span class="keyword">local</span> ncaptures = 0
+
+    <span class="keyword">local</span> destidx = destidx0 + 1
+
+    <span class="keyword">local</span> code = <span class="string">'do\n'</span> ..
+
+                 <span class="string">'  local pos'</span> .. destidx .. <span class="string">'=pos'</span> .. srcidx0 .. <span class="string">'\n'</span>
+
+    <span class="keyword">local</span> pat_code, pat_ncaptures =
+
+        gen(pat, destidx, destidx, totncaptures0+ncaptures, <span class="keyword">true</span>)
+
+    ncaptures = ncaptures + pat_ncaptures
+
+    code = code ..
+
+      (one <span class="keyword">and</span> (<span class="string">'  pos'</span> .. destidx0 .. <span class="string">' = nil\n'</span>)
+
+           <span class="keyword">or</span>  (<span class="string">'  pos'</span> .. destidx0 .. <span class="string">' = pos'</span> .. srcidx0 .. <span class="string">'\n'</span>)) ..
+
+      <span class="string">'  while 1 do\n'</span> ..
+
+           add_whitespace(pat_code, <span class="string">'    '</span>) ..
+
+      <span class="string">'    if pos'</span> .. destidx .. <span class="string">' then\n'</span> ..
+
+      <span class="string">'      pos'</span> .. destidx0 .. <span class="string">'=pos'</span> .. destidx .. <span class="string">'\n'</span> ..
+
+      <span class="string">'    else break end\n'</span> ..
+
+      <span class="string">'  end\n'</span> ..
+
+      <span class="string">'end\n'</span>
+
+    <span class="keyword">return</span> code, ncaptures
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> epat
+
+<span class="keyword">end</span>
+
+M.star = star
+
+
+
+
+
+<span class="comment">-- Creates new extended pattern object `epat` that is zero or one of the</span>
+
+<span class="comment">-- given pattern object `epat0`.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> zero_or_one(epat0)
+
+  <span class="keyword">local</span> epat = <span class="library">setmetatable</span>({}, epat_mt)
+
+  epat.call = <span class="keyword">function</span>(srcidx0, destidx0, totncaptures0)
+
+    <span class="keyword">local</span> ncaptures = 0
+
+    <span class="keyword">local</span> destidx = destidx0 + 1
+
+    <span class="keyword">local</span> code = <span class="string">'do\n'</span> ..
+
+                 <span class="string">'  local pos'</span> .. destidx .. <span class="string">'=pos'</span> .. srcidx0 .. <span class="string">'\n'</span>
+
+    <span class="keyword">local</span> epat0_code, epat0_ncaptures =
+
+        gen(epat0, destidx, destidx, totncaptures0+ncaptures, <span class="keyword">true</span>)
+
+    ncaptures = ncaptures + epat0_ncaptures
+
+    code = code ..
+
+      add_whitespace(epat0_code) ..
+
+      <span class="string">'  if pos'</span> .. destidx .. <span class="string">' then\n'</span> ..
+
+      <span class="string">'    pos'</span> .. destidx0 .. <span class="string">'=pos'</span> .. destidx .. <span class="string">'\n'</span> ..
+
+      <span class="string">'  else\n'</span> ..
+
+      <span class="string">'    pos'</span> .. destidx0 .. <span class="string">'=pos'</span> .. srcidx0 .. <span class="string">'\n'</span> ..
+
+      <span class="string">'  end\n'</span> ..
+
+      <span class="string">'end\n'</span>
+
+    <span class="keyword">return</span> code, ncaptures
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> epat
+
+<span class="keyword">end</span>
+
+M.zero_or_one = zero_or_one
+
+
+
+
+
+<span class="comment">-- Gets Lua core code string `code` corresponding to pattern object `epat`</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> basic_code_of(epat)
+
+  <span class="keyword">local</span> pat_code, ncaptures = epat(1, 2, 0, <span class="keyword">true</span>)
+
+  <span class="keyword">local</span> lvars = code_vars(1, ncaptures)
+
+
+
+  <span class="keyword">if</span> epat.anchored <span class="keyword">then</span>
+
+    <span class="keyword">local</span> code =
+
+      <span class="string">'local pos1=pos or 1\n'</span> ..
+
+      <span class="string">'local pos2\n'</span> ..
+
+      (lvars ~= <span class="string">''</span> <span class="keyword">and</span> <span class="string">'  local '</span> .. lvars .. <span class="string">'\n'</span> <span class="keyword">or</span> <span class="string">''</span>) ..
+
+      add_whitespace(pat_code) .. <span class="string">'\n'</span> ..
+
+      <span class="string">'if pos2 then return '</span> .. (lvars ~= <span class="string">''</span> <span class="keyword">and</span> lvars <span class="keyword">or</span> <span class="string">'s:sub(pos1,pos2-1)'</span>) .. <span class="string">' end\n'</span>
+
+    <span class="keyword">return</span> code
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">local</span> code =
+
+        <span class="string">'for pos1=(pos or 1),#s do\n'</span> ..
+
+        <span class="string">'  local pos2\n'</span>
+
+    <span class="keyword">if</span> lvars == <span class="string">''</span> <span class="keyword">then</span>
+
+      code =
+
+        code ..
+
+           add_whitespace(pat_code, <span class="string">'  '</span>) ..
+
+        <span class="string">'  if pos2 then return s:sub(pos1,pos2-1) end\n'</span>
+
+    <span class="keyword">else</span>
+
+      code =
+
+        code ..
+
+        <span class="string">'  local '</span> .. lvars .. <span class="string">'\n'</span> ..
+
+           add_whitespace(pat_code, <span class="string">'  '</span>) ..
+
+        <span class="string">'  if pos2 then return '</span> .. lvars .. <span class="string">' end\n'</span>
+
+    <span class="keyword">end</span>
+
+    code =
+
+        code ..
+
+        <span class="string">'end\n'</span>
+
+    <span class="keyword">return</span> code
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+M.basic_code_of = basic_code_of
+
+
+
+
+
+<span class="comment">-- Gets Lua complete code string `code` corresponding to pattern object `epat`.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> code_of(epat)
+
+  <span class="keyword">local</span> code =
+
+    <span class="string">'local match = ...\n'</span> ..
+
+    <span class="string">'return function(s,pos)\n'</span> ..
+
+    add_whitespace(basic_code_of(epat), <span class="string">'  '</span>) ..
+
+    <span class="string">'end\n'</span>
+
+  <span class="keyword">return</span> code
+
+<span class="keyword">end</span>
+
+M.code_of = code_of
+
+
+
+
+
+<span class="comment">-- Compiles pattern object `epat` to Lua function `f`.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> compile(epat)
+
+  <span class="keyword">local</span> code = code_of(epat)
+
+  <span class="keyword">if</span> M.debug <span class="keyword">then</span> <span class="library">print</span>(<span class="string">'DEBUG:\n'</span> .. code) <span class="keyword">end</span>
+
+  <span class="keyword">local</span> f = <span class="library">assert</span>(<span class="library">loadstring</span>(code))(match)
+
+  <span class="keyword">return</span> f
+
+<span class="keyword">end</span>
+
+M.compile = compile
+
+
+
+
+
+<span class="comment">-- operator for pattern matching</span>
+
+<span class="keyword">function</span> epat_mt.__call(epat, ...)
+
+  <span class="keyword">return</span> epat.call(...)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- operator for pattern alternation</span>
+
+<span class="keyword">function</span> epat_mt.__add(a_epat, b_epat)
+
+  <span class="keyword">return</span> alt(a_epat, b_epat)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- operator for pattern concatenation</span>
+
+<span class="keyword">function</span> epat_mt.__mul(a_epat, b_epat)
+
+  <span class="keyword">return</span> seq(a_epat, b_epat)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- operator for pattern repetition</span>
+
+<span class="keyword">function</span> epat_mt.__pow(epat, n)
+
+  <span class="keyword">if</span> n == 0 <span class="keyword">then</span>
+
+    <span class="keyword">return</span> star(epat)
+
+  <span class="keyword">elseif</span> n == 1 <span class="keyword">then</span>
+
+    <span class="keyword">return</span> star(epat, <span class="keyword">true</span>)
+
+  <span class="keyword">elseif</span> n == -1 <span class="keyword">then</span>
+
+    <span class="keyword">return</span> zero_or_one(epat)
+
+  <span class="keyword">else</span>
+
+    <span class="library">error</span> <span class="string">'FIX - unimplemented'</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- IMPROVE design?</span>
+
+epat_mt.compile       = compile
+
+epat_mt.basic_code_of = basic_code_of
+
+epat_mt.code_of       = code_of
+
+
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+<H2>Appendix: xpattern_test.lua</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- xpattern_test.lua - test suite for xpattern.lua</span>
+
+
+
+<span class="comment">-- utility function: convert list of values to string.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> str(...)
+
+  <span class="keyword">local</span> n = <span class="library">select</span>(<span class="string">'#'</span>, ...)
+
+  <span class="keyword">local</span> t = {...}
+
+  <span class="keyword">for</span> i=1,n <span class="keyword">do</span> t[i] = <span class="library">tostring</span>(t[i]) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">table.concat</span>(t, <span class="string">','</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> M = <span class="library">require</span> <span class="string">"xpattern"</span>
+
+<span class="keyword">local</span> P = M.P
+
+M.debug = <span class="keyword">true</span>
+
+
+
+<span class="comment">-- internal: _count_captures</span>
+
+<span class="library">assert</span>(M._count_captures<span class="string">''</span> == 0)
+
+<span class="library">assert</span>(M._count_captures<span class="string">'a'</span> == 0)
+
+<span class="library">assert</span>(<span class="keyword">not</span> <span class="library">pcall</span>(<span class="keyword">function</span>() M._count_captures<span class="string">'%'</span> <span class="keyword">end</span>))
+
+<span class="library">assert</span>(M._count_captures<span class="string">'()'</span> == 1)
+
+<span class="library">assert</span>(M._count_captures<span class="string">'%(%)'</span> == 0)    <span class="comment">-- %(</span>
+
+<span class="library">assert</span>(M._count_captures<span class="string">'[()]'</span> == 0)    <span class="comment">-- () inside []</span>
+
+<span class="library">assert</span>(M._count_captures<span class="string">'[%(%)]'</span> == 0)  <span class="comment">-- %( inside []</span>
+
+<span class="library">assert</span>(M._count_captures<span class="string">'[%]()]'</span> == 0)  <span class="comment">-- %] inside []</span>
+
+<span class="library">assert</span>(M._count_captures<span class="string">'[]()]'</span> == 1)
+
+<span class="library">assert</span>(M._count_captures<span class="string">'%b()'</span> == 0)    <span class="comment">-- () on %b..</span>
+
+<span class="library">assert</span>(M._count_captures<span class="string">'(()().())'</span> == 4)   <span class="comment">-- nested</span>
+
+<span class="comment">-- more complex example</span>
+
+<span class="library">assert</span>(M._count_captures<span class="string">'.(.%))[(]%(()'</span> == 2)
+
+
+
+
+
+<span class="comment">-- simple matching</span>
+
+<span class="library">assert</span>(str(P<span class="string">''</span>:compile()(<span class="string">''</span>)) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str(P<span class="string">''</span>:compile()(<span class="string">'a'</span>)) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str(P<span class="string">'a'</span>:compile()(<span class="string">''</span>)) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str(P<span class="string">'a'</span>:compile()(<span class="string">'a'</span>)) == <span class="string">'a'</span>)
+
+<span class="library">assert</span>(str(P<span class="string">'a'</span>:compile()(<span class="string">'ba'</span>)) == <span class="string">'a'</span>)
+
+<span class="library">assert</span>(str(P<span class="string">'a+'</span>:compile()(<span class="string">'baa'</span>)) == <span class="string">'aa'</span>)
+
+
+
+<span class="comment">-- simple anchors</span>
+
+<span class="library">assert</span>(str(P<span class="string">'^a+'</span>:compile()(<span class="string">'aa'</span>)) == <span class="string">'aa'</span>)
+
+<span class="library">assert</span>(str(P<span class="string">'^a+'</span>:compile()(<span class="string">'baab'</span>)) == <span class="string">''</span>) <span class="comment">-- $ fail</span>
+
+<span class="library">assert</span>(str(P<span class="string">'a+$'</span>:compile()(<span class="string">'baa'</span>)) == <span class="string">'aa'</span>)
+
+<span class="library">assert</span>(str(P<span class="string">'a+$'</span>:compile()(<span class="string">'baab'</span>)) == <span class="string">''</span>) <span class="comment">-- $ fail</span>
+
+
+
+<span class="comment">-- simple captures</span>
+
+<span class="library">assert</span>(str(P<span class="string">'(a+)(b+)'</span>:compile()(<span class="string">'baab'</span>)) == <span class="string">'aa,b'</span>)
+
+<span class="library">assert</span>(str(P<span class="string">'^(a+)(b+)'</span>:compile()(<span class="string">'baab'</span>)) == <span class="string">''</span>)
+
+
+
+<span class="comment">-- simple sequences</span>
+
+<span class="keyword">local</span> m = P():compile()
+
+<span class="library">assert</span>(str( m(<span class="string">''</span>) ) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str( m(<span class="string">'a'</span>) ) == <span class="string">''</span>)
+
+<span class="keyword">local</span> m = P(<span class="string">''</span>):compile()
+
+<span class="library">assert</span>(str( m(<span class="string">''</span>) ) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str( m(<span class="string">'a'</span>) ) == <span class="string">''</span>)
+
+<span class="keyword">local</span> m = P(<span class="string">'a'</span>, <span class="string">'b'</span>, <span class="string">'c'</span>):compile()
+
+<span class="library">assert</span>(str( m(<span class="string">'.a.'</span>) ) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str( m(<span class="string">'.abc.'</span>) ) == <span class="string">'abc'</span>)
+
+<span class="keyword">local</span> m = (P<span class="string">'a'</span> * P<span class="string">'b'</span> * P<span class="string">'c'</span>):compile() <span class="comment">-- identical</span>
+
+<span class="library">assert</span>(str( m(<span class="string">'.a.'</span>) ) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str( m(<span class="string">'.abc.'</span>) ) == <span class="string">'abc'</span>)
+
+<span class="keyword">local</span> m = P(P<span class="string">'a'</span>, <span class="string">'b'</span>, P<span class="string">'c'</span>):compile() <span class="comment">-- identical</span>
+
+<span class="library">assert</span>(str( m(<span class="string">'.a.'</span>) ) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str( m(<span class="string">'.abc.'</span>) ) == <span class="string">'abc'</span>)
+
+<span class="keyword">local</span> m = P(P<span class="string">'a+'</span>, <span class="string">'b+'</span>, P<span class="string">'c+'</span>):compile()
+
+<span class="library">assert</span>(str( m(<span class="string">'.abaabcc.'</span>) ) == <span class="string">'aabcc'</span>)
+
+
+
+<span class="comment">-- simple alternation</span>
+
+<span class="keyword">local</span> m = (P<span class="string">'aa+'</span> + P<span class="string">'bb+'</span>):compile()
+
+<span class="library">assert</span>(str( m(<span class="string">'abbaa'</span>) ) == <span class="string">'bb'</span>)
+
+<span class="keyword">local</span> m = (P<span class="string">'aa+'</span> + P<span class="string">'bb+'</span> + P<span class="string">'cc+'</span>):compile()
+
+<span class="library">assert</span>(str( m(<span class="string">'abccaa'</span>) ) == <span class="string">'cc'</span>)
+
+
+
+<span class="comment">-- simple combinations</span>
+
+<span class="keyword">local</span> m = ((P<span class="string">'(a+)'</span> + P<span class="string">'b(b*)'</span>) * P<span class="string">'(c+)()'</span>):compile()
+
+<span class="library">assert</span>(str( m(<span class="string">"aacccdd"</span>)) == <span class="string">'aa,nil,ccc,6'</span>)
+
+<span class="library">assert</span>(str( m(<span class="string">"bbcccdd"</span>)) == <span class="string">'nil,b,ccc,6'</span>)
+
+<span class="library">assert</span>(str( m(<span class="string">"bbdd"</span>)) == <span class="string">''</span>)
+
+<span class="library">print</span>(<span class="string">'?'</span>..str( m(<span class="string">"aabbcc"</span>)))
+
+<span class="library">assert</span>(str( m(<span class="string">"aabbcc"</span>)) == <span class="string">'nil,b,cc,7'</span>) <span class="comment">-- alternative</span>
+
+
+
+<span class="comment">-- simple replication (*)</span>
+
+<span class="keyword">local</span> m = ( P<span class="string">'a'</span>^0 ):compile()
+
+<span class="library">assert</span>(str(m<span class="string">''</span>) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'a'</span>) == <span class="string">'a'</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'aab'</span>) == <span class="string">'aa'</span>)
+
+
+
+<span class="comment">-- replication (*)</span>
+
+<span class="keyword">local</span> m = ( (P<span class="string">'a+'</span> + P<span class="string">'b+'</span>)^0 ):compile()
+
+<span class="library">assert</span>(str(m<span class="string">'zabaabbc'</span>) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'abaabb'</span>) == <span class="string">'abaabb'</span>)
+
+<span class="keyword">local</span> m = ( (P<span class="string">'a+'</span> * P<span class="string">'b+'</span> + P<span class="string">'c+'</span> * P<span class="string">'d+'</span>)^0 ):compile()
+
+<span class="library">assert</span>(str(m<span class="string">'aabbccddaa'</span>) == <span class="string">'aabbccdd'</span>)
+
+<span class="keyword">local</span> m = ( P<span class="string">'aa'</span>^0 * P<span class="string">'bb'</span> * P<span class="string">'aa'</span>^0 ):compile()
+
+<span class="library">assert</span>(str(m<span class="string">'aaccaaaabbaa'</span>) == <span class="string">'aaaabbaa'</span>)
+
+
+
+<span class="comment">-- simple replication (+)</span>
+
+<span class="keyword">local</span> m = ( P<span class="string">'a'</span>^1 ):compile()
+
+<span class="library">assert</span>(str(m<span class="string">''</span>) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'a'</span>) == <span class="string">'a'</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'aab'</span>) == <span class="string">'aa'</span>)
+
+
+
+<span class="comment">-- replacation (+)</span>
+
+<span class="keyword">local</span> m = ( P<span class="string">'b'</span> * P<span class="string">'a'</span>^1 ):compile()
+
+<span class="library">print</span>(m<span class="string">'b'</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'b'</span>) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'ba'</span>) == <span class="string">'ba'</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'baab'</span>) == <span class="string">'baa'</span>)
+
+
+
+<span class="comment">-- simple replication (?)</span>
+
+<span class="keyword">local</span> m = ( P<span class="string">'a'</span>^-1 ):compile()
+
+<span class="library">assert</span>(str(m<span class="string">''</span>) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'a'</span>) == <span class="string">'a'</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'aab'</span>) == <span class="string">'a'</span>)
+
+
+
+<span class="comment">-- replication (?)</span>
+
+<span class="keyword">local</span> m = ( P<span class="string">'c'</span> * (P<span class="string">'a+'</span> + P<span class="string">'b+'</span>)^-1 ):compile()
+
+<span class="library">assert</span>(str(m<span class="string">'caabb'</span>) == <span class="string">'caa'</span>)
+
+
+
+
+
+<span class="comment">-- Some of these examples from Mastering Regular Expressions (MRE),</span>
+
+<span class="comment">-- 2nd Ed. Jeffrey .Friedl.</span>
+
+
+
+<span class="comment">-- MRE p.19</span>
+
+<span class="keyword">local</span> m = ( P<span class="string">'^'</span> * (P<span class="string">'From'</span> + P<span class="string">'Subject'</span> + P<span class="string">'Date'</span>) * P<span class="string">':%s*(.*)'</span> ):compile()
+
+<span class="library">assert</span>(str(m(<span class="string">'Subject: test'</span>)) == <span class="string">'test'</span>)
+
+
+
+<span class="comment">-- MRE p.13</span>
+
+<span class="keyword">local</span> m = ( (P<span class="string">'Geo'</span> + P<span class="string">'Je'</span>) * P<span class="string">'ff'</span> * (P<span class="string">'re'</span> + P<span class="string">'er'</span>) * P<span class="string">'y'</span> ):compile()
+
+<span class="library">assert</span>(str(m<span class="string">'Jeffrey'</span>) == <span class="string">'Jeffrey'</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'Jeffery'</span>) == <span class="string">'Jeffery'</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'Geoffrey'</span>) == <span class="string">'Geoffrey'</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'Geoffery'</span>) == <span class="string">'Geoffery'</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'Jefery'</span>) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'Geofferi'</span>) == <span class="string">''</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'GeoffrezGeoffery'</span>) == <span class="string">'Geoffery'</span>) <span class="comment">-- skips</span>
+
+<span class="library">assert</span>(str(m<span class="string">'JefferzGeoffery'</span>) == <span class="string">'Geoffery'</span>) <span class="comment">-- skips</span>
+
+<span class="library">assert</span>(str(m<span class="string">'GeoffJeffery'</span>) == <span class="string">'Jeffery'</span>) <span class="comment">-- skips</span>
+
+
+
+<span class="comment">-- MRE p.24</span>
+
+<span class="keyword">local</span> m = ( P<span class="string">'%$[0-9]+'</span> * P<span class="string">'%.[0-9][0-9]'</span>^-1 ):compile()
+
+<span class="library">assert</span>(str(m<span class="string">'$20.00'</span>) == <span class="string">'$20.00'</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'$20'</span>) == <span class="string">'$20'</span>)
+
+<span class="library">assert</span>(str(m<span class="string">'$20.00.00'</span>) == <span class="string">'$20.00'</span>)
+
+
+
+<span class="comment">-- example</span>
+
+<span class="library">print</span> <span class="string">'example'</span>
+
+<span class="keyword">local</span> M = <span class="library">require</span> <span class="string">"xpattern"</span>
+
+<span class="keyword">local</span> P = M.P
+
+<span class="keyword">local</span> m = ( (P<span class="string">'(b+)'</span> + P<span class="string">'(c+)'</span>) * P<span class="string">'[A-Z][a-z]'</span>^0 * P<span class="string">'(.)()'</span> ):compile()
+
+<span class="keyword">local</span> a,b,c,d = m(<span class="string">'mmcccZzYybbZzYyddd'</span>) <span class="comment">-- match c not b first</span>
+
+<span class="library">assert</span>(a == <span class="keyword">nil</span> <span class="keyword">and</span> b == <span class="string">'ccc'</span> <span class="keyword">and</span> c == <span class="string">'b'</span> <span class="keyword">and</span> d == 11)
+
+
+
+<span class="comment">-- example</span>
+
+<span class="keyword">local</span> m = P(<span class="string">'foo'</span>, P<span class="string">'bar'</span>+P<span class="string">'baz'</span>, <span class="string">'qux'</span>):compile()
+
+<span class="library">assert</span>(str(m<span class="string">'afoobazfoobarquxbar'</span>, <span class="string">'foobarqux'</span>))
+
+<span class="keyword">local</span> m = P(<span class="string">'^foo'</span>, P<span class="string">'bar'</span>+P<span class="string">'baz'</span>, <span class="string">'qux'</span>):compile() <span class="comment">-- anchored</span>
+
+<span class="library">assert</span>(str(m<span class="string">'afoobazfoobarquxbar'</span>, <span class="string">''</span>))
+
+<span class="library">assert</span>(str(m<span class="string">'foobarquxbar'</span>, <span class="string">''</span>))
+
+
+
+<span class="comment">-- http://lua-users.org/lists/lua-l/2009-10/msg00752.html</span>
+
+<span class="keyword">local</span> m = (
+
+  P<span class="string">'^'</span> * ( ( P<span class="string">'ceil'</span>+P<span class="string">'abs'</span> +P<span class="string">'floor'</span>+P<span class="string">'mod'</span> +P<span class="string">'exp'</span>+P<span class="string">'log'</span>+P<span class="string">'pow'</span>+
+
+             P<span class="string">'sqrt'</span>+P<span class="string">'acos'</span>+P<span class="string">'asin'</span> +P<span class="string">'atan'</span>+P<span class="string">'cos'</span>+P<span class="string">'sin'</span>+P<span class="string">'tan'</span>+
+
+             P<span class="string">'deg'</span> +P<span class="string">'rad'</span> +P<span class="string">'random'</span>
+
+           ) * P<span class="string">'%('</span>
+
+           + P<span class="string">'[0-9%(%)%-%+%*%/%.%,]'</span> + P<span class="string">'pi'</span>
+
+          )^1 * P<span class="string">'$'</span>
+
+):compile()
+
+<span class="library">assert</span>(m<span class="string">'cos(1+pi)'</span> == <span class="string">'cos(1+pi)'</span>)
+
+<span class="library">assert</span>(m<span class="string">'cos(1+p)'</span> == <span class="keyword">nil</span>) <span class="comment">-- 'p'</span>
+
+<span class="library">assert</span>(m<span class="string">'cos(12.3/2)+mod(2,3)'</span> == <span class="string">'cos(12.3/2)+mod(2,3)'</span>)
+
+<span class="library">assert</span>(m<span class="string">'cos(12.3/2)+mod(2,3) '</span> == <span class="keyword">nil</span>) <span class="comment">-- ' '</span>
+
+<span class="library">assert</span>(m<span class="string">' cos(12.3/2)+mod(2,3)'</span> == <span class="keyword">nil</span>) <span class="comment">-- ' '</span>
+
+<span class="library">assert</span>(m<span class="string">'cos(12.3/2)+mod+2'</span> == <span class="keyword">nil</span>) <span class="comment">-- no '('</span>
+
+
+
+<span class="library">print</span> <span class="string">'DONE'</span>
+
+</pre>
+
+</DL>
+<p>
+Changes:
+<p>
+<UL>
+<li> 2009-10-21 - major rewrite of pattern matching and code generation.
+<li> 2010-01-06 - fix side-effect in pattern call operator
+</UL>
+<p>
+<H2>Author</H2>
+<p>
+<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> [1] <a href="../wiki/PatternsTutorial.html" >PatternsTutorial</a>
+<li> [2] <a href="http://en.wikipedia.org/wiki/Regular_expression.html">[Wikipedia:Regular expression]</a>
+<li> [3] <a href="http://lrexlib.luaforge.net/">[lrexlib]</a>
+<li> [4] <a href="../wiki/LuaPeg.html" >LuaPeg</a> - LPeg
+<li> <a href="../wiki/StringQuery.html" >StringQuery</a> - string pattern matching and replacement library inspired somewhat by jQuery
+<li> <a href="../wiki/StringLibraryInLua.html" >StringLibraryInLua</a> - partially reimplements Lua's string library (including the match function)
+<li> "patterns library" in <a href="../wiki/CommonFunctions.html" >CommonFunctions</a> provides Perl-style //x whitespace removal in patterns.
+<li> This example uses the technique of <a href="../wiki/CodeGeneration.html" >CodeGeneration</a>.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ExPattern" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ExPattern" >history</a><br>Last edited January 7, 2010 1:27 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ExPattern" >(diff)</a>
+</body>
+</html>

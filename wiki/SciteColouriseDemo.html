@@ -1,0 +1,169 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Colourise Demo</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteColouriseDemo&amp;body=1" title="List pages referring to SciteColouriseDemo">Scite Colourise Demo</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a demo of a script that arbitrarily colourises some text, and
+keeps the text coloured when switching buffers. The following demo uses
+<a href="../wiki/SciteExtMan.html" >SciteExtMan</a>, but <code>extman</code> itself is not necessary for the
+implementation of the colouring technique.
+<p>
+Note that this method is not a substitute for a proper lexer interface,
+so it should <em>not</em> be used to implement a Lua extension-based syntax
+highlighter. This is because any operation that forces some part of the
+buffer to be restyled will cause breakage. However, this method of
+colouring might be useful for anything that does not involve "normal"
+editing operations.
+<p>
+<hr><pre class="code">
+
+
+<span class="comment">-----------------------------------------------------------------------</span>
+
+<span class="comment">-- demo to provide custom colours and styles to a specific buffer</span>
+
+<span class="comment">-- &lt;khman@users.sf.net&gt; public domain 20060906</span>
+
+<span class="comment">-----------------------------------------------------------------------</span>
+
+<span class="comment">-- [[</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> SetColours(lexer, scheme)
+
+  <span class="keyword">local</span> <span class="keyword">function</span> dec(s) <span class="keyword">return</span> <span class="library">tonumber</span>(s, 16) <span class="keyword">end</span>
+
+  <span class="keyword">if</span> lexer <span class="keyword">then</span> editor.Lexer = lexer <span class="keyword">end</span>
+
+  <span class="keyword">for</span> i, style <span class="keyword">in</span> <span class="library">pairs</span>(scheme) <span class="keyword">do</span>
+
+    <span class="keyword">for</span> prop, value  <span class="keyword">in</span> <span class="library">pairs</span>(style) <span class="keyword">do</span>
+
+      <span class="keyword">if</span> (prop == <span class="string">"StyleFore"</span> <span class="keyword">or</span> prop == <span class="string">"StyleBack"</span>)
+
+         <span class="keyword">and</span> <span class="library">type</span>(value) == <span class="string">"string"</span> <span class="keyword">then</span> <span class="comment">-- convert from string</span>
+
+        <span class="keyword">local</span> hex, hex, r, g, b =
+
+          <span class="library">string.find</span>(value, <span class="string">"^(%x%x)(%x%x)(%x%x)$"</span>)
+
+        value = hex <span class="keyword">and</span> (dec(r) + dec(g)*256 + dec(b)*65536) <span class="keyword">or</span> 0
+
+      <span class="keyword">end</span>
+
+      editor[prop][i] = value
+
+    <span class="keyword">end</span><span class="comment">--each property</span>
+
+  <span class="keyword">end</span><span class="comment">--each style</span>
+
+<span class="keyword">end</span>
+
+
+
+scite_Command(<span class="string">'ColourTest|ColourTest|Ctrl+8'</span>)
+
+
+
+<span class="keyword">local</span> ColourScheme = { <span class="comment">-- a sample colour scheme</span>
+
+  [1] = {StyleFore = <span class="string">"800000"</span>, StyleBold = <span class="keyword">true</span>,},
+
+  [2] = {StyleFore = <span class="string">"008000"</span>, StyleBack = <span class="string">"E0E0E0"</span>, StyleItalic = <span class="keyword">true</span>,},
+
+}
+
+
+
+<span class="keyword">function</span> ColourTest()
+
+  <span class="keyword">local</span> SIG = <span class="string">"ColourTest"</span>
+
+  <span class="comment">-- colouriser function, used when buffer created or switched</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> Colourise(n)
+
+    <span class="keyword">local</span> segment = n * 2
+
+    editor:StartStyling(0, 31)
+
+    <span class="keyword">for</span> i = 1, 10 <span class="keyword">do</span>
+
+      editor:SetStyling(segment, 1)
+
+      editor:SetStyling(segment, 2)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- recolour text again upon switching buffers</span>
+
+  scite_OnSwitchFile(<span class="keyword">function</span>()
+
+    <span class="keyword">if</span> <span class="keyword">not</span> buffer[SIG] <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+    SetColours(SCLEX_CONTAINER, ColourScheme)
+
+    Colourise(editor.Length / 100)
+
+    <span class="keyword">return</span> <span class="keyword">true</span>
+
+  <span class="keyword">end</span>)
+
+  <span class="comment">-- create buffer, identify it, add some text, colourise</span>
+
+  scite.Open(<span class="string">""</span>)
+
+  buffer[SIG] = <span class="keyword">true</span>;
+
+  SetColours(SCLEX_CONTAINER, ColourScheme)
+
+  <span class="keyword">for</span> i = 1, 100 <span class="keyword">do</span>
+
+    editor:AddText(<span class="string">"The quick brown fox jumped over the lazy dog.\n"</span>)
+
+  <span class="keyword">end</span>
+
+  Colourise(editor.Length / 100)
+
+  <span class="comment">-- since this colouring method breaks upon many operations, it</span>
+
+  <span class="comment">-- cannot be used as a language syntax highlighter</span>
+
+  editor.ReadOnly = <span class="keyword">true</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">--]]</span>
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteColouriseDemo" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteColouriseDemo" >history</a><br>Last edited September 5, 2006 5:12 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteColouriseDemo" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Random Sample</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=RandomSample&amp;body=1" title="List pages referring to RandomSample">Random Sample</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following problem is taken from <a href="http://www.ic.unicamp.br/~meidanis/courses/mc336/2006s2/funcional/L-99_Ninety-Nine_Lisp_Problems.html">[99 Lisp Problems]</a>:
+<p>
+<DL>
+<dt><dd><em>Problem 24: Draw N different random numbers from the set 1..M</em>
+</DL>
+<p>
+We give a solution here in Lua.  This solution shows some of the power of Lua's metatable protocol to implement a lazy table technique.
+<p>
+The general solution is also pretty simple: construct the vector <code>1..M</code>; do a random permutation; and return the first <code>N</code> values. Of course, we don't need to do the entire random permutation; we can stop after <code>N</code> values.
+<p>
+The random permutation is straightforward:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> permute(tab, n, count)
+
+  n = n <span class="keyword">or</span> #tab
+
+  <span class="keyword">for</span> i = 1, count <span class="keyword">or</span> n <span class="keyword">do</span>
+
+    <span class="keyword">local</span> j = <span class="library">math.random</span>(i, n)
+
+    tab[i], tab[j] = tab[j], tab[i]
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> tab
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+So we could just construct the vector <code>1..M</code> and use the above function. But what if <code>M</code> were quite large, relative to <code>N</code>? At most we're going to touch <code>2N</code> elements of the table. If <code>N</code> were 6 and <code>M</code> were 1,000 -- or worse, if <code>N</code> were 1,000 and <code>M</code> were 1,000,000 -- it would be seriously inefficient to construct <code>1..M</code>
+<p>
+Suppose, instead, we just make a table that looks like it contains <code>1..M</code>. In fact, we can make a table that looks like it contains <code>1..&#X221E;</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> meta = {}
+
+  <span class="keyword">function</span> meta:__index(k) <span class="keyword">return</span> k <span class="keyword">end</span>
+
+  <span class="keyword">function</span> PositiveIntegers() <span class="keyword">return</span> <span class="library">setmetatable</span>({}, meta) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Now we can go ahead and solve the original problem:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> lotto(count, range)
+
+  <span class="keyword">return</span> {<span class="library">unpack</span>(
+
+               permute(PositiveIntegers(), range, count),
+
+               1, count)
+
+            }
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The approach used here is a type of <em>lazy evaluation</em> <a href="http://en.wikipedia.org/wiki/Lazy_evaluation.html">[wikipedia]</a>, which we might here call a <em>lazy table</em> (a bit related to the Haskell <em>lazy list</em>).   It's vaguely related to the technique of memoisation (see <a href="../wiki/FuncTables.html" >FuncTables</a> and <a href="http://en.wikipedia.org/wiki/Memoization.html">[wikipedia]</a>).
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=RandomSample" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=RandomSample" >history</a><br>Last edited January 16, 2007 1:02 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=RandomSample" >(diff)</a>
+</body>
+</html>

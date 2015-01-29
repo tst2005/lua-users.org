@@ -1,0 +1,88 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Non Blocking Lua Execution</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=NonBlockingLuaExecution&amp;body=1" title="List pages referring to NonBlockingLuaExecution">Non Blocking Lua Execution</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Currently, a C program using Lua must run Lua code by calling an API function which runs the Lua code until it stops or yields. The API function blocks the execution of the C program until it's done. This proposal lets C programs execute Lua code without blocking.
+<p>
+Currently, Lua code is executed like this:
+<DL>
+<dt><dd>1. Load Lua script.
+<dt><dd>2. Run Lua script.
+<dt><dd>(The Lua script executes until it's done. The C program is blocked.)
+<dt><dd>3. Exit.
+</DL>
+If there is a problem with the Lua script, there is very little the C program can do. The Lua script could enter an infinite loop and the C program would be stuck.
+<p>
+There should be API functionality which lets a C program run a little bit of Lua code at a time. For example, there could be a function which executes the next Lua operation, then returns control to the C caller. Lua code would execute like this:
+<DL>
+<dt><dd>1. Load Lua script.
+<dt><dd>2. Run the next Lua operation.
+<dt><dd>3. Do any other operations which only the C program can do.
+<dt><dd>4. If the script is done, exit.
+<dt><dd>5. Else, go to step 2.
+</DL>
+<p>
+The C program is never blocked by Lua, and it has more control over the Lua VM. It should be safe to read and modify the Lua state (variables, etc.) between operations, as long as the script itself can handle it. The C program should also be able to stop the Lua script at any time.
+<p>
+<hr>Current solutions involve setting a debug hook which gets called every 100 operations or so, then, in the debug hook, calling lua_yield. This way, control is returned to the C code which started Lua, and C can re-enter the Lua script with lua_resume. This solution is discussed in the chat archive (<a href="http://lua-users.org/lists/lua-l/2005-12/msg00340.html">[1]</a>) and on a forum (<a href="http://www.icynorth.com/forums/viewtopic.php?p=228&amp;sid=24c427141b80232a86258d2e41c6b0ee">[2]</a>). Unfortunately, as discussed in the chat thread, this may break if the Lua script itself uses coroutines.
+<p>
+In Lua 5.1.1, an internal function called luaV_execute runs script operations. It runs operations in an infinite loop. Between operations, it calls the debug hook. There appear to be two basic things which can cause this function to return: special script operations and a debug hook which sets the "yield" status. (I'm not an expert on the Lua source code, so I could be mistaken).
+Perhaps it would be best to get rid of the infinite loop and make some API changes that allow C code to set the number of times the loop may run. Ideally, it wouldn't be necessary to use any hooks or callbacks.
+<p>
+<hr>Here's a different idea: Let C register a special hook with Lua which is called between operations, just like a debug hook. However, this hook is different:
+<DL>
+<dt><dd>- It cannot be changed by the Lua script or point to a Lua function.
+<dt><dd>- The purpose of the hook is to tell luaV_execute (through a return code) whether it should yield or not, so that lua_pcall or whatever function was used to invoke Lua will return.
+<dt><dd>- When luaV_execute "yields", it yields in a way that is different from the yielding of coroutines, i.e., yielding with this hook should not interfere with coroutine use at all.
+</DL>
+<p>
+What I'm getting at is that we should be able to use the "debug hook" method described above, but without the shortcomings of an actual debug hook. The C programmer could have complete control over when Lua stops blocking. For example: every 100 operations; every operation; never; ... etc.
+<p>
+This approach could involve some changes to the Lua API. The C program would have to be able to resume Lua from where it "yielded", but probably not with the coroutine-centric lua_resume function. It seems like getting coroutines involved here is a bad idea, since it may preclude the Lua script using coroutines.
+<p>
+<hr>I've found my own solution to use if this feature proposal never receives any attention: Windows Fibers. It's the cleanest, safest way I've found to do the job, currently, but it will only work on Windows. Plus, you must make a Windows-specific change to the Lua source code. Because of the size of the example, it's on a separate page:
+<a href="../wiki/NonBlockingLuaExecutionWithWindowsFibers.html" >NonBlockingLuaExecutionWithWindowsFibers</a>
+<p>
+<hr>Yet another Lua user needs Non-blocking Lua execution: <a href="http://lua-users.org/lists/lua-l/2006-08/msg00209.html">[3]</a>. I feel like I ought to make a petition. ;)
+<p>
+<hr><DL>
+<dt><dd><em>I think <a href="http://www.lua.org/manual/5.1/manual.html#pdf-debug.sethook">[debug.sethook]</a> can be used for this (see also in PIL <a href="http://www.lua.org/pil/23.2.html">http://www.lua.org/pil/23.2.html</a>).  Line-by-line breaking in this way can be useful to implement things like Lua debuggers.--<a href="../wiki/DavidManura.html" >DavidManura</a></em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>I don't think debug hooks are a good solution. I looked in the chat archive, and the first thing I read was the message at <a href="http://lua-users.org/lists/lua-l/2006-01/msg00002.html">[4]</a>. Mr. Sittig worries about whether Lua can be cleanly terminated from within the hook, and what would happen if the script changed the debug hook by itself. The main problem is that the debug hook is called from within Lua; the C program should drive Lua, not the other way around.</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>I discussed the while loop in luaV_execute some with <a href="../wiki/RiciLake.html" >RiciLake</a>.  Removing that while loop and then calling luaV_execute iteratively from your code is an obvious approach, but the problem area is that luaV_execute is reentrant (recursive), so you would also need to eliminate that recursion (maybe a stack approach?) to prevent a recursive call blocking too long. --<a href="../wiki/DavidManura.html" >DavidManura</a></em>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=NonBlockingLuaExecution" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=NonBlockingLuaExecution" >history</a><br>Last edited September 10, 2006 8:12 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=NonBlockingLuaExecution" >(diff)</a>
+</body>
+</html>

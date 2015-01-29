@@ -1,0 +1,246 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Open To Line</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteOpenToLine&amp;body=1" title="List pages referring to SciteOpenToLine">Scite Open To Line</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3><a href="../wiki/SciteOpenToLine.html" >SciteOpenToLine</a></H3>
+<p>
+<code>SciteOpenToLine</code> looks at the file SciTE has just opened. If there are colons:in:the:name, we will tell SciTE to also try to open another document, interpreting the portion after the colon as a line number. The benefit is the ability to open files with line numbers appended to the end, such as the output produced by grep, most compilers, profilers and debuggers. These files can now be opened with scite directly, without having to pass special commands or edit out the colons. This has the advantage that you can double-click on the debugger line and then middle-click-paste in the terminal, a line like this without editing:
+<p>
+scite ../../foo/docs/html/gdiobj_8c-source.html:420:3
+<p>
+would now cause SciTE and go to line 420 of gdiobj_8c-source.html
+<p>
+I leave column highlighting as a trivial exercise.
+<p>
+<pre class="code">
+<span class="keyword">function</span> marker_define(idx,typ,fore,back)
+
+	editor:MarkerDefine(idx,typ)
+
+	<span class="keyword">if</span> fore <span class="keyword">then</span> editor:MarkerSetFore(idx,color_parse(fore)) <span class="keyword">end</span>
+
+	<span class="keyword">if</span> back <span class="keyword">then</span> editor:MarkerSetBack(idx,color_parse(back)) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Compatibility: Lua-5.1</span>
+
+<span class="keyword">function</span> split(str, pat)
+
+   <span class="keyword">local</span> t = {}  <span class="comment">-- NOTE: use {n = 0} in Lua-5.0</span>
+
+   <span class="keyword">local</span> fpat = <span class="string">"(.-)"</span> .. pat
+
+   <span class="keyword">local</span> last_end = 1
+
+   <span class="keyword">local</span> s, e, cap = str:find(fpat, 1)
+
+   <span class="keyword">while</span> s <span class="keyword">do</span>
+
+      <span class="keyword">if</span> s ~= 1 <span class="keyword">or</span> cap ~= <span class="string">""</span> <span class="keyword">then</span>
+
+	 <span class="library">table.insert</span>(t,cap)
+
+      <span class="keyword">end</span>
+
+      last_end = e+1
+
+      s, e, cap = str:find(fpat, last_end)
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">if</span> last_end &lt;= #str <span class="keyword">then</span>
+
+      cap = str:sub(last_end)
+
+      <span class="library">table.insert</span>(t, cap)
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--~ Naming this function OnOpen causes it to run every time SciTE opens a file</span>
+
+<span class="comment">--~ and determine if the opened file has :somenumber: in the extension.</span>
+
+<span class="comment">--~ If it does, we open it in another window and go to that line.</span>
+
+<span class="keyword">function</span> OnOpen()
+
+    <span class="keyword">local</span> ext = props[<span class="string">'FileExt'</span>]   <span class="comment">-- e.g 'cpp'</span>
+
+	<span class="keyword">if</span> <span class="library">string.match</span>(ext,<span class="string">':'</span>) <span class="keyword">then</span>
+
+		marker_define(0,0,<span class="string">'black'</span>,<span class="string">'red'</span>)
+
+		<span class="keyword">local</span> extSplit = split(ext,<span class="string">':'</span>)
+
+		<span class="keyword">local</span> f = props[<span class="string">'FileName'</span>]    <span class="comment">-- e.g 'test'</span>
+
+		<span class="keyword">local</span> path = props[<span class="string">'FileDir'</span>]  <span class="comment">-- e.g. '/home/steve/progs'</span>
+
+<span class="comment">--~ 		print (f,ext,extSplit[1],extSplit[2],path)</span>
+
+		newpat=path..<span class="string">'/'</span>..f..<span class="string">'.'</span>..extSplit[1]
+
+		scite.Open(newpat)
+
+		line=<span class="library">tonumber</span>(extSplit[2]-1)
+
+		editor:GotoLine(line)
+
+		editor:MarkerAdd(line,0)
+
+		editor.SelectionStart   = editor.CurrentPos
+
+		editor.SelectionEnd   = editor.LineEndPosition[line]
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<H3>Optional</H3>
+<p>
+Users may desire to bind SciTE to a hotkey so that they only need press a button and any highlighted file anywhere on the desktop, terminal session or web is opened in SciTE.
+<p>
+On Linux: a bash script, such as "scite `xsel`" can be bound to a hotkey or mouse gesture with your window manager to open the highlighted file, colons and all, from any terminal or web page without even having to type "scite " into the terminal or clicking "paste"
+<pre>
+
+    Problem: SciTE, when launched from a hotkey, has no idea where the highlighted file is.
+
+    We must somehow tell SciTE how to get there. For this we need to download xsel.
+
+
+
+    1. Add to ~/.bashrc (this stores your current working directory in a readable file)
+
+
+
+	pwd &gt; ~/.PWD
+
+	c(){ command cd "$@"; pwd &gt; ~/.PWD; }
+
+
+
+	Note 1: don't put anything in .bashrc that would output text to the terminal or
+
+	you will have strange problems, such as being unable to scp to your machine.
+
+
+
+	Note 2: be sure you don't already have the command, 'c' on your system.
+
+		remember to type 'c' instead of 'cd' in terminal from now on, unless...
+
+
+
+	Note 3: The following changes the default behavior of your shell and will not be
+
+	supported. It is not well tested and is probably guaranteed to break something.
+
+	You can go ahead and try it. It works for me. Just don't bother me about it.
+
+		"to hook into user's default cd command use a line like this:"
+
+		cd(){ command cd "$@"; pwd &gt; ~/.PWD; }
+
+
+
+     2. Create a scite launcher script that trims selection and searches a few likely
+
+	places for the file you have highlighted. This script is called from a hotkey
+
+	so it does not affect SciTE's default behavior.
+
+
+
+	cat &lt;&lt; EOF &gt; ~/bin/xselscite.sh
+
+	#!/bin/bash
+
+	# remove whitespace from both ends of selected text
+
+	 x=$(xsel|sed -e 's/^[ ]*//' -e 's/[ ]*$//')
+
+	 
+
+	# search a few likely places for a file to open
+
+	# todo: expand this list
+
+	if [[ -f ${x/\~\//} ]]; then
+
+		f="${x/\~\//}"
+
+	elif [[ -f $(&lt;~/.PWD)/$x ]]; then
+
+		f="$(&lt;~/.PWD)/$x"
+
+	else
+
+		f="${x::25}" # New file? Name &lt; 25 chars
+
+	fi
+
+	#try to prevent scite from opening more than 4
+
+	#files in case somebody selects the whole page
+
+	[[ $(echo $f|wc -l) &lt; 5 ]]&amp;&amp;scite "$f"
+
+	EOF
+
+
+
+	chmod +x ~/bin/xselscite.sh
+
+
+
+    3. Go to your window manager's keyboard shortcut or mouse gesture configuration and add a keyboard
+
+	shortcut that points to your new script.
+
+
+
+    4. Enjoy having a one-button SciTE launcher.
+
+</pre>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteOpenToLine" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteOpenToLine" >history</a><br>Last edited November 1, 2010 8:38 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteOpenToLine" >(diff)</a>
+</body>
+</html>

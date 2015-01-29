@@ -1,0 +1,174 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Assignment Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=AssignmentTutorial&amp;body=1" title="List pages referring to AssignmentTutorial">Assignment Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Assigning values</H2>
+<p>
+Setting the value of a variable is an <em>assignment</em>:
+<DL>
+<dt><dd><pre class="code">
+&gt; x = 1
+
+&gt; y = <span class="string">"hello"</span>
+
+&gt; <span class="library">print</span>(x,y)
+
+1       hello
+
+</pre>
+
+</DL>
+You can read about assignments in section 2.4.3 of the Reference Manual.<a href="http://www.lua.org/manual/5.1/manual.html#2.4.3">[1]</a>
+<p>
+<H2>Multiple assignment</H2>
+<p>
+In Lua we can perform <em>multiple assignments</em> in a single statement, e.g.,
+<DL>
+<dt><dd><pre class="code">
+&gt; x, y = 2, <span class="string">"there"</span>
+
+&gt; <span class="library">print</span>(x,y)
+
+2       there 
+
+</pre>
+
+</DL>
+The list of values on the right is assigned to the list of variables on the left of the <code>=</code>. We can assign as many values as we like and they don't all have to be of the same type. e.g.,
+<DL>
+<dt><dd><pre class="code">
+&gt; a,b,c,d,e,f = 1,<span class="string">"two"</span>,3,3.14159,<span class="string">"foo"</span>,{ this=<span class="string">"a table"</span> }
+
+&gt; <span class="library">print</span>(a,b,c,d,e,f)
+
+1       two     3       3.14159 foo     <span class="library">table</span>: 0035BED8
+
+</pre>
+
+</DL>
+<p>
+Values on the right of the equal sign can be expressions, like <code>i+1</code>. Values on the left side however cannot.
+<p>
+Multiple assignment comes with a few caveats as described below.
+<p>
+<H3>Evaluation occurs before assignment</H3>
+<p>
+Any expressions are evaluated first. The evaluated expression is then assigned. 
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; i = 7
+
+&gt; i, x = i+1, i
+
+&gt; <span class="library">print</span>(i, x)
+
+8       7
+
+</pre>
+
+</DL>
+<p>
+When Lua reaches the second line it evaluates the expressions <code>i+1</code> and <code>i</code> before anything else. After evaluation the second line becomes <code>i, x = 8, 7</code>. Then it performs the assignments from right to left. (see below for assignment order).
+<p>
+<H3>Swapping values</H3>
+<p>
+Values are assigned as though all assignments are simultaneous. So you can use multiple assignment to swap variable values around.
+<DL>
+<dt><dd><pre class="code">
+&gt; a,b = 1,2  <span class="comment">-- set initial values</span>
+
+&gt; <span class="library">print</span>(a,b)
+
+1       2
+
+&gt; a,b = b,a  <span class="comment">-- swap values around</span>
+
+&gt; <span class="library">print</span>(a,b)
+
+2       1
+
+&gt; a,b = b,a  <span class="comment">-- and back again</span>
+
+&gt; <span class="library">print</span>(a,b)
+
+1       2
+
+</pre>
+
+</DL>
+Note that there is no need for a temporary variable (such as <code>bold = b; b = a; a = bold;</code>). Using a temporary variable like that would be common in C Language programming; but isn't necessary in Lua.
+<p>
+<H3>Assignment order</H3>
+<p>
+The order in which multiple assignments are performed is not defined. This means you shouldn't assume the assignments are made from left to right. If the same variable or table reference occurs twice in the assignment list the results may surprise you.
+<DL>
+<dt><dd><pre class="code">
+&gt; a, a = 1, 2
+
+&gt; <span class="library">print</span>(a)
+
+1
+
+</pre>
+
+</DL>
+In the above example Lua does assignments from right-to-left, e.g. <code>a=2</code> and then <code>a=1</code>. However we shouldn't depend on this being consistent in future versions of Lua. You should use separate assignment statements if the order of assignment is important to you.
+<p>
+<H3>Mismatched list sizes</H3>
+<p>
+If a value list is longer than the variable list the extra values are ignored.
+<DL>
+<dt><dd><pre class="code">
+&gt; a,b,c = 1,2,3,4,5,6
+
+&gt; <span class="library">print</span>(a,b,c)
+
+1       2       3
+
+</pre>
+
+</DL>
+<p>
+Lua assigns the value <code>nil</code> to the variables without a value if a value list is shorter than the variable list.
+<DL>
+<dt><dd><pre class="code">
+&gt; a,b,c,d = 1,2
+
+&gt; <span class="library">print</span>(a,b,c,d)
+
+1       2       <span class="keyword">nil</span>     <span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AssignmentTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=AssignmentTutorial" >history</a><br>Last edited August 4, 2014 10:18 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=AssignmentTutorial" >(diff)</a>
+</body>
+</html>

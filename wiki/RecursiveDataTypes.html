@@ -1,0 +1,231 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Recursive Data Types</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=RecursiveDataTypes&amp;body=1" title="List pages referring to RecursiveDataTypes">Recursive Data Types</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Functional programming languages make recursion really easy by providing product and sum data types.  These are built into languages like Haskell and ML, and can be added to Scheme with clever macros as in EOPL<a href="http://www.cs.indiana.edu/eopl/">[1]</a>.  If Scheme can do it, so can Lua :-)
+<p>
+Say you want to represent a tree that has labelled nodes and numbered leaves.
+<p>
+<img src="/files/wiki_insecure/users/pshook/rdt/fig1.jpg">
+<p>
+To build such a data structure, you need a constructor for each variant of node: <code>InteriorNode</code> and <code>LeafNode</code>.  And when traversing the data structure, you need a switch statement to do different things with the different data.  The function <code>deftype</code><a href="/files/wiki_insecure/users/pshook/rdt/DefType.lua">[3]</a> creates the constructors from a simple specification.  The function <code>cases</code> returns a
+switching function that can be used to traverse the data structure.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span><span class="string">'DefType'</span>
+
+
+
+deftype <span class="string">'bintree'</span> {
+
+  <span class="string">'number'</span>;
+
+  Node = {
+
+    name =<span class="string">'string'</span>,
+
+    left =<span class="string">'bintree'</span>,
+
+    right=<span class="string">'bintree'</span>,
+
+  };
+
+}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> node(name, left, right)
+
+  <span class="keyword">return</span> Node{name=name, left=left, right=right}
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> tree = node(
+
+  <span class="string">'cow'</span>,
+
+  node(<span class="string">'rat'</span>, 1, 2),
+
+  node(<span class="string">'pig'</span>, node(<span class="string">'dog'</span>, 3, 4), 5)
+
+)
+
+
+
+<span class="comment">------------------------------------------------------------------------------</span>
+
+
+
+<span class="keyword">local</span> leafsum
+
+leafsum = cases <span class="string">'bintree'</span> {
+
+
+
+  number = <span class="keyword">function</span>(n) <span class="keyword">return</span> n <span class="keyword">end</span>;
+
+
+
+  Node = <span class="keyword">function</span>(node)
+
+    <span class="keyword">return</span> leafsum(node.left) + leafsum(node.right)
+
+  <span class="keyword">end</span>;
+
+}
+
+
+
+<span class="library">io.write</span>(<span class="string">'leaf sum = '</span>, leafsum(tree), <span class="string">'\n\n'</span>)
+
+
+
+<span class="comment">------------------------------------------------------------------------------</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> indented(level, ...)
+
+  <span class="library">io.write</span>(<span class="library">string.rep</span>(<span class="string">'  '</span>, level), <span class="library">unpack</span>(arg))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> treewalki
+
+treewalki = cases <span class="string">'bintree'</span> {
+
+
+
+  number = <span class="keyword">function</span>(n)
+
+    <span class="library">io.write</span>(<span class="string">' @LeafNode '</span>, n, <span class="string">'\n'</span>)
+
+  <span class="keyword">end</span>;
+
+
+
+  Node = <span class="keyword">function</span>(node, level)
+
+    <span class="keyword">local</span> plus1 = level+1
+
+    <span class="library">io.write</span>(<span class="string">' {\n'</span>)
+
+    indented(plus1, <span class="string">'@InteriorNode '</span>, node.name, <span class="string">'\n'</span>)
+
+    indented(plus1, <span class="string">'@left'</span>)
+
+    treewalki(node.left, plus1)
+
+    indented(plus1, <span class="string">'@right'</span>)
+
+    treewalki(node.right, plus1)
+
+    indented(level, <span class="string">'}\n'</span>)
+
+  <span class="keyword">end</span>;
+
+}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> treewalk(t)
+
+  <span class="library">io.write</span>(<span class="string">'@Tree'</span>)
+
+  treewalki(t, 0)
+
+<span class="keyword">end</span>
+
+
+
+treewalk(tree)
+
+</pre>
+
+</DL>
+This example produces the following output:
+<p>
+<DL>
+<dt><dd><pre>
+
+leaf sum = 15
+
+
+
+@Tree {
+
+  @InteriorNode cow
+
+  @left {
+
+    @InteriorNode rat
+
+    @left @LeafNode 1
+
+    @right @LeafNode 2
+
+  }
+
+  @right {
+
+    @InteriorNode pig
+
+    @left {
+
+      @InteriorNode dog
+
+      @left @LeafNode 3
+
+      @right @LeafNode 4
+
+    }
+
+    @right @LeafNode 5
+
+  }
+
+}
+
+
+
+</pre>
+</DL>
+<p>
+The tree diagram was generated by Lout<a href="http://lout.sourceforge.net/">[2]</a> from
+<a href="/files/wiki_insecure/users/pshook/rdt/fig1.lt">[fig1.lt]</a>.
+Ghostscript was used to convert from EPS to JPG.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=RecursiveDataTypes" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=RecursiveDataTypes" >history</a><br>Last edited July 10, 2013 6:50 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=RecursiveDataTypes" >(diff)</a>
+</body>
+</html>

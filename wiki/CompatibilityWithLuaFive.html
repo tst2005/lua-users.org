@@ -1,0 +1,364 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Compatibility With Lua Five</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CompatibilityWithLuaFive&amp;body=1" title="List pages referring to CompatibilityWithLuaFive">Compatibility With Lua Five</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page provides some hints developers can adopt to transform code written to Lua 5.1 compatible with also Lua 5.0 and Lua 5.2.
+<p>
+The main goal of this page is the same as <a href="http://www.keplerproject.org/compat">[Compat5-1]</a>, but the form is a set of hints rather than a set of files.
+<p>
+There is a <a href="https://github.com/hishamhm/lua-compat-5.2">[Compatibility module providing Lua-5.2-style APIs for Lua 5.1]</a> made by Hisham.
+<p>
+<em>References</em>
+<p>
+<UL>
+<li> <a href="http://www.lua.org/manual/5.2/manual.html#8">[Incompatibilities with previous versions section on Lua 5.2 reference manual]</a>
+<li> <a href="http://www.lua.org/manual/5.1/manual.html#7">[Incompatibilities with previous versions section on Lua 5.1 reference manual]</a>
+<li> <a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a>
+<li> <a href="../wiki/LuaVersionCompatibility.html" >LuaVersionCompatibility</a>
+</UL>
+<p>
+(Between parenthesis there is an indication of what target Lua version the change is aimed to)
+<p>
+<H2>Lua files</H2>
+<p>
+<H3>Standardize calls to <code>require()</code> (Lua 5.0 and 5.1)</H3>
+<p>
+Rewrite calls to <code>require</code> to save its return value (see also "module()" below).  For example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span><span class="string">"lib"</span>
+
+</pre>
+
+</DL>
+<p>
+Turns into
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> lib = <span class="library">require</span><span class="string">"lib"</span>
+
+</pre>
+
+</DL>
+<p>
+<em>References</em>
+<UL>
+<li> <a href="http://www.lua.org/manual/5.2/manual.html#pdf-require">[require entry on Lua 5.2 Reference Manual]</a>
+</UL>
+<p>
+<H3>Remove <code>module()</code> (Lua 5.1)</H3>
+<p>
+Calls to <code>module()</code> can be removed and the code should be adapted to return a table containing the exported functions.
+There are different ways to adapt the code.
+The simpler is:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> func1(...) ... <span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> func2(...) ... <span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> {
+
+    func1 = func1,
+
+    func2 = func2,
+
+}
+
+</pre>
+
+</DL>
+<p>
+Some modules could need another approach such as:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> _M = {}
+
+<span class="keyword">function</span> _M.func1(...) ... <span class="keyword">end</span>
+
+<span class="keyword">function</span> _M.func2(...) ... <span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> _M
+
+</pre>
+
+</DL>
+<p>
+<em>References</em>
+<UL>
+<li> Section "Resolve module system and module function issues" at <a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a>
+<li> <a href="../wiki/LuaModuleFunctionCritiqued.html" >LuaModuleFunctionCritiqued</a>
+<li> <a href="/lists/lua-l/2010-06/msg00494.html">LuaList:2010-06/msg00494.html</a>
+</UL>
+<p>
+<H3>environments (Lua 5.1)</H3>
+<p>
+The changes related to environments from Lua 5.0 to Lua 5.2 are tricky and should be corrected manually.
+<p>
+<H3>Remove calls to <code>table.getn()</code> (Lua 5.0)</H3>
+<p>
+<code>table.getn</code> is defined only in Lua 5.0 and the <em>length operator</em> is recommended substitution for it on the following versions (see a <a href="http://www.lua.org/manual/5.1/manual.html#7.2">[note on the deprecation of <code>table.getn</code>]</a>).
+<p>
+If <code>table.getn</code> is used only in test files, it can be defined:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">if</span> <span class="library">string.find</span>(_VERSION, <span class="string">" 5.0"</span>) <span class="keyword">then</span>
+
+    <span class="library">table.getn</span> = <span class="keyword">function</span> (t)
+
+        <span class="keyword">if</span> t.n <span class="keyword">then</span>
+
+            <span class="keyword">return</span> t.n
+
+        <span class="keyword">else</span>
+
+            <span class="keyword">local</span> n = 0
+
+            <span class="keyword">for</span> i <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+                <span class="keyword">if</span> <span class="library">type</span>(i) == <span class="string">"number"</span> <span class="keyword">then</span>
+
+                    n = <span class="library">math.max</span>(n, i)
+
+                <span class="keyword">end</span>
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">return</span> n
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Although the distribution of separate files for the different versions of Lua should be considered in this case.
+<p>
+<H3>removing old <code>for</code> construction (Lua 5.0)</H3>
+<p>
+The old construction should be easily transformed to a Lua 5.X compatible form:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> i,v <span class="keyword">in</span> t <span class="keyword">do</span> ... <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Should be rewritten to:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span> ... <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<em>References</em>
+<UL>
+<li> <a href="http://www.lua.org/manual/5.0/manual.html">[Lua 5.0 Reference Manual]</a>
+</UL>
+<p>
+<H3>scope of variables in <code>for</code> and <code>repeat</code> (Lua 5.0)</H3>
+<p>
+There was a change in the scope of the implicit <code>for</code> variable and local variables in <code>repeat</code> from Lua 5.0 to Lua 5.1.
+This has to be checked manually.
+<p>
+<em>References</em>
+<UL>
+<li> <a href="http://www.lua.org/manual/5.2/manual.html">[Lua 5.2 Reference Manual]</a>
+<li> <a href="http://www.lua.org/manual/5.1/manual.html">[Lua 5.1 Reference Manual]</a>
+<li> <a href="http://www.lua.org/manual/5.0/manual.html">[Lua 5.0 Reference Manual]</a>
+</UL>
+<p>
+<H3>nesting of long strings (Lua 5.0)</H3>
+<p>
+There is no way to write nesting long strings compatible to all Lua 5.X versions.
+The code should be adapted manually to avoid these constructions.
+<p>
+<H2>C files</H2>
+<p>
+<H3>Pushing integer numbers (Lua 5.0)</H3>
+<p>
+Since Lua 5.1, the function <code>lua_pushinteger</code> is defined.
+Despite being a function, the following macro will make Lua 5.1/5.2 code backwards compatible to Lua 5.0:
+<p>
+<DL>
+<dt><dd><pre>
+
+#if !defined(LUA_VERSION_NUM)
+
+#define lua_pushinteger(L, n) lua_pushnumber(L, (lua_Number)n)
+
+#endif
+
+</pre>
+</DL>
+<p>
+<H3>Defining a list of CFunctions (Lua 5.0)</H3>
+<p>
+<code>luaL_reg</code> (Lua 5.0) changed its name to <code>luaL_Reg</code> since Lua 5.1.
+This could be solved with conditional compilation:
+<p>
+<DL>
+<dt><dd><pre>
+
+#if !defined LUA_VERSION_NUM
+
+/* Lua 5.0 */
+
+#define luaL_Reg luaL_reg
+
+#endif
+
+</pre>
+</DL>
+<p>
+<H3>Setting table fields (Lua 5.0)</H3>
+<p>
+Since Lua 5.1, the function <code>lua_setfield</code> is defined.
+Thus, the following macro could be defined to make Lua 5.1/5.2 code backwards compatible to Lua 5.0:
+<p>
+<DL>
+<dt><dd><pre>
+
+#if !defined(LUA_VERSION_NUM)
+
+#define lua_setfield(L, i, k)   (lua_pushstring(L, k), lua_settable(L, i))
+
+#endif
+
+</pre>
+</DL>
+<p>
+<p>
+<H3>References (Lua 5.0 and Lua 5.1)</H3>
+<p>
+The deprecated functions <code>lua_getref()</code> and <code>lua_unref()</code> are easily transformed into a compatible call.
+For example:
+<p>
+<DL>
+<dt><dd><pre>
+
+/* This code is compatible with previous versions (4.0) */
+
+lua_getref(L, ref);
+
+lua_unref(L, ref);
+
+</pre>
+</DL>
+<p>
+Should be rewritten to:
+<p>
+<DL>
+<dt><dd><pre>
+
+/* This is Lua 5.X code *;
+
+lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+
+luaL_unref(L, LUA_REGISTRYINDEX, ref);
+
+</pre>
+</DL>
+<p>
+<H3>Registering CFunctions (Lua 5.0 and 5.1)</H3>
+<p>
+Lua 5.2 modules are easily compatible with previous Lua 5.X versions provided a single function: <code>luaL_setfuncs</code>
+<DL>
+<dt><dd><pre>
+
+#if !defined LUA_VERSION_NUM || LUA_VERSION_NUM==501
+
+/*
+
+** Adapted from Lua 5.2.0
+
+*/
+
+static void luaL_setfuncs (lua_State *L, const luaL_Reg *l, int nup) {
+
+  luaL_checkstack(L, nup+1, "too many upvalues");
+
+  for (; l-&gt;name != NULL; l++) {  /* fill the table with given functions */
+
+    int i;
+
+    lua_pushstring(L, l-&gt;name);
+
+    for (i = 0; i &lt; nup; i++)  /* copy upvalues to the top */
+
+      lua_pushvalue(L, -(nup+1));
+
+    lua_pushcclosure(L, l-&gt;func, nup);  /* closure with those upvalues */
+
+    lua_settable(L, -(nup + 3));
+
+  }
+
+  lua_pop(L, nup);  /* remove upvalues */
+
+}
+
+#endif
+
+</pre>
+</DL>
+<p>
+Also, calls to <code>luaL_openlib()</code> and to <code>luaL_register()</code> should be changed according to its <strong>second</strong> argument.
+<p>
+Calls such as <code>luaL_openlib(L, NULL, lreg, x);</code> should be rewritten to <code>luaL_setfuncs(L, lreg, x);</code>.
+<p>
+Calls such as <code>luaL_openlib(L, name, lreg, x);</code> should be carefully rewritten because a global table with the given name will be searched and possibly created.
+<p>
+Calls such as <code>luaL_register(L, NULL, lreg);</code> should be rewritten to <code>luaL_setfuncs(L, lreg, 0);</code>.
+<p>
+Calls such as <code>luaL_register(L, name, lreg);</code> should be carefully rewritten because a global table with the given name will be searched and possibly created.
+When possible, it should be rewritten to <code>luaL_setfuncs(L, lreg, 0);</code>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CompatibilityWithLuaFive" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CompatibilityWithLuaFive" >history</a><br>Last edited February 7, 2014 5:30 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CompatibilityWithLuaFive" >(diff)</a>
+</body>
+</html>

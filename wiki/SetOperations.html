@@ -1,0 +1,247 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Set Operations</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SetOperations&amp;body=1" title="List pages referring to SetOperations">Set Operations</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Testing for set elements</H2>
+<p>
+Set operations can be quite useful, e.g to test if an element is in set or list.  Lua does not have built-in set operators, but we can build them using tables:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> contains(t, e)
+
+  <span class="keyword">for</span> i = 1,#t <span class="keyword">do</span>
+
+    <span class="keyword">if</span> t[i] == e <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">false</span>
+
+<span class="keyword">end</span>
+
+
+
+t = { <span class="string">"abc"</span>,<span class="string">"def"</span>,<span class="string">"ghi"</span> }
+
+
+
+<span class="library">print</span>(contains(t,<span class="string">"def"</span>))  <span class="comment">--&gt; true</span>
+
+</pre>
+
+</DL>
+<p>
+This can be optimized by turning the table <code>t</code> into a dictionary (i.e. the list elements become keys). For example,
+<p>
+<DL>
+<dt><dd><pre class="code">
+t = {[<span class="string">"abc"</span>] = <span class="keyword">true</span>, [<span class="string">"def"</span>] = <span class="keyword">true</span>, [<span class="string">"ghi"</span>] = <span class="keyword">true</span>}
+
+<span class="library">print</span>(t[<span class="string">"def"</span>]) <span class="comment">--&gt; true  (t contains "def")</span>
+
+</pre>
+
+</DL>
+<p>
+For a cleaner syntax, we can use a function <code>Set</code> to create the dictionary table from the list table:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> Set(t)
+
+  <span class="keyword">local</span> s = {}
+
+  <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span> s[v] = <span class="keyword">true</span> <span class="keyword">end</span>
+
+  <span class="keyword">return</span> s
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> contains(t, e)
+
+  <span class="keyword">return</span> t[e]
+
+<span class="keyword">end</span>
+
+
+
+t = Set{<span class="string">"abc"</span>, <span class="string">"def"</span>, <span class="string">"ghi"</span>}
+
+
+
+<span class="library">print</span> (contains(t,<span class="string">"def"</span>))  <span class="comment">--&gt; true</span>
+
+<span class="library">print</span> (t[<span class="string">"def"</span>])           <span class="comment">--&gt; true (same as above)</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Index of Elements</H3>
+<p>
+Though sets are by definition unordered, we may still want to retrieve the index of an element in a list used to define the set. The above code can be modified to help out here:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> OrderedSet(t)
+
+  <span class="keyword">local</span> s = {}
+
+  <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span> s[v] = i <span class="keyword">end</span> <span class="comment">-- key value is index</span>
+
+  <span class="keyword">return</span> s
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> contains(t,e) <span class="keyword">return</span> t[e] <span class="keyword">end</span>
+
+<span class="keyword">function</span> indexof(t,e) <span class="keyword">return</span> t[e] <span class="keyword">end</span> 
+
+
+
+t = OrderedSet{<span class="string">"abc"</span>, <span class="string">"def"</span>, <span class="string">"ghi"</span>}
+
+
+
+<span class="keyword">if</span> contains(t,<span class="string">"def"</span>) <span class="keyword">then</span>
+
+  <span class="library">print</span> (indexof(t,<span class="string">"def"</span>))
+
+<span class="keyword">end</span>
+
+<span class="comment">--&gt; 2</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Old Lua 4 Version of Code</H2>
+<p>
+For historical reference, below are the Lua 4 versions of some of the above code.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> contains(t,e)
+
+  <span class="keyword">for</span> i=1,getn(t) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> t[i]==e <span class="keyword">then</span> <span class="keyword">return</span> 1 <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">nil</span>  <span class="comment">-- element not found, return false</span>
+
+<span class="keyword">end</span>
+
+
+
+t = { <span class="string">"abc"</span>,<span class="string">"def"</span>,<span class="string">"ghi"</span> }
+
+
+
+<span class="library">print</span> (contains(t,<span class="string">"def"</span>))  <span class="comment">-- gives you 1 (true)</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> makeDict(t)
+
+  <span class="keyword">local</span> d={}
+
+  <span class="keyword">for</span> i=1,getn(t) <span class="keyword">do</span> d[ t[i] ]=1 <span class="keyword">end</span>
+
+  <span class="keyword">return</span> d  <span class="comment">-- return dictionary we have created</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> contains(t,e)
+
+  <span class="keyword">return</span> t[e]
+
+<span class="keyword">end</span>
+
+
+
+t = makeDict { <span class="string">"abc"</span>,<span class="string">"def"</span>,<span class="string">"ghi"</span> }
+
+
+
+<span class="library">print</span> (contains(t,<span class="string">"def"</span>))  <span class="comment">-- gives you 1 (true)</span>
+
+<span class="library">print</span> (t[<span class="string">"def"</span>])  <span class="comment">-- same as above</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> makeDict(t)
+
+  <span class="keyword">local</span> d={}
+
+  <span class="keyword">for</span> i=1,getn(t) <span class="keyword">do</span> d[ t[i] ]=i <span class="keyword">end</span>  <span class="comment">-- key value is index</span>
+
+  <span class="keyword">return</span> d
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> contains(t,e) <span class="keyword">return</span> t[e] <span class="keyword">end</span>
+
+<span class="keyword">function</span> indexOf(t,e) <span class="keyword">return</span> t[e] <span class="keyword">end</span> 
+
+
+
+t = makeDict { <span class="string">"abc"</span>,<span class="string">"def"</span>,<span class="string">"ghi"</span> }
+
+
+
+<span class="keyword">if</span> contains(t,<span class="string">"def"</span>) <span class="keyword">then</span>
+
+  <span class="library">print</span> (indexOf(t,<span class="string">"def"</span>))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SetOperations" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SetOperations" >history</a><br>Last edited January 11, 2007 4:51 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SetOperations" >(diff)</a>
+</body>
+</html>

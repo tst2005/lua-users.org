@@ -1,0 +1,581 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Style Guide</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaStyleGuide&amp;body=1" title="List pages referring to LuaStyleGuide">Lua Style Guide</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Introduction</H2>
+<p>
+Before applying these Lua style guidelines, consider the words of warning taken from the <a href="http://www.python.org/dev/peps/pep-0008/">[Python style guide]</a>, which applies just as well to Lua.  Code is read much more often than it is written, and this style guide intends to improve the readability of code through consistency.  Consistency is important, in increasing measure, with other projects, within a project, and within a single module or function.  But most importantly: know when to be inconsistent, and use your best judgment -- sometimes the style guide just doesn't apply. It can be advisable to break a rule when applying the rule would make the code less readable.
+<p>
+Lua has its own syntax and idioms and therefore warrants its own style guide, which we attempt to formulate here.  Nevertheless, there is no need repeating many of the lessons learned from decades of experience by programmers in other more established languages, especially related scripting languages, so we can take some inspiration from the style guides of these other languages:
+<p>
+<UL>
+<li> <a href="http://www.python.org/dev/peps/pep-0008/">[Python Style Guide]</a>
+<li> <a href="http://search.cpan.org/dist/perl/pod/perlstyle.pod">[Perl Style Guide]</a>
+<li> <a href="http://www.chris-lott.org/resources/cstyle/">[Various Primarily C/C++ Style Guides]</a>
+</UL>
+<p>
+Programming style is an art.  There is some arbitrariness to the rules, but there are sound rationales for them.  It is useful not only to provide sound advice on style but to understand the underlying rationale and human aspect of why the style recommendations are formed:
+<p>
+<UL>
+<li> <a href="http://mindprod.com/jgloss/unmain.html">[How To Write Unmaintainable Code by Roedy Green]</a>
+<li> <a href="http://www.oreilly.com/catalog/perlbp/">[Perl Best Practices by Damian Conway]</a>
+<li> <a href="http://books.google.com/books?id=QnghAQAAIAAJ">[Code Complete by Steve McConnell]</a>
+</UL>
+<p>
+Now, on to Lua...In defining a recommending style, we'll take input from a few sources of Lua code that are quasi-authoritative because they are from official documentation, original Lua authors, or other reputable sources:
+<p>
+<UL>
+<li> <a href="http://www.lua.org/pil/">[Programming in Lua]</a> by Roberto Ierusalimschy
+<li> <a href="http://www.lua.org/manual/5.1/">[Lua 5.1 Reference Manual]</a> by R. Ierusalimschy, L. H. de Figueiredo, W. Celes
+<li> Other <a href="../wiki/LuaBooks.html" >LuaBooks</a> such as <em>Beginning Lua Programming</em>
+<li> Examples Lua programs in the "test" folder of the Lua distribution.
+<li> Well known modules such as in Kepler<a href="http://www.keplerproject.org">[1]</a> or on <a href="../wiki/LuaForge.html" >LuaForge</a>.
+</UL>
+<p>
+<H2>Formatting</H2>
+<p>
+<strong>Indentation</strong> - Indenting often uses two spaces.  This is followed in <em>Programming in Lua,</em> the <em>Lua Reference Manual</em>, <em>Beginning Lua Programming,</em> and the Lua users wiki.  (Why this is the case, I don't know, but perhaps it is because Lua statements can tend to be deeply nested, even in a LISP or functional manner, or perhaps it is affected by the fact that the code in these examples is small and pedagogical.)  You'll see other common conventions (e.g. 3-4 spaces or tabs).
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span>
+
+  <span class="keyword">if</span> <span class="library">type</span>(v) == <span class="string">"string"</span> <span class="keyword">then</span>
+
+    <span class="library">print</span>(v)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Naming</H2>
+<p>
+<strong>Variable name length</strong> - It's a general rule (not necessarily a Lua one) that variable names with larger scope should be more descriptive than those with smaller scope.  For example, <code>i</code> is probably a poor choice for a global variable in a large program, but it's perfectly fine as a counter in a small loop.
+<p>
+<strong>Value and object variable naming</strong> - Variables holding values or objects are typically lowercase and short (e.g. <code>color</code>).   The book <em>Beginning Lua Programming</em> uses <code>CamelCase</code> for user variables, but this seems to largely be for pedagogical reasons to clearly distinguish user-defined variables from built-in ones.
+<p>
+<UL>
+<li> <strong>Booleans</strong> - It can be helpful to prefix Boolean values or functions used as predicates with <code>is</code>, such as <code>is_directory</code> rather than <code>directory</code> (which might store a directory object itself).
+</UL>
+<p>
+<strong>Function naming</strong> - Function often follows similar rules to value and object variable naming (functions being first class objects).  A function name consisting of multiple words may run together as in (<code>getmetatable</code>), as done in the standard Lua functions, though you may choose to use underscores (<code>print_table</code>).  Some from other programming backgrounds use <code>CamelCase</code>, as in <code>obj::GetValue()</code>. 
+<p>
+<strong>Lua internal variable naming</strong> - The <a href="http://www.lua.org/manual/5.1/manual.html#2.1">[Lua 5.1 Reference Manual - Lexical Conventions]</a> says, "As a convention, names starting with an underscore followed by uppercase letters (such as <code>_VERSION</code>) are reserved for internal global variables used by Lua."  These are often constants but not necessarily, e.g. <code>_G</code>.
+<p>
+<strong>Constants naming</strong> - Constants, particularly ones that are simple values, are often given in <code>ALL_CAPS</code>, with words optionally separated by underscores (e.g. <code>MAXLINES</code> in PiL2, 4.3 and also the Markov example in PiL2, Listing 10.6).
+<p>
+<strong>Module/package naming</strong> - Module names are often nouns with names that are short and lowercase, with nothing between words.  At least, that's the general pattern noticed in Kepler: <code>luasql.postgres</code> (not <code>Lua-SQL.Postgres</code>).  Examples: "lxp", "luasql", "luasql.postgres", "luasql.mysql", "luasql.oci8", "luasql.sqlite", "luasql.odbc", "socket", "xmlrpc", "xmlrpc.http", "soap", "lualdap", "logging", "md5", "zip", "stable", "copas", "lxp", "lxp.lom", "stable", "lfs", "htk".  However, see comments in the Modules section below concerning modules used as classes.
+<p>
+The variable consisting of only an underscore "<code>_</code>" is commonly used as a placeholder when you want to ignore the variable:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span> <span class="library">print</span>(v) <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd>Note: This resembles the use of "<code>_</code>" in Haskell, Erlang, Ocaml, and Prolog languages, where "<code>_</code>" takes the special meaning of anonymous (ignored) variables in pattern matches.  In Lua, "<code>_</code>" is only a convention with no inherent special meaning though.  Semantic editors that normally flag unused variables may avoid doing so for variables named "<code>_</code>" (e.g. <a href="../wiki/LuaInspect.html" >LuaInspect</a> is such a case).
+</DL>
+<p>
+<code>i</code>, <code>k</code>, <code>v</code>, and <code>t</code> are often used as follows:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(t) ... <span class="keyword">end</span>
+
+<span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(t) ... <span class="keyword">end</span>
+
+mt.__newindex = <span class="keyword">function</span>(t, k, v) ... <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<code>M</code> is sometimes used as the "current module table" (e.g., see PIL2, 15.3).
+<p>
+<code>self</code> refers to the object a method is invoked on (like <code>this</code> in C++ or Java).  In fact, this is enforced by the <code>:</code> syntactic sugar:
+<p>
+<DL>
+<dt><dd><pre class="code">
+  <span class="keyword">function</span> Car:move(distance)
+
+    self.position = self.position + distance
+
+  <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<strong>Class names</strong> (or at least metatables representing classes) may be mixed case (<code>BankAccount</code>), or they might not be.  If so, acronyms (e.g. <code>XML</code>) might only uppercase the first letter (<code>XmlDocument</code>).
+<p>
+<strong>Hungarian notations</strong> (<a href="http://en.wikipedia.org/wiki/Hungarian_notation.html">[Hungarian notations]</a>).  Encoding semantic information into variable names can be helpful to readers of your code, particularly if that information cannot otherwise be easily deduced, though overdoing it may be redundant and reduce code readability.  In some more static languages (e.g. C), where data types are known to the compiler, it is redundant to encode the data type into the variable name, but, even there, data type is not the only nor necessarily the most useful form of semantic information.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> paint(canvas, ntimes)
+
+  <span class="keyword">for</span> i=1,ntimes <span class="keyword">do</span>
+
+    <span class="keyword">local</span> hello_str_asc_lc_en_const = <span class="string">"hello world"</span>
+
+    canvas:draw(hello_str_asc_lc_en_const:toupper())
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The variable naming conventions in the above example imply the following to the reader.
+<code>canvas</code> is a canvas object, perhaps one explicitly derived from
+something like <code>Canvas</code>, which is information possibly not otherwise
+easy to deduce from the code.
+<code>ntimes</code> is an integer number of times to draw something.
+<code>i</code> is conventionally an integer index, which though obvious, even
+if called something else, also keeps the code short.
+The <code>_str_asc_lc_en_const</code> is redundant, perhaps even confusing, and can be removed:
+obviously this variable is a constant, English, lowercase, ASCII string.
+<p>
+<H2>Libraries and Features</H2>
+<p>
+Avoid using the debug library unless necessary, especially if trusted code is being run.  (Using the debug library is sometimes a hack: <a href="../wiki/StringInterpolation.html" >StringInterpolation</a>.)
+<p>
+Avoid deprecated features.  In 5.1 these include <code>table.getn</code>, <code>table.setn</code>, <code>table.foreach[i]</code>, and <code>gcinfo</code>.  Refer to the <a href="http://www.lua.org/manual/5.1/manual.html#7">[Lua 5.1 Reference Manual - 7 - Incompatibilities with the Previous Version]</a> for alternatives.
+<p>
+<H2>Scope</H2>
+<p>
+Use locals rather than globals whenever possible.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> x = 0
+
+<span class="keyword">local</span> <span class="keyword">function</span> count()
+
+  x = x + 1
+
+  <span class="library">print</span>(x)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Globals have larger scopes and lifetimes and therefore increase <a href="http://en.wikipedia.org/wiki/Coupling_(computer_science).html">[coupling]</a> and complexity. <a href="http://gpwiki.org/index.php/Programming_Techniques:Global_Variables">[1]</a>  Don't pollute the environment.  In Lua, access to locals is also faster than globals <a href="http://www.lua.org/pil/4.2.html">[PIL 4.2]</a> since globals require a table lookup at run-time, while locals exist as registers [ <a href="../wiki/ScopeTutorial.html" >ScopeTutorial</a> ].
+<p>
+A useful method of detecting inadvertent use of globals is given in <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>.  In Lua, globals are sometimes the result of mispellings and other lurking errors in your code.
+<p>
+At times it is useful to further limit the scope of local variables with do-blocks <a href="http://www.lua.org/pil/4.2.html">[PIL 4.2]</a>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> v
+
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> x = u2*v3-u3*v2
+
+  <span class="keyword">local</span> y = u3*v1-u1*v3
+
+  <span class="keyword">local</span> z = u1*v2-u2*v1
+
+  v = {x,y,z}
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> count
+
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> x = 0
+
+  count = <span class="keyword">function</span>() x = x + 1; <span class="keyword">return</span> x <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Global variables scope can be reduced as well via the Lua module system <a href="http://www.inf.puc-rio.br/~roberto/pil2/chapter15.pdf">[PIL2 15]</a> or <a href="http://www.lua.org/manual/5.1/manual.html#pdf-setfenv">[setfenv]</a>.
+<p>
+<H2>Modules</H2>
+<p>
+The Lua 5.1 module system is often recommended.  However, there have been some criticisms of the Lua 5.1 module system.  For details, see <a href="../wiki/LuaModuleFunctionCritiqued.html" >LuaModuleFunctionCritiqued</a>, but in summary, you might think of writing a module like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- hello/mytest.lua</span>
+
+<span class="library">module</span>(..., <span class="library">package.seeall</span>)
+
+<span class="keyword">local</span> <span class="keyword">function</span> test() <span class="library">print</span>(123) <span class="keyword">end</span>
+
+<span class="keyword">function</span> test1() test() <span class="keyword">end</span>
+
+<span class="keyword">function</span> test2() test1(); test1() <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+and use it like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"hello.mytest"</span>
+
+hello.mytest.test2()
+
+</pre>
+
+</DL>
+<p>
+The criticisms are that this creates a global variable <code>hello</code> in all modules (which is a side-effect), and the global environment is exposed through the <code>hello</code> table, e.g. <code>hello.mytest.print == _G.print</code> (which among various things could be detrimental to sandboxing and is just plain weird).
+<p>
+These problems can be avoided by not using the <code>module</code> function but instead simply defining modules in the following simple way:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- hello/mytest.lua</span>
+
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> test() <span class="library">print</span>(123) <span class="keyword">end</span>
+
+<span class="keyword">function</span> M.test1() test() <span class="keyword">end</span>
+
+<span class="keyword">function</span> M.test2() M.test1(); M.test1() <span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+and importing modules this way:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> MT = <span class="library">require</span> <span class="string">"hello.mytest"</span>
+
+MT.test2()
+
+</pre>
+
+</DL>
+<p>
+A module containing a class with constructor (in the object-oriented sense) can be packaged in a number of ways in a module.  Here is one reasonably good approach.[*2]
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- file: finance/BankAccount.lua</span>
+
+
+
+<span class="keyword">local</span> M = {}; M.__index = M
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> construct()
+
+  <span class="keyword">local</span> self = <span class="library">setmetatable</span>({balance = 0}, M)
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+<span class="library">setmetatable</span>(M, {__call = construct})
+
+
+
+<span class="keyword">function</span> M:add(value) self.balance = self.balance + 1 <span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+A module defined in this way typically only contains a single class (or at least a single public one), which is the module itself.
+<p>
+It can be used like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> BankAccount = <span class="library">require</span> <span class="string">"finance.BankAccount"</span>
+
+<span class="keyword">local</span> account = BankAccount()
+
+</pre>
+
+</DL>
+<p>
+or even like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> new = <span class="library">require</span>
+
+<span class="keyword">local</span> account = new <span class="string">"finance.BankAccount"</span> ()
+
+</pre>
+
+</DL>
+<p>
+The above followed somewhat the Java convention of the package "finance" being in all lowercase, while the class <code>BankAccount</code> being in mixed (Camel) case and objects being lower-case.  Notice the advantage.  The classes are easy to spot and differentiate from instantiations of classes (i.e. objects), which are lower-case.  If you spot something like <code>BankAccount:add(1)</code>, it is almost certainly an error since <code>:</code> is a method call on an object, but you'll notice that <code>BankAccount</code> is obviously a class due to the case convention.
+<p>
+The above is not the only approach used.  You will see many other styles:
+<p>
+<DL>
+<dt><dd><pre class="code">
+account = finance.newBankAccount()
+
+account = finance.create_bank_account()
+
+account = finance.bankaccount.create()
+
+account = finance.BankAccount.new()
+
+</pre>
+
+</DL>
+<p>
+It can be argued that variety, without good justification, is not a good thing.
+<p>
+<H2>Commenting</H2>
+<p>
+Use a space after <code>--</code>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">return</span> <span class="keyword">nil</span>  <span class="comment">-- not found    (suggested)</span>
+
+<span class="keyword">return</span> <span class="keyword">nil</span>  <span class="comment">--not found     (discouraged)</span>
+
+</pre>
+
+</DL>
+<p>
+(The above follows luarefman, PiL, luagems minus chap 21, BLP, and Kepler/<a href="../wiki/LuaRocks.html" >LuaRocks</a>.)
+<p>
+There is no standard convention for commenting.
+<p>
+Docstrings can be simulated (see <a href="../wiki/DecoratorsAndDocstrings.html" >DecoratorsAndDocstrings</a>).  POD format has also been advocated (see <a href="../wiki/LuaSearch.html" >LuaSearch</a>).  There is also <a href="http://luadoc.luaforge.net/">[LuaDoc]</a>.
+<p>
+Kepler sometimes uses this doxygen/Javadoc-like style:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- taken from cgilua/src/cgilua/session.lua</span>
+
+<span class="comment">-------------------------------------</span>
+
+<span class="comment">-- Deletes a session.</span>
+
+<span class="comment">-- @param id Session identification.</span>
+
+<span class="comment">-------------------------------------</span>
+
+<span class="keyword">function</span> delete (id)
+
+        <span class="library">assert</span> (check_id (id))
+
+        remove (filename (id))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>End terminator</H3>
+<p>
+Because "<code>end</code>" is a terminator for many different constructs, it can help the reader (especially in a large block) if a comment is used to clarify which construct is being terminated: [*3]
+<p>
+<DL>
+<dt><dd><pre class="code">
+  <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(v) == <span class="string">"string"</span> <span class="keyword">then</span>
+
+      ...lots of code here...
+
+    <span class="keyword">end</span> <span class="comment">-- if string</span>
+
+  <span class="keyword">end</span> <span class="comment">-- for each t</span>
+
+</pre>
+
+</DL>
+<p>
+If your editor lacks Lua block matching but does have generic parenthesis matching, then this hack might even be used[*4] (or just get a better editor):
+<p>
+<DL>
+<dt><dd><pre class="code">
+  <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span> <span class="comment">--(</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(v) == <span class="string">"string"</span> <span class="keyword">then</span> <span class="comment">--(</span>
+
+      ...lots of code here...
+
+    <span class="keyword">end</span> <span class="comment">--) if string</span>
+
+  <span class="keyword">end</span> <span class="comment">--) for each t</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Software Licensing</H2>
+<p>
+The choice of software license for your Lua code depends on your goals and what type of code it is (e.g. module or application).  Licensing choice is particularly significant for modules, which are often distributed with other modules and applications.
+<p>
+There are advantages to licensing Lua modules, or at least those intended for the general Lua community, under the same terms as Lua<a href="http://www.lua.org/license.html">[2]</a> itself, which as of version 5.0 is the MIT license<a href="http://en.wikipedia.org/wiki/MIT_license.html">[3]</a>.  Not only is the MIT license a very simple to understand and unrestrictive license (in fact, no more restrictive than Lua itself), but consistency in licensing between modules and with Lua allows simplified distribution of bundles of modules and Lua together, such as for distributions and embedded versions of Lua.  (This basic approach has worked very well in the past for the Perl language, which has thousands of modules most entirely under an MIT-like license called the Artistic License, under which Perl is also distributed.  Perl modules often indicate their licensing simply with the statement "Licensed under the same terms as Perl itself.")  Those advantages of using an MIT license are reduced, though not eliminated, if your Lua module acts as a binding to some C library released under some very different license such (L)GPL or a closed source one since the latter code impose stronger restrictions on distribution anyway.  Avoid, whenever possible, writing your own license or adding additional clauses but rather consider strongly the words of warning about consistency at the top of this document since inconsistency is a detriment to reusability, and reusability is a main advantage of modules.
+<p>
+<H2>Lua Idioms</H2>
+<p>
+To test whether a variable is not <code>nil</code> in a conditional, it is terser to just write the variable name rather than explicitly compare against <code>nil</code>.  Lua treats <code>nil</code> and <code>false</code> as <code>false</code> (and all other values as <code>true</code>) in a conditional:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> line = <span class="library">io.read</span>()
+
+<span class="keyword">if</span> line <span class="keyword">then</span>  <span class="comment">-- instead of line ~= nil</span>
+
+  ...
+
+<span class="keyword">end</span>
+
+...
+
+<span class="keyword">if</span> <span class="keyword">not</span> line <span class="keyword">then</span>  <span class="comment">-- instead of line == nil</span>
+
+  ...
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+However, if the variable tested can ever contain <code>false</code> as well, then you will need to be explicit if the two conditions must be differentiated: <code>line == nil</code> v.s. <code>line == false</code>.
+<p>
+<code>and</code> and <code>or</code> may be used for terser code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> test(x)
+
+  x = x <span class="keyword">or</span> <span class="string">"idunno"</span>
+
+    <span class="comment">-- rather than if x == false or x == nil then x = "idunno" end</span>
+
+  <span class="library">print</span>(x == <span class="string">"yes"</span> <span class="keyword">and</span> <span class="string">"YES!"</span> <span class="keyword">or</span> x)
+
+    <span class="comment">-- rather than if x == "yes" then print("YES!") else print(x) end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Clone a <em>small</em> table <code>t</code> (warning: this has a system dependent limit on table size; it was just over 2000 on one system):
+<p>
+<DL>
+<dt><dd><pre class="code">
+u = {<span class="library">unpack</span>(t)}
+
+</pre>
+
+</DL>
+<p>
+Determine if a table <code>t</code> is empty (including non-integer keys, which <code>#t</code> ignores):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">if</span> <span class="library">next</span>(t) == <span class="keyword">nil</span> <span class="keyword">then</span> ...</pre>
+
+</DL>
+<p>
+To append to an array, it can be terser and more efficient to do <code>t[#t+1] = 1</code> rather than <code>table.insert(t, 1)</code>.
+<p>
+<H2>Design Patterns</H2>
+<p>
+Lua is small language with a small number of simple building blocks that can be combined in a vast number of powerful ways.  With this freedom comes the need for self-discipline in the form of design patterns.  Often there is an idiomatic way or design pattern to achieving a certain effect in Lua that can be reused frequently (e.g. <a href="../wiki/ObjectOrientationTutorial.html" >ObjectOrientationTutorial</a> or <a href="../wiki/ReadOnlyTables.html" >ReadOnlyTables</a>).  See the <a href="../wiki/LuaTutorial.html" >LuaTutorial</a> and <a href="../wiki/SampleCode.html" >SampleCode</a> for common solutions to such problems.  
+<p>
+<H2>Coding Standards</H2>
+<p>
+Here is a list of coding standards used in various Lua projects:
+<p>
+<UL>
+<li> <a href="http://sputnik.freewisdom.org/en/Coding_Standard">[Sputnik coding standard]</a>
+</UL>
+<p>
+<H2>Personal Preferences</H2>
+<p>
+This section contains less refined or more subjective content not yet incorporated into the main text above.
+<p>
+[*2] <em>(Advocates of the style described above include <a href="../wiki/DavidManura.html" >DavidManura</a>, and others like <a href="../wiki/RiciLake.html" >RiciLake</a> have mentioned similar things. (add your name here))</em>
+<p>
+[*3] <em>Noted by <a href="../wiki/GavinWraith.html" >GavinWraith</a></em>
+<p>
+[*4] <a href="../wiki/JulioFernandez.html" >JulioFernandez</a>
+<p>
+<hr><strong>PAGE COMMENTS</strong>
+<p>
+I think "Lua style" is too subjective to reach consensus on, therefore this page is not workable.  Suggest page rename to DavidsLuaStyleGuide<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DavidsLuaStyleGuide" >?</a>. <em>--<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a></em>
+<p>
+The purpose of this document is to help users improve the style of their coding.  Lua has some conventions that are commonly acknowledged in some form or even stated in the standard Lua references (e.g. avoiding globals, limiting scope, avoiding debug library, using <code>and</code>/<code>or</code> to shorten conditions, etc.)  Indeed, Lua style is more diverse than in other languages, and there are many cases with an absence of consensus.  However, consensus is not required: it is useful merely to describe the various approaches commonly used, and indicate where they are used, so that users can more effectively choose conventions in their own projects.  A "Personal Preferences" section is provided for more subjective styles or personal opinions.  <em>--<a href="../wiki/DavidManura.html" >DavidManura</a></em>
+<p>
+An attempt at a style guide should probably limit focus to the Lua language itself (i.e. exclude C API usage).  <em>--<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a></em>  The style of how you design a binding, and the style of how you write binding in C and C++, are legitimate discussions for a style guide for a language designed for embedding. -- <a href="../wiki/RiciLake.html" >RiciLake</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaStyleGuide" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaStyleGuide" >history</a><br>Last edited September 16, 2012 8:36 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaStyleGuide" >(diff)</a>
+</body>
+</html>

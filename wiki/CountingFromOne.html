@@ -1,0 +1,310 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Counting From One</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CountingFromOne&amp;body=1" title="List pages referring to CountingFromOne">Counting From One</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Contrary to the most popular languages today, Lua array indices represent an ordinal position within the array rather than an offset from the head of the array.  (This scheme was unfortunately referred to as "counting from one", leading many to defend it as the natural way to count.  Really, the argument is in the use of offsets vs. ordinals to indicate an element within a sequence.)
+<p>
+<em>There is exactly </em>ONE<em> spot in the core of Lua where this is true: the parsing of constructors such as <code> {10,20,30} </code>. The convention of starting with 1 is only enforced by the libraries, which are not part of the language. --lhf</em>
+<p>
+<DL>
+<dt><dd>This is no longer true with Lua 5.1, as the # operator is also dependent on a base index of 1.
+</DL>
+<p>
+<p>
+<hr>You're misunderstanding the length operator. Quoting Nick Gammon from a few paragraphs down:
+<p>
+<em>From the Lua manual:</em>
+<p>
+<DL>
+<dt><dd><em>The length of a table t is defined to be any integer index n such that t[n] is not nil and t[n+1] is nil;</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>That definition (from Lua 5.1 manual) implies that the table { [-3] = 0 } has length -3, while a completely empty table {} has no length at all (rather than length 0). Which is more counter-intuitive than counting from zero is. For some reason, PUC-Lua 5.1 doesn't honour this definition: #{ [-3] == 0 } == 0. (Lua 5.2 manual changes the definition to one which explicitly counts from 1. Which is still rather ill-specified for an empty table, unless you know what the range {1..n} is supposed to be for n less than 1 -- and defining that without falling into a similar trap is somewhat tricky.) --f.</em>
+</DL>
+<p>
+And aww, let's get over with this: Define a proxy table to the real table with the index metamethod overriden to access i-1 on the real table if i is positive. Decide whenever you'll map negative indices directly to the real table or if you'll further process them. Decide what you'll do with the index 0 on the real table.
+<p>
+That done, use the proxy table whenever you need to count from zero. Use the real table whenever you need library functions. For mnemonics, name your table 'tablename1' and the proxy 'tablename0'. Problem solved.
+<p>
+<hr>If you are a person referred to as a "scripter" or "non-programmer", here is a call to take a stand regarding future languages.  Make it known that you are as perfectly capable of grasping the concept of offsets as any programmer.  Lua lists have a base index of 1 because it was thought to be most friendly for non-programmers, as it makes indices correspond to ordinal element positions.  However, this dubious concession causes programmers a lot of grief, which in turn decreases their efficiency in providing you with the tools to do your work.  One reason is that Lua is tightly coupled with C which uses a base index of 0 for arrays-- the indices represent an offset from the head of the array.  This means that programmers working on both Lua and C sides must constantly switch reference in both their code and mind, which is annoying and error prone.  Also it turns out that using offsets goes hand in hand with a certain way of specifying ranges where the end is not included (known as a half-open range), while using ordinal positions does not.  Half-open ranges allow more natural handling of zero-length ranges which leads to more concise and consistent programs.
+<p>
+<em>being both a C++ and a Lua programmer, i have to completely disagree with this rant. Counting from 1 is the "natural" way of counting. In math, everyone counts from 1, too. Counting from 0 is only good for the C convention that an array and a pointer are equivalent, and that a[i] is the same as *(a+i). Also, i think, it is easy for a programmer to adapt to the non-C-like way of counting. Yet it makes Lua much more intuitive for "casual programmers". --<a href="../wiki/PeterPrade.html" >PeterPrade</a></em>
+<p>
+<DL>
+<dt><dd>Agreed, it is a rant :-).  However, your argument doesn't address the issue of how half-open ranges allow more concise coding, which is my main point.  When dealing with ranges Lua, programs will tend to be littered with <code>+1</code>'s because Lua does not use half-open ranges, where as in C++ (especially when using STL, which uses that style of ranges in its entirety) this won't happen.  In addition, I agree that counting from one is natural to humans (I never stated otherwise), however representing zero-length ranges with <code>[n, n-1]</code> is very awkward.  It is not natural to communicate "take no steps forward" by indicating to someone a start point on the floor, and then a destination point one step behind.  In contrast humans can easily understand "take no steps forward" by indicating a start point on the floor, and a destination being that same point-- corresponding with the half-open range <code>[n, n)</code>.  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Set theorists, logicians and combinatoricists count from zero. The elements of Z/nZ (integers modulo n) rings are usually named {0, 1, ..., n-1}, so algebraists count from zero too. These are all disciplines quite intimately connected to CS and therefore programming. In analysis one often counts from 1, but it's not really relevant -- the set of natural numbers is usually used there for its topology, or simply as a convenient indexing set with well-defined "move backwards" and "move forwards" operations (and even then the definition is more elegant if you include zero), making the choice of a starting point rather arbitrary (it might have been 42 just as well). The choice of 1 is usually either out of habit, to avoid breaking "backwards compatibility" (i.e. mutual intelligibility with material using one-based numbering), or to avoid considering a zero in a denominator/exponent/whatever. --f</em>
+</DL>
+<p>
+<em>Sometimes half-open ranges allow concise coding and sometimes not. I've seen (and committed) plenty of fencepost errors with both half-open and closed ranges. The fact that the last element in a C array has the index one less than the length of the array, for example, can lead to a variety of <code>-1</code>'s in code; it is certain that there are techniques for eliminating these, but I wouldn't say that my Lua code is any more littered with <code>+1</code>'s than my C code is with <code>-1</code>'s. With respect to half-open ranges, though, there is a serious problem: you need to be able to represent a quantity that is not in the range. Consequently, for example, the type of an index of a string of length 256 needs to be at least short, even though every valid index is a byte. Similarly, a half-open range descriptor to the end of a vector contains an address which is not included in the storage of the vector, and which may well a valid pointer to a different object; this gets complicated for conservative garbage collecting, for example. (At least one conservative garbage collector deliberately overallocates to compensate for this problem.) I'm not standing up for one or the other: both are valid, both have advantages, and both have disadvantages. --<a href="../wiki/RiciLake.html" >RiciLake</a></em>
+<p>
+<DL>
+<dt><dd>Your argument doesn't hold water, <a href="../wiki/RiciLake.html" >RiciLake</a>.  You have an array of 256 bytes and you use a "closed" representation, in which (n, m) means [n, n+1, n+2 ... m-1, m], to represent intervals in that array.  The representation of a zero-length range then is (n, n-1) as noted above; for example, [4, 3].  So what's the representation of a zero-length range starting at zero?  (0, 256) has another meaning.  So your argument about how many bits you need for array indexes is equally a problem for half-open and closed representations of intervals.  It's also irrelevant to languages like Lua in which you don't get to pick how many bits to use. --KragenJavierSitaker<a href="/cgi-bin/wiki.pl?action=edit&amp;id=KragenJavierSitaker" >?</a>
+</DL>
+<p>
+<em>as with counting from one, i think closed ranges are much more intuitive than half-open ranges, at least when you're not talking about the special case of a zero length range. When i say "intuitive" i mean it is more natural for someone who has not been a programmer at least for some years. --<a href="../wiki/PeterPrade.html" >PeterPrade</a></em>
+<p>
+<em>I have not counted them, but I think that a vast amount of programming languages start counting at zero... And as I have learned C as my first language, starting at one seems confusing to --in fact I wrote a bunch of bad Lua code with arrays starting at zero in mind --<a href="../wiki/AdrianPerez.html" >AdrianPerez</a></em>
+<p>
+<em>Although counting from zero has its advantages, I find counting from one much more natural, even when programming. It is not a problem for me to switch between Lua and C, as in the past I've switched a lot between Visual Basic and C --Anonymous</em>
+<p>
+<em>First is 1st, not 0th --Kazimir Majorinc</em>
+<p>
+"I'm in the process of evaluating Lua for an embedded scripting language in my app., and everything I have seen up to this has been very positive, until I realized
+Lua is counting things from index 1. Bad. Bad. Baaad. Bad enough to consider tossing the whole thing out the door. As for justification, even though there shouldn't
+be a need of any :),: indices of an array of length N are a natural map to the ring of integers modulo N, that have a lot of nifty properties. For example, when you want
+to access your array cyclically, you just do <code>index = (index+1) %N</code>. Doing the same thing with indices starting at 1 is a pain the neck. Also, it makes binding C routines to Lua utterly painful."
+<p>
+<DL>
+<dt><dd><em>index = index % N + 1 --Milano Carvalho</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Exactly, all of a sudden we have a bug and extra work where none needed to be.  In addition, the programmer now has to remember "Is index a position and violates modulo preconditions or is it the actual modulo?"  Finally, what's the inverse of that?  Is it: "modindex = index - 1 % N"  or is it "modindex = index % N - 1"?  Trick question: it's "modindex = (index - 1) % N".</em> --Andrew Lentvorski
+</DL>
+<p>
+<DL>
+<dt><dd><em>agreed. the Lua C library interface to C uses conventions which are unnatural to C. for example when parsing Lua tables into C arrays you have to remember to use <code>iterator+1</code> to access the table index. --DanHollis<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DanHollis" >?</a></em>
+</DL>
+<p>
+<hr>Counting from 0 is not the sticky issue for me personally; counting from 1 is just a symptom of the problem of the paucity of datatypes in Lua, not by any means the sum of the problem.  My problem is that the lack of datatypes, including those arrays, 1 or 0 base be damned.  Tables may have a tightly packed "array" part, but I'm not keen on my 33 word array taking 64 words of space (has to be a power of 2).  Don't get me started on the fact that I can't even have an array of bytes, but only massive bloatsome double-precision floats instead (or doubles, or the choice of exactly one (1) numeric datatype that Lua is compiled with).  Yes, I'm aware Lua makes it easy to glue to real arrays in C.  But then it's not really in Lua, it's some second-class "userdata" type I can't really treat like a real list.
+<p>
+<DL>
+<dt><dd><em>Lua 5.1 provides the <code>lua_createtable()</code> API call which allows you to specify the array size of the table (precisely). You can also specify the hash size, but that part is always restricted to a power of 2. If you create a table with a specified array size, its array part will be precisely that size so long as you do not force the table to expand, so it will work fine if you know the size of the table in advance. Binding arrays of small atomic objects, like <code>int</code>s, is made slightly easier in 5.1 as well, because of the possibility of overriding the <code>#</code> operator, but to make the <code>userdata</code> really act like a Lua table, you need to modify the default definition of <code>ipairs</code> and possibly of <code>unpack</code>. I've put some code for the former on the Wiki at <a href="../wiki/GeneralizedPairsAndIpairs.html" >GeneralizedPairsAndIpairs</a>, in case it is of use to anyone. --<a href="../wiki/RiciLake.html" >RiciLake</a></em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>An excellent point, something I've struggled with too. Interfacing large C structs to lua, especially C arrays of large structs is not fun. Lua does not make these mappings straightforward. --DanHollis<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DanHollis" >?</a></em>
+</DL>
+<p>
+<hr>Lua source code has a constant <code>lua_Number</code> set to double as default. In the same way, it might be interesting to define a constant <code>lua_FirstIndex</code> (for instance) set to 1 as default, to refer to the first index. Every part of Lua related with the first index of an array (for instance, <code>ipair</code>, <code>foreachi</code>, etc.) should use this constant. If a user wants to change this constant to 0 and recompile, he/she could use Lua tables beginning from 0 at his/her own risk of loosing compatibility. The same constant should be accessible from Lua to allow also scripts being portable or independent of the first value of index arrays.  --Salvador Espana
+<p>
+<hr>The question whether counting in computer science should be zero- or one-based is a classic one. I found the arguments
+in Edsger Dijkstra's article "Why numbering should start at zero" (<a href="http://www.cs.utexas.edu/users/EWD/ewd08xx/EWD831.PDF">http://www.cs.utexas.edu/users/EWD/ewd08xx/EWD831.PDF</a>)
+very convincing and I became a strong counting-starts-at-0 advocate.
+Too sad, Lua, suggests starting at 1. This will make table/array constructions awkward: <code> {[0]=10, 20, 30} </code> and
+the table-library functions of lesser value. --Ulrich Hoffmann &lt;uho@xlerb.de&gt;
+<p>
+<DL>
+<dt><dd><em>Yes, nice article. I especially like the very first sentence: "To denote the subsequence of natural numbers 2, 3, ..., 12  [...]." Now, combine that with the metric that computer languages should primarily communicate their intent to the reader, and only incidentally to the computer, and we see that even for Dijkstra the most natural notation is the inclusive one... Draw your own conclusion. </em>
+</DL>
+<p>
+<p>
+<hr>Counting from one is more "intuitive", but counting from zero is algorithmically much better. This is a programming language for writing algorithms to be executed by a computer, not a language for daily conversation between humans. Programmers are smart, they can figure it out. Don't treat them like children. :) --DanHollis<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DanHollis" >?</a>
+<p>
+<hr>I second using half-open over closed ranges, and thus counting from 0 over counting from 1.  Not only a zero-length range is naturally represented as <code>[n,n)</code> but also adjacent ranges nicely add up -- <code>[a,b)+[b,c)=[a,c)</code> -- without excessive doubling at the ends.  The resulting range is <code>(b-a)+(c-b)=c-a</code> -long, and any or both of the components can be zero-length.  Also, one can consider `negative ranges' <code>[m,n)</code> where <code>m&gt;n</code> and the addition of ranges still works, now being even possible to obtain a zero-length range from non-zero ones.
+<p>
+Now, consider numbers <code>a</code>, <code>b</code>, and <code>x</code>.  A correct expression for `<code>x</code> is between <code>a</code> and <code>b</code>' in the sense that <code>min(a,b)&lt;=x&lt;max(a,b)</code> (a half-open range) is <code>(a&lt;=x)=(x&lt;b)</code>.  Were it a closed range (<code>...&lt;=x&lt;=...</code>), we wouldn't have had such a nice expression. -- Boyko Bantchev
+<p>
+<hr>Personally I don't have a problem with counting from 1. For one thing, the idiom of 1 being the first character in a string and -1 being the last is a nice idea. That wouldn't work if the first character was 0.
+<p>
+As a script language its first priority is to be easy for scripters to use. An array of 5 elements that has the last element as number 5 is surely easier to explain to casual scripters, than that it finishes at element 4?
+<p>
+I have interfaced many client functions in my system to expose their workings to Lua. The question of zero-or-one based doesn't even apply in many cases. For instance, a lot use string keys (in which case the problem goes away), or they don't use an array of any sort.
+<p>
+If you want Lua to be a universal scripting language I certainly would not recommend a compile-time option, so that half the Lua scripts published work based on zero and half based on 1. You would be opening the doors to a nightmare doing that. I can't even see how that can work if you want to interface things like <code>LuaSocket</code>, <code>LuaCom</code> etc. These would be written assuming the current convention, that arrays start at 1, and many are supplied with precompiled binaries for Windows. These would either not work at all if you ran on a zero-based system, or the authors of each package would have to clutter their code with tests for what the base is, surely losing any advantage of changing it in the first place.  -- <a href="../wiki/NickGammon.html" >NickGammon</a>
+<p>
+<hr>One more point, internally Lua uses the convention of 1 as first and -1 as last in many places. For example:
+<p>
+<DL>
+<dt><dd><pre>
+
+double num = luaL_checknumber (L, 1); /* get first item on stack */
+
+</pre>
+</DL>
+<p>
+Thus, programmers who are interfacing Lua with C are very familiar with that convention - you have to be. Again, if you made arrays zero-based, would you change that too? In which case how do you get the last element from the stack (which is currently -1)?
+<p>
+Some of the posts above don't really mention if they are referring to strings as well. For instance, the first item in a string:
+<p>
+<DL>
+<dt><dd><pre class="code">
+c = <span class="library">string.sub</span> (<span class="string">"ABC"</span>, 1) <span class="comment">--&gt; "A"</span>
+
+</pre>
+
+</DL>
+<p>
+Would you make that zero also? If so, how do you get the last item?  -- <a href="../wiki/NickGammon.html" >NickGammon</a>
+<p>
+<em>Using -1 as an alias for the last element is perfectly consistent with half-open ranges (i.e. counting from zero).  See Python.  In fact, it is more consistent than with closed ranges.  Consider for a moment that lists wrap around, and you can move from beginning to end and back the "short way".  One left of position 0 (the beginning of the list) is -1 (the end of the list).  In other words you can just subtract 1 from your position to move left, which is natural.  If you start a list at 1 instead, it produces a strange gap of two positions between the beginning and end.  To move to the left, you'd have to subtract one from your position, unless you were at position 1, in which case you'd subtract 2.</em>
+<p>
+<DL>
+<dt><dd>Then do you also propose that greatest_index + 1 wrap around to the first element? If not, there would still be these 'strange' jumps when going from the last element (specified with positive index) to the first, so that argument doesn't make any sense.
+</DL>
+<p>
+<DL>
+<dt><dd><em>No-- if you want indexing to wrap, use i modulo n.  The simplicity of that equation is one of the attractive points of indexing with offsets.</em>
+</DL>
+<p>
+Yes, that is true. However given that the "deed is done" now, I suggest that applications that need the "count from zero" approach for mathematical or other reasons, simply define their own <code>foreachi</code> function to work around the current behaviour. After all, there is nothing stopping you from putting elements into position 0 of a table right now.
+<p>
+If you want to make a table constructor start at 0 do this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+t = { [0] = <span class="string">"a"</span>, <span class="string">"b"</span>, <span class="string">"c"</span> }  <span class="comment">-- a is in position 0, b is in 1 and so on</span>
+
+</pre>
+
+</DL>
+<p>
+-- <a href="../wiki/NickGammon.html" >NickGammon</a>
+<p>
+Unfortunately #t evaluates to 2. Much of the problem arises from the confusion of numerals
+with ordinals. When indices are offsets, 0 is the offset of the first item in the array. If we were a bit more 
+scrupulous in retaining the type information with the use of numbers in vernacular speech there would be less contention on this. In mathematics, realizing a non-negative integer n as the set of numbers from 0
+to n-1 inclusive gives much neater formulae than identifying it with the set of numbers from 1 to n. -- <a href="../wiki/GavinWraith.html" >GavinWraith</a>
+<p>
+<DL>
+<dt><dd><em>Though in math, it is common for matrices and vectors to be 1-indexed<a href="http://en.wikipedia.org/wiki/Matrix_(mathematics).html">[1]</a><a href="http://mathworld.wolfram.com/Matrix.html">[2]</a><a href="http://planetmath.org/encyclopedia/Matrix.html">[3]</a>.  Similarly, in <a href="../wiki/LuaMatrix.html" >LuaMatrix</a>, the first element is referenced as <code>mtx[1][1]</code>.  Sequences maybe vary more<a href="http://en.wikipedia.org/wiki/Sequence.html">[4]</a>.  Concerning math software, Mathcad by default 0-indexes (though it can be changed), while Matlab, Maple, and Mathematica 1-index. --<a href="../wiki/DavidManura.html" >DavidManura</a></em>
+</DL>
+<p>
+<hr>However, <code>#t</code> (or, <code>table.getn</code>) is not defined as returning the number of elements in a table. For example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+t = { foo = 1, bar = 2 } ; <span class="library">print</span> (<span class="library">table.getn</span> (t))  <span class="comment">--&gt; 0</span>
+
+</pre>
+
+</DL>
+<p>
+From the Lua manual:
+<p>
+<DL>
+<dt><dd><em>The length of a table t is defined to be any integer index n such that t[n] is not nil and t[n+1] is nil; </em>
+</DL>
+<p>
+My example is consistent with the definition. <code>#t</code> returns the index of the last item.
+<p>
+-- <a href="../wiki/NickGammon.html" >NickGammon</a>
+<p>
+<DL>
+<dt><dd><em>It isn't. t[0] is nil. According to that definition, this table has no well-defined length at all. See above. --f</em>
+</DL>
+<p>
+<hr>Visual Basic and especially <a href="../wiki/JavaScript.html" >JavaScript</a> are two languages similar to Lua.  It would be nice to have a low entry barrier for non-technical users migrating from these languages.  In <a href="../wiki/JavaScript.html" >JavaScript</a> arrays are indexed from 0.  In Visual Basic arrays are indexed from 0 by default.  (Changing the default is strongly discouraged and not supported by modern implementations such as VB.Net.)
+<p>
+<hr>I was looking to see if Perl is indexed from 0 or 1 (zero it seems), and in my Perl manual found this gem:
+<p>
+<DL>
+<dt><dd><em>An array subscript n, where n is any non-negative integer, always refers to array element n+1.</em>
+</DL>
+<p>
+It is obvious we are not going to reach agreement here, however don't you think that is just <em>slightly</em> confusing? "Subscript n ... refers to element n+1?". At least in Lua, subscript n refers to element n.
+<p>
+-- <a href="../wiki/NickGammon.html" >NickGammon</a>
+<p>
+<DL>
+<dt><dd>It's only confusing if your base is 0 and you think of the index an a position.  If your base is 0 then the index is best thought of as an offset from the start of the list, not a position.  This is the same point just made by Gavin.  Generally speaking, offsets are more useful in programming than positions.
+</DL>
+<p>
+<hr>"The set of natural numbers" is the set of integer numbers greater or equal to zero in US, and the set of integer numbers greater than zero in Soviet Union. It's like indentation.
+<p>
+IMHO counting from 1 is great. First element is 1, last element is -1. No need to remember "this is not math, this is not something natural, get used to it", like when you deal with indices in python.
+<p>
+-- muntyan
+<p>
+<em>And Lua lets you store 0 in your integers -- so which element does it get you?</em>
+<p>
+<hr>Lua's key advantage is that it is the most embeddable of the scripting languages -- it really isn't the best top-level scripting language for general programming tasks (python and perl are better).   As an embedded scripting language, it is going to be embedded in compiled languages. Almost all of them use 0-based indexing, so most of the new users are going to have this frame of reference.
+VB had this debate (and the dyanmic option to choose), and from what I've seen, people voted for 0-based indices. So let's just do this and get it over with.
+-- GRB
+<p>
+<em>E x a c t l y -- <a href="../wiki/JeanClaudeWippler.html" >JeanClaudeWippler</a></em>
+<hr><DL>
+<dt><dd><em>Please don't write in the first person without signing your name.</em>
+</DL>
+<hr>So all that number theory down the drain? Gee, you get to be one year old the second you are born and Mr. Clarke was wrong about 2001. Modulo of -0 how helpful. Sorry, but I think that whole idea needs to be rethunked, revised and corrected.  No, starting at one is not as natural as one person wrote, it is because zero is intuitively assumed; therefore; need not be stated. But the good old computer does not assume. Just my thoughts ---trav
+<hr>In BASIC you can start with any number you want to, like:
+<pre> DIM arrayname(5 to 18)</pre>
+In Forth you can also start with any number you want to, like:
+<pre> HERE 14 ALLOT 5 - CONSTANT arrayname</pre>
+<hr>Non-programmers actually already count from 0 with realizing it. When counting, guess what people use as the first digit for tens, hundreds, thousands, etc.? Hint: it is not 1. So it is very inconsistent to use 1 as the first unit. This inconsistency is why years starting with 19... are the 20th century: we are just missing the 0th century. This inconsistency is also why so many people think the 21th century started in 2000. By assuming this, they are just more conveniently counting from... zero. Another example: which number is used for the first hour of the day/of the afternoon? Hint: again, it is not 1. Another inconsistency when counting from one: we use ten digits, now please name the last digit? See Stefan Ram's article "Numbering Starts with Zero" for more non-nerdy, non-mathematical examples.
+<p>
+It looks like counting from one is a very old legacy from unary systems. We should have get rid of this when inventing the zero but unfortunately we did not.
+<hr>Counting from 1 is the number one reason why I don't use Lua. Other than this, it is a very nice language, but it is just so much easier to code with half-open ranges. I disagree when people tell me "it is more natural to count from one." It is just an old leftover from the past. If you really think about it, it makes a lot more sense to count from 0.
+<p>
+--Zifre
+<hr><DL>
+<dt><dd>Zifre, don't you mean, "Counting from 1 is the number *zero* reason why I don't use Lua."?  After all, you claim that counting from zero makes so much more sense to you.
+</DL>
+<p>
+Let's make a bet.  We will go to a park and talk to random people.  We will show them three stones in a line, and ask them to count the stones aloud.  If any person says, "Zero, one, two", then you win.  If everyone says, "One, two, three", then I win.  I imagine that I would always win this bet.  No one counts from zero, because it makes no sense.  When the first element of an array is accessed with 0, then that number represents an offset, not an index.  The question is not about counting, it's about whether arrays should use offsets or indices.
+<p>
+Using offsets rather than indices does have some advantages, of course.  But it's hard to argue with this:  If arrays use indices, then the "nth" element is accessed with the number "n".  Do you want the fourth element?  Then use 4.  Want the tenth?  Then use 10.  That makes a lot of sense, and has its own set of nice properties.  Unfortunately, many programmers are closed-minded on this issue, and somehow convince themselves of absurd statements like, "It makes a lot more sense to count from 0."  (And then, in their own post, illustrate that they in fact count from one, just like everyone else on this planet.)
+<p>
+Let's make a second bet.  After asking people to count the stones, we will say, "Please point to stone one".  If anyone points to the middle stone, then you win the bet.  Otherwise, I win.  Again, I don't see how I would realistically ever lose this bet.
+-- Anonymous
+<p>
+<DL>
+<dt><dd>Zifre vs. anonymous adds nothing to the discussion on this page.  Did you read the first paragraph?  The issue is not about counting from one or zero, but rather how to indicate an element within a sequence.  Using offsets results in less edge cases and hence simpler code and API's.  This has nothing to do with how people in a park count.  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Considering one of the major current uses for Lua is amateur scripting, e.g. in places where you're allowed to not be a skilled programmer but are still presented with the gift of customization, how 'people in a park' count is fairly relevant. Not that everything should be dumbed down for the purpose of the almighty consumer, especially the tools with which a programmer is supposed to conduct their business, but since the debate of offset vs. cardinal is largely a conceptual problem, relating to how you internalize what your code is supposed to mean, why fault Lua for pandering to the person in the park, where the first stone in the stone array is stone 1? Offsets, to those who are unfamiliar with them, are a bit of a barrier to entry.</em>
+</DL>
+<p>
+<DL>
+<dt><dd>Well, put a computer to count those 3 stones. You will get something along this lines: 00, 01, 10. You are missing the big picture here: you don't program people, you program computers. Knowing the computer's internals usually helps. You can't ever make a computer to totally understand you (or maybe you can, but in that case you should get a Nobel prize). However, you can totally understand a computer :) -- shiretu
+</DL>
+<p>
+<p>
+<hr>I start a new page on this topic, as an attempt to sum up several aspects of the problem: [<a href="../wiki/IndexIntervalFormatIssue.html" >IndexIntervalFormatIssue</a>]. [<a href="../wiki/DeniSpir.html" >DeniSpir</a>]
+<hr>There is a huge misunderstanding on that page, <a href="../wiki/DeniSpir.html" >DeniSpir</a>. In "Programmers Too" section, the half-open intervals are described as [n,n], while they should have been [n,n).
+<p>
+Also, the statement that this:
+[a,b]+[b,c]
+should have been this:
+[a,b]+[b+1,c]
+is completely off, as the original proposition needed half-open intervals, in which case, it looks like this:
+[a,b)+[b,c)
+<p>
+Therefore, the complaint is completely off, as [a,b)+[b,c) does NOT include b twice.
+I am going to correct that part and delete the rant about [a,b]+[b+1,c], because it's pointless. --Tim
+<hr><a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>, using offsets doesn't results in simpler code APIs. Agree, fewer edge cases, but don't try to convince people to like/dislike a particular programming pattern. What is important here is that Lua should support diversity. I myself have hard time designing 1-based code and is way more prone to errors than yours so called "edge-cases". In another words, I instinctively know how to avoid edge cases using my skills developed with the rest of 10001 programing languages rather than adoption your "safe" method of developing "simpler code". Really, is just a matter of taste. You can't categorize people in "you are stupid because you code this way, you are smart because you code that way".
+Despite the fact that I hate this about Lua, it still gets a lot of love from me because so many other positive facets. I do miss one tho... Being able to specify the index base at compile time... --shiretu
+<hr>It's wrong. Here's why: Edsger Dijkstra's note on starting array indices at 0 (pdf, 1982) <a href="http://www.cs.utexas.edu/users/EWD/ewd08xx/EWD831.PDF">[5]</a>. -- Anonymous
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="http://en.wikipedia.org/wiki/Zeroth.html">[Wikipedia:Zeroth]</a>
+<li> <a href="http://en.wikipedia.org/wiki/Array#Indexing.html">[Wikipedia:Array#Indexing]</a>
+<li> <a href="/lists/lua-l/2006-05/msg00281.html">[Counting from 1/2]</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CountingFromOne" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CountingFromOne" >history</a><br>Last edited September 6, 2014 3:44 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CountingFromOne" >(diff)</a>
+</body>
+</html>

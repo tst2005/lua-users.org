@@ -1,0 +1,413 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Enhanced File Lines</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=EnhancedFileLines&amp;body=1" title="List pages referring to EnhancedFileLines">Enhanced File Lines</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here are functions for portable line-by-line text processing (handling OS differences in '\r' and '\n' characters).
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- (c) 2008 David Manura. Licensed under the same terms as Lua (MIT).</span>
+
+
+
+<span class="comment">-- file_lines(f) is similar to f:lines() for file f.</span>
+
+<span class="comment">-- The main difference is that read_lines includes</span>
+
+<span class="comment">-- new-line character sequences ("\n", "\r\n", "\r"),</span>
+
+<span class="comment">-- if any, at the end of each line.  Embedded "\0" are also handled.</span>
+
+
+
+<span class="comment">-- Caution: The newline behavior can depend on whether f is opened</span>
+
+<span class="comment">-- in binary or ASCII mode.</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> file_lines(f)
+
+  <span class="keyword">local</span> CHUNK_SIZE = 1024
+
+  <span class="keyword">local</span> buffer = <span class="string">""</span>
+
+  <span class="keyword">local</span> pos_beg = 1
+
+  <span class="keyword">return</span> <span class="keyword">function</span>()
+
+    <span class="keyword">local</span> pos, chars
+
+    <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+      pos, chars = buffer:match(<span class="string">'()([\r\n].)'</span>, pos_beg)
+
+      <span class="keyword">if</span> pos <span class="keyword">or</span> <span class="keyword">not</span> f <span class="keyword">then</span>
+
+        <span class="keyword">break</span>
+
+      <span class="keyword">elseif</span> f <span class="keyword">then</span>
+
+        <span class="keyword">local</span> chunk = f:read(CHUNK_SIZE)
+
+        <span class="keyword">if</span> chunk <span class="keyword">then</span>
+
+          buffer = buffer:sub(pos_beg) .. chunk
+
+          pos_beg = 1
+
+        <span class="keyword">else</span>
+
+          f = <span class="keyword">nil</span>
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> pos <span class="keyword">then</span>
+
+      pos = #buffer
+
+    <span class="keyword">elseif</span> chars == <span class="string">'\r\n'</span> <span class="keyword">then</span>
+
+      pos = pos + 1
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">local</span> line = buffer:sub(pos_beg, pos)
+
+    pos_beg = pos + 1
+
+    <span class="keyword">if</span> #line &gt; 0 <span class="keyword">then</span>
+
+      <span class="keyword">return</span> line
+
+    <span class="keyword">end</span>    
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">--</span>
+
+<span class="comment">-- Splits string s into array of lines, returning the result.</span>
+
+<span class="comment">-- New-line character sequences ("\n", "\r\n", "\r"),</span>
+
+<span class="comment">-- if any, are included at the ends of the lines.</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> split_newlines(s)
+
+  <span class="keyword">local</span> ts = {}
+
+  <span class="keyword">local</span> posa = 1
+
+  <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+    <span class="keyword">local</span> pos, chars = s:match(<span class="string">'()([\r\n].?)'</span>, posa)
+
+    <span class="keyword">if</span> pos <span class="keyword">then</span>
+
+      <span class="keyword">if</span> chars == <span class="string">'\r\n'</span> <span class="keyword">then</span> pos = pos + 1 <span class="keyword">end</span>
+
+      <span class="keyword">local</span> line = s:sub(posa, pos)
+
+      ts[#ts+1] = line
+
+      posa = pos + 1
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">local</span> line = s:sub(posa)
+
+      <span class="keyword">if</span> line ~= <span class="string">''</span> <span class="keyword">then</span> ts[#ts+1] = line <span class="keyword">end</span>
+
+      <span class="keyword">break</span>      
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> ts
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">--[=[slower implementation
+
+local function split_newlines(s)
+
+  local ts = {}
+
+  local lastc
+
+  s:gsub('([^\r\n]*)([\r\n])', function(a,b)
+
+    if a == '' and lastc == '\r' and b == '\n' then
+
+      ts[#ts] = ts[#ts] .. b
+
+      lastc = nil
+
+    else
+
+      ts[#ts+1] = a .. b
+
+      lastc = b
+
+    end
+
+    return ''
+
+  end)
+
+  local line = s:match('([^\r\n]+)$')
+
+  if line then ts[#ts+1] = line end
+
+  return ts
+
+end
+
+--]=]</span>
+
+
+
+
+
+<span class="comment">-- test suite</span>
+
+
+
+
+
+<span class="comment">-- utility function for test suite.</span>
+
+<span class="comment">-- Create mock file for string s.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> mock_file(s)
+
+  <span class="keyword">local</span> f = {}
+
+  <span class="keyword">function</span> f:read(n, ...)
+
+    <span class="library">assert</span>(<span class="library">type</span>(n)==<span class="string">'number'</span> <span class="keyword">and</span> <span class="library">select</span>(<span class="string">'#'</span>, ...) == 0, <span class="string">'NOT IMPL'</span>)
+
+    <span class="keyword">local</span> chunk = s:sub(1,n)
+
+    s = s:sub(n+1)
+
+    <span class="keyword">return</span> chunk ~= <span class="string">''</span> <span class="keyword">and</span> chunk <span class="keyword">or</span> <span class="keyword">nil</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> f
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- utility function for test suite.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> mytostring(s)
+
+  <span class="keyword">return</span> <span class="library">type</span>(s) == <span class="string">'string'</span>
+
+         <span class="keyword">and</span> <span class="library">string.format</span>(<span class="string">'%q'</span>, s):gsub(<span class="string">'\n'</span>,<span class="string">'n'</span>)
+
+         <span class="keyword">or</span>  <span class="library">tostring</span>(s)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- utility function for test suite.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> asserteq(a,b,level)
+
+  level = (level <span class="keyword">or</span> 1) + 1
+
+  <span class="keyword">if</span> a ~= b <span class="keyword">then</span>
+
+    <span class="library">error</span>(mytostring(a) .. <span class="string">'~='</span> .. mytostring(b), level)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- utility function for test suite (wrap file_lines)</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> wrap1(s)
+
+  <span class="keyword">local</span> f = mock_file(s)
+
+  <span class="keyword">local</span> ts = {}
+
+  <span class="keyword">for</span> line <span class="keyword">in</span> file_lines(f) <span class="keyword">do</span> ts[#ts+1] = line <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">table.concat</span>(ts, <span class="string">'|'</span>)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- utility function for test suite (wrap split_newlines)</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> wrap2(s)
+
+  <span class="keyword">return</span> <span class="library">table.concat</span>(split_newlines(s), <span class="string">'|'</span>)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> SZ = 1024 <span class="comment">-- chunk size</span>
+
+
+
+<span class="comment">-- test basics</span>
+
+<span class="keyword">for</span> _,f <span class="keyword">in</span> <span class="library">ipairs</span>{wrap1, wrap2} <span class="keyword">do</span>
+
+<span class="keyword">for</span> _,i <span class="keyword">in</span> <span class="library">ipairs</span>{0,1,2,SZ-3,SZ-2,SZ-1,SZ,SZ+1,SZ+2,SZ+3} <span class="keyword">do</span>
+
+  <span class="keyword">local</span> s = (<span class="string">' '</span>):rep(i)
+
+  <span class="keyword">local</span> <span class="keyword">function</span> test(a, b)
+
+    asserteq(f(s .. a), s .. b)
+
+  <span class="keyword">end</span>
+
+  test(<span class="string">''</span>, <span class="string">''</span>)
+
+  test(<span class="string">'\r'</span>, <span class="string">'\r'</span>)
+
+  test(<span class="string">'\n'</span>, <span class="string">'\n'</span>)
+
+  test(<span class="string">'a'</span>,  <span class="string">'a'</span>)
+
+  test(<span class="string">'\r\n'</span>, <span class="string">'\r\n'</span>)
+
+  test(<span class="string">'\n\r'</span>, <span class="string">'\n|\r'</span>)
+
+  test(<span class="string">'\r\r'</span>, <span class="string">'\r|\r'</span>)
+
+  test(<span class="string">'\n\n'</span>, <span class="string">'\n|\n'</span>)
+
+  test(<span class="string">'a\n'</span>,  <span class="string">'a\n'</span>)
+
+  test(<span class="string">'a\r'</span>,  <span class="string">'a\r'</span>)
+
+  test(<span class="string">'\na'</span>,  <span class="string">'\n|a'</span>)
+
+  test(<span class="string">'\ra'</span>,  <span class="string">'\r|a'</span>)
+
+<span class="keyword">end</span> <span class="keyword">end</span>
+
+
+
+<span class="comment">-- check that two implementations are equivalent on a lot of data.</span>
+
+<span class="keyword">local</span> cs = {<span class="string">''</span>, <span class="string">'a'</span>, <span class="string">'\r'</span>, <span class="string">'\n'</span>, <span class="string">' '</span>}
+
+<span class="keyword">for</span> _,i <span class="keyword">in</span> <span class="library">ipairs</span>{0,1,SZ-3,SZ-2,SZ-1,SZ,SZ+1,SZ+2,SZ+3} <span class="keyword">do</span>
+
+<span class="keyword">for</span> j=0,1 <span class="keyword">do</span>
+
+  <span class="keyword">local</span> s = (<span class="string">' '</span>):rep(i + j * SZ)
+
+  <span class="keyword">for</span> _,c1 <span class="keyword">in</span> <span class="library">ipairs</span>(cs) <span class="keyword">do</span>
+
+  <span class="keyword">for</span> _,c2 <span class="keyword">in</span> <span class="library">ipairs</span>(cs) <span class="keyword">do</span>
+
+  <span class="keyword">for</span> _,c3 <span class="keyword">in</span> <span class="library">ipairs</span>(cs) <span class="keyword">do</span>
+
+  <span class="keyword">for</span> _,c4 <span class="keyword">in</span> <span class="library">ipairs</span>(cs) <span class="keyword">do</span>
+
+  <span class="keyword">for</span> _,c5 <span class="keyword">in</span> <span class="library">ipairs</span>(cs) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> s = c1 .. c2 .. c3 .. c4 ..c5
+
+    <span class="keyword">local</span> t1 = wrap1(s)
+
+    <span class="keyword">local</span> t2 = wrap2(s)
+
+    asserteq(t1, t2)
+
+  <span class="keyword">end</span> <span class="keyword">end</span> <span class="keyword">end</span> <span class="keyword">end</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span> <span class="keyword">end</span>
+
+
+
+
+
+<span class="library">print</span> <span class="string">'DONE'</span>
+
+</pre>
+
+</DL>
+<p>
+Note: these functions are used in <a href="../wiki/LuaPatch.html" >LuaPatch</a>.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> Lua Programming Gems, Chapter 9: "Filters, Sources, Sinks, and Pumps" (<a href="../wiki/LuaBooks.html" >LuaBooks</a>) provides a roughly 20 line end-of-line normalization filter in C.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=EnhancedFileLines" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=EnhancedFileLines" >history</a><br>Last edited December 28, 2008 2:41 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=EnhancedFileLines" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Modules Loader</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaModulesLoader&amp;body=1" title="List pages referring to LuaModulesLoader">Lua Modules Loader</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here is an example of a module loader that simply load Lua modules, just like the standalone loader provided by Lua. You can use it to implement more complex loaders. (<a href="../wiki/JeromeVuarand.html" >JeromeVuarand</a>)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">module</span>(..., <span class="library">package.seeall</span>)
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> <span class="library">load</span>(modulename)
+
+  <span class="keyword">local</span> errmsg = <span class="string">""</span>
+
+  <span class="comment">-- Find source</span>
+
+  <span class="keyword">local</span> modulepath = <span class="library">string.gsub</span>(modulename, <span class="string">"%."</span>, <span class="string">"/"</span>)
+
+  <span class="keyword">for</span> path <span class="keyword">in</span> <span class="library">string.gmatch</span>(<span class="library">package.path</span>, <span class="string">"([^;]+)"</span>) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> filename = <span class="library">string.gsub</span>(path, <span class="string">"%?"</span>, modulepath)
+
+    <span class="keyword">local</span> file = <span class="library">io.open</span>(filename, <span class="string">"rb"</span>)
+
+    <span class="keyword">if</span> file <span class="keyword">then</span>
+
+      <span class="comment">-- Compile and return the module</span>
+
+      <span class="keyword">return</span> <span class="library">assert</span>(<span class="library">loadstring</span>(<span class="library">assert</span>(file:read(<span class="string">"*a"</span>)), filename))
+
+    <span class="keyword">end</span>
+
+    errmsg = errmsg..<span class="string">"\n\tno file '"</span>..filename..<span class="string">"' (checked with custom loader)"</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> errmsg
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Install the loader so that it's called just before the normal Lua loader</span>
+
+<span class="library">table.insert</span>(<span class="library">package.loaders</span>, 2, <span class="library">load</span>)
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="http://www.keplerproject.org/compat/">[LuaCompat]</a> contains another Lua implementation of this
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaModulesLoader" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaModulesLoader" >history</a><br>Last edited January 8, 2009 4:45 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaModulesLoader" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Lint</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaLint&amp;body=1" title="List pages referring to LuaLint">Lua Lint</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+lualint performs luac-based static analysis of global variable usage in Lua source code.
+<p>
+<strong>Source:</strong> <a href="http://place.org/~nop/lualint-0.0.tar.gz">http://place.org/~nop/lualint-0.0.tar.gz</a> (locally: <a href="/files/wiki_insecure/users/nop/lualint">Files:wiki_insecure/users/nop/lualint</a>) (github: <a href="https://github.com/philips/lualint">https://github.com/philips/lualint</a>)
+<p>
+<strong>Usage:</strong> lualint [-r|-s] filename.lua [ [-r|-s] [filename.lua] ...]
+<p>
+<H3>Description</H3>
+<p>
+lualint uses luac's bytecode listing.  It reports all accesses to undeclared global variables, which catches many typing errors in variable names.  For example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> really_aborting
+
+<span class="keyword">local</span> <span class="keyword">function</span> abort() <span class="library">os.exit</span>(1) <span class="keyword">end</span>
+
+<span class="keyword">if</span> <span class="keyword">not</span> <span class="library">os.getenv</span>(<span class="string">"HOME"</span>) <span class="keyword">then</span>
+
+  realy_aborting = <span class="keyword">true</span>
+
+  abortt()
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+reports:
+<p>
+<DL>
+<dt><dd><pre>
+
+/tmp/example.lua:4: *** global SET of realy_aborting
+
+/tmp/example.lua:5: global get of abortt
+
+</pre>
+</DL>
+<p>
+It is primarily designed for use on LTN7-style modules, where each source file only exports one global symbol.  (A module contained in the file "foobar.lua" should only export the symbol "foobar".)
+<p>
+A "relaxed" mode is available for source not in LTN7 style.  It only detects reads from globals that were never set.  The switch "-r" puts lualint into relaxed mode for the following files; "-s" switches back to strict.
+<p>
+Required packages are tracked, although not recursively.  If you call "myext.process()" you should require "myext", and not depend on other dependencies to load it.  LUA_PATH is followed as usual to find requirements.
+<p>
+Some (not strictly LTN7) modules may wish to export other variables into the global environment.  To do so, use the declare function:
+<p>
+<DL>
+<dt><dd><pre>
+
+declare "xpairs"
+
+function xpairs(node)
+
+  [...]
+
+</pre>
+</DL>
+<p>
+Similarly, to quiet warnings about reading global variables you are aware may be unavailable:
+<p>
+<DL>
+<dt><dd><pre class="code">
+lint_ignore <span class="string">"lua_fltk_version"</span>
+
+<span class="keyword">if</span> lua_fltk_version <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"fltk loaded"</span>) <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+One way of defining these is in a module "declare.lua":
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> declare(s)
+
+<span class="keyword">end</span>
+
+declare <span class="string">"lint_ignore"</span>
+
+<span class="keyword">function</span> lint_ignore(s)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+(Setting declare is OK, because it's in the "declare" module.)  These functions don't have to do anything, or in fact actually exist!  They can be in dead code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">if</span> <span class="keyword">false</span> <span class="keyword">then</span> declare <span class="string">"xpairs"</span> <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+This is because lualint only performs a rather primitive and cursory scan of the bytecode.  Perhaps declarations should only be allowed in the main chunk.
+<p>
+<H3>TODO</H3>
+<p>
+The errors don't come out in any particular order.
+<p>
+Should switch to <a href="../wiki/RiciLake.html" >RiciLake</a>'s parser, which should do a much better job of this and allow detection of some other common situations.
+<p>
+<H3>CREDITS</H3>
+<p>
+<a href="../wiki/JayCarlson.html" >JayCarlson</a> (nop@nop.com)
+<p>
+This is all Ben Jackson's (ben@ben.com) fault, who did some similar tricks in MOO.
+<p>
+<H3>LICENSE</H3>
+MIT license.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaLint" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaLint" >history</a><br>Last edited April 25, 2012 1:28 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaLint" >(diff)</a>
+</body>
+</html>

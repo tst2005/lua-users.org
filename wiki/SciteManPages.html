@@ -1,0 +1,136 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Man Pages</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteManPages&amp;body=1" title="List pages referring to SciteManPages">Scite Man Pages</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Man Pages for Scite</H3>
+<p>
+Linux: Opens up a man page of selected word in Scite.
+<p>
+Note: This is now built into scite, or I didn't notice it before. Just highlight a keyword and press F1.
+Example: highlight the keyword, "printf" in your C program and press F1.
+A man page will appear in the output pane.
+<p>
+However, if you would rather...
+<p>
+<H3>Load the man page as a colorful document in a new tab</H3>
+<p>
+This add-on also offers a bit more functionality. It will search several sections of the man pages:
+The option -S 3:3p:2:2p:4:5:6:7:8:0p:1:1p tells us to search the programmer's manual sections first.
+These could be numbered differently on your platform. Update: Now uses c-style syntax highlighting.
+<p>
+Insert the function somewhere in Scite's startup scripts.
+<p>
+Example custom startup script. .SciTEUser.properties should have a line like:
+<p>
+<pre>
+
+ext.lua.startup.script=$(SciteUserHome)/.SciTE/startup.lua
+
+</pre>
+Now insert the following function (probably requires Lua &gt; 5.1?) into .SciTE/startup.lua
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Compatibility: Lua-5.1</span>
+
+<span class="keyword">function</span> man_select(sel)
+
+    sel=<span class="library">string.gsub</span>(sel, <span class="string">'[&lt;&gt; ,*()\n\t]'</span>,<span class="string">''</span>)
+
+    <span class="keyword">local</span> ext = props[<span class="string">'FileExt'</span>]
+
+    <span class="comment">-- open lua manual on selected word</span>
+
+    <span class="keyword">if</span>(ext==<span class="string">"lua"</span>) <span class="keyword">then</span> <span class="comment">-- todo: customize help for each file type</span>
+
+        <span class="library">os.execute</span>(<span class="string">"gnome-terminal -e 'lynx \"file:///usr/share/doc/lua-5.1.4/manual.html#pdf-"</span>..sel..<span class="string">"\"'"</span>)
+
+    <span class="keyword">else</span> <span class="comment">-- open c manual on selected word</span>
+
+        <span class="keyword">local</span> tmpfile=<span class="string">"/tmp/man_"</span>..sel..<span class="string">".c"</span>
+
+        <span class="keyword">local</span> cmd=<span class="string">"man "</span>..sel..<span class="string">"&gt;/dev/null&amp;&amp;man -S 3:3p:2:2p:4:5:6:7:8:0p:1:1p "</span>..sel..<span class="string">"|col -b &gt; "</span>..tmpfile
+
+        <span class="keyword">if</span> Execute <span class="keyword">then</span>
+
+            Execute(cmd)
+
+        <span class="keyword">else</span>
+
+            <span class="library">os.execute</span>(cmd)
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">if</span>(<span class="library">io.open</span>(tmpfile)) <span class="keyword">then</span>
+
+            scite.Open(tmpfile)
+
+            <span class="library">os.remove</span>(tmpfile)
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+and in .SciTEUser.properties
+<p>
+<pre>
+
+command.name.11.*=Programmer's Manual (selected text)
+
+command.11.*=man_select $(CurrentWord)
+
+command.shortcut.11.*=Ctrl+Shift+M
+
+command.subsystem.11.*=3
+
+
+
+command.name.15.*=DevHelp (selected text)
+
+command.15.*=devhelp --search $(CurrentWord) &amp;
+
+command.shortcut.15.*=Ctrl+Shift+G
+
+command.subsystem.15.*=1
+
+</pre>
+<p>
+That last command is optional, but DevHelp<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DevHelp" >?</a> is a handy reference, provided that additional DevHelp<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DevHelp" >?</a> docs are installed.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteManPages" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteManPages" >history</a><br>Last edited November 9, 2010 9:16 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteManPages" >(diff)</a>
+</body>
+</html>

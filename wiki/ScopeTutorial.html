@@ -1,0 +1,427 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scope Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ScopeTutorial&amp;body=1" title="List pages referring to ScopeTutorial">Scope Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Until now you just assigned values to names, and could get back the value by using the name anywhere in the script. This is fine for small examples, but now that you know functions, it can be a big problem: what if different functions use the same name to store temporary values? They will conflict and overwrite each other, making your script an impossible-to-debug mess. The solution is to control where your variables exist using the <code>local</code> keyword.
+<p>
+<H2>Interactive interpreter note</H2>
+<p>
+The examples in this page will be written in the form of a script file instead of an interactive interpreter session, since local variables are really hard to work with in it. It will be explained why later.
+<p>
+<H2>Creating local variables</H2>
+<p>
+To create local variables, add the <code>local</code> keyword before the assignment:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> a = 5
+
+<span class="library">print</span>(a)
+
+</pre>
+
+</DL>
+<p>
+You don't need the local keyword any more when changing the variable:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> a = 5
+
+a = 6 <span class="comment">-- changes the local a, doesn't create a global</span>
+
+</pre>
+
+</DL>
+<p>
+Local variables only exist in the block they were created in. Outside of the block, they do not exist any more.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> a = 5
+
+<span class="library">print</span>(a) <span class="comment">--&gt; 5</span>
+
+
+
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> a = 6 <span class="comment">-- create a new local inside the do block instead of changing the existing a</span>
+
+  <span class="library">print</span>(a) <span class="comment">--&gt; 6</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span>(a) <span class="comment">--&gt; 5</span>
+
+</pre>
+
+</DL>
+<p>
+The place where a variable is visible is called the "scope" of a variable.
+<p>
+Now let's use functions to show how this is really useful:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> bar()
+
+  <span class="library">print</span>(x) <span class="comment">--&gt; nil</span>
+
+  <span class="keyword">local</span> x = 6
+
+  <span class="library">print</span>(x) <span class="comment">--&gt; 6</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> foo()
+
+  <span class="keyword">local</span> x = 5
+
+  <span class="library">print</span>(x) <span class="comment">--&gt; 5</span>
+
+  bar()
+
+  <span class="library">print</span>(x) <span class="comment">--&gt; 5</span>
+
+<span class="keyword">end</span>
+
+
+
+foo()
+
+</pre>
+
+</DL>
+<p>
+As you can see, each variable is visible from the point where it's declared to the end of the block it's declared in. Even though <code>bar</code>'s x exists at the same time as <code>foo</code>'s x, they're not written in the same block, so they're independent. This is what's called <em>lexical scoping</em>.
+<p>
+<H2><code>local function</code> syntax sugar</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> f() <span class="keyword">end</span>
+
+
+
+<span class="comment">-- is equivalent to</span>
+
+
+
+<span class="keyword">local</span> f
+
+f = <span class="keyword">function</span>() <span class="keyword">end</span>
+
+
+
+<span class="comment">-- not</span>
+
+
+
+<span class="keyword">local</span> f = <span class="keyword">function</span>() <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+the difference between the last two examples is important: the local variable still doesn't exist to the right of the <code>=</code> that gives it the initial value. So if the contents of the function used <code>f</code> to get a reference to itself, it will correctly get the local variable in the first and second versions, but the third version will get the global f (which will be nil, if not a completely unrelated value set by some other code).
+<p>
+<H2>Closures</H2>
+<p>
+Functions can use local variables created outside of them. These are called <em>upvalues</em>. A function that uses upvalues is called a <em>closure</em>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> x = 5
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> f() <span class="comment">-- we use the "local function" syntax here, but that's just for good practice, the example will work without it</span>
+
+  <span class="library">print</span>(x)
+
+<span class="keyword">end</span>
+
+
+
+f() <span class="comment">--&gt; 5</span>
+
+x = 6
+
+f() <span class="comment">--&gt; 6</span>
+
+</pre>
+
+</DL>
+<p>
+The function sees the change even if it's changed outside of the function. This means that the variable in the function is not a copy, it's shared with the outer scope.
+<p>
+Also, even if the outer scope has passed, the function will still hold on to the variable. If there were two functions created in the scope, they will still share the variable after the outer scope is gone.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> f()
+
+  <span class="keyword">local</span> v = 0
+
+  <span class="keyword">local</span> <span class="keyword">function</span> get()
+
+    <span class="keyword">return</span> v
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> set(new_v)
+
+    v = new_v
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> {get=get, set=set}
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> t, u = f(), f()
+
+<span class="library">print</span>(t.get()) <span class="comment">--&gt; 0</span>
+
+<span class="library">print</span>(u.get()) <span class="comment">--&gt; 0</span>
+
+t.set(5)
+
+u.set(6)
+
+<span class="library">print</span>(t.get()) <span class="comment">--&gt; 5</span>
+
+<span class="library">print</span>(u.get()) <span class="comment">--&gt; 6</span>
+
+</pre>
+
+</DL>
+<p>
+Since the two values returned by the two calls to <code>f</code> are independent, we can see that every time a function is called, it creates a new scope with new variables.
+<p>
+Similarly, loops create a new scope on each iteration:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> t = {}
+
+
+
+<span class="keyword">for</span> i = 1, 10 <span class="keyword">do</span>
+
+  t[i] = <span class="keyword">function</span>() <span class="library">print</span>(i) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+t[1]() <span class="comment">--&gt; 1</span>
+
+t[8]() <span class="comment">--&gt; 8</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Why are local variables difficult in the interactive interpreter</H2>
+<p>
+Because it runs each line in a new scope:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">local</span> a=5; <span class="library">print</span>(a)
+
+5
+
+&gt; <span class="library">print</span>(a) <span class="comment">-- a is out of scope now, so global a is used</span>
+
+<span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+<p>
+One thing you can do is wrap the code in a do-end block, but it won't be interactive until you finish writing the whole block:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">do</span>
+
+&gt;&gt;  <span class="keyword">local</span> a = 5
+
+&gt;&gt;  <span class="library">print</span>(a) <span class="comment">-- works on a new line</span>
+
+&gt;&gt; <span class="keyword">end</span>
+
+5
+
+</pre>
+
+</DL>
+<p>
+<H2>Why not local by default?</H2>
+<p>
+You might be coming from another language that makes variables local by default, and are probably thinking "what is the point of all this extra complication? Why not make variables local by default?":
+<p>
+<DL>
+<dt><dd><pre class="code">
+x = 3
+
+
+
+<span class="comment">-- more code, you might have even forgotten about variable x by now...</span>
+
+
+
+<span class="keyword">function</span> ()
+
+  <span class="comment">-- ...</span>
+
+  x = 5 <span class="comment">-- does this create a new local x, or does it change the outer one?</span>
+
+  <span class="comment">-- ...</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- some more code...</span>
+
+</pre>
+
+</DL>
+<p>
+The problem with changing the outer one is that you might have intended to make a new variable, and instead change the existing one that you might not even know about, introducing bugs.
+<p>
+The problem with creating a new one is what if you actually want to change the outer one?
+<p>
+With the local keyword, it's all explicit: without <code>local</code>, you change the existing variable, with it, you create a new one.
+<p>
+For more discussion about this, see <a href="../wiki/LocalByDefault.html" >LocalByDefault</a>.
+<p>
+<H2>When to use local variables</H2>
+<p>
+The general rule is to always use local variables, unless it's necessary for every part of your program to be able to access the variable (which is very rare).
+<p>
+Since it's easy to forget a <code>local</code>, and since Lua doesn't warn you about it (instead silently creating a global), it can be a source of bugs. One solution is to use a script like <code>strict.lua</code> (shown below), that uses metatables (mentioned in a later tutorial) to trap global variable creation and raise an error. You can put the script in a file in your project, and do <code>require("strict")</code> to use it.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--</span>
+
+<span class="comment">-- strict.lua</span>
+
+<span class="comment">-- checks uses of undeclared global variables</span>
+
+<span class="comment">-- All global variables must be 'declared' through a regular assignment</span>
+
+<span class="comment">-- (even assigning nil will do) in a main chunk before being used</span>
+
+<span class="comment">-- anywhere or assigned to inside a function.</span>
+
+<span class="comment">--</span>
+
+
+
+<span class="keyword">local</span> mt = <span class="library">getmetatable</span>(<span class="library">_G</span>)
+
+<span class="keyword">if</span> mt == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+  mt = {}
+
+  <span class="library">setmetatable</span>(<span class="library">_G</span>, mt)
+
+<span class="keyword">end</span>
+
+
+
+__STRICT = <span class="keyword">true</span>
+
+mt.__declared = {}
+
+
+
+mt.__newindex = <span class="keyword">function</span> (t, n, v)
+
+  <span class="keyword">if</span> __STRICT <span class="keyword">and</span> <span class="keyword">not</span> mt.__declared[n] <span class="keyword">then</span>
+
+    <span class="keyword">local</span> w = <span class="library">debug.getinfo</span>(2, <span class="string">"S"</span>).what
+
+    <span class="keyword">if</span> w ~= <span class="string">"main"</span> <span class="keyword">and</span> w ~= <span class="string">"C"</span> <span class="keyword">then</span>
+
+      <span class="library">error</span>(<span class="string">"assign to undeclared variable '"</span>..n..<span class="string">"'"</span>, 2)
+
+    <span class="keyword">end</span>
+
+    mt.__declared[n] = <span class="keyword">true</span>
+
+  <span class="keyword">end</span>
+
+  <span class="library">rawset</span>(t, n, v)
+
+<span class="keyword">end</span>
+
+  
+
+mt.__index = <span class="keyword">function</span> (t, n)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> mt.__declared[n] <span class="keyword">and</span> <span class="library">debug.getinfo</span>(2, <span class="string">"S"</span>).what ~= <span class="string">"C"</span> <span class="keyword">then</span>
+
+    <span class="library">error</span>(<span class="string">"variable '"</span>..n..<span class="string">"' is not declared"</span>, 2)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">rawget</span>(t, n)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> global(...)
+
+   <span class="keyword">for</span> _, v <span class="keyword">in</span> <span class="library">ipairs</span>{...} <span class="keyword">do</span> mt.__declared[v] = <span class="keyword">true</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+For more info about enforcing use of local variables, see <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ScopeTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ScopeTutorial" >history</a><br>Last edited December 21, 2013 9:07 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ScopeTutorial" >(diff)</a>
+</body>
+</html>

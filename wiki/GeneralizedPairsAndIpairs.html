@@ -1,0 +1,669 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Generalized Pairs And Ipairs</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=GeneralizedPairsAndIpairs&amp;body=1" title="List pages referring to GeneralizedPairsAndIpairs">Generalized Pairs And Ipairs</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Warning</H3>
+This discussion seems to pertain to Lua 5.1. In Lua 5.2, the __pairs and __ipairs metamethods were added.
+-- Anders Petersson
+<p>
+A Table in Lua has these essential properties (and others):
+<p>
+<UL>
+<li> Indexed read <code>b=a[x]</code> and write <code>a[x]=b</code>.
+<li> Table iteration using <code>k,v=next(t,k)</code> (as well as the more readable <code>for</code> statement with <code>pairs</code>, <code>ipairs</code>, and others).
+<li> Length (#) operator.
+</UL>
+<p>
+The first property can be customized via __index and __newindex metamethods for tables and userdata.  There is no direct way to customize the second and third properties (<a href="../wiki/LuaVirtualization.html" >LuaVirtualization</a>).  We examine ways to customize these properties here.
+<p>
+<H3>Defining __next and __index metamethods</H3>
+<p>
+If you are happy with just rewriting the <code>next()</code> function, then you can use the code snippet below...
+<p>
+<DL>
+<dt><dd><pre class="code">
+rawnext = <span class="library">next</span>
+
+<span class="keyword">function</span> <span class="library">next</span>(t,k)
+
+  <span class="keyword">local</span> m = <span class="library">getmetatable</span>(t)
+
+  <span class="keyword">local</span> n = m <span class="keyword">and</span> m.__next <span class="keyword">or</span> rawnext
+
+  <span class="keyword">return</span> n(t,k)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> priv = {a = 1, b = 2, c = 3}
+
+<span class="keyword">local</span> mt = {
+
+  __next = <span class="keyword">function</span>(t, k) <span class="keyword">return</span> <span class="library">next</span>(priv, k) <span class="keyword">end</span>
+
+}
+
+<span class="keyword">local</span> t = <span class="library">setmetatable</span>({}, mt)
+
+
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">next</span>, t <span class="keyword">do</span> <span class="library">print</span>(k,v) <span class="keyword">end</span>
+
+<span class="comment">-- prints a 1 c 3 b 2</span>
+
+</pre>
+
+</DL>
+<p>
+Note that this has no effect on the <code>pairs</code> function:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span> <span class="library">print</span>(k,v) <span class="keyword">end</span>
+
+<span class="comment">-- prints nothing.</span>
+
+</pre>
+
+</DL>
+<p>
+The <code>pairs</code> function may be redefined in terms of <code>next</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> <span class="library">pairs</span>(t) <span class="keyword">return</span> <span class="library">next</span>, t, <span class="keyword">nil</span> <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span> <span class="library">print</span>(k,v) <span class="keyword">end</span>
+
+<span class="comment">-- prints a 1 c 3 b 2</span>
+
+</pre>
+
+</DL>
+<p>
+<code>ipairs</code> may also be extended to reference the <code>__index</code> metamethod:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> _ipairs(t, var)
+
+  var = var + 1
+
+  <span class="keyword">local</span> value = t[var]
+
+  <span class="keyword">if</span> value == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+  <span class="keyword">return</span> var, value
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> <span class="library">ipairs</span>(t) <span class="keyword">return</span> _ipairs, t, 0 <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> priv = {a = 1, b = 2, c = 3, 7, 8, 9}
+
+<span class="keyword">local</span> mt = {__index = priv}
+
+<span class="keyword">local</span> t = <span class="library">setmetatable</span>({}, mt)
+
+
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span> <span class="library">print</span>(k,v) <span class="keyword">end</span>
+
+<span class="comment">-- prints 1 7 2 8 3 9</span>
+
+</pre>
+
+</DL>
+<p>
+-- <a href="../wiki/PeterHill.html" >PeterHill</a>, <a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H3>Defining __pairs and __index metamethods</H3>
+<p>
+The following C implementation provides similar behavior but using <code>__pairs</code> and <code>__index</code> metamethods.  This approach using a <code>__pairs</code> metamethod is likely faster than the alternate approach above using a <code>__next</code> metamethod.
+<p>
+This code redefines <code>pairs</code> and <code>ipairs</code> so that:
+<p>
+<UL>
+<li> <code>pairs</code> consults the <code>__pairs</code> metamethod
+<li> <code>ipairs</code> uses <code>lua_gettable</code> instead of <code>lua_rawgeti</code> so that it will respect <code>__index</code> metamethods
+</UL>
+<p>
+It should install a <code>__pairs</code> method for strings, but it doesn't yet. Feel free to add it, all the bits and pieces are there.
+<p>
+It expects to be loaded with require "xt" and will produce an "xt" table with the various functions. However, it also overwrites <code>pairs</code> and <code>ipairs</code> in the globals table. If you find that offensive, take out the relevant lines in <code>luaopen_xt</code>.
+<p>
+In short, take it and do as you will. Feel free to post patches.
+<p>
+<DL>
+<dt><dd><pre>
+
+#include "lua.h"
+
+#include "lauxlib.h"
+
+
+
+/* This simple replacement for the standard ipairs is probably
+
+ * almost as efficient, and will work on anything which implements
+
+ * integer keys. The prototype is ipairs(obj, [start]); if start
+
+ * is omitted, it defaults to 1.
+
+ *
+
+ * Semantic differences from ipairs:
+
+ *   1) metamethods are respected, so it will work on pseudo-arrays
+
+ *   2) You can specify a starting point
+
+ *   3) ipairs does not throw an error if applied to a non-table;
+
+ *      the error will be thrown by the inext auxiliary function
+
+ *      (if the object has no __index meta). In practice, this
+
+ *      shouldn't make much difference except that the debug library
+
+ *      won't figure out the name of the object.
+
+ *   4) The auxiliary function does no explicit error checking
+
+ *      (although it calls lua_gettable which can throw an error).
+
+ *      If you call the auxiliary function with a non-numeric key, it
+
+ *      will just start at 1.
+
+ */
+
+
+
+static int luaXT_inext (lua_State *L) {
+
+  lua_Number n = lua_tonumber(L, 2) + 1;
+
+  lua_pushnumber(L, n);
+
+  lua_pushnumber(L, n);
+
+  lua_gettable(L, 1);
+
+  return lua_isnil(L, -1) ? 0 : 2;
+
+}
+
+
+
+/* Requires luaXT_inext as upvalue 1 */
+
+static int luaXT_ipairs (lua_State *L) {
+
+  int n = luaL_optinteger(L, 2, 1) - 1;
+
+  luaL_checkany(L, 1);
+
+  lua_pushvalue(L, lua_upvalueindex(1));
+
+  lua_pushvalue(L, 1);
+
+  lua_pushinteger(L, n);
+
+  return 3;
+
+}  
+
+  
+
+/* This could have been done with an __index metamethod for
+
+ * strings, but that's already been used up by the string library.
+
+ * Anyway, this is probably cleaner.
+
+ */
+
+static int luaXT_strnext (lua_State *L) {
+
+  size_t len;
+
+  const char *s = lua_tolstring(L, 1, &amp;len);
+
+  int i = lua_tointeger(L, 2) + 1;
+
+  if (i &lt;= len &amp;&amp; i &gt; 0) {
+
+    lua_pushinteger(L, i);
+
+    lua_pushlstring(L, s + i - 1, 1);
+
+    return 2;
+
+  }
+
+  return 0;
+
+}
+
+
+
+/* And finally a version of pairs that respects a __pairs metamethod.
+
+ * It knows about two default iterators: tables and strings. 
+
+ * (This could also have been done with a __pairs metamethod for
+
+ * strings, but there was no real point.)
+
+ */
+
+
+
+/* requires next and strnext as upvalues 1 and 2 */
+
+static int luaXT_pairs (lua_State *L) {
+
+  luaL_checkany(L, 1);
+
+  if (luaL_getmetafield(L, 1, "__pairs")) {
+
+    lua_insert(L, 1);
+
+    lua_call(L, lua_gettop(L) - 1, LUA_MULTRET);
+
+    return lua_gettop(L);
+
+  }
+
+  else {
+
+    switch (lua_type(L, 1)) {
+
+      case LUA_TTABLE: lua_pushvalue(L, lua_upvalueindex(1)); break;
+
+      case LUA_TSTRING: lua_pushvalue(L, lua_upvalueindex(2)); break;
+
+      default: luaL_typerror(L, 1, "iterable"); break;
+
+    }
+
+  }
+
+  lua_pushvalue(L, 1);
+
+  return 2;
+
+}
+
+
+
+
+
+static const luaL_reg luaXT_reg[] = {
+
+  {"inext", luaXT_inext},
+
+  {"strnext", luaXT_strnext},
+
+  {NULL, NULL}
+
+};
+
+
+
+int luaopen_xt (lua_State *L) {
+
+  luaL_openlib(L, "xt", luaXT_reg, 0);
+
+  lua_getfield(L, -1, "inext");
+
+  lua_pushcclosure(L, luaXT_ipairs, 1);
+
+  lua_pushvalue(L, -1); lua_setglobal(L, "ipairs");
+
+  lua_setfield(L, -2, "ipairs");
+
+  lua_getglobal(L, "next");
+
+  lua_getfield(L, -2, "strnext");
+
+  lua_pushcclosure(L, luaXT_pairs, 2);
+
+  lua_pushvalue(L, -1); lua_setglobal(L, "pairs");
+
+  lua_setfield(L, -2, "pairs");
+
+  return 1;
+
+}
+
+</pre>
+</DL>
+<p>
+Here's an alternate Lua implementation of the <code>pairs</code> replacement.  Note: unlike the C implementation, this Lua implementation won't work if the metatable is protected.
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> _p = <span class="library">pairs</span>; <span class="keyword">function</span> <span class="library">pairs</span>(t, ...)
+
+  <span class="keyword">return</span> (<span class="library">getmetatable</span>(t).__pairs <span class="keyword">or</span> _p)(t, ...) <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+-- <em><a href="../wiki/RiciLake.html" >RiciLake</a></em>
+<p>
+<H3>Defining __next and __ipairs metamethods</H3>
+<p>
+p. 262 of <em>Beginning Lua Programming</em> follows a similar method but instead uses <code>__next</code> and <code>__ipairs</code> metamethods.  The code is online via the download link at <a href="http://www.wrox.com/WileyCDA/WroxTitle/productCd-0470069171,descCd-download_code.html">[1]</a> (see Chapter 08/orderedtbl.lua).  Note, however, that this code requires a correction (noted on p. 306) to make <code> {__mode = "k"} </code> the metatable for the <code>RealTbls</code>, <code>NumToKeys</code>, and <code>KeyToNums</code> tables.
+<p>
+Here is an alternative <a href="../wiki/OrderedTable.html" >OrderedTable</a> implementation by <a href="../wiki/RiciLake.html" >RiciLake</a>.
+<p>
+<p>
+<H3>More Notes</H3>
+<p>
+If you want to truly emulate such behaviour you will need to modify the Lua source to add <code>lua_rawnext()</code> and to update <code>lua_next()</code>, in which case see the <a href="../wiki/ExtendingForAndNext.html" >ExtendingForAndNext</a> entry by <a href="../wiki/RiciLake.html" >RiciLake</a>.
+<p>
+<strong>Historical Note:</strong>
+I (<a href="../wiki/RiciLake.html" >RiciLake</a>) wrote <a href="../wiki/ExtendingForAndNext.html" >ExtendingForAndNext</a> in September, 2001, when Lua did not yet have a generalized <code>for</code> statement. The design was based on the existing code in Lua 4, and I'd like to think that it influenced the design of the generalized <code>for</code> statement, which appeared a few months later. At the time, Lua had "tag methods" rather than metamethods; tag method access was somewhat faster than metamethod access (except where optimized), but metamethods are clearly better. I mention that only to put the <a href="../wiki/ExtendingForAndNext.html" >ExtendingForAndNext</a> patch in context.
+<p>
+<a href="../wiki/ExtendingForAndNext.html" >ExtendingForAndNext</a> contemplates the use of both functions and iterable objects as the target of the <code>for</code> statement; however, Roberto's design is quite a bit nicer in that it only uses functions. Instead of looking up the appropriate <code>next</code> method on every loop iteration, an appropriate iterator-factory, such as <code>pairs</code>, is invoked just once on loop setup. That's certainly faster, unless the <code>next</code> method lookup is trivial (which it normally isn't). Since the object being iterated is constant through the loop, the <code>next</code> lookup will always be the same. But, more importantly, it's also more general, because it does not restrict an iterable object to having just one iteration mechanism.
+<p>
+The one thing which my original proposal addressed, and which is not satisfactorily solved in the current (5.1) Lua implementation, is that while it is convenient to have multiple iteration mechanisms for the same object (<code>string.gmatch</code> is probably the best example of this), it is inconvenient to have to know the type of an iterable object in order to code the correct <em>default</em> iteration mechanism. That is, one (or at least I) would like to be able to just write <code>for k, v in pairs(t) do</code> without having to know what the precise object type of <code>t</code> is, in the case where the object type has a default key/value type iteration method.
+<p>
+The code above, which generalizes the implementation of <code>pairs</code> to consult a <code>__pairs</code> metamethod, is an attempt to solve that problem in the simplest possible way.
+<p>
+The generalized version of <code>ipairs</code> is, unfortunately, probably incorrect, although I've left it in the code for historical integrity. Normally, one would want to override <code>ipairs</code> in precisely the circumstance that the object's default iteration mechanism should be increasing integer keys. In fact, in many cases the correct default iterator for a given table is the iterator returned by <code>ipairs</code> rather than the iterator returned by <code>pairs</code>, and it would be more appropriate to make <code>ipairs</code> (or a customized version) the <code>__pairs</code> metamethod, rather than leaving it to the object's client to know that the default iterator is <code>ipairs</code>.
+<p>
+That design <em>almost</em> eliminates the need for a <code>__next</code> metamethod, and personally I now feel that <code>__next</code> is poor style. (In fact, I feel strongly enough about it to write this longish note.) It might be argued that, just as there is a need to be able to get the default iterator using <code>pairs</code>, that one should have access to the default step function using <code>next</code>. However, that would limit the possible implementations of <code>pairs</code> since it would force them to return an iterator which used the target object itself, as opposed to some delegate or proxy, as the iteration object. In my opinion, better style is to use the <code>pairs</code> (or other iterator factory) to return a triple <code>stepfunc, obj, initial_state</code> and then use that to manually step through an iterable object, in the case that the <code>for</code> statement's rigidity is inapplicable. For example, one might use that style to create a tail-recursive loop:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- This simple example is for parsing escaped strings from an input sequence; the</span>
+
+<span class="comment">-- iterator might have been returned by string.gmatch</span>
+
+
+
+<span class="keyword">function</span> find_end(accum, f, o, s, v)
+
+  <span class="keyword">if</span> v == <span class="keyword">nil</span> <span class="keyword">then</span>                                          
+
+    <span class="library">error</span> <span class="string">"Undelimited string"</span>
+
+  <span class="keyword">elseif</span> v == accum[1] <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="library">table.concat</span>(accum, <span class="string">""</span>, 2), f(o, s)
+
+  <span class="keyword">elseif</span> v == <span class="string">'\\'</span> <span class="keyword">then</span>
+
+    s, v = f(o, s) <span class="comment">-- skip next char</span>
+
+  <span class="keyword">end</span>
+
+  accum[#accum+1] = v
+
+  <span class="keyword">return</span> find_end(accum, f, o, f(o, s)) <span class="comment">-- tail recursive loop</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> get_string(f, o, s, v)
+
+  <span class="keyword">local</span> accum = {v}                                         
+
+  <span class="keyword">return</span> find_end(accum, f, o, f(o, s))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> skip_space(f, o, s, v)
+
+  <span class="keyword">repeat</span> s, v = f(o, s) <span class="keyword">until</span> <span class="keyword">not</span> v:match<span class="string">"%s"</span>
+
+  <span class="keyword">return</span> s, v
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> get_word(f, o, s, v)
+
+  <span class="keyword">local</span> w = {v}                  
+
+  <span class="keyword">for</span> ss, vv <span class="keyword">in</span> f, o, s <span class="keyword">do</span>
+
+    <span class="keyword">if</span> vv:match<span class="string">"%w"</span> <span class="keyword">then</span> w[#w+1] = vv
+
+    <span class="keyword">else</span> <span class="keyword">return</span> <span class="library">table.concat</span>(w), ss, vv
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">table.concat</span>(w)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> nextchar(str, i)
+
+  i = i + 1
+
+  <span class="keyword">local</span> v = str:sub(i, i)
+
+  <span class="keyword">if</span> v ~= <span class="string">""</span> <span class="keyword">then</span> <span class="keyword">return</span> i, v <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> chars(str) <span class="keyword">return</span> nextchar, str, 0 <span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> aux_parse(f, o, s, v)
+
+  <span class="keyword">while</span> v <span class="keyword">do</span>
+
+    <span class="keyword">local</span> ttype, token
+
+    <span class="keyword">if</span> v:match<span class="string">"%s"</span> <span class="keyword">then</span>
+
+      s, v = skip_space(f, o, s, v)
+
+    <span class="keyword">elseif</span> v:match<span class="string">"%w"</span> <span class="keyword">then</span>
+
+      ttype, token, s, v = <span class="string">"id"</span>, get_word(f, o, s, v)
+
+    <span class="keyword">elseif</span> v:match<span class="string">"['\"]"</span> <span class="keyword">then</span>
+
+      ttype, token, s, v = <span class="string">"string"</span>, get_string(f, o, s, v)
+
+    <span class="keyword">else</span> <span class="library">error</span>(<span class="string">"Unexpected character: "</span>..v)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> ttype <span class="keyword">then</span> <span class="library">print</span>(ttype, token) <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> parse(str)           
+
+  <span class="keyword">local</span> f, o, s = chars(str)
+
+  <span class="keyword">return</span> aux_parse(f, o, f(o, s))
+
+<span class="keyword">end</span>
+
+
+
+parse<span class="string">[[word word2 'str\\ing\'' word3]]</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Self-iterating tables - the <code>__iter</code> metamethod</H3>
+<p>
+It would surely be more natural to be able to write a generic <code>for</code> over a table as follows:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> item1 <span class="keyword">in</span> table1 <span class="keyword">do</span>
+
+...
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+The problem with this is that the iterator appropriate to each type of table varies i.e. <em>ipairs</em> for array-like tables or <em>pairs</em> for dictionary-like tables. But if there was an <code>__iter</code> metamethod which was used directly by the generic <code>for</code> structure, then the appropriate iterator could be set for each table (or inherited in the class metatable for object oriented programming). In the simple cases the <code>__iter</code> metamethod would simply be set to the existing <em>pairs</em> or <em>ipairs</em> functions, but custom iterator factories could also be used were appropriate. Of course, this would involve a change to the language definition rather than just the standard libraries. However, this implementation would be backward compatible since if generic <code>for</code> saw a function in this site, it would use this as at present and ignore the metamethod. If it saw a table or a userdata, it would look for the <code>__iter</code> metamethod.
+<p>
+An idiom for achieving this with the Lua 5.1 language definition is to use the <code>__call</code> metamethod as an iterator factory. Then one can write:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> item1 <span class="keyword">in</span> table1() <span class="keyword">do</span>
+
+...
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+This is slightly less natural than the <code>__iter</code> approach, but can be implemented without changing the language definition. A side advantage is that parameters can be passed into the iterator factory to modify the iteration. For example a version of <em>ipairs</em> with optional minimum and maximum indices:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> item1 <span class="keyword">in</span> table1(3, 10) <span class="keyword">do</span>
+
+...
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+If <code>__pairs</code> and <code>__ipairs</code> metamethods are being considered for a future language implementation, could this <code>__iter</code> alternative be considered too?
+<p>
+(15 Jan 2010) Got fed up with arguing about this and implemented it myself! See <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a>.
+<p>
+-- <a href="../wiki/JohnHind.html" >JohnHind</a>
+<p>
+<H2>The __len metamethod</H2>
+<p>
+<code>#t</code> does not invoke the <code>__len</code> metamethod when <code>t</code> is a table.  See <a href="/lists/lua-l/2006-01/msg00158.html">LuaList:2006-01/msg00158.html</a>.  This prevents simple implementations of some obvious things like <a href="../wiki/ReadOnlyTables.html" >ReadOnlyTables</a> .
+<p>
+The <code>__len</code> metamethod for tables is reported to be implemented in Lua 5.2 (<a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a>).
+<p>
+There seems to be a general policy in Lua that metamethods do not override built-in functionality but rather only supply functionality in cases that would otherwise generate an error message (or at least return a <code>nil</code>). But <code>__len</code> for tables has to be a good case to be the 'exception which proves the rule', since the default behaviour only makes sense in the special case of contiguous arrays and other behaviours could reasonably be expected in other cases. -- <a href="../wiki/JohnHind.html" >JohnHind</a>
+<p>
+<H2>__pairs and __ipairs in Lua 5.2</H2>
+<p>
+Note that you can override <code>__ipairs</code> for strings, although of course this is a global change:
+<p>
+<pre class="code">
+<span class="library">getmetatable</span>(<span class="string">''</span>).__ipairs = <span class="keyword">function</span>(s)
+
+    <span class="keyword">local</span> i,n = 0,#s
+
+    <span class="keyword">return</span> <span class="keyword">function</span>()
+
+        i = i + 1
+
+        <span class="keyword">if</span> i &lt;= n <span class="keyword">then</span>
+
+            <span class="keyword">return</span> i,s:sub(i,i)
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">for</span> i,ch <span class="keyword">in</span> <span class="library">ipairs</span> <span class="string">"he!"</span> <span class="keyword">do</span> <span class="library">print</span>(i,ch) <span class="keyword">end</span>
+
+=&gt;
+
+1       h
+
+2       e
+
+3       !
+
+</pre>
+
+<p>
+<a href="../wiki/SteveDonovan.html" >SteveDonovan</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/NextMetamethodForIndexTable.html" >NextMetamethodForIndexTable</a> - Rewriting <code>next()</code> for when __index is a table
+<li> <a href="../wiki/LuaVirtualization.html" >LuaVirtualization</a> - notes limitations of objects acting as values of other types
+<li> <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a> - patch to implement the '__iter' metamethod.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=GeneralizedPairsAndIpairs" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=GeneralizedPairsAndIpairs" >history</a><br>Last edited February 23, 2014 3:16 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=GeneralizedPairsAndIpairs" >(diff)</a>
+</body>
+</html>

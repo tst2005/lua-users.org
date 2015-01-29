@@ -1,0 +1,165 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Boolean Type Proposal</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BooleanTypeProposal&amp;body=1" title="List pages referring to BooleanTypeProposal">Boolean Type Proposal</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em><a href="../wiki/VersionNotice.html" >VersionNotice</a>: This page pertains to Lua 4 and older versions of Lua that did not have a built-in Boolean type.  A built-in Boolean type is available as of Lua 5.0.</em>
+<p>
+Here is a plan for fixing Lua's problem with nil being used for false (which is not explained anywhere on this site yet, refer to lua-l).  It still needs more work.
+<p>
+Add a new type "false" that has a single value of <code>false</code>.  (This is similar to how type "nil" has a single value <code>nil</code>, and follows Scheme.)  Examples:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(<span class="library">type</span>(<span class="keyword">false</span>))  <span class="comment">--&gt; "false"</span>
+
+</pre>
+
+</DL>
+<p>
+Relational operators return <code>false</code> for false and a value other than <code>false</code>/<code>nil</code> for true.  Examples:
+<p>
+<DL>
+<dt><dd><pre class="code">
+5 &gt; 6         <span class="comment">--&gt; false</span>
+
+5 ~= <span class="keyword">false</span>    <span class="comment">--&gt; "true"</span>
+
+<span class="keyword">nil</span> == <span class="keyword">false</span>  <span class="comment">--&gt; false</span>
+
+</pre>
+
+</DL>
+<p>
+Logical operators consider values other than <code>false</code>/<code>nil</code> as true.  If the result of a logical operator is <code>nil</code> (due to conjunction/disjunction with nil) it will be converted to <code>false</code>.  In other words the result of both relational and logical operators will never be <code>nil</code>.  Examples:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">nil</span> <span class="keyword">and</span> 5     <span class="comment">--&gt; false</span>
+
+<span class="keyword">nil</span> <span class="keyword">or</span> 5      <span class="comment">--&gt; 5</span>
+
+5 <span class="keyword">and</span> <span class="keyword">false</span>   <span class="comment">--&gt; false</span>
+
+5 <span class="keyword">or</span> <span class="keyword">false</span>    <span class="comment">--&gt; 5</span>
+
+<span class="keyword">not</span> 5         <span class="comment">--&gt; false</span>
+
+</pre>
+
+</DL>
+<p>
+The bad news... here are some examples of what would get broken.  However none seem like sane programming patterns.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">if</span> (a&gt;b) == <span class="keyword">nil</span> <span class="keyword">then</span> ... <span class="keyword">end</span>  <span class="comment">-- testing boolean expression against nil</span>
+
+var3 = var1 <span class="keyword">or</span> var2           <span class="comment">-- expecting possible nil var3</span>
+
+var3 = var1 <span class="keyword">and</span> var2          <span class="comment">--             "</span>
+
+</pre>
+
+</DL>
+<p>
+The good news... this change allows programs to distinguish between a variable assigned from a boolean expression and a non-existing variable.  For example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- try one of these</span>
+
+<span class="comment">--IsOk = nil</span>
+
+<span class="comment">--IsOk = SomePredicateFunction()</span>
+
+<span class="comment">--IsOk = "I don't know"</span>
+
+
+
+<span class="comment">-- new style test for non-existance</span>
+
+<span class="keyword">if</span> IsOk == <span class="keyword">nil</span> <span class="keyword">then</span> ... <span class="keyword">end</span>
+
+
+
+<span class="comment">-- new style test for existance</span>
+
+<span class="keyword">if</span> IsOk ~= <span class="keyword">nil</span> <span class="keyword">then</span> ... <span class="keyword">end</span>
+
+
+
+<span class="comment">-- new style test for true/false (assuming value is not nil)</span>
+
+<span class="comment">-- also: old style test for existance (assuming value is not false,</span>
+
+<span class="comment">--    which holds for legacy code)</span>
+
+<span class="keyword">if</span> IsOk <span class="keyword">then</span> ... <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<hr><H3>Implementation for Lua 4.0</H3>
+<p>
+I made a patch for Lua 4.0 to implement a boolean type.  It does not behave exactly as written above -- the operators <code>and</code> and <code>or</code> are different.  In Lua they are not strict boolean operators; they may give non-boolean results and will not evaluate their second operand if the outcome of expression is known by the first operand.  So I defined them like this:
+<p>
+<DL>
+<dt><dd><pre>
+
+and(a,b):  if a==nil or  a==false then return a else return b end
+
+or(a,b):   if a~=nil and a~=false then return a else return b end
+
+</pre>
+</DL>
+<p>
+where b is only evaluated when required.  With this definition regularly used Lua constructs with these operators behave as before.  I.e. your example above (<code>var3 = var1 and/or var2</code>) may give a nil to var3.
+<p>
+Everything else is as described as above: all comparison operators and the <code>not</code> operator return either false (a reserved keyword now) or the number 1 as true.  The conditional statements (if/while/repeat) and <code>not</code> assume everything except <code>nil</code> and <code>false</code> as true.  There are 3 new API functions: lua_pushfalse, lua_isfalse, and lua_istrue (not nil nor false).  The new tag is named LUA_TFALSE and the type string is "false".
+<p>
+Some warnings:
+<p>
+<UL>
+<li> "<code>if x==nil</code>" is no longer the same as "<code>if not x</code>" as is "<code>if x~=nil</code>" no longer the same as "<code>if x</code>".  Better check your programs...
+<li> The VM-code has changed, so you have to recompile.
+<li> And, the patch is not tested very much.  If you find any misbehaviour please let me know.
+</UL>
+<p>
+Ah, and the patch is here: <a href="/files/wiki_insecure/users/froese/bool-patch-1">Files:wiki_insecure/users/froese/bool-patch-1</a>
+<p>
+-- EdgarToernig<a href="/cgi-bin/wiki.pl?action=edit&amp;id=EdgarToernig" >?</a>
+<p>
+Great!  One minor complaint about the patch... when adding new defines (<code>LUA_REFFALSE</code>, <code>LUA_TFALSE</code>) there is no reason to change existing defines.  Likewise for new opcodes.  This reduces conflict with other patches.  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>
+<p>
+Maybe this should be rounded out by adding a global <code>true</code> set to 1.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BooleanTypeProposal" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BooleanTypeProposal" >history</a><br>Last edited July 14, 2013 7:23 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BooleanTypeProposal" >(diff)</a>
+</body>
+</html>

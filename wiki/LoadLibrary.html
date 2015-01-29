@@ -1,0 +1,240 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Load Library</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LoadLibrary&amp;body=1" title="List pages referring to LoadLibrary">Load Library</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+On Windows, binary modules are dynamically loaded into Lua as <a href="http://en.wikipedia.org/wiki/Dynamic-link_library.html">[DLLs]</a>.  Windows almost always loads DLLs via the <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms684175.aspx">[LoadLibrary]</a> or <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms684179.aspx">[LoadLibraryEx]</a> Win32 API functions.  These functions have Unicode (<code>LoadLibraryW/LoadLibraryEx</code>) and ANSI (<code>LoadLibraryA/LoadLibraryExA</code>) variants for the file name parameter.  In Lua 5.1, loadlib.c calls <code>LoadLibraryA</code>.  In Lua 5.2-beta, loadlib.c calls <code>LoadLibraryExA</code>, and its third parameter is taken from the <code>LUA_LLE_FLAGS</code> define (which defaults to 0).
+<p>
+<H3>Dll Path Rules</H3>
+<p>
+See <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms682586.aspx">[Dynamic-Link Library Search Order]</a> for the rules governing the order of search paths that Windows looks for the DLL in.  These rules are complicated and tend to change between versions of Windows.  (Also, Windows Embedded (CE) <a href="http://msdn.microsoft.com/en-us/library/ee488148.aspx">[1]</a>/Mobile <a href="http://msdn.microsoft.com/en-us/library/aa909187.aspx">[2]</a> have special rules described later below.)  In particular...
+<p>
+First, "If the string specifies a fully qualified path, the function searches only that path for the module." <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms684179.aspx">[3]</a>.  No further rules below are applied.  Also, if you use <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms682600.aspx">[DLL redirection]</a> or manifests (see manifest/WinSxS links at bottom), those techniques are used to find the DLL before the other techniques below.
+<p>
+Otherwise, the following two rules are applied next:
+<p>
+<UL>
+<li> (1) "If a DLL with the same module name is already loaded in memory, the system checks only for redirection and a manifest before resolving to the loaded DLL, no matter which directory it is in. The system does not search for the DLL." <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms682586.aspx">[4]</a>  This rule seems to only govern DLLs that are not loaded with an absolute path.  If a system DLL "<code>foo.dll</code>" is loaded and you later try to load your own "<code>foo.dll</code>" using an absolute path, both will indeed load.
+</UL>
+<p>
+<UL>
+<li> (2) "If the DLL is on the list of known DLLs for the version of Windows on which the application is running, the system uses its copy of the known DLL (and the known DLL's dependent DLLs, if any). The system does not search for the DLL." <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms682586.aspx">[4]</a>  In Windows 7, there are a few dozen of these known DLLs, including user32, kernel32, gdi32, msvcrt, and others.  This rule seems to only govern DLLs that are not loaded with an absolute path.  If a system DLL "<code>kernel32.dll</code>" is loaded and you later try to load your own "<code>kernel32.dll</code>" using an absolute path, both will indeed load.
+</UL>
+<p>
+If a match is still not found, a search order (standard or alternate) is done as described below.
+<p>
+<UL>
+<li> In the "Standard Search Order for Desktop Applications" with "Safe<code></code>Dll<code></code>Search<code></code>Mode enabled" <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms682586.aspx">[4]</a>, which is normally the default behavior, Windows will search in the "The directory from which the application loaded" (i.e. where the EXE is located), then various Windows system directories, then the current directory, and finally the directories in the <code>PATH</code> environment variable.  The DLL's in the Windows system directories have the potential to interfere, and on Windows 7 there are close to 1500 of them.
+</UL>
+<p>
+<UL>
+<li> Concerning <code>LoadLibraryEx</code>, "If <code>lpFileName</code> specifies a relative path, the entire relative path is appended to every token in the DLL search path. To load a module from a relative path without searching any other path, use <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/aa364963.aspx">[GetFullPathName]</a> to get a nonrelative path and call <code>LoadLibraryEx</code> with the nonrelative path. If the module is being loaded as a datafile and the relative path starts with <code>.\</code> or <code>..\</code>, the relative path is treated as an absolute path." <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms684179.aspx">[3]</a> (Is this also true of <code>LoadLibrary</code>?)  Since Lua modules are loaded as images not as datafiles (<code>LOAD_LIBRARY_AS_DATAFILE</code>), a <code>package.cpath</code> of "<code>.\?.dll</code>" will <strong>not</strong> be treated by <code>LoadLibraryEx</code> as an absolute path (as described below), and you will need to use something like <code>GetFullPathName</code> if you want to form an absolute path. <a href="/lists/lua-l/2006-12/msg00060.html">[9]</a><a href="/lists/lua-l/2006-12/msg00064.html">[10]</a>
+</UL>
+<p>
+<UL>
+<UL>
+<li> Note: <code>GetFullPathName</code> has a worrying statement "Multithreaded applications and shared library code should not use the <code>GetFullPathName</code> function and should avoid using relative path names [...] possible data corruption". <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/aa364963.aspx">[5]</a>  Can the same corruption occur when <code>LoadLibrary/LoadLibraryEx</code> is passed a relative path?
+</UL>
+</UL>
+<p>
+<UL>
+<li> Concerning <code>LoadLibraryEx</code> with <code>LOAD_WITH_ALTERED_SEARCH_PATH</code>, "If this value is used and <code>lpFileName</code> specifies an absolute path, the system uses the alternate file search strategy discussed in the Remarks section to find associated executable modules that the specified module causes to be loaded." <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms684179.aspx">[3]</a>  In other words, if your binary Lua module DLL in turn loads other DLLs via <code>LoadLibrary</code> without absolute paths, the <code>LOAD_WITH_ALTERED_SEARCH_PATH</code> will begin searching relative to the directory containing your DLL (which might be different from the directory containing <code>lua.exe</code>).
+</UL>
+<p>
+<UL>
+<li> Concerning <code>LoadLibraryEx</code> with <code>LOAD_WITH_ALTERED_SEARCH_PATH</code>, "If this value is used and <code>lpFileName</code> specifies a relative path, the behavior is undefined." and "<code>LOAD_WITH_ALTERED_SEARCH_PATH</code> does not work with relative paths." <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms684179.aspx">[3]</a>  This suggests that Lua 5.2.0-beta <code>LUA_LLE_FLAGS=LOAD_WITH_ALTERED_SEARCH_PATH</code> will <strong>not</strong> work properly if the Lua binary module DLL is located via <code>./?.dll</code> rather than via an absolute path.
+</UL>
+<p>
+<UL>
+<UL>
+<li> Although it's undefined behavior, in practice <code>LoadLibraryEx + LOAD_WITH_ALTERED_SEARCH_PATH</code> with a "relative" path of "<code>.\\winmm.dll</code>" seems to load preferentially from the current directory rather than from the system directory in Windows 7.
+</UL>
+</UL>
+<p>
+Windows Embedded (CE) <a href="http://msdn.microsoft.com/en-us/library/ee488148.aspx">[1]</a> / Mobile <a href="http://msdn.microsoft.com/en-us/library/aa909187.aspx">[2]</a> have these special behaviors:
+<p>
+<UL>
+<li> "[...] all path information is ignored when determining if the DLL is already loaded. This means that if a DLL with the same name is currently loaded by any process on the system the search order is ignored, even if the path is absolute. [...] Two different modules cannot have the same file name, even if the extensions are different. These effectively have the same module name. For example, if <code>LoadLibrary</code> is made on <code>Sample.cpl</code>, the OS does not load <code>Sample.cpl</code>, but instead loads <code>Sample.dll</code> again.  A similar limitation exists for modules with the same name but residing in different directories. For example, if <code>LoadLibrary</code> is called on <code>\\Windows\Sample.dll</code>, and then <code>LoadLibrary</code> is called on <code>\\MyDir\Sample.dll</code>, <code>\\Windows\Sample.dll</code> will simply be reloaded."
+</UL>
+<p>
+<UL>
+<li> "Unless the full path to the module is specified, Windows Embedded Compact searches the following path for the module: The absolute path specified by the lpLibFileName parameter; The <code>.exe</code> launch directory; The Windows directory; ROM DLL files; An OEM-specified search path."
+</UL>
+<p>
+<UL>
+<li> <code>LoadLibrary</code>/<code>LoadLibraryEx</code> does not support manifests, <code>LOAD_WITH_ALTERED_SEARCH_PATH</code>, and other such more advanced features.
+</UL>
+<p>
+<H3>Placement of DLLs</H3>
+<p>
+A typical use case involves an application process (e.g. <code>lua.exe</code>) that loads binary Lua modules (e.g. <code>foo.dll</code>).  <code>lua.exe</code> and <code>foo.dll</code> may in turn also depend directly or indirectly on other (non-Lua) library/system DLLs (e.g. <code>bar.dll</code>).  The simplest file organization is often to put all these files in the same directory, which "largely" works under the above search rules.  (There is, however, possible confusion if the binary Lua module DLL and library/system DLL names happen to collide, as is discussed later below.)  Many people (e.g. LuaForWindows<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaForWindows" >?</a>) feel that the DLLs clutter up the directory containing the EXE, and they prefer to place the DLLs in a separate subdirectory that they don't typically need to look at.  You can place both types of DLLs in the same subdirectory or you can further split these into two subdirectories.  (Linux distributions of many scripting languages do the latter to avoid the scripting language libraries littering the system libraries.)  In any case, putting these files in different directories can complicate the situation because you then need to have a mechanism for the files to find each other.  Some solutions include
+<p>
+<UL>
+<li> Use .bat file wrappers that set PATH, LUA_CPATH, and LUA_PATH environment variables.  This is ugly, and the .bat files don't entirely behave identically to EXEs either (.exe wrappers are cleaner but more work).  <a href="../wiki/LuaDist.html" >LuaDist</a> abandoned this.
+<li> Use some combination of Win32 functions like <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms686203.aspx">[SetDllDirectory]</a>, <code>LoadLibraryEx</code> options like <code>LOAD_WITH_ALTERED_SEARCH_PATH</code>, <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms683197.aspx">[GetModuleFileName]</a>, and <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/aa364963.aspx">[GetFullPathName]</a> to force absolute or more specific paths.
+</UL>
+<p>
+<H3>Caveats</H3>
+<p>
+<strong>Conflicts with system DLL names using relative paths:</strong> As an example, if you want to name your Lua module "winmm", which you compile to a DLL named <code>winmm.dll</code>, this will happen to have the same name as winmm.dll in the Windows system directory.  If your place your <code>winmm.dll</code> in the current directory (which we'll assume differs from the EXE's directory), then the following:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">package.loadlib</span>(<span class="string">'winmm.dll'</span>, <span class="string">'luaopen_winmm'</span>)
+
+<span class="library">package.loadlib</span>(<span class="string">'.\\winmm.dll'</span>, <span class="string">'luaopen_winmm'</span>)
+
+</pre>
+
+</DL>
+<p>
+will both fail under "Standard Search Order for Desktop Applications" with "Safe<code></code>Dll<code></code>Search<code></code>Mode enabled".  If the path provided to <code>LoadLibraryEx</code> is relative, as both are considered here, Windows first looks in the EXE directory (where <code>lua.exe</code> is located) and then in the Windows system directories before looking in the current directory.  (Moreover, if your application calls <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms686203.aspx">[SetDllDirectory]</a>, then it will <strong>never</strong> look in the current directory.)
+<p>
+<DL>
+<dt><dd>Note: <a href="http://blogs.msdn.com/b/david_leblanc/archive/2008/02/20/dll-preloading-attacks.aspx">[DLL Preloading Attacks]</a> recommends, for security reasons, that 'If you never have a need to load a DLL from the current directory, just call <code>SetDllDirectory</code> with an argument of "".'
+</DL>
+<p>
+If, however, you place your <code>winmm.dll</code> in the same directory as <code>lua.exe</code>, then the above two statements usually will both work.  However, if your process (or even a DLL indirectly loaded into your process by the operating system, outside of your control) tries to load the system "<code>winmm.dll</code>" (which it typically will try to load without an absolute path), it will instead receive your <code>winmm.dll</code>, which won't work and could crash.  (Maybe we can avoid that problem with manifests?)
+<p>
+We could alternately pass an absolute path:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">package.loadlib</span>(<span class="string">[[c:\path\to\winmm.dll]]</span>, <span class="string">'luaopen_winmm'</span>)
+
+</pre>
+
+</DL>
+<p>
+Now, Windows will only try to load the module from the specified location, which it will begin to do.  However, if your process <strong>later</strong> (rather than before) tries to also load the system "<code>winmm.dll</code>" (typically without an absolute path), it will fail because it sees a DLL with the same name already loaded and uses that, which is incorrect.
+<p>
+That above problems largely do not seem to affect the case if your module were named "foo.winmm", located in <code>.\foo\winmm.dll</code>, and loaded with a relative path.  When <code>.\foo\winmm.dll</code> is passed to <code>LoadLibraryEx</code>, Windows appends <code>.\foo\winmm.dll</code> to all its search paths, and of course none of these likely exists.  However, we still have problems if your process later tries to load the system "<code>winmm.dll</code>" without a path.
+<p>
+These problems could be compounded if scripting languages other than Lua also try to use a similar module naming scheme.
+<p>
+The above problems could be avoided by ensuring Lua module DLL names never conflict with system DLL names.  You might do this by giving Lua module DLL names a globally unique suffix and/or extension--e.g. rather than "<code>.dll</code>" maybe "<code>.luad</code>" (analogous to Python <code>.pyd</code> and following similar conventions to <code>.luac</code>), "<code>.luadll</code>", "<code>.lua.dll</code>" (might not be a good idea since "Many things break when you have an extra dot in DLL names" -- <a href="../wiki/MikePall.html" >MikePall</a> in <a href="/lists/lua-l/2008-06/msg00084.html">[11]</a>), or "<code>-lua.dll</code>". <a href="/lists/lua-l/2011-09/msg00398.html">LuaList:2011-09/msg00398.html</a> .  You will need to adjust <code>package.cpath</code> appropriately to handle this.  On Linux, system shared libraries are prefixed by <code>lib</code> <a href="/lists/lua-l/2011-09/msg00368.html">[12]</a>.
+<p>
+The above solutions, however, are insufficient on <strong>Windows CE/Mobile/Embedded</strong>, which have the additional restriction that "all path [and extension] information is ignored when determining if the DLL is already loaded".  This has caused Lua<code></code>Socket <code>mime/core.dll</code> and <code>socket/core.dll</code> to conflict <a href="http://article.gmane.org/gmane.comp.lang.lua.general/85119">[6]</a>.  It would also prevent the unique extension solution above, with the exception of things like <code>-lua.dll</code> (where the unique extension is actually part of the file name).  One overall solution here, at least for embedded versions of Windows, is to have DLL names like <code>socket_core-lua.dll</code>, which will never conflict with <code>mime_core-lua.dll</code> nor any possible <code>core.dll</code>.  A change may be made to <code>findfile()</code> in <code>loadlib.c</code> so that dots in the module name are replaced with "<code>_</code>" rather than "<code>/</code>" <a href="http://article.gmane.org/gmane.comp.lang.lua.general/85119">[6]</a>.  Lua 5.2 provides a <code>LUA_CSUBSEP</code> variable for this.
+<p>
+<H3>Other Comments</H3>
+<p>
+<UL>
+<li> 'For those who do use non-path filenames in their LUA_CPATH e.g. "<code>abc.dll</code>" there is a significant performance overhead (&gt;2 orders of magnitude) in allowing windows to scan the serach path.' (David Burgess in <a href="/lists/lua-l/2006-12/msg00049.html">LuaList:2006-12/msg00049.html</a> )
+<li> 'even a seemingly innocent file open dialog may change the current directory ...' (<a href="/lists/lua-l/2006-12/msg00064.html">LuaList:2006-12/msg00064.html</a>)
+</UL>
+<p>
+<H3>Comparisons</H3>
+<p>
+<UL>
+<li> In Cygwin, all Cygwin DLL's (as opposed to native ones) are given the prefix "<code>cyg</code>" (e.g. <code>cyglua-5.1.dll</code>), similar to the "<code>lib</code>" prefix on Linux shared libraries. <a href="/lists/lua-l/2011-09/msg00441.html">[13]</a><a href="http://docs.redhat.com/docs/en-US/Red_Hat_Enterprise_Linux/4/html/Using_ld_the_GNU_Linker/win32.html">[7]</a>
+<li> In Windows Python (2.7 and 3.2), binary Python module DLL's are given the extension <code>.pyd</code> rather than <code>.dll</code> See <a href="http://docs.python.org/faq/windows.html#is-a-pyd-file-the-same-as-a-dll">[Is a *.pyd file the same as a DLL?]</a>.  "The output file should be called <code>spam.pyd</code> (in Release mode) or <code>spam_d.pyd</code> (in Debug mode). The extension <code>.pyd</code> was chosen to avoid confusion with a system library <code>spam.dll</code> to which your module could be a Python interface." <a href="http://docs.python.org/extending/windows.html">[8]</a>.  Python module DLLs (e.g. <code>_sqlite3.pyd</code>) and Python C library DLLs (e.g. <code>sqlite3.dll</code>) are both stored in a "DLLs" directory (which only has about two dozen files), Python source libraries (e.g. <code>sqlite3\dump.py</code>) are stored in a "Lib" directory, and <code>python.exe</code> (and <code>pythonw.exe</code>) are in the parent directory.  However, Cygwin Python 2.6 doesn't quite follow that (e.g. <code>_sqlite3.dll</code> and <code>cygsqlite3-0.dll</code>).  Python <a href="http://svn.python.org/projects/python/trunk/Python/dynload_win.c">[dynload_win.c]</a> uses <code>LoadLibraryEx</code> with <code>LOAD_WITH_ALTERED_SEARCH_PATH</code>, and the path is forced to be absolute with <code>GetFullPathName</code>.
+<li> Windows Strawberry Perl uses names like <code>TIFF.dll</code> (binary Perl module) and <code>libtiff-3_.dll</code> (C library), and these are stored in separate directories.  Perl <a href="https://github.com/mirrors/perl/blob/blead/win32/win32.c">[win32.c]</a> uses <code>LoadLibraryEx</code> with <code>LOAD_WITH_ALTERED_SEARCH_PATH</code>, and the path appears forced to be absolute (<code>PerlDir_mapA</code>).
+<li> Windows Ruby uses binary module DLL names like <code>zlib.so</code> and system DLL names like <code>zlib1.dll</code>.  The latter are stored in their own directories, whereas the former as stored in the same directory as the <code>ruby.exe</code> and <code>rubyw.exe</code>.  Ruby dl.h/dln.c seems to just use <code>LoadLibrary</code> (not <code>LoadLibraryEx</code>).
+</UL>
+<p>
+The common theme is that there is an effort to keep distinct DLL naming conventions for scripting language binary C modules and system libraries.
+<p>
+<H3>Possible Conclusions</H3>
+<p>
+<UL>
+<li> Lua binary modules should have a unique DLL naming convention, like "<code>foo.luad</code>" or "<code>foo-lua.dll</code>" rather than "<code>foo.dll</code>", to avoid conflict with non-Lua DLLs.  <code>LUA_CPATH</code> can be updated accordingly.
+<li> Something maybe should be done about Lua 5.2.0-beta <code>LoadLibraryEx</code> triggering undefined behavior with <code>LUA_LLE_FLAGS=LOAD_WITH_ALTERED_SEARCH_PATH</code> and relative paths like <code>package.cpath=".\\?.dll"</code>.  A recommended approach is to make paths absolute.  This may be done via <code>GetFullPathName</code>, though it possibly leads to corruption in multithreaded and shared library situations (why shared libraries???). <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/aa364963.aspx">[5]</a>  Alternately, "<code>.\\?.dll</code>" could could be removed from <code>package.cpath</code>, but the user might still try to add it.
+<li> Embedded versions of Windows have unique requirements, and <code>loadlib.c</code> <code>findfile()</code> may need a small patch.
+</UL>
+<p>
+(Footnote: Perhaps <code>LUA_PATH</code> should match <code>.luac</code> files too.  On the other hand, renaming <code>.luac</code> files to <code>.lua</code> works without complicating the path.)
+<p>
+<H3>DLL Test code</H3>
+<p>
+The following test DLL in conjunction with <code>package.loadlib</code> may be useful in understanding this behavior.
+<p>
+<DL>
+<dt><dd><pre>
+
+//cl test.c /link /DLL /out:test.dll winmm.lib
+
+
+
+#include &lt;stdio.h&gt;
+
+#include &lt;windows.h&gt;
+
+
+
+__declspec(dllexport) int __cdecl luaopen_winmm(void * x) {
+
+  printf("called test, %d\n", (int)timeGetTime());
+
+  return 0;
+
+}
+
+
+
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
+
+  printf("load/unload my DLL\n");
+
+  return TRUE;
+
+}
+
+</pre>
+</DL>
+<p>
+<H3>Links</H3>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2010-01/msg00572.html">LuaList:2010-01/msg00572.html</a> - "<code>LoadLibrary</code> and 5.2" - Scuri suggest <code>LOAD_WITH_ALTERED_SEARCH_PATH</code>
+<UL>
+<li> <a href="/lists/lua-l/2010-01/msg00836.html">LuaList:2010-01/msg00836.html</a> - addition of <code>LUA_LLE_FLAGS</code> in 5.2work2
+<li> <a href="/lists/lua-l/2010-01/msg00757.html">LuaList:2010-01/msg00757.html</a> - Burgess suggesting <code>luaconf.h</code> option for <code>LOAD_WITH_ALTERED_SEARCH_PATH</code>
+<li> <a href="/lists/lua-l/2010-01/msg00605.html">LuaList:2010-01/msg00605.html</a>
+</UL>
+<li> <a href="/lists/lua-l/2008-05/msg00397.html">LuaList:2008-05/msg00397.html</a> - "Module loading on Windows" - suggest <code>LOAD_WITH_ALTERED_SEARCH_PATH</code>
+<li> <a href="/lists/lua-l/2006-12/msg00047.html">LuaList:2006-12/msg00047.html</a> - "Suggestion for <code>LoadLibrary</code> in windows" - suggest <code>LOAD_WITH_ALTERED_SEARCH_PATH</code>
+<UL>
+<li> <a href="/lists/lua-l/2006-12/msg00064.html">LuaList:2006-12/msg00064.html</a> - Pall notes
+</UL>
+<li> <a href="/lists/lua-l/2007-03/msg00778.html">LuaList:2007-03/msg00778.html</a> - Pall on *A v.s. *W calls
+<li> <a href="/lists/lua-l/2005-09/msg00135.html">LuaList:2005-09/msg00135.html</a> - Burgess suggesting <code>LUA_CDIR"\\?.dll;"</code> prior to <code>"?.dll;"</code>
+<li> Manifests/WinSxS links: <a href="http://www.davidlenihan.com/2007/07/winsxs.html">[WinSxS blog post 1]</a> <a href="http://spench.net/drupal/resources/winsxs">[WinSxS blog post 2]</a> <a href="http://omnicognate.wordpress.com/2009/10/05/winsxs/">[WinSxS blog post 3]</a> <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/aa375365(v=vs.85).aspx">[MSDN: Manifests]</a> <a href="http://msdn.microsoft.com/en-us/library/aa374224.aspx">[MSDN: Assembly search sequence]</a>
+<li> <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms684175(v=vs.85).aspx">[LoadLibrary in Windows]</a> / <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms684175(v=vs.85).aspx">[LoadLibraryEx in Windows]</a>
+<li> <a href="http://msdn.microsoft.com/en-us/library/aa909187.aspx">[LoadLibrary]</a> and <a href="http://msdn.microsoft.com/en-us/library/aa914911.aspx">[LoadLibraryEx]</a> in Windows Mobile 6.5]
+<li> <a href="http://msdn.microsoft.com/en-us/library/ee488148.aspx">[LoadLibrary]</a> and <a href="http://msdn.microsoft.com/en-us/library/ee488215.aspx">[LoadLibraryEx]</a> in Windows Embedded Compact 7]
+</UL>
+<p>
+<H3>Related Topics</H3>
+<p>
+<UL>
+<li> <a href="../wiki/ApplicationBinaryInterface.html" >ApplicationBinaryInterface</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LoadLibrary" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LoadLibrary" >history</a><br>Last edited December 15, 2011 1:40 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LoadLibrary" >(diff)</a>
+</body>
+</html>

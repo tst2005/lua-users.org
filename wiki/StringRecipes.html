@@ -1,0 +1,412 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: String Recipes</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=StringRecipes&amp;body=1" title="List pages referring to StringRecipes">String Recipes</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here are proposed solutions for doing various types of common string manipulations in Lua.
+<p>
+<H2>Substring matching</H2>
+<p>
+<H3>Check if string X starts or ends with string Y</H3>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> <span class="library">string.starts</span>(String,Start)
+
+   <span class="keyword">return</span> <span class="library">string.sub</span>(String,1,<span class="library">string.len</span>(Start))==Start
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> <span class="library">string.ends</span>(String,End)
+
+   <span class="keyword">return</span> End==<span class="string">''</span> <span class="keyword">or</span> <span class="library">string.sub</span>(String,-<span class="library">string.len</span>(End))==End
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Trim (remove initial/trailing whitespace)</H2>
+<p>
+See <a href="../wiki/StringTrim.html" >StringTrim</a>.
+<p>
+<H2>Changing case</H2>
+<p>
+<H3>Change the first character of a word to upper case</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+str = str:gsub(<span class="string">"^%l"</span>, <span class="library">string.upper</span>)
+
+</pre>
+
+</DL>
+<p>
+<H3>Change the first alphabetic character of a word to upper case</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+str = str:gsub(<span class="string">"%a"</span>, <span class="library">string.upper</span>, 1)
+
+</pre>
+
+</DL>
+<p>
+<H3>Put HTML tags in lowercase (but leaves attribute names untouched)</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+str = str:gsub(<span class="string">"&lt;[^%s&gt;]+"</span>, <span class="library">string.lower</span>)
+
+</pre>
+
+</DL>
+<p>
+<H3>Change an entire string to Title Case (i.e. capitalise the first letter of each word)</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> tchelper(first, rest)
+
+  <span class="keyword">return</span> first:upper()..rest:lower()
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Add extra characters to the pattern if you need to. _ and ' are</span>
+
+<span class="comment">--  found in the middle of identifiers and English words.</span>
+
+<span class="comment">-- We must also put %w_' into [%w_'] to make it handle normal stuff</span>
+
+<span class="comment">-- and extra stuff the same.</span>
+
+<span class="comment">-- This also turns hex numbers into, eg. 0Xa7d4</span>
+
+str = str:gsub(<span class="string">"(%a)([%w_']*)"</span>, tchelper)
+
+</pre>
+
+</DL>
+<p>
+<strong>Example:</strong>
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; str = "foo"
+
+&gt; str = str:gsub("^%l", string.upper)
+
+&gt; =str
+
+Foo
+
+&gt; str = "_foo"
+
+&gt; str = str:gsub("^%l", string.upper)
+
+&gt; =str
+
+_foo
+
+&gt; str = str:gsub("%a", string.upper, 1)
+
+&gt; =str
+
+_Foo
+
+</pre>
+</DL>
+<p>
+<H3>Convert words in all upper-case to lower-case</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+str = <span class="library">string.gsub</span> (str, <span class="string">"%f[%a]%u+%f[%A]"</span>, <span class="library">string.lower</span>)
+
+</pre>
+
+</DL>
+<p>
+Note the use here of the "frontier" regular expression patter %f. Without it it is hard to match on a word boundary, including where the boundary is at the start or end of the string to be matched. Try it on the string "AAA bbb CCC dddEEE FFFhhh JJJ". For more details read about the <a href="../wiki/FrontierPattern.html" >FrontierPattern</a>.
+<p>
+<p>
+<H2>Splitting a string into a list of substrings</H2>
+<p>
+<H3>breaking the original string on occurrences of some separator character, character set, or pattern</H3>
+<p>
+See <a href="../wiki/SplitJoin.html" >SplitJoin</a>.
+<p>
+<H3>Iterate over words in a string (adapted from Lua manual)</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- words and numbers</span>
+
+<span class="keyword">for</span> word <span class="keyword">in</span> str:gmatch(<span class="string">"%w+"</span>) <span class="keyword">do</span> ... <span class="keyword">end</span>
+
+
+
+<span class="comment">-- identifiers in typical programming languages</span>
+
+<span class="keyword">for</span> id <span class="keyword">in</span> str:gmatch(<span class="string">"[_%a][_%w]*"</span>) <span class="keyword">do</span> ... <span class="keyword">end</span>
+
+
+
+<span class="comment">-- whitespace-separated components (without handling quotes)</span>
+
+<span class="keyword">for</span> id <span class="keyword">in</span> str:gmatch(<span class="string">"%S+"</span>) <span class="keyword">do</span> ... <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Iterate over lines in a buffer, ignoring empty lines</H3>
+(works for both DOS and Unix line ending conventions)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> line <span class="keyword">in</span> str:gmatch(<span class="string">"[^\r\n]+"</span>) <span class="keyword">do</span> ... <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Any of the above can also be done as a function iterator:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- call func with each word in a string</span>
+
+str:gsub(<span class="string">"%w+"</span>, func)
+
+</pre>
+
+</DL>
+<p>
+<H2>Text Wrapping</H2>
+<p>
+<H3>Wrap a string at a given margin</H3>
+<p>
+This is intended for strings without newlines in them (i.e. after
+reflowing the text and breaking it into paragraphs.)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> wrap(str, limit, indent, indent1)
+
+  indent = indent <span class="keyword">or</span> <span class="string">""</span>
+
+  indent1 = indent1 <span class="keyword">or</span> indent
+
+  limit = limit <span class="keyword">or</span> 72
+
+  <span class="keyword">local</span> here = 1-#indent1
+
+  <span class="keyword">return</span> indent1..str:gsub(<span class="string">"(%s+)()(%S+)()"</span>,
+
+                          <span class="keyword">function</span>(sp, st, word, fi)
+
+                            <span class="keyword">if</span> fi-here &gt; limit <span class="keyword">then</span>
+
+                              here = st - #indent
+
+                              <span class="keyword">return</span> <span class="string">"\n"</span>..indent..word
+
+                            <span class="keyword">end</span>
+
+                          <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Reflowing text into paragraphs</H3>
+<p>
+This builds on wrap to do a quick-and-dirty reflow: paragraphs
+are defined as lines starting with a space, or having a blank
+line between them:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> reflow(str, limit, indent, indent1)
+
+  <span class="keyword">return</span> (str:gsub(<span class="string">"%s*\n%s+"</span>, <span class="string">"\n"</span>)
+
+             :gsub(<span class="string">"%s%s+"</span>, <span class="string">" "</span>)
+
+             :gsub(<span class="string">"[^\n]+"</span>,
+
+                   <span class="keyword">function</span>(line)
+
+                     <span class="keyword">return</span> wrap(line, limit, indent, indent1)
+
+                   <span class="keyword">end</span>))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Repetition</H2>
+<p>
+<H3>Check if a string is a repetition of some pattern</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="string">""</span> == str:gsub(pat, <span class="string">""</span>)
+
+</pre>
+
+</DL>
+<p>
+<H3>Check if a string is a repetition of some pattern separated by whitespace</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">not</span> str:gsub(pat, <span class="string">""</span>):find<span class="string">"%S"</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Check if a string is a repetition of some pattern and also satisfies some condition</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="string">""</span> == str:gsub(pat, <span class="keyword">function</span>(s) <span class="keyword">return</span> ok(s) <span class="keyword">and</span> <span class="string">""</span> <span class="keyword">or</span> <span class="string">"*"</span> <span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+<H2>Formatting</H2>
+<p>
+<H3>Interpolating variables into strings (string formatting)</H3>
+<p>
+Many languages provide a concise way to format variables into strings.  Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>( <span class="string">"%-5.5s is %5.2f"</span> % { <span class="string">"pi"</span>, <span class="library">math.pi</span> } ) <span class="comment">--&gt; pi    is  3.14</span>
+
+</pre>
+
+</DL>
+<p>
+See <a href="../wiki/StringInterpolation.html" >StringInterpolation</a> for ways to do this in Lua.
+<p>
+<H2>URL/E-Mail/Web Processing</H2>
+<p>
+Note: see also <a href="../wiki/CgiUtils.html" >CgiUtils</a>.
+<p>
+<H3>Decode an URL-encoded string</H3>
+<p>
+(Note that you should only decode a URL string after splitting it; this allows you to correctly process quoted "?" characters in the query string or base part, for instance.)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> url_decode(str)
+
+  str = <span class="library">string.gsub</span> (str, <span class="string">"+"</span>, <span class="string">" "</span>)
+
+  str = <span class="library">string.gsub</span> (str, <span class="string">"%%(%x%x)"</span>,
+
+      <span class="keyword">function</span>(h) <span class="keyword">return</span> <span class="library">string.char</span>(<span class="library">tonumber</span>(h,16)) <span class="keyword">end</span>)
+
+  str = <span class="library">string.gsub</span> (str, <span class="string">"\r\n"</span>, <span class="string">"\n"</span>)
+
+  <span class="keyword">return</span> str
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>URL-encode a string</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> url_encode(str)
+
+  <span class="keyword">if</span> (str) <span class="keyword">then</span>
+
+    str = <span class="library">string.gsub</span> (str, <span class="string">"\n"</span>, <span class="string">"\r\n"</span>)
+
+    str = <span class="library">string.gsub</span> (str, <span class="string">"([^%w %-%_%.%~])"</span>,
+
+        <span class="keyword">function</span> (c) <span class="keyword">return</span> <span class="library">string.format</span> (<span class="string">"%%%02X"</span>, <span class="library">string.byte</span>(c)) <span class="keyword">end</span>)
+
+    str = <span class="library">string.gsub</span> (str, <span class="string">" "</span>, <span class="string">"+"</span>)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> str	
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Match Email addresses</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+email=<span class="string">"alex@it-rfc.de"</span>
+
+<span class="keyword">if</span> (email:match(<span class="string">"[A-Za-z0-9%.%%%+%-]+@[A-Za-z0-9%.%%%+%-]+%.%w%w%w?%w?"</span>)) <span class="keyword">then</span>
+
+  <span class="library">print</span>(email .. <span class="string">" is a valid email address"</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>CSV (Comma-Separated Value) Parsing</H2>
+<p>
+See <a href="../wiki/CsvUtils.html" >CsvUtils</a>.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> The string library in <a href="../wiki/CommonFunctions.html" >CommonFunctions</a>
+<li> PenLight<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PenLight" >?</a> string functions <a href="http://penlight.luaforge.net/#T13">[1]</a><a href="http://penlight.luaforge.net/api/modules/pl.stringx.html">[2]</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=StringRecipes" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=StringRecipes" >history</a><br>Last edited June 18, 2013 7:56 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=StringRecipes" >(diff)</a>
+</body>
+</html>

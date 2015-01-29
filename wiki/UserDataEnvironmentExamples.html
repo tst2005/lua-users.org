@@ -1,0 +1,268 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: User Data Environment Examples</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=UserDataEnvironmentExamples&amp;body=1" title="List pages referring to UserDataEnvironmentExamples">User Data Environment Examples</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here's some sample code which allows the use of environment tables as "on-demand" storage of unknown keys, something I've gotten used to doing because it allows Lua programs to add attributes to C objects implemented as full userdata. The code is extracted from a quick&amp;dirty vector library which can be downloaded from <a href="http://primero.ricilake.net/lua/vec.c">[1]</a> and <a href="http://primero.ricilake.net/lua/vec.h">[2]</a>, with sample output at <a href="http://primero.ricilake.net/lua/vec.sample">[3]</a>. I (<a href="../wiki/RiciLake.html" >RiciLake</a>) just threw it together last night, so no guarantees or anything.
+<p>
+Here's the basic userdata structure:
+<p>
+<DL>
+<dt><dd><pre>// How do you get the wiki to syntax colour C?
+
+typedef struct lvec_s {
+
+#ifdef VERSION51
+
+  int has_env;
+
+#else
+
+  int len;
+
+#endif
+
+  lua_Number d[1];
+
+} lvec_t;
+
+</pre>
+</DL>
+Note the use of the <code>has_env</code> member. Aside from padding the userdata header to a doubleword boundary on x86 architecture, which prevents the doubles from crossing cache boundaries, this is used as a flag to indicate whether or not the object has a useful environment table. (In version 5.0, the <code>len</code> member would throw alignment off. It would be better to use <code>union {int len; lua_Number dummy} u; </code>)
+<p>
+The Lua API does not allow the creation of a userdata without an environment table and all the other solutions I found to check for its existence were slower.
+<p>
+Here's the getter method, which expects to find the object's method table at upvalue index 2 (I use upvalue 1 for the metatable in all methods):
+<p>
+<DL>
+<dt><dd><pre>
+
+/* getter and setter, allowing overriding in 5.1. 5.0 doesn't have environment tables */
+
+static int lvec_meta_index (lua_State *L) {
+
+  int len = 0;
+
+  lvec_t *u = getveclen(L, 1, &amp;len); 
+
+</pre>
+</DL>
+First, we check to see if the key is a reasonable numeric index, and returns nil if it isn't. (My view is that getters should never throw an error, they should simply return nil. This is consistent with usual table semantics, and also makes it easier to write code which doesn't generate random errors.)
+<DL>
+<dt><dd><pre>
+
+  if (lua_type(L, 2) == LUA_TNUMBER) {
+
+    int idx = checkkey(L, len);
+
+    if (idx) {
+
+      lua_pushnumber(L, u-&gt;d[idx-1]);
+
+      return 1;
+
+    }
+
+    else
+
+      return 0;
+
+  }
+
+</pre>
+</DL>
+Normally, I would check for getter methods at this point. I'll find a good example of such code later, but in this particular problem domain, the check is somewhat idiosyncratic:
+<DL>
+<dt><dd><pre>
+
+  if (lua_type(L, 2) == LUA_TSTRING) {
+
+    size_t slen;
+
+    const char *key = lua_tolstring(L, 2, &amp;slen);
+
+    if (slen == 1) {
+
+      int idx = key[0] - 'x';
+
+      if (len &lt;= 3 &amp;&amp; idx &gt;= 0 &amp;&amp; idx &lt; len) {
+
+        lua_pushnumber(L, u-&gt;d[idx]);
+
+        return 1;
+
+      }
+
+    }
+
+  }
+
+</pre>
+</DL>
+Now, if it's not a built-in attribute, we check to see if there is an environment table created, and if so look the key up in it. We haven't yet checked for instance methods, which allows instance methods to be overridden for particular objects. In fact, had I not been aiming at 5.0 semi-compatibility in this particular code, I would have used a different solution where the method table is made the <code>__index</code> metamethod of the environment table, once the environment table is created, which means that the final lookup can be done only once, and also allows the possibility to create subclasses of the object in Lua.
+<DL>
+<dt><dd><pre>
+
+#ifdef VERSION51
+
+  if (u-&gt;has_env) {
+
+    lua_getfenv(L, 1);
+
+    lua_pushvalue(L, 2);
+
+    lua_gettable(L, -2);
+
+    if (!lua_isnil(L, -1))
+
+      return 1;
+
+    lua_pop(L, 2);
+
+  }
+
+#endif
+
+</pre>
+</DL>
+Finally, the key is looked up in the instance method table, which is attached as upvalue 2 to the <code>__index</code> function (for speed of lookup). If it's not found in this table, we just return the <code>nil</code>
+<DL>
+<dt><dd><pre>
+
+  lua_gettable(L, lua_upvalueindex(2));
+
+  return 1;
+
+}
+
+
+
+</pre>
+</DL>
+<p>
+The <code>__newindex</code> method has slightly different logic. Again, the first check is for numeric and short string keys, but in this case, errors are thrown both for bad numeric keys and for bad values. (The call to <code>luaL_checknumber</code> is not correct, I was being lazy: it will get fixed at some point. It produces hard-to-interpret error messages.) If that fails, then an environment table is created if necessary, and the key/value pair inserted in the newly-created table. (As mentioned above, I would normally attach the method table as an <code>__index</code> meta when creating the new environment table.)
+<p>
+<DL>
+<dt><dd><pre>
+
+static int lvec_meta_newindex (lua_State *L) {
+
+  int len = 0;
+
+  lvec_t *u = getveclen(L, 1, &amp;len);
+
+  if (lua_type(L, 2) == LUA_TNUMBER) {
+
+    int idx = checkkey(L, len);
+
+    if (idx)
+
+      u-&gt;d[idx-1] = luaL_checknumber(L, 3);
+
+    else
+
+      luaL_error(L, "Vector index not integer or out of range");
+
+    return 0;
+
+  }
+
+  if (lua_type(L, 2) == LUA_TSTRING) {
+
+    size_t slen;
+
+    const char *key = lua_tolstring(L, 2, &amp;slen);
+
+    if (slen == 1) {
+
+      int idx = key[0] - 'x';
+
+      if (len &lt;= 3 &amp;&amp; idx &gt;= 0 &amp;&amp; idx &lt; len) {
+
+        u-&gt;d[idx] = luaL_checknumber(L, 3);
+
+        return 0;
+
+      }
+
+    }
+
+  }
+
+#ifdef VERSION51
+
+  if (!u-&gt;has_env) {
+
+    lua_newtable(L); 
+
+    lua_pushvalue(L, -1);
+
+    lua_setfenv(L, 1);
+
+    u-&gt;has_env = 1;
+
+  }
+
+  else
+
+    lua_getfenv(L, 1);
+
+  lua_replace(L, 1);
+
+  lua_settable(L, 1);
+
+#else
+
+  else
+
+    luaL_error(L, "Vector index not integer or out of range");
+
+#endif
+
+  return 0;
+
+}
+
+
+
+</pre>
+</DL>
+<p>
+<H3>Discussion</H3>
+<p>
+<DL>
+<dt><dd>Rici, this is a good/practical example.  BTW the sample output link is broken.  It took me some time to figure out the main purpose of the page though.  Even though it's stated at top 'environment tables as "on-demand" storage of unknown keys', I was a bit clueless as to in what context this was and how 5.0 v.s. 5.1 issues were a factor.  But, I see now (though I haven't fully processed it) that this is an approach to implementing the __index and __newindex metamethods for userdata that handles metatables nicely with apparently a lazy/on-demand construction.  It's affected by how 5.1 allows individual environment tables in C functions.  The stated aim of 5.0/5.1 compatibility might be provided earlier.  Heavy use of parenthesis () tends to decreases readability.  This might be placed in Lua Fu in the <a href="../wiki/LuaDirectory.html" >LuaDirectory</a>.  I think there is a place there for what might be called design patterns.   --<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+<DL>
+<dt><dd>I fixed the link. You're right -- it definitely needs editting. I always parenthesize too much on first drafts, probably the influence of LISP on my youth :) -- <a href="../wiki/RiciLake.html" >RiciLake</a>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=UserDataEnvironmentExamples" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=UserDataEnvironmentExamples" >history</a><br>Last edited September 26, 2006 8:50 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=UserDataEnvironmentExamples" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,298 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Compiler In Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaCompilerInLua&amp;body=1" title="List pages referring to LuaCompilerInLua">Lua Compiler In Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The standard Lua compiler <a href="http://www.lua.org/source/5.1/lua.c.html">[luac.c]</a> is a C program included with the Lua distribution.  
+<p>
+<H3>Lua compiler in Lua</H3>
+A Lua compiler that compiles Lua sourcecode to Lua bytecode could be used to bootstrap and run Lua in different environments. You only need a Lua VM that executed Lua bytecode and the Lua compiler in Lua to run any Lua program in the new environment.
+<p>
+<H3>Use the Lua interpreter as compiler</H3>
+It is possible to compile a Lua script using only the standard interpreter:
+<p>
+<DL>
+<dt><dd><pre>
+
+lua -e 'io.write(string.dump(assert(loadfile())))' &lt;sample.lua &gt;sample.out
+
+</pre>
+</DL>
+<p>
+A basic version of this is also included in the Lua 5.1 distribution (test/luac.lua).
+<p>
+If you want to emulate the behavior of <code>luac</code> when given multiple input files:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- http://lua-users.org/wiki/LuaCompilerInLua</span>
+
+
+
+<span class="comment">-- compile the input file(s)</span>
+
+<span class="keyword">local</span> chunk = {}
+
+<span class="keyword">for</span> _, file <span class="keyword">in</span> <span class="library">ipairs</span>(arg) <span class="keyword">do</span>
+
+  chunk[#chunk + 1] = <span class="library">assert</span>(<span class="library">loadfile</span>(file))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">if</span> #chunk == 1 <span class="keyword">then</span>
+
+  chunk = chunk[1]
+
+<span class="keyword">else</span>
+
+  <span class="comment">-- combine multiple input files into a single chunk</span>
+
+  <span class="keyword">for</span> i, func <span class="keyword">in</span> <span class="library">ipairs</span>(chunk) <span class="keyword">do</span>
+
+    chunk[i] = (<span class="string">"%sloadstring%q(...);"</span>):format(
+
+      i==#chunk <span class="keyword">and</span> <span class="string">"return "</span> <span class="keyword">or</span> <span class="string">" "</span>,
+
+      <span class="library">string.dump</span>(func))
+
+  <span class="keyword">end</span>
+
+  chunk = <span class="library">assert</span>(<span class="library">loadstring</span>(<span class="library">table.concat</span>(chunk)))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> out = <span class="library">assert</span>(<span class="library">io.open</span>(<span class="string">"luac.lua.out"</span>, <span class="string">"wb"</span>))
+
+out:write(<span class="library">string.dump</span>(chunk))
+
+out:close()
+
+</pre>
+
+</DL>
+<p>
+Here's a more complete version that seeks to emulate the behavior of luac (luac.c) as much as reasonably possible:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- luac.lua - partial reimplementation of luac in Lua.</span>
+
+<span class="comment">-- http://lua-users.org/wiki/LuaCompilerInLua</span>
+
+<span class="comment">-- David Manura et al.</span>
+
+<span class="comment">-- Licensed under the same terms as Lua (MIT license).</span>
+
+
+
+<span class="keyword">local</span> outfile = <span class="string">'luac.out'</span>
+
+
+
+<span class="comment">-- Parse options.</span>
+
+<span class="keyword">local</span> chunks = {}
+
+<span class="keyword">local</span> allowoptions = <span class="keyword">true</span>
+
+<span class="keyword">local</span> iserror = <span class="keyword">false</span>
+
+<span class="keyword">local</span> parseonly = <span class="keyword">false</span>
+
+<span class="keyword">while</span> arg[1] <span class="keyword">do</span>
+
+  <span class="keyword">if</span>     allowoptions <span class="keyword">and</span> arg[1] == <span class="string">'-'</span> <span class="keyword">then</span>
+
+    chunks[#chunks + 1] = arg[1]
+
+    allowoptions = <span class="keyword">false</span>
+
+  <span class="keyword">elseif</span> allowoptions <span class="keyword">and</span> arg[1] == <span class="string">'-l'</span> <span class="keyword">then</span>
+
+    <span class="library">io.stderr</span>:write(<span class="string">'-l option not implemented\n'</span>)
+
+    iserror = <span class="keyword">true</span>
+
+  <span class="keyword">elseif</span> allowoptions <span class="keyword">and</span> arg[1] == <span class="string">'-o'</span> <span class="keyword">then</span>
+
+    outfile = <span class="library">assert</span>(arg[2], <span class="string">'-o needs argument'</span>)
+
+    <span class="library">table.remove</span>(arg, 1)
+
+  <span class="keyword">elseif</span> allowoptions <span class="keyword">and</span> arg[1] == <span class="string">'-p'</span> <span class="keyword">then</span>
+
+    parseonly = <span class="keyword">true</span>
+
+  <span class="keyword">elseif</span> allowoptions <span class="keyword">and</span> arg[1] == <span class="string">'-s'</span> <span class="keyword">then</span>
+
+    <span class="library">io.stderr</span>:write(<span class="string">"-s option ignored\n"</span>)
+
+  <span class="keyword">elseif</span> allowoptions <span class="keyword">and</span> arg[1] == <span class="string">'-v'</span> <span class="keyword">then</span>
+
+    <span class="library">io.stdout</span>:write(_VERSION .. <span class="string">" Copyright (C) 1994-2008 Lua.org, PUC-Rio\n"</span>)
+
+  <span class="keyword">elseif</span> allowoptions <span class="keyword">and</span> arg[1] == <span class="string">'--'</span> <span class="keyword">then</span>
+
+    allowoptions = <span class="keyword">false</span>
+
+  <span class="keyword">elseif</span> allowoptions <span class="keyword">and</span> arg[1]:sub(1,1) == <span class="string">'-'</span> <span class="keyword">then</span>
+
+    <span class="library">io.stderr</span>:write(<span class="string">"luac: unrecognized option '"</span> .. arg[1] .. <span class="string">"'\n"</span>)
+
+    iserror = <span class="keyword">true</span>
+
+    <span class="keyword">break</span>
+
+  <span class="keyword">else</span>
+
+    chunks[#chunks + 1] = arg[1]
+
+  <span class="keyword">end</span>
+
+  <span class="library">table.remove</span>(arg, 1)
+
+<span class="keyword">end</span>
+
+<span class="keyword">if</span> #chunks == 0 <span class="keyword">then</span>
+
+  <span class="library">io.stderr</span>:write(<span class="string">"luac: no input files given\n"</span>)
+
+  iserror = <span class="keyword">true</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">if</span> iserror <span class="keyword">then</span>
+
+  <span class="library">io.stdout</span>:write<span class="string">[[
+
+usage: luac [options] [filenames].
+
+Available options are:
+
+  -        process stdin
+
+  -l       list
+
+  -o name  output to file 'name' (default is "luac.out")
+
+  -p       parse only
+
+  -s       strip debug information
+
+  -v       show version information
+
+  --       stop handling options
+
+]]</span>
+
+  <span class="library">os.exit</span>(1)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Load/compile chunks.</span>
+
+<span class="keyword">for</span> i,filename <span class="keyword">in</span> <span class="library">ipairs</span>(chunks) <span class="keyword">do</span>
+
+  chunks[i] = <span class="library">assert</span>(<span class="library">loadfile</span>(filename ~= <span class="string">'-'</span> <span class="keyword">and</span> filename <span class="keyword">or</span> <span class="keyword">nil</span>))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">if</span> parseonly <span class="keyword">then</span>
+
+  <span class="library">os.exit</span>(0)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Combine chunks.</span>
+
+<span class="keyword">if</span> #chunks == 1 <span class="keyword">then</span>
+
+  chunks = chunks[1]
+
+<span class="keyword">else</span>
+
+  <span class="comment">-- Note: the reliance on loadstring is possibly not ideal,</span>
+
+  <span class="comment">-- though likely unavoidable.</span>
+
+  <span class="keyword">local</span> ts = { <span class="string">"local loadstring=loadstring;"</span>  }
+
+  <span class="keyword">for</span> i,f <span class="keyword">in</span> <span class="library">ipairs</span>(chunks) <span class="keyword">do</span>
+
+    ts[i] = (<span class="string">"loadstring%q(...);"</span>):format(<span class="library">string.dump</span>(f))
+
+  <span class="keyword">end</span>
+
+  <span class="comment">--possible extension: ts[#ts] = 'return ' .. ts[#ts]</span>
+
+  chunks = <span class="library">assert</span>(<span class="library">loadstring</span>(<span class="library">table.concat</span>(ts)))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Output.</span>
+
+<span class="keyword">local</span> out = outfile == <span class="string">'-'</span> <span class="keyword">and</span> <span class="library">io.stdout</span> <span class="keyword">or</span> <span class="library">assert</span>(<span class="library">io.open</span>(outfile, <span class="string">"wb"</span>))
+
+out:write(<span class="library">string.dump</span>(chunks))
+
+<span class="keyword">if</span> out ~= <span class="library">io.stdout</span> <span class="keyword">then</span> out:close() <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Note: The listing (-l) can be implemented via lbci <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lbci">[1]</a>.  See  print.lua in the lbci distribution.
+<p>
+Strip can be implemented in Lua (<a href="/lists/lua-l/2008-02/msg01158.html">LuaList:2008-02/msg01158.html</a>), and <a href="../wiki/LuaJit.html" >LuaJit</a> has such an option added to string.dump <a href="http://luajit.org/extensions.html">[2]</a>.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="http://yueliang.luaforge.net/">[Yueliang]</a> - Lua front-end (parser + lexer + code generator) implemented in Lua.
+<li> <a href="../wiki/LuaInterpreterInLua.html" >LuaInterpreterInLua</a> - reimplements the Lua 5.1 interpreter (lua.c) in Lua.
+<li> <a href="/lists/lua-l/2008-08/msg00092.html">[lhf's luac.lua]</a> - includes a bytecode hack to create a hidden main that calls multiple files listed. (Its main purpose is to support require.)
+</UL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaCompilerInLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaCompilerInLua" >history</a><br>Last edited July 4, 2011 7:20 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaCompilerInLua" >(diff)</a>
+</body>
+</html>

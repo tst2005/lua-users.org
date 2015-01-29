@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Open Filename</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteOpenFilename&amp;body=1" title="List pages referring to SciteOpenFilename">Scite Open Filename</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Ctrl+Shift+O replacement for SciTE</H3>
+<p>
+<code>SciTEOpenFilename</code> is a replacement for the <code>OpenFilename</code> function in SciTE (<code>Ctrl+Shift+O</code>), which is used to quickly open files specified in the current document. The major advantage of this Lua extension version of <code>OpenFilename</code> is the opening of library or system header files of certain languages. <code>SciTEOpenFilename</code> can be downloaded from <a href="/files/wiki_insecure/editors/SciTE/SciTEOpenFilename.lua">Files:wiki_insecure/editors/SciTE/SciTEOpenFilename.lua</a>.
+<p>
+Instead of using the <code>open.suffix</code> and <code>openpath</code> properties, <code>SciTEOpenFilename</code> has custom handlers for opening the libraries and system header files of the following languages: C, C++, Perl and Python. Since it is a Lua extension, <code>SciTEOpenFilename</code> can be easily extended to handle other languages. Customizing search locations is a simple matter of editing and adding entries to the table of paths to be searched.
+<p>
+<code>SciTEOpenFilename</code> also checks the prefix to determine whether an appropriate keyword is present. This disables the more promiscuous behaviour of the default <code>Ctrl+Shift+O</code> function (to remove this feature, simply delete the relevant tests.) For property files, the script checks for <code>import</code>; for C/C++, the script checks for <code>#include</code>; for Perl, the script checks for <code>use</code>, <code>require</code>, <code>do</code> or <code>no</code>; for Python, the script checks for <code>import</code> and <code>from</code>.
+<p>
+<code>SciTEOpenFilename</code> is not an exact work-alike version of <code>OpenFilename</code>. It does not support <code>Ctags</code> (see <a href="../wiki/SciteTags.html" >SciteTags</a> if you want Ctags, it is a more complete solution), it does not support the <code>open.suffix</code> and <code>openpath</code> properties, and it does not support the opening of <code>http:</code>, <code>ftp:</code> etc. kind of resources. But it is in Lua, and you can extend it any way you want without needing to recompile binaries.
+<p>
+If anyone extends <code>SciTEOpenFilename</code>, please update the appropriate stuff.
+<p>
+2007-03-29: fixed bug in <code>lookupExt()</code> comparing extensions
+<p>
+<em>--khman--</em>
+<p>
+<H3>Update 2010 by Hank</H3>
+<p>
+The above did not work for me and was too complicated to fix, so I wrote a simpler version that does what I want.
+<p>
+Does pretty much what the original did, I think, only this one opens all highlighted files at once.
+<p>
+I use it to highlight all the dofile("") entries in startup.lua and open them. It also works on lists of
+#include &lt;&gt; directives. If it can't find something, it uses the 'locate' command to try and find them.
+<p>
+<pre class="code">
+<span class="keyword">function</span> try_open(word)
+
+	subd=<span class="library">string.gsub</span>(word, <span class="string">'[#\*\t\r\n\"\'&lt;&gt; ]'</span>,<span class="string">''</span>)
+
+	<span class="keyword">if</span>(<span class="library">io.open</span>(subd)) <span class="keyword">then</span>
+
+		scite.Open(subd)
+
+	<span class="keyword">elseif</span>(<span class="library">io.open</span>(<span class="string">"/usr/include/"</span>..subd)) <span class="keyword">then</span>
+
+		scite.Open(<span class="string">"/usr/include/"</span>..subd)
+
+	<span class="keyword">else</span>
+
+		<span class="keyword">local</span> f = <span class="library">io.popen</span>(<span class="string">"locate -l 5 "</span>..<span class="string">"/`basename "</span>..subd..<span class="string">"`"</span>)
+
+		<span class="keyword">local</span> l = f:read(<span class="string">"*a"</span>) <span class="comment">-- read output of command</span>
+
+		<span class="library">print</span>(l)
+
+		f:close()
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> quick_open(sel)
+
+	<span class="keyword">for</span> word <span class="keyword">in</span> <span class="library">string.gfind</span>(sel, <span class="string">'[&lt;\"\'].-[\'\"&gt;]'</span>) <span class="keyword">do</span> 
+
+		<span class="keyword">local</span> subd=<span class="library">string.gsub</span>(word, <span class="string">'[&lt;&gt;]'</span>,<span class="string">''</span>)
+
+		try_open(subd)
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">if</span> word == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+		try_open(sel)
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+And in .SciTEUser.properties:
+<p>
+<pre>
+
+command.name.10.*=Open Filename
+
+command.10.*=quick_open $(CurrentSelection)
+
+command.shortcut.10.*=Ctrl+Shift+O
+
+command.subsystem.10.*=3
+
+</pre>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteOpenFilename" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteOpenFilename" >history</a><br>Last edited October 31, 2010 8:05 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteOpenFilename" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Unicode</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaUnicode&amp;body=1" title="List pages referring to LuaUnicode">Lua Unicode</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is an attempt to answer the <a href="../wiki/LuaFaq.html" >LuaFaq</a> :
+<H2>Can I use unicode strings? or Does Lua support unicode?</H2>
+<p>
+In short, yes and no.  Lua is unicode-agnostic and lua-strings are counted, so whenever you can treat
+unicode strings as simple byte sequences, you are done.
+Whenever that does not suffice, there are extension modules supplying your needs.
+You just have to figure out what exactly you mean by "support unicode" and use the
+proper abstraction from the right module. Unicode is extremely complex.
+<p>
+Some of the issues are:
+<UL>
+<li> Can I store, retrieve and concatenate Unicode strings?
+<li> Can my Lua programs be written in Unicode?
+<li> Can I compare Unicode strings for equality?
+<li> Sorting strings.
+<li> Pattern matching.
+<li> Can I determine the length of a Unicode string (byte, codeunit, codepoint, grapheme or printing using the only proper font?)?
+<li> Support for bracket matching, bidirectional printing, arbitrary composition of characters, and other issues that arise in high quality typesetting.
+</UL>
+<p>
+<H2>Unicode strings and Lua strings</H2>
+<p>
+A Lua string is an arbitrary counted sequence of bytes (C chars of your compiler, so 8 bit or bigger).
+Lua does not reserve any value, including <code>NUL</code>, so arbitrary binary data, including unicode data, can be stored.
+<p>
+For best results, use an encoding with unicode codeunits no bigger than a single byte, which normally restricts you to utf8.
+Any other encoding can be stored as well, including but not limited to <code>UTF-16</code>, <code>UTF-32</code> and their various big-endian/little-endian variants.
+<p>
+Input and output of strings in Lua (using the io library) conforms to C's guarantees.
+<code>ANSI C</code> only requires the <code>stdio</code> library to handle arbitrary data in binary mode.
+In text mode, the runtime is allowed to map on input and output in order to handle line-end conventions or even charsets foreign to C.
+Woe unto you if the library expects you to use an internal encoding incompatible with your actual encoding, and it tries to adapt line-end conventions or even changes the encoding.
+<p>
+This may affect your ability to do non-binary file input and output of Unicode.
+<code>UTF-8</code> is probably safe, because it is ASCII-compatible and never uses
+ASCII-characters as part of a multibyte encoding for a codepoint.
+<p>
+All modern systems only do minimal byte-sequence mapping for line-endings in textmode,
+unix going so far as not needing even that and so making text and binary mode identical.
+<p>
+If your use of Unicode is restricted to passing the strings to external libraries
+which support Unicode, you should be OK. For example, you should be able to extract
+a Unicode string from a database and pass it to a Unicode-aware graphics library.
+<p>
+<H2>Unicode Lua programs</H2>
+<p>
+Literal Unicode strings can appear in your lua programs.  Either a <code>UTF-8</code>
+encoded string can appear directly with 8-bit characters or you can use
+the <code>\ddd</code> syntax (note that <code>ddd</code> is a <em>decimal</em>
+number, unlike some other languages). However, there is no facility for
+encoding multi-octet sequences (such as <code>\U+20B4</code>); you would need to
+either manually encode them to <code>UTF-8</code>, or insert individual octets in the
+correct big-endian/little-endian order (for <code>UTF-16</code> or <code>UTF-32</code>).
+<p>
+Unless you are using an operating system in which a <code>char</code> is more
+than eight bits wide, you will not be able to use arbitrary Unicode
+characters in Lua identifers (for the names of variables and so on).
+You may be able to use eight-bit characters outside of the <code>ANSI</code> range.
+Lua uses the <code>C</code> functions <code>isalpha</code> and <code>isalnum</code> to identify valid
+characters in identifiers, so it will depend on the current locale.
+To be honest, using characters outside of the <code>ANSI</code> range
+in Lua identifiers is not a good idea, since your programs will not compile
+in the standard <code>C</code> locale.
+<p>
+<H2>Comparison and Sorting</H2>
+<p>
+Lua string comparison (using the <strong>==</strong> operator) is done byte-by-byte.
+That means that <strong>==</strong> can only be used to compare Unicode strings for
+equality if the strings have been normalized in one of the four Unicode
+normalizations. (See the <a href="http://www.unicode.org/faq/normalization.html">[Unicode FAQ on normalization]</a> for details.) The standard Lua library does not provide any facility for normalizing Unicode strings.
+Consequently, non-normalized Unicode strings cannot be reliably used as
+table keys.
+<p>
+If you want to use the Unicode notion of string equality,
+or use Unicode strings as table keys, and you cannot
+guarantee that your strings are normalized, then you'll have to find a
+normalization function and use that; writin one is a non-trivial exercise!
+<p>
+The Lua comparison operators on strings (<strong>&lt;</strong> and <strong>&lt;=</strong>) use the <code>C</code> function
+<code>strcoll</code> which is locale dependent.  This means that two strings
+can compare in different ways according to what the current locale is.
+For example, strings will compare differently when using Spanish
+Traditional sorting to that when using Welsh sorting.
+<p>
+It may be that your operating system has a locale that implements the
+sorting algorithm that you want, in which case you can just use that,
+otherwise you will have to write a function to sort Unicode strings.
+This is an even more non-trivial exercise.
+<p>
+<code>UTF-8</code> was designed so that a naive byte-by-byte string comparison
+of an octet sequence would produce the same result as a codepoint by codepoint
+comparison.
+This is also true of <code>UTF-32BE</code> but I do not know of any system which uses
+that encoding. Unfortunately, naive byte-by-byte comparison is
+not the collation order used by any language.
+<p>
+(Note: sometimes people use the terms <code>UCS-2</code> and <code>UCS-4</code> for "two-byte"
+and four-byte encodings. These are not Unicode standards; they come from the
+closely corresponding <code>ISO</code> standard <code>ISO/IEC 10646-1:2000</code> and currently
+differ in that they allow codes outside of the Unicode range, which runs from
+<code>0x0</code> to <code>0x10FFFF</code>.)
+<p>
+<H2>Pattern Matching</H2>
+<p>
+Lua's pattern matching facilities work byte by byte.
+In general, this will not work for Unicode pattern matching, although
+some things will work as you want.  For example, <code>"%u"</code>
+will not match all Unicode upper case letters. You can match
+individual Unicode characters in a normalized Unicode string, but
+you might want to worry about combining character sequences.
+If there are no following combining characters, <code>"a"</code> will
+match only the letter <code>a</code> in a <code>UTF-8</code> string. In <code>UTF-16LE</code> you could
+match <code>"a\0"</code>.
+<p>
+<H2>Length and string indexing</H2>
+<p>
+If you use unicode strings, there are at least five different notions of length.
+Beware of using the wrong one.
+<UL>
+<li> Byte count. <code>string.len</code> offers that.
+<li> Count of unicode code units. Just divide <code>string.len</code> by bytes per codeunit according to your encoding.
+<li> Count of unicode codepoints. There's no builtin to count them for UTF8 or UTF16-(LE|BE), though you can easily construct a pattern to count them using <code>string.gsub</code> or <code>string.gmatch</code>. For UTF32-(LE|BE) equals codeunits.
+<li> Count of unicode graphemes. These correspond most strongly with your average users notion of character count. You need an external library with full unicode tables (big!). Only sorting and normalizing need more effort.
+<li> Display size. Ask your output library how wide your string rendered in your font is. Obviously needs an external library.
+</UL>
+<p>
+For example, you could use the following code snippet to count UTF-8 characters
+in a string you knew to be conforming (it will incorrectly count some invalid
+characters):
+<p>
+<pre>
+
+        local _, count = string.gsub(unicode_string, "[^\128-\193]", "")
+
+</pre>
+<p>
+If you want to know how many printing columns a Unicode string will
+occupy when you print it out using a fixed-width font (imagine you are
+writing something like the Unix <code>ls</code> program that formats its
+output into several columns), then that is a different answer again.
+That's because some Unicode characters do not have a printing width,
+while others are double-width characters. Combining characters are
+used to add accents to other letters, and generally they do not
+take up any extra space when printed.
+<p>
+You could use the following code snippet to iterate over UTF-8 sequences
+(this will simply skip over most invalid codes):
+<p>
+<pre>
+
+        for uchar in string.gfind(ustring, "([%z\1-\127\194-\244][\128-\191]*)") do
+
+          -- something
+
+        end
+
+</pre>
+<p>
+<p>
+<H2>UTF8 decoding function</H2>
+<p>
+<pre>
+
+--[[
+
+| bits | U+first   | U+last     | bytes | Byte_1   | Byte_2   | Byte_3   | Byte_4   | Byte_5   | Byte_6   |
+
++------+-----------+------------+-------+----------+----------+----------+----------+----------+----------+
+
+|   7  | U+0000    | U+007F     |   1   | 0xxxxxxx |          |          |          |          |          |
+
+|  11  | U+0080    | U+07FF     |   2   | 110xxxxx | 10xxxxxx |          |          |          |          |
+
+|  16  | U+0800    | U+FFFF     |   3   | 1110xxxx | 10xxxxxx | 10xxxxxx |          |          |          |
+
+|  21  | U+10000   | U+1FFFFF   |   4   | 11110xxx | 10xxxxxx | 10xxxxxx | 10xxxxxx |          |          |
+
+|  *26  | U+200000  | U+3FFFFFF  |   5   | 111110xx | 10xxxxxx | 10xxxxxx | 10xxxxxx | 10xxxxxx |          |
+
+|  *32  | U+4000000 | U+7FFFFFFF |   6   | 111111xx | 10xxxxxx | 10xxxxxx | 10xxxxxx | 10xxxxxx | 10xxxxxx |
+
+--]]
+
+* UTF8 was restricted to 4 bytes, because UTF16 surrogates enable a maximum of BMP+16 astral planes -&gt; not quite 21 bit.
+
+</pre>
+<p>
+This function converts a lua string which contains UTF-8 encoded characters into a lua table with its corresponding unicode codepoints (UTF-32)
+<p>
+<pre>
+
+function Utf8to32(utf8str)
+
+	assert(type(utf8str) == "string")
+
+	local res, seq, val = {}, 0, nil
+
+	for i = 1, #utf8str do
+
+		local c = string.byte(utf8str, i)
+
+		if seq == 0 then
+
+			table.insert(res, val)
+
+			seq = c &lt; 0x80 and 1 or c &lt; 0xE0 and 2 or c &lt; 0xF0 and 3 or
+
+			      c &lt; 0xF8 and 4 or --c &lt; 0xFC and 5 or c &lt; 0xFE and 6 or
+
+				  error("invalid UTF-8 character sequence")
+
+			val = bit32.band(c, 2^(8-seq) - 1)
+
+		else
+
+			val = bit32.bor(bit32.lshift(val, 6), bit32.band(c, 0x3F))
+
+		end
+
+		seq = seq - 1
+
+	end
+
+	table.insert(res, val)
+
+	table.insert(res, 0)
+
+	return res
+
+end
+
+</pre>
+<p>
+<H2>More sophisticated issues</H2>
+<p>
+As you might have guessed by now, Lua provides no support for things like
+bidirectional printing or the proper formatting of Thai accents.  Normally
+such things will be taken care of by a graphics or typography library. It
+would of course be possible to interface to such a library that did these
+things if you had access to one.
+<p>
+<p>
+<UL>
+<li> There is a little string-like package <a href="http://luaforge.net/projects/sln/">[slnunicode]</a> with upper/lower, len/sub and pattern matching for UTF-8.
+<li> See <a href="../wiki/ValidateUnicodeString.html" >ValidateUnicodeString</a> for a smaller library.
+<li> <a href="http://www.curse.com/addons/wow/utf8">[utf-8.lua]</a> provides functions string.utf8len, string.utf8sub, string.utf8reverse, string.utf8upper, and string.utf8lower. Has upper and lowercase mappings as a separate file. Tested on Lua 5.1 and 5.2.
+<li> Another <a href="https://github.com/alexander-yakushev/awesompd/blob/master/utf8.lua">[utf-8.lua]</a> with functions utf8charbytes, utf8len, utf8sub), and utf8replace. The latter replaces characters based on a mapping table (not provided).    
+<li> <a href="https://github.com/duncanc/icu4lua">[ICU4Lua]</a> is a Lua binding to ICU (International Components for Unicode <a href="http://en.wikipedia.org/wiki/International_Components_for_Unicode.html">[1]</a>), an open-source library originally developed by IBM.
+<li> <a href="https://github.com/starwing/luautf8">[luautf8]</a> is a slnunicode like UTF-8 C module. used to provide string-compat UTF-8 operations as will as many other useful functions. it pass lua test suite's string and pattern matching test. Tested on Lua 5.1 and Lua 5.2 and LuaJIT.
+</UL>
+<p>
+See <a href="../wiki/UnicodeIdentifers.html" >UnicodeIdentifers</a> for platform independent Unicode Lua programs.
+<p>
+<H3>See Also</H3>
+<p>
+<UL>
+<li> <a href="../wiki/LuaLocales.html" >LuaLocales</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaUnicode" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaUnicode" >history</a><br>Last edited February 23, 2014 6:03 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaUnicode" >(diff)</a>
+</body>
+</html>

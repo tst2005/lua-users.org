@@ -1,0 +1,243 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Minimising Closures</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MinimisingClosures&amp;body=1" title="List pages referring to MinimisingClosures">Minimising Closures</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Overview</H3>
+<p>
+Closures are formed whenever a <strong>function</strong> statement or expression is encountered <em>during execution</em>. This binds the actual function with lexically-scoped variables to form a <em>closure</em>.
+<p>
+<H3>Efficiency</H3>
+<p>
+If a closure-generating operation occurs repeatedly but the function itself does not actually make use of lexical scoping then it is more efficient to move the closure operation outside of the loop.
+<p>
+Note: This depends on the way closures are implemented. In the future clever compiling might make this unnecessary.  (<em>In Lua 5, every closure has its own "function environment" (i.e. globals). So even if there are no upvalues, the closure might not be the same every time it is created. --<a href="../wiki/RiciLake.html" >RiciLake</a></em>)
+<p>
+<H3>Comments</H3>
+<p>
+In the following code...
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> create()
+
+  <span class="keyword">local</span> e = {}
+
+  e.x = 0
+
+  e.update = <span class="keyword">function</span>(self)    <span class="comment">-- mark</span>
+
+    self.x = self.x + 1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> e
+
+<span class="keyword">end</span>
+
+
+
+e1 = create()
+
+e2 = create()
+
+e3 = create()
+
+</pre>
+
+</DL>
+<p>
+How many copies are created of the 'update' function at the marked line? One, shared among e1, e2, and e3, or three, one for each of e1, e2, and e3?
+<p>
+I am planning on doing this sort of thing quite a bit in my current Lua project and I'm concerned a bit about memory efficiency and such.  -- NickDavies<a href="/cgi-bin/wiki.pl?action=edit&amp;id=NickDavies" >?</a>
+<p>
+<p>
+A closure is created in every function call to create() but this only creates one function. -- <a href="../wiki/NickTrout.html" >NickTrout</a>
+<p>
+That seems a fairly definite statement that closures are not shared, even if they are the same (although at least the function code is shared). If efficiency is a problem then you'd be best off creating a single closure and passing it around. Eg:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Using a 'do/end' block so that the local 'temp' does not pollute</span>
+
+<span class="comment">-- the name space.</span>
+
+<span class="keyword">do</span>
+
+  <span class="comment">-- The local variable 'temp' is assigned a closure.</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> temp(self)
+
+    self.x = self.x + 1
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- Define the function 'create'. Every time it executes it</span>
+
+  <span class="comment">-- assigns a reference to the closure stored in 'temp'.</span>
+
+  <span class="keyword">function</span> create()
+
+    <span class="keyword">local</span> e = {}
+
+    e.x = 0
+
+    e.update = temp
+
+    <span class="keyword">return</span> e
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The key here is that (as far as I understand it) a closure is created each time the 'function' expression/statement is encountered. So if you only execute it once then you save memory duplication.
+<p>
+Binding a 'function' expression more than once is only needed if it wraps lexically scoped variables within its closure, otherwise it is inefficient (even if it might look neater).
+<p>
+Eg, if you had something like:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> create(init)
+
+  <span class="keyword">local</span> e = {}
+
+  e.x = 0
+
+  e.reset = <span class="keyword">function</span> temp(self) self.x = init <span class="keyword">end</span>
+
+  <span class="keyword">return</span> e
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+then you'd need the separate closure, since each separate closure instance refers to a different 'init' variable from the surrounding lexical scope!
+<p>
+So:
+<DL>
+<dt><dd><pre class="code">
+e1 = create(111)
+
+e2 = create(222)
+
+e1:reset() <span class="comment">-- resets to '111'</span>
+
+e2:reset() <span class="comment">-- resets to '222'.</span>
+
+</pre>
+
+</DL>
+<p>
+-- <a href="../wiki/PeterHill.html" >PeterHill</a>
+<p>
+<em>It is worth saying that a closure does not take up much more space than a lexically bound variable. Personally, I would go for readability rather than efficiency in this case, because in the long run readability <strong>is</strong> efficiency. But if you really wanted to minimise allocations, you might want to write the above as follows:</em>
+<p>
+<pre>
+
+do
+
+  local reset
+
+
+
+  function reset(self)
+
+    self.x = self[reset]
+
+  end
+
+
+
+  function create(init)
+
+    return {
+
+      x = 0,
+
+      [reset] = init,
+
+      reset = reset
+
+    }
+
+  end
+
+end
+
+</pre>
+<p>
+<em>Here we use the fact that every closure is unique in order to use a unique key in the newly-created table, which won't interfere with any other key which might get created later. This not only avoids creating the closure, but also avoids creating the lexically bound variable. Of course, it does add a key-value pair to the table, but in most cases that will turn out to be free. If you were even worried about that (perhaps the object actually has exactly eight keys so the extra key will force it to have room for 16), you could put the constant reset function into a metatable:</em>
+<p>
+<pre>
+
+do
+
+  local funcs = {}
+
+  local meta = {__index = funcs}
+
+
+
+  function funcs.reset(self)
+
+    self.x = self[funcs]
+
+  end
+
+
+
+  function create(init)
+
+    return setmetatable({
+
+      x = 0,
+
+      [funcs] = init
+
+    }, meta)
+
+  end
+
+end
+
+</pre>
+<p>
+<em>Now, we use a table as a unique key. Personally I don't find this sort of thing attractive, because it is really hard to read, and it is generally better to hide internal variables in upvalues, where they are really hidden and access is faster. In this case, of course, it might not even be desirable to try to hide the init value; it could be part of the exposed object interface. The technique of putting common object functions in a metatable can save quite a bit of space and time if there are a lot of functions. -- <a href="../wiki/RiciLake.html" >RiciLake</a></em>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MinimisingClosures" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MinimisingClosures" >history</a><br>Last edited August 4, 2007 8:04 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MinimisingClosures" >(diff)</a>
+</body>
+</html>

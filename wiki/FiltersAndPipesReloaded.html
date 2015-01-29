@@ -1,0 +1,1843 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Filters And Pipes Reloaded</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FiltersAndPipesReloaded&amp;body=1" title="List pages referring to FiltersAndPipesReloaded">Filters And Pipes Reloaded</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>A Coroutines Based Framework</H2>
+<p>
+<H3>on pipes, call chains and notation</H3>
+<p>
+by <a href="../wiki/HartmutSchaefer.html" >HartmutSchaefer</a>
+<p>
+<H2>Abstract</H2>
+<p>
+The very interesting article <a href="../wiki/FiltersSourcesAndSinks.html" >FiltersSourcesAndSinks</a> by <a href="../wiki/DiegoNehab.html" >DiegoNehab</a> together with section 9.2 of PIL (<a href="http://www.lua.org/pil/9.2.html">http://www.lua.org/pil/9.2.html</a>) inspired me to experiment with pipes and think about notation issues and what makes pipes different from what we are used to work with in imperative programming. In the article I will discuss what pipes have in common with chained function or method calls, and what makes them different. I will then present and continually evolve a set of functions for working with pipes in Lua. Finally I will use some metaprogramming to get a more pipe-like notation.
+<p>
+<H2>The Tao of Data Transformation</H2>
+<p>
+Many applications of computers involve the transformation of data from one representation into another, possibly including various forms of mixing and matching with other data. Such transformations can naturally grow more or less complex.
+<p>
+Complex data transformations - as any other algorithm - are easier to understand if they can be decomposed into smaller pieces, each of which performs a simple and well defined task. Additional power results if such pieces can be built in a reusable way, forming a set of building blocks from which complex transformations can be easily <em>assembled</em>.
+<p>
+The simplest form of composition is probably applying a number of transformations in sequence, that is using the result of every transformation as input to the next one. Depending on the environment we are working in, the notations and inner workings differ:
+<p>
+If you are working with functions, you will probably write something like
+<p>
+<DL>
+<dt><dd><pre>
+
+result = transformation3( transformation2( transformation1( data ) ) )
+
+</pre>
+</DL>
+<p>
+This doesn't look very intuitive, since the transformations are written in the opposite order they are applied. (If they take additional parameters, the notation tends to get even worse.) The notation, however, doesn't change the essence of what's going on and can be enhanced without changing that. If you have a mechanism for function composition, you can write something similar to the following to have the transformations in the order they are applied:
+<p>
+<DL>
+<dt><dd><pre>
+
+result = chain( transformation1, transformation2, transformation3 )( data )
+
+</pre>
+</DL>
+<p>
+(Using more higher order functions you can even stuff additional parameters with their transformations.)
+<p>
+Further, if you get help from the compiler or some preprocessor that turns, for instance, the | operator into calling its right operand with the left one as parameter, you could achieve an even more intuitive notation, putting the data you start with at the beginning of the chain and possibly writing something like
+<p>
+<DL>
+<dt><dd><pre>
+
+result = data | transformation1 | transformation2 | transformation3
+
+</pre>
+</DL>
+<p>
+and, if you liked, with even more help you could even drop the familiar assignment notation and put the receiver for the result at the end of the chain to end up with a notation that looks much like a UNIX pipe, showing how data travels through a series of transformations like this
+<p>
+<DL>
+<dt><dd><pre>
+
+data &gt; transformation1 &gt; transformation2 &gt; transformation3 &gt; result
+
+</pre>
+</DL>
+<p>
+or something similar. Note though, that all this doesn't change what's happening under the hood: a simple sequence of wrapped function invocations!
+<p>
+In object oriented programming, including mechanisms like C# extension methods, you can have the sequenced notation we saw above for free using chained method calls:
+<p>
+<DL>
+<dt><dd><pre>
+
+result = data.transformation1().transformation2().transformation3()
+
+</pre>
+</DL>
+<p>
+The parentheses in this notation also make it fairly visible that the transformation "pipe" through which our data "flows" is simply a series of function calls. (By the way, the fact that in OO the possible transformations are bundled as methods with their input data types is no limitation whatsoever but only an implementation detail.)
+<p>
+Coming to the heart of our discussion, UNIX has brought to us a fundamentally different concept of applying a sequence of transformations to data: UNIX pipes. They come out of the box with an intuitive piping notation like the one we created above (without actually <em>having</em> pipes then!):
+<p>
+<DL>
+<dt><dd><pre>
+
+data &gt; transformation1 | transformation2 | transformation3 &gt; result
+
+</pre>
+</DL>
+<p>
+We will see shortly what constitutes the fundamental difference of pipes to function or method call chains, but let's note first that all three mechanisms, independent of notation, reflect the same principle: applying a sequence of transformations to some data.
+<p>
+Said that, there is one aspect that fundamentally distinguishes pipes from function or method calls, and, as we could see above it's neither the notation, nor is it visible from it: Pipes process data in chunks. This applies to the individual stages of the pipeline (called filters) as well as to the pipeline as a whole. Only the amount of data that is actually <em>needed</em> for producing the next output is held in memory or other temporary storage at any stage, and no intermediate results are assembled and stored <em>between</em> the stages whatsoever.
+<p>
+This property makes an important distinction. Not only are pipes able to process unlimited amounts of data, they can even process infinite streams of data such as sensor measurements or the like, yielding results as soon as they are available. This wouldn't be possible using function or method calls since neither can an unlimited sequence of data be collected in advance to processing it, nor can there be any result before the end of the data stream, meaning that there can never be any result.
+<p>
+This difference causes a fundamental difference in the interface by which the transformations are connected within pipes. While function or method calls communicate by parameters and return values, filters communicate by receiving and sending chunks of data. An important aspect of this interface is the inherently decoupled nature of input and output, meaning that not every input needs to yield output, and not every output needs to be caused by input. (We could say that a filter is a generalization of a flattening operation and the opposite of it, and of a mix between the two.)
+<p>
+The way pipes work is thus fundamentally different from the synchronous nature of function calls and makes it impossible to implement a pipe as a simple loop of read-transform-transform-transform-write operations like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Constructs a pipe connecting the given functions. The pipe will read data</span>
+
+<span class="comment">-- by calling its first parameter, then transform it by invoking all given</span>
+
+<span class="comment">-- functions in sequence, and output the result by calling its second parameter.</span>
+
+<span class="comment">-- This will continue until input is exhausted.</span>
+
+<span class="comment">-- THIS IS NOT A REAL PIPE!</span>
+
+<span class="keyword">function</span> pipe( ... )
+
+    <span class="keyword">local</span> filters = arg
+
+    <span class="keyword">return</span> <span class="keyword">function</span>( input, output )
+
+        <span class="keyword">for</span> data <span class="keyword">in</span> input <span class="keyword">do</span>
+
+            <span class="keyword">local</span> current = data
+
+            <span class="keyword">for</span> _, filter <span class="keyword">in</span> <span class="library">ipairs</span>( filters ) <span class="keyword">do</span>
+
+                current = filter( current )
+
+            <span class="keyword">end</span>
+
+            output( current )
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+p = pipe( transformation1, transformation2, transformation3 )
+
+p( <span class="library">io.lines</span>, <span class="library">print</span> )
+
+</pre>
+
+</DL>
+<p>
+Such an implementation will work only for simplest transformations where every input will be turned into exactly one output on any stage. This is not what filters in the general case do. (This doesn't mean, however, that pipes are capable of doing transformations that are impossible using function calls: If all data to be transformed can be collected and given to the transformation as a whole, it can as well be processed using ordinary function calls - the difference will be mostly in memory footprint. There <em>is</em>, albeit, a difference for infinite data streams. At the other hand, the individual stages of a pipe very well <em>can</em> and commonly do use ordinary functions to accomplish their processing tasks. This is because they are free to collect as much data as necessary as input for a concrete function call.)
+<p>
+Diego implements filters using a function call interface and addresses the impedance mismatch between the decoupled nature of input and output of filters vs. the synchronous nature of function calls by using a special protocol that allows for non-output and non-input "filter" calls. While this complicates not only the scheduler, but more importantly the filter implementations as well, it works very well for the sort of processing he targets with his framework.
+<p>
+More straightforward implementations of the filter algorithms become possible when filters are implemented as separate processes, each having its own control loop, reading input and writing output by calling system functions. This is the way filters are implemented in UNIX, and in Lua we can use coroutines to achieve the same effect. All scheduling and state-keeping is left to the runtime, so filter writers can concentrate on their algorithm only, using a natural and easy notation. Let's see how we can implement pipes and filters in Lua.
+<p>
+<H2>Exploring Filters and Pipes</H2>
+<p>
+Before we begin, a word about the naming convention I use, so you hopefully won't get confused by the variable names in the code below: A prefix of "p" denotes a function parameter, a prefix of "l" a local variable, a prefix of "s" a static (module global) variable, and a prefix of "g" a global variable (not used here). Function names have no prefix (what definitly doesn't mean that a function couldn't be held in a variable which mandatorily <em>has</em> a prefix). Your preferences may vary, but I get a couple of important advantages from this naming convention:
+<p>
+<UL>
+<li> The scope of a variable is obvious from reading its name. This helps to understand the code.
+<li> Calling a function held in a variable looks fundamentally different from a normal function call. This too helps understanding the code.
+<li> There can't be any collisions with reserved words, library functions and other stuff like even my own functions. (Don't ever, for instance, name a variable or parameter <code>error</code> or <code>type</code>, but there can't be any problem if you name them <code>lError</code> or <code>pType</code> and so on.)
+<li> I get local names for transformed function parameters for free. Why should I invent another name for the local variable different from the one I use for the parameter, when both denote the same thing? The following code, for instance, converts a boolean parameter that defaults to true to its real value (similar transformations of function parameters to local representations happen quite often):
+</UL>
+<p>
+<DL>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> lCondition = (pCondition == <span class="keyword">nil</span>) <span class="keyword">or</span> pCondition
+
+</pre>
+
+</DL>
+</DL>
+<p>
+The code I will present below is written for Lua 5.0.
+<p>
+Let's now first define the big picture and then see how we can implement it and see what we can do with it.
+<p>
+<H3>The Big Picture</H3>
+<p>
+At first, we want to be able to write filters as functions taking as parameters two functions, for input and output. Upon execution they will run from begin to end, transforming all input into output. Input will be obtained by successively calling the input function, and any output will be written by calling the output function. And, instead of only strings we want to be able to pass <em>multiple values</em> of <em>any</em> type between filters. Thus, a filter implementation will roughly follow one of the following templates:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> my_filter( pInput, pOutput )
+
+    <span class="keyword">for</span> ... <span class="keyword">in</span> pInput <span class="keyword">do</span>
+
+        ...
+
+        pOutput( ... )
+
+        ...
+
+    <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+or
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> my_filter( pInput, pOutput )
+
+    <span class="keyword">while</span> ... <span class="keyword">do</span>
+
+        ...
+
+        ... = pInput()
+
+        ...
+
+        pOutput( ... )
+
+        ...
+
+    <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The filters won't return any value until now.
+<p>
+Second, we want to be able to connect filters implemented this way into chains (pipes) that feed the output of one filter into the input of the next. The input of the first filter and the output of the last filter will be identical to the input and output of the pipe, thus, a pipe will itself be a filter and as such can be again combined with other filters or pipes. The code we want to write will look similar to the following, where transformation1, transformation2, transformation3 are filters implemented like shown above:
+<p>
+<DL>
+<dt><dd><pre class="code">
+p = pipe( transformation1, transformation2, transformation3 )
+
+p( <span class="library">io.lines</span>, <span class="library">print</span> )
+
+</pre>
+
+</DL>
+<p>
+This example reads all lines from standard input, transforms this stream by piping it through the three filters in sequence, and prints the results to the console.
+<p>
+As you can see, in contrast to Diego's solution, we don't need any pumps for this to happen! This is interesting, and it results from the fact that our filters in contrast to Diego's ones are active entities, pumping their input to output themselves. (This is, by the way, the reason why we need coroutines to have multiple filters work together.)
+<p>
+<H3>Implementing Pipes</H3>
+<p>
+As we said, we want to be able to pass multiple values of any type between filters. In addition, <code>nil</code>'s should be allowed too, and for this we define that the end of the data stream will be reached when the <em>first</em> of the values transferred by the input/output handshake is <code>nil</code>.
+<p>
+For this to implement in Lua 5.0 we need a simple utility function doing the opposite of Lua <code>unpack()</code> since simply wrapping a call into braces as usual to collect its return values won't do the job when there are <code>nil</code>'s:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Inverse of Lua unpack(). Returns all its arguments packed into an array.</span>
+
+<span class="keyword">function</span> pack( ... )
+
+    <span class="keyword">return</span> arg
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Now, let's implement pipes. The following function constructs a pipe. It takes a number of filters and returns a new filter representing the chain. The returned function, upon invocation,  wraps all filters but the last one into coroutines and creates a function for each of them that resumes the coroutine, passing the filter's input as input and coroutine.yield as output, and returns the yielded value(s) (that is, the filter's output). This function, a generator, acts as the input for the next filter in the chain, the first filter gets the pipe's input as input. After building the chain, the last filter is invoked with <em>its</em> input and the output of the pipe, and what it returns is returned from the pipe (tail call). We don't need the returned value(s) until now but we will see later what this gives us.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Creates a new filter acting as the concatenation of the given filters. A</span>
+
+<span class="comment">-- filter is a function with two parameters, input and output, that obtains</span>
+
+<span class="comment">-- its input by calling input and writes output by calling output. Optionally,</span>
+
+<span class="comment">-- return values may be produced, the return values of the last filter being</span>
+
+<span class="comment">-- returned by the pipe.</span>
+
+<span class="keyword">function</span> pipe( ... )
+
+    <span class="keyword">local</span> lFilters = arg
+
+    <span class="keyword">local</span> lFilterCount = <span class="library">table.getn</span>( lFilters )
+
+    <span class="keyword">return</span> <span class="keyword">function</span>( pInput, pOutput )
+
+        <span class="keyword">local</span> lCurrentInput = pInput
+
+        <span class="keyword">for</span> lFilterPosition = 1, lFilterCount - 1 <span class="keyword">do</span>
+
+            <span class="keyword">local</span> lCurrentFilter = <span class="library">coroutine.create</span>( lFilters[ lFilterPosition ] )
+
+            <span class="keyword">local</span> lPreviousInput = lCurrentInput
+
+            lCurrentInput = <span class="keyword">function</span>()
+
+                <span class="keyword">local</span> lResult = pack( <span class="library">coroutine.resume</span>( lCurrentFilter, lPreviousInput, <span class="library">coroutine.yield</span> ) )
+
+                <span class="keyword">local</span> lSuccess = <span class="library">table.remove</span>( lResult, 1 )
+
+                <span class="keyword">if</span> lSuccess <span class="keyword">then</span>
+
+                    <span class="keyword">if</span> <span class="library">coroutine.status</span>( lCurrentFilter ) == <span class="string">"suspended"</span> <span class="keyword">then</span>
+
+                        <span class="keyword">return</span> <span class="library">unpack</span>( lResult )
+
+                    <span class="keyword">end</span>
+
+                <span class="keyword">else</span>
+
+                    <span class="library">error</span>( lResult[ 1 ] )
+
+                <span class="keyword">end</span>
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> lFilters[ lFilterCount ]( lCurrentInput, pOutput )
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Some additional notes about the code above: First, when resuming the coroutines, we pass the filter's input and output. This would strongly be necessary only for the first resume that starts the execution of the coroutine. After that, the two arguments will be returned to the filter by every output call. Since they will be ignored by the filter, this doesn't hurt and we need not implement special handling. Second, since filters may <em>return</em> some value (even if we wouldn't have allowed it by contract), we have to check after every resume if the coroutine has yielded or has ended to decide if the result we got from the resume has to be output.
+<p>
+Note also that the pipe function doesn't build the filter chain itself, this is deferred until the filter is actually run. Otherwise it would not be possible to execute a pipe more than once, and it wouldn't be a filter in the strong meaning.
+<p>
+This small function is all we need to have pipes in Lua! Let's see what we can do with this.
+<p>
+<H3>Sources, Sinks and Sealed Pipes</H3>
+<p>
+First, let's think about filters and where our data will come from and where it goes. As it turns out, our filter interface allows for two special types of filters: A filter that doesn't call its input parameter produces its output out of itself - it's a source. Conversely, a filter that doesn't call its output parameter only consumes input - it's a sink. Obviously sources and sinks can occur only at the beginning respective end of a pipe. A pipe beginning with a source is itself a source, one ending with a sink is itself a sink. A pipe beginning with a source <em>and</em> ending with a sink is a special case: it doesn't do any input or output, pumping upon invocation all data from the source to the sink in one rush. We'll look at those pipes shortly - they have a number of interesting properties. First let's examine where sources and sinks get their data from and where they put it to.
+<p>
+What could the input and output parameters in case of a source and sink, respectively, mean? They are not needed here for obtaining input or writing output, but they can be used for <em>describing</em> the (real) data source or destination to the filter (source or sink) as, for instance, the name of a file to read from or write to, or a string to pull data from by parsing it. The pipe containing these sources or sinks will have these parameters as its own input and output parameters, passing them to the source and sink unchanged.
+<p>
+Now, imagine for a moment that our sink is something that collects the data it receives into, for instance, a table, or that computes some aggregated value from it like a word count or average. This is where the return value of filters comes into play: Sinks can, instead of (or in addition to) using their output parameter, return a value (or possibly multiple values). The pipe (which is in this case also a sink) will return this result without modification.
+<p>
+Now, let's look again at pipes which are at the same time source and sink. As stated, they don't perform any input or output calls. We can call such pipes <em>sealed</em> because they keep their data flow <em>inside</em> and instead expose a function call interface: They communicate input and output by using parameter and return <em>values</em>. That is, they work effectively as <em>ordinary functions</em> with one or two parameters and possibly returning a result! Like functions, they can be freely invoked, upon every invocation "pumping" the data that was given them <em>in one piece</em> in the input parameter through itself and returning the result again <em>in one piece</em> (either as return value or putting it where specified by the output parameter). Note that there is also no state kept between successive data like in normal filter operation: Every input gets its own fresh pipe instance that "dies" when this data has been processed and the result returned. So, sealed pipes effectively turn pipes into functions!
+<p>
+Let's now see how using pipes looks in practice.
+<p>
+<H2>Using Pipes</H2>
+<p>
+For experimentation we will define a simple data source yielding a sequence of integers starting with 1 and continuing until the limit it has been given as input parameter is reached:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Produce a sequence of integers</span>
+
+<span class="keyword">function</span> seq( pLimit, pOutput )
+
+    <span class="keyword">for</span> lValue = 1, pLimit <span class="keyword">do</span>
+
+        pOutput( lValue )
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+We can test this filter already. As it turns out (at least as long as <code>print()</code> gives us enough information about our values to be useful), we can invoke <em>any</em> filter or pipe for debugging purposes with its input and <code>print</code> as output to get its output printed to the console! Nifty, eh? Let's print the output of our number sequence source to the console:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; seq( 4, print )
+
+1
+
+2
+
+3
+
+4
+
+</pre>
+</DL>
+<p>
+Now we will define a data sink computing the average of all values read from input:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Compute the average from a sequence of numbers</span>
+
+<span class="keyword">function</span> avg( pInput )
+
+    <span class="keyword">local</span> lSum, lCount = 0, 0
+
+    <span class="keyword">for</span> lValue <span class="keyword">in</span> pInput <span class="keyword">do</span>
+
+        lSum = lSum + lValue
+
+        lCount = lCount + 1
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> lSum / lCount
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Let's test it by feeding it the data produced by our data source. We will build a pipe for this:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; average_of_sequence = pipe( seq, avg )
+
+&gt; return average_of_sequence( 4 )
+
+2.5
+
+</pre>
+</DL>
+<p>
+Now, let's do some filtering. The following filter reads numbers from input and writes their squares to output:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Produce the squares of the input values</span>
+
+<span class="keyword">function</span> square( pInput, pOutput )
+
+    <span class="keyword">for</span> lValue <span class="keyword">in</span> pInput <span class="keyword">do</span>
+
+        pOutput( lValue * lValue )
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Using this filter, we'll build a pipe delivering a sequence of the first n squares, then append another square filter to it to get another pipe yielding a sequence of powers of 4, and finally we build a pipe from scratch to compute the average of the first n powers of 4:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; seq_squares = pipe( seq, square )
+
+&gt; seq_squares( 4, print )
+
+1
+
+4
+
+9
+
+16
+
+&gt; seq_squares_squared = pipe( seq_squares, square )
+
+&gt; seq_squares_squared( 4, print )
+
+1
+
+16
+
+81
+
+256
+
+&gt; average_of_seq_of_powers = pipe( seq, square, square, avg )
+
+&gt; return average_of_seq_powers( 4 )
+
+88.5
+
+</pre>
+</DL>
+<p>
+This apparently works very well, but our square filter indeed isn't that interesting: It doesn't make use of the decoupled input and output pipes provide. The transformations above could have been very well implemented using the simplified pipe implementation from the introduction. Let's thus write two other more interesting filters. The first one will output only the odd numbers read from input, and the second will collect its input into pairs:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Let only odd numbers pass through</span>
+
+<span class="keyword">function</span> odd( pInput, pOutput )
+
+    <span class="keyword">for</span> lValue <span class="keyword">in</span> pInput <span class="keyword">do</span>
+
+        <span class="keyword">if</span> <span class="library">math.mod</span>( lValue, 2 ) == 1 <span class="keyword">then</span>
+
+            pOutput( lValue )
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Collect input into pairs</span>
+
+<span class="keyword">function</span> pair( pInput, pOutput )
+
+    <span class="keyword">for</span> lFirstValue <span class="keyword">in</span> pInput <span class="keyword">do</span>
+
+        <span class="keyword">local</span> lSecondValue = pInput()
+
+        pOutput( lFirstValue, lSecondValue )
+
+        <span class="keyword">if</span> lSecondValue == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+            <span class="keyword">break</span>
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+If we connect the filters with our number sequence source we see that they work as expected:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; seq_odd = pipe( seq, odd )
+
+&gt; seq_odd( 4, print )
+
+1
+
+3
+
+&gt; seq_pairs = pipe( seq, pair )
+
+&gt; seq_pairs( 4, print )
+
+1       2
+
+3       4
+
+</pre>
+</DL>
+<p>
+We won't build an example for a filter now that calls output more often than input since we'll see this in action when we discuss flattening filters later on. For now let's have a look at how we can interface our pipes with code we might already have or intend to write.
+<p>
+<H2>Interfacing Pipes with Existing Code</H2>
+<p>
+<H3>Creating Sources and Sinks</H3>
+<p>
+As you might have noted, filters and pipes take a generator as their first (input) parameter. A number of functions is available that return generators like <code>io.lines()</code> or <code>string.gfind()</code>, which we can directly use as input for our pipes. To process, for instance, all numbers contained in the string <code>data</code> with the pipe <code>my_pipe</code> we could write:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; my_pipe( string.gfind( data, "%d+" ), print )
+
+</pre>
+</DL>
+<p>
+It would be nice, however, if we could make a data source from <code>string.gfind</code>, so we could put this inside our pipe at its beginning, and instead write:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; my_pipe( data, print )
+
+</pre>
+</DL>
+<p>
+The following utility function helps us with this, constructing a data source from a function returning a generator. Upon execution, the data source calls the given function and writes all data delivered by the returned generator to its output:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Wraps a function returning a generator as data source</span>
+
+<span class="keyword">function</span> source( pFunction )
+
+    <span class="keyword">return</span> <span class="keyword">function</span>( pInput, pOutput )
+
+        <span class="keyword">local</span> lInput = pFunction( pInput )
+
+        <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+            <span class="keyword">local</span> lData = pack( lInput() )
+
+            <span class="keyword">if</span> lData[ 1 ] == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+                <span class="keyword">break</span>
+
+            <span class="keyword">end</span>
+
+            pOutput( <span class="library">unpack</span>( lData ) )
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Driving by, for our convenience we define the following function that wraps a function taking many arguments and some values into a function taking only one argument that calls the given function with its argument followed by these values. Since most functions of the Lua library take the value to act on (the <em>this</em> value) as the first argument, this function gives us in Lua what partial function application gives in functional programming:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Wraps a function returning a generator as data source</span>
+
+<span class="keyword">function</span> curry( pFunction, ... )
+
+    <span class="keyword">return</span> <span class="keyword">function</span>( pParam )
+
+        <span class="keyword">return</span> pFunction( pParam, <span class="library">unpack</span>( arg ) )
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Now we can build a data source that uses <code>string.gfind</code> with a pattern "%d+" to find all numbers contained in the string given as input parameter and write them to its output (as strings):
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; parse_numbers = source( curry( string.gfind, "%d+" ) )
+
+&gt; parse_numbers( "123 5 78 abc 12", print )
+
+123
+
+5
+
+78
+
+12
+
+</pre>
+</DL>
+<p>
+We'll work with this data source in the next section after we introduced another interface function.
+<p>
+So, after we defined a function that builds a data source from a function returning a generator, how about building a data sink from something we already have? What would be the opposite operation?
+<p>
+As it turns out, there's nothing we have to build: The opposite operation to a function taking a value and returning a generator would be a function taking a generator and returning a value. But that's exactly the description of our filter interface for the case of sinks: Any function that takes a generator (and optionally a second argument) and (optionally) returns some value <em>is</em> already a sink - there is no need to build one!
+<p>
+<H3>Passing Values through Functions</H3>
+<p>
+The next thing we would like to have is building filters from existing functions. The pattern is easy: Read input, call the function and write the result to output. The following function accomplishes this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Wraps a function as filter</span>
+
+<span class="keyword">function</span> pass( pFunction )
+
+    <span class="keyword">return</span> <span class="keyword">function</span>( pInput, pOutput )
+
+        <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+            <span class="keyword">local</span> lData = pack( pInput() )
+
+            <span class="keyword">if</span> lData[ 1 ] == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+                <span class="keyword">break</span>
+
+            <span class="keyword">end</span>
+
+            pOutput( pFunction( <span class="library">unpack</span>( lData ) ) )
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+With this function at hand we can create a filter that uses <code>tonumber()</code> to convert the strings passed from our number parser to numbers, so we can use them to compute their average. We build the following pipe:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; avg_from_string = pipe( parse_numbers, pass( tonumber ), avg )
+
+&gt; return avg_from_string( "123 5 78 abc 12" )
+
+54.5
+
+</pre>
+</DL>
+<p>
+Note that we can use <code>pass()</code> with a <em>sealed pipe</em> to use it as a subpipe and pass data through it.
+<p>
+The following function is a variety of <code>pass</code> that doesn't do any output, effectively consuming all input without any return:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Wraps a function as data sink, consuming any input without any output or</span>
+
+<span class="comment">-- return</span>
+
+<span class="keyword">function</span> consume( pFunction )
+
+    <span class="keyword">return</span> <span class="keyword">function</span>( pInput )
+
+        <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+            <span class="keyword">local</span> lData = pack( pInput() )
+
+            <span class="keyword">if</span> lData[ 1 ] == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+                <span class="keyword">break</span>
+
+            <span class="keyword">end</span>
+
+            pFunction( <span class="library">unpack</span>( lData ) )
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Reading from and Writing to Pipes</H3>
+<p>
+Let's now see if we can interface pipes with custom program logic that processes data in loops. There are two ends of the pipe to interface with: processing the output flowing out of a pipe, and feeding values into a pipe. (Actively feeding a filter's input <em>and</em> reading its output in the same thread probably wouldn't be of much use because of the buffering and synchronization issue it causes. We won't go into this, therefore.)
+<p>
+To process the data coming out of a pipe by a loop we need to turn the pipe into a generator. The following function accomplishes this, wrapping a pipe (or any filter) into a reusable function with one argument that returns a generator yielding the output of the pipe when it's given the argument as input (This function exposes the same signature pattern as is used by <code>string.gfind()</code>, <code>io.lines()</code> and the like):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Wraps a filter into a function with one argument returning a generator that</span>
+
+<span class="comment">-- yields all values produced by the filter from the input given as argument.</span>
+
+<span class="keyword">function</span> drain( pFilter )
+
+    <span class="keyword">return</span> <span class="keyword">function</span>( pInput )
+
+        <span class="keyword">local</span> lGenerator = <span class="library">coroutine.create</span>( pFilter )
+
+        <span class="keyword">return</span> <span class="keyword">function</span>()
+
+            <span class="keyword">local</span> lResult = pack( <span class="library">coroutine.resume</span>( lGenerator, pInput, <span class="library">coroutine.yield</span> ) )
+
+            <span class="keyword">local</span> lSuccess = <span class="library">table.remove</span>( lResult, 1 )
+
+            <span class="keyword">if</span> lSuccess <span class="keyword">then</span>
+
+                <span class="keyword">if</span> <span class="library">coroutine.status</span>( lGenerator ) == <span class="string">"suspended"</span> <span class="keyword">then</span>
+
+                    <span class="keyword">return</span> <span class="library">unpack</span>( lResult )
+
+                <span class="keyword">end</span>
+
+            <span class="keyword">else</span>
+
+                <span class="library">error</span>( lResult[ 1 ] )
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+We can now write code of the following sort:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> ... <span class="keyword">in</span> drain( pipe( ... ) )( ... ) <span class="keyword">do</span>
+
+    ...
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+We stated initially that the pipe to drain has to be a data source, but in fact, the function above makes no assumptions about that and thus does not require the pipe to be a data source. It depends on what kind of parameter we intend to give to the returned function: If we plan to give it a generator, the pipe need not be a data source.
+<p>
+Now, how about the opposite binding, that is, turning a pipe that is a data sink into a function that we can call repeatedly to feed data into the input of the pipe? We can implement a function returning such a feeder like follows (for simplicity we don't return a reusable function here like in the case of <code>drain()</code> but bind the output parameter to the pipe in one step):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Wraps a pipe that must be a data sink into a function that feeds its</span>
+
+<span class="comment">-- arguments into the pipe's input.</span>
+
+<span class="comment">-- THIS FUNCTION DOES NOT WORK WITH THE PIPES WE USE HERE!</span>
+
+<span class="keyword">function</span> feed( pPipe, pOutput )
+
+    <span class="keyword">local</span> lOutput = <span class="library">coroutine.create</span>( pPipe )
+
+    <span class="keyword">local</span> lPush = <span class="keyword">function</span>( ... )
+
+        <span class="keyword">local</span> lSuccess, lResult = <span class="library">coroutine.resume</span>( lOutput, <span class="library">unpack</span>( arg ) )
+
+        <span class="keyword">if</span> <span class="keyword">not</span> lSuccess <span class="keyword">then</span>
+
+            <span class="library">error</span>( lResult )
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> <span class="library">coroutine.status</span>( lOutput ) == <span class="string">"suspended"</span>
+
+    <span class="keyword">end</span>
+
+    lPush( <span class="keyword">function</span>() <span class="keyword">return</span> <span class="library">coroutine.yield</span>() <span class="keyword">end</span>, pOutput )
+
+    <span class="keyword">return</span> lPush
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The function creates a coroutine from the pipe passing it <code>coroutine.yield</code> as input, then executes it until it yields (requesting its first input), and returns a wrapper that resumes the coroutine on every invocation passing its arguments to it. The wrapper returns <code>true</code> if the coroutine yields again, that is if it will accept more input. Let's use it:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; feeder = feed( square, print )
+
+stdin:6: attempt to yield across metamethod/C-call boundary
+
+stack traceback:
+
+        [C]: in function `error'
+
+        stdin:6: in function `lPush'
+
+        stdin:10: in function `feed'
+
+        stdin:1: in main chunk
+
+        [C]: ?
+
+</pre>
+</DL>
+<p>
+Oops! We stumbled upon a limitation of Lua: Lua does't allow the generator called from the header of a <code>for</code> loop to yield! If we rewrite our <code>square</code> filter, we can work around this limitation:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; function square2( pInput, pOutput )
+
+&gt;&gt;     while true do
+
+&gt;&gt;         local lValue = pInput()
+
+&gt;&gt;         if lValue == nil then break end
+
+&gt;&gt;         pOutput( lValue * lValue )
+
+&gt;&gt;     end
+
+&gt;&gt; end
+
+&gt; feeder = feed( square2, print )
+
+&gt; return feeder( 2 )
+
+4
+
+true
+
+</pre>
+</DL>
+<p>
+There is, however, another problem: The <code>feed</code> function will only work for simple filters, it won't work for pipes. The reason is that in our pipes implementation the coroutines executing the filters are "stacked" one above the other in a resume/yield chain, and the filter that receives <code>coroutine.yield</code> as input has already been resumed by the filter following it, so upon yield it will return <em>there</em> and not to the code calling the pipe at the top level. We won't get the processor back, having the pipe waiting for input, as we intended.
+<p>
+We can improve our pipes implementation so that it doesn't have this problem: For this, we wrap <em>all</em> contained filters into coroutines and have them yield on input <em>and</em> output, and control them by a main loop that calls input and output itself:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- A symmetric pipe implementation. Pipes of this sort can be resumed from</span>
+
+<span class="comment">-- both ends but prevent the constituting filters to use 'for' loops for</span>
+
+<span class="comment">-- reading input. Also, sources and sinks cannot use the input and output</span>
+
+<span class="comment">-- parameters of the pipe.</span>
+
+<span class="keyword">function</span> symmetric_pipe( ... )
+
+    <span class="keyword">local</span> lFilters = arg
+
+    <span class="keyword">local</span> lFilterCount = <span class="library">table.getn</span>( lFilters )
+
+    <span class="keyword">return</span> <span class="keyword">function</span>( pInput, pOutput )
+
+        <span class="keyword">local</span> lHandover
+
+        <span class="keyword">local</span> lInput = <span class="keyword">function</span>()
+
+            lHandover = <span class="keyword">nil</span>
+
+            <span class="library">coroutine.yield</span>()
+
+            <span class="keyword">return</span> <span class="library">unpack</span>( lHandover )
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">local</span> lOutput = <span class="keyword">function</span>( ... )
+
+            lHandover = arg
+
+            <span class="library">coroutine.yield</span>()
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">local</span> lProcessors = {}
+
+        <span class="keyword">for</span> _, lFilter <span class="keyword">in</span> <span class="library">ipairs</span>( lFilters ) <span class="keyword">do</span>
+
+            <span class="library">table.insert</span>( lProcessors, <span class="library">coroutine.create</span>( lFilter ) )
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">local</span> lCurrentProcessor = lFilterCount
+
+        <span class="keyword">while</span> lCurrentProcessor &lt;= lFilterCount <span class="keyword">do</span>
+
+            <span class="keyword">if</span> <span class="keyword">not</span> lProcessors[ lCurrentProcessor ] <span class="keyword">then</span>
+
+                <span class="library">error</span>( <span class="string">"Requesting input from closed pipe"</span> )
+
+            <span class="keyword">end</span>
+
+            <span class="keyword">local</span> lSuccess, lResult = <span class="library">coroutine.resume</span>( lProcessors[ lCurrentProcessor ], lInput, lOutput )
+
+            <span class="keyword">if</span> <span class="keyword">not</span> lSuccess <span class="keyword">then</span>
+
+                <span class="library">error</span>( lResult )
+
+            <span class="keyword">end</span>
+
+            <span class="keyword">if</span> <span class="library">coroutine.status</span>( lProcessors[ lCurrentProcessor ] ) == <span class="string">"suspended"</span> <span class="keyword">then</span>
+
+                <span class="keyword">if</span> lHandover == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+                    lCurrentProcessor = lCurrentProcessor - 1
+
+                <span class="keyword">else</span>
+
+                    lCurrentProcessor = lCurrentProcessor + 1
+
+                <span class="keyword">end</span>
+
+                <span class="keyword">if</span> lCurrentProcessor == 0 <span class="keyword">then</span>
+
+                    lHandover = pack( pInput() )
+
+                    lCurrentProcessor = 1
+
+                <span class="keyword">elseif</span> lCurrentProcessor &gt; lFilterCount <span class="keyword">then</span>
+
+                    pOutput( <span class="library">unpack</span>( lHandover ) )
+
+                    lCurrentProcessor = lFilterCount
+
+                <span class="keyword">end</span>
+
+            <span class="keyword">else</span>
+
+                lHandover = {}
+
+                lProcessors[ lCurrentProcessor ] = <span class="keyword">nil</span>
+
+                lCurrentProcessor = lCurrentProcessor + 1
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+This pipes implementation allows pipes to be used with <code>feed()</code> too, however, these pipes have another problem: Since <em>all</em> filters now will yield on input, they suffer from Lua's limitation we saw above, effectively prohibiting us to use <code>for</code> loops in <em>any</em> filter. This is too severe a limitation, so we abandon this otherwise elegant implementation, accepting that <em>there is no way to feed data into pipes from within a loop</em>. If we want to write code that feeds data into a pipe, we have to either wrap it into a generator using <code>corourine.yield</code> and <code>coroutine.wrap</code> or write it as a data source, stuffing it in front of the pipe, and then <em>execute</em> the pipe. Our pipes must always be in the controlling position, and there is no way to have our loop control execution!
+<p>
+There is another issue with the <code>symmetric_pipe()</code> implementation above: It would prohibit using the input and output parameters of the pipe as parameters for the data sources and sinks because they never get them to see. We would lose quite a bit of flexibility by this.
+<p>
+<H2>Reading and Writing Files</H2>
+<p>
+Using our <code>source()</code> function from above, we can simply wrap <code>io.lines</code> to get a data source that reads a file and writes its contents line by line to its output. There is, alas, no function in the standard library that we could use as a file sink, we have to write our own using <code>io.write</code>. For symmetry, we therefore implement also a file <em>source</em> using <code>io.read</code>. We implement it in such a way that we can use it either as source (taking two parameters) or as function returning a generator (when invoked with one parameter). This allows us to use it at our discretion for building pipes as well as for invoking them:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Returns a function that can be used as data source yielding the contents of</span>
+
+<span class="comment">-- the file named in its input parameter, processed by the given formats, or</span>
+
+<span class="comment">-- that can be called with a filename alone to return a generator yielding this</span>
+
+<span class="comment">-- data. If no formats are given, line-by-line is assumed.</span>
+
+<span class="keyword">function</span> filereader( ... )
+
+    <span class="keyword">local</span> lFormats = arg
+
+    <span class="keyword">return</span> <span class="keyword">function</span>( pInput, pOutput )
+
+        <span class="keyword">local</span> lInput = <span class="library">io.open</span>( pInput )
+
+        <span class="keyword">local</span> lOutput = pOutput <span class="keyword">or</span> <span class="library">coroutine.yield</span>
+
+        <span class="keyword">local</span> lFeeder = <span class="keyword">function</span>()
+
+            <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+                <span class="keyword">local</span> lData = pack( lInput:read( <span class="library">unpack</span>( lFormats ) ) )
+
+                <span class="keyword">if</span> lData[ 1 ] ~= <span class="keyword">nil</span> <span class="keyword">then</span>
+
+                    lOutput( <span class="library">unpack</span>( lData ) )
+
+                <span class="keyword">end</span>
+
+                <span class="keyword">if</span> lData[ <span class="library">table.getn</span>( lData ) ] == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+                    <span class="keyword">break</span>
+
+                <span class="keyword">end</span>
+
+            <span class="keyword">end</span>
+
+            lInput:close()
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">if</span> pOutput <span class="keyword">then</span>
+
+            lFeeder()
+
+        <span class="keyword">else</span>
+
+            <span class="keyword">return</span> <span class="library">coroutine.wrap</span>( lFeeder )
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Returns a data sink that writes its input, optionally formatted by the</span>
+
+<span class="comment">-- given format string using string.format(), to the file named in its output</span>
+
+<span class="comment">-- parameter. If no format is given, the processing is analogous to print().</span>
+
+<span class="keyword">function</span> filewriter( pFormat )
+
+    <span class="keyword">return</span> <span class="keyword">function</span>( pInput, pOutput )
+
+        <span class="keyword">local</span> lOutput = <span class="library">io.open</span>( pOutput, <span class="string">"w"</span> )
+
+        <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+            <span class="keyword">local</span> lData = pack( pInput() )
+
+            <span class="keyword">if</span> lData[ 1 ] == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+                <span class="keyword">break</span>
+
+            <span class="keyword">end</span>
+
+            <span class="keyword">if</span> pFormat <span class="keyword">then</span>
+
+                lOutput:write( <span class="library">string.format</span>( pFormat, <span class="library">unpack</span>( lData ) ) )
+
+            <span class="keyword">else</span>
+
+                <span class="keyword">for</span> lIndex = 1, <span class="library">table.getn</span>( lData ) <span class="keyword">do</span>
+
+                    <span class="keyword">if</span> lIndex &gt; 1 <span class="keyword">then</span>
+
+                        lOutput:write( <span class="string">"\t"</span> )
+
+                    <span class="keyword">end</span>
+
+                    lOutput:write( <span class="library">tostring</span>( lData[ lIndex ] ) )
+
+                <span class="keyword">end</span>
+
+                lOutput:write( <span class="string">"\n"</span> )
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+        lOutput:close()
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Let's use both to copy a file line by line:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; copy = pipe( filereader(), filewriter() )
+
+&gt; copy( "data.in", "data.out" )
+
+</pre>
+</DL>
+<p>
+If we stuff various filters between the reader and writer, we can do any processing we want on the lines traveling the pipe. A simple scenario is a utility like grep. The following function builds a filter we can use for this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Returns a filter that filters input by the given regexp</span>
+
+<span class="keyword">function</span> grep( pPattern )
+
+    <span class="keyword">return</span> <span class="keyword">function</span>( pInput, pOutput )
+
+        <span class="keyword">for</span> lData <span class="keyword">in</span> pInput <span class="keyword">do</span>
+
+            <span class="keyword">if</span> <span class="library">string.find</span>( lData, pPattern ) <span class="keyword">then</span>
+
+                pOutput( lData )
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+We won't test this right now but instead compose a slightly more interesting example. You might have noticed that the function above doesn't mention lines in any way. Indeed, the filter is independent from the input being lines or not. Let's write another filter that collects lines into paragraphs and stuff the two together to do the grep on paragraphs instead of lines (like <code>grep -p</code>).
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Filter collecting lines into paragraphs. The trailing newline is preserved.</span>
+
+<span class="keyword">function</span> paragraphize( pInput, pOutput )
+
+    <span class="keyword">local</span> lBuffer = {}
+
+    <span class="keyword">for</span> lLine <span class="keyword">in</span> pInput <span class="keyword">do</span>
+
+        <span class="library">table.insert</span>( lBuffer, lLine )
+
+        <span class="keyword">if</span> lLine == <span class="string">""</span> <span class="keyword">then</span>
+
+            pOutput( <span class="library">table.concat</span>( lBuffer, <span class="string">"\n"</span> ) )
+
+            lBuffer = {}
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> <span class="library">next</span>( lBuffer ) <span class="keyword">then</span>
+
+        pOutput( <span class="library">table.concat</span>( lBuffer, <span class="string">"\n"</span> ) )
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; filter_foobar_paragraphs = pipe( filereader(), paragraphize, grep( "foobar" ), filewriter() )
+
+&gt; filter_foobar_paragraphs( "data.in", "data.out" )
+
+</pre>
+</DL>
+<p>
+If we liked, we could have omitted the file writer, giving <code>print</code> instead of an output file name as second parameter to the pipe to have the results printed to the console.
+<p>
+An especially interesting kind of file reader is one that reads Lua data files of the sort described in section 10.1 of PIL (<a href="http://www.lua.org/pil/10.1.html">http://www.lua.org/pil/10.1.html</a>): We would want it to write to output one after the other the entries read from the file. The following function works - similarly to the filereader - as a data source or function returning a generator. It executes the Lua file in an empty sandbox, exploiting some metaprogramming to submit the executing chunk the function(s) it calls for submitting a record (<code>entry</code> in the PIL example). This is done by defining the <code>__index</code> metamethod of the sandbox to provide the chunk with a function that outputs or yields the record together with its tag name (<code>entry</code> in our case). Having the tag name written to output too allows us to have input files carrying more than one kind of data (entity type), for instance if we would want to keep the contents of an entire (sufficiently small) relational database in <em>one</em> data file we could use the table names as tagnames and write the contents of all tables to one file.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Invocation with a single argument returns a generator yielding the records</span>
+
+<span class="comment">-- from the named Lua file. When invoked with two arguments this function acts</span>
+
+<span class="comment">-- as a data source yielding this data on output.</span>
+
+<span class="keyword">function</span> luareader( pInput, pOutput )
+
+    <span class="keyword">if</span> pInput == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+        <span class="library">error</span>( <span class="string">"bad argument #1 to `loadfile' (string expected, got nil)"</span> )
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">local</span> lInput, lError = <span class="library">loadfile</span>( pInput )
+
+    <span class="keyword">if</span> <span class="keyword">not</span> lInput <span class="keyword">then</span>
+
+        <span class="library">error</span>( lError )
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">local</span> lOutput = pOutput <span class="keyword">or</span> <span class="library">coroutine.yield</span>
+
+    <span class="keyword">local</span> lSandbox = {}
+
+    <span class="library">setmetatable</span>( lSandbox, {
+
+        __index = <span class="keyword">function</span>( pSandbox, pTagname )
+
+            <span class="keyword">local</span> lWorker = <span class="keyword">function</span>( pRecord )
+
+                lOutput( pRecord, pTagname )
+
+            <span class="keyword">end</span>
+
+            pSandbox[ pTagname ] = lWorker
+
+            <span class="keyword">return</span> lWorker
+
+        <span class="keyword">end</span>
+
+    } )
+
+    <span class="library">setfenv</span>( lInput, lSandbox )
+
+    <span class="keyword">if</span> pOutput <span class="keyword">then</span>
+
+        lInput()
+
+    <span class="keyword">else</span>
+
+        <span class="keyword">return</span> <span class="library">coroutine.wrap</span>( lInput )
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+If we test this with the data from <a href="http://www.lua.org/pil/10.1.html">http://www.lua.org/pil/10.1.html</a> (only one record) we get:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; reader = luareader( "data.lua" )
+
+&gt; return reader()
+
+table: 2001af18 entry
+
+&gt; return reader()
+
+&gt; 
+
+</pre>
+</DL>
+<p>
+Let's now examine some more complex transformations possible with pipes.
+<p>
+<H2>Flattening and Folding Filters</H2>
+<p>
+You might have asked yourself already how we would feed data into a pipe from multiple input sources so that the input to the pipe is the concatenation of the output of those sources.
+<p>
+If you think about this you will recognize that the core of this operation is not restricted to sources but can happen at any stage of a pipeline: What we need is a filter that produces a sequence from every input item and writes the concatenation of all those sequences to output. This is essentially a flattening operation. Having this generalization available as a filter we will no more need to build something special like a multisource: To concatenate several inputs we only need to produce a sequence of those inputs or values describing them, and apply a filter that unfolds every element into its contained data. We would best do this by calling a function that takes the element as parameter and returns a generator yielding the data resulting from unfolding it.
+<p>
+The following function takes a function returning a generator (such like <code>io.lines</code>) and builds a filter from it that calls this function for every input, feeding the output of the generator into its output:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Returns a filter that calls the given function for every input and feeds</span>
+
+<span class="comment">-- the output of the returned generator into its output.</span>
+
+<span class="keyword">function</span> expand( pFunction )
+
+    <span class="keyword">return</span> <span class="keyword">function</span>( pInput, pOutput, ... )
+
+        <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+            <span class="keyword">local</span> lInput = pack( pInput() )
+
+            <span class="keyword">if</span> lInput[ 1 ] == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+                <span class="keyword">break</span>
+
+            <span class="keyword">end</span>
+
+            <span class="keyword">local</span> lGenerator = pFunction( <span class="library">unpack</span>( lInput ) )
+
+            <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+                <span class="keyword">local</span> lData = pack( lGenerator() )
+
+                <span class="keyword">if</span> lData[ 1 ] == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+                    <span class="keyword">break</span>
+
+                <span class="keyword">end</span>
+
+                pOutput( <span class="library">unpack</span>( lData ) )
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Say, we have a file containing a list of filenames, one per line, and we want to concatenate the contents of those files line by line into one output file. This is how we could do that:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; concat_files = pipe( filereader(), expand( filereader() ), filewriter() )
+
+&gt; concat_files( "filelist.in", "data.out" )
+
+</pre>
+</DL>
+<p>
+By the way, this example shows the hidden power behind the double nature of the functions returned by <code>filereader()</code>.
+<p>
+Let's now think about the opposite operation: assembling data flowing through the pipe into larger units. Since data flowing through a pipe is by its nature <em>flat</em>, an assembling filter must know out of itself (possibly by also looking at the data) where to draw the boundaries that separate the data going into one assembly from the data going into the next. There are no external hints like the <em>end of input</em> in the flattening case to switch from one assembly to the next.
+<p>
+The easiest way to describe an assembling algorithm is as a function that takes an iterator as argument pulling as much data out of it as it needs and returning the assembly. Such a function can be wrapped into a folding filter by the following function:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Filter that calls the given function with its input until it is exhausted,</span>
+
+<span class="comment">-- feeding the returned values into its output.</span>
+
+<span class="keyword">function</span> assemble( pFunction )
+
+    <span class="keyword">return</span> <span class="keyword">function</span>( pInput, pOutput )
+
+        <span class="keyword">local</span> lTerminated = <span class="keyword">false</span>
+
+        <span class="keyword">local</span> <span class="keyword">function</span> lInput()
+
+            <span class="keyword">local</span> lData = pack( pInput() )
+
+            <span class="keyword">if</span> lData[ 1 ] == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+                lTerminated = <span class="keyword">true</span>
+
+            <span class="keyword">end</span>
+
+            <span class="keyword">return</span> <span class="library">unpack</span>( lData )
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">repeat</span>
+
+            pOutput( pFunction( lInput ) )
+
+        <span class="keyword">until</span> lTerminated
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+With this function at hand, we can provide an easier implementation for the filter collecting lines into paragraphs we implemented earlier:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Collects a paragraph by pulling lines from a generator. The trailing newline</span>
+
+<span class="comment">-- is preserved.</span>
+
+<span class="keyword">function</span> collect_paragraph( pInput )
+
+    <span class="keyword">local</span> lBuffer = {}
+
+    <span class="keyword">for</span> lLine <span class="keyword">in</span> pInput <span class="keyword">do</span>
+
+        <span class="library">table.insert</span>( lBuffer, lLine )
+
+        <span class="keyword">if</span> lLine == <span class="string">""</span> <span class="keyword">then</span>
+
+            <span class="keyword">break</span>
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="library">table.concat</span>( lBuffer, <span class="string">"\n"</span> )
+
+<span class="keyword">end</span>
+
+
+
+paragraphize = assemble( collect_paragraph )
+
+</pre>
+
+</DL>
+<p>
+<H2>Nested Pipes</H2>
+<p>
+<H3>Processing Complex Data</H3>
+<p>
+In the previous section we saw how to disassemble and assemble composite data (files and paragraphs in this case). The constituent parts of these composite data were fed along the same linear pipe as the composite data themselves, resulting in one single linear path of transformations. (This is at all what pipes are about, isn't it?) There are two facts to note about this scenario:
+<p>
+<UL>
+<li> The data stream fed between any two filters is homogeneous, meaning there is data of only one sort that is exchanged with every handshake.
+<li> The boundaries of any composite data disassembled and assembled on their way through a pipe need not match, that is the data resulting from some composite entity need not be collected after transformation in exactly one new complex entity.
+</UL>
+<p>
+After all, the latter wouldn't even be possible in the general case since the intervening filters are free to mangle the disassembled data at their will, blurring the borders between the initial composites.
+<p>
+Now, imagine what topology would have to be used instead of one linear pipe if we wanted to process complex data with a heterogeneous structure where the constituent parts would have to undergo different transformations, and we wanted to use pipes for those transformations as well. The topology that comes to mind would be a bunch of parallel "subpipes" coming out of one node and joining into another. The question is, how are inputs and outputs of the subpipes synchronized in those nodes and possibly between them?
+<p>
+Obviously the parallel pipes must not "eat each other's food" individually pulling input, and everything produced by any of the pipes must go into the result constructed from the output of all pipes somehow. Naturally, we come to the concept that all subpipes must have their input and output in the same node (filter), and that they get exactly one input (read by the filter controlling the subpipes) and must produce exactly one output (assembled and written to the output by the controlling filter). That is, the subpipes are kept apart from the filter's input and output which is served by the controlling filter node itself. In fact, the subpipes are thus run as <em>functions</em> taking argument(s) and producing return value(s). Such pipes, as we know, must start with a data source (getting the input value(s)) and end with a data sink (returning the result value(s)). From the filter node's point of view there is no difference to a function call altogether.
+<p>
+As it turns out, processing the constituent parts of complex values using parallel "subpipes" poses no special requirement on the filter having them as input/output - it's like calling functions. Since there's nothing special to pipes, I won't provide a function for constructing a structured value from another one by calling a set of functions.
+<p>
+We can, however, provide a simple example of using a subpipe <em>not</em> involving complex values. We'll use <code>pass()</code> to run a <em>sealed pipe</em> as a subpipe to process the individual values flowing through the pipe. Remember our <code>average_of_seq_of_powers</code> example above computing the average of the first <code>n</code> powers of 4. We are now interested in how this value changes with <code>n</code> and build a corresponding sequence by passing every <code>n</code> through the pipe <code>average_of_seq_of_powers</code> we already have, using it as a subpipe:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; seq_of_average_of_seq_of_powers = pipe( seq, pass( average_of_seq_of_powers ) )
+
+&gt; seq_of_average_of_seq_of_powers( 4, print )
+
+1
+
+8.5
+
+32.666666666667
+
+88.5
+
+</pre>
+</DL>
+<p>
+This is possible because <code>average_of_seq_of_powers</code> is a <em>sealed pipe</em> and thus behaves like a function. "Passing" may be a bit misleading a terminology for using subpipes this way since there isn't an alive subpipe that reads input and writes output - it's a completely different communication pattern: A new instanve of the pipe is created and run to end for every value "passed". But "passing" is the terminology we also use when invoking functions, and the value indeed manages to "go" through the subpipe, undergoing transformation, so this is probably justified.
+<p>
+<H3>Processing Heterogeneous Data Streams</H3>
+<p>
+Apart from what we discussed in the previous section, we could imagine another scenario using parallel pipes where the subpipes remain pipes to the outer pipe instead of masquerading as functions: The data stream could be at some stage made up of data of different kinds that have to undergo different transformations before again joining the main pipe. There would have to be some sort of switch routing the data to one of a set of subpipes with some collector pulling the data from the ends of the subpipes in the order the corresponding input was fed. The latter condition forces the node collecting the data to be the one doing the input routing (since there are no other communication channels the two nodes could use for synchronization). The difference from the complex data scenario above would be that the subpipes need not be synchronized in input/output behaviour and can even have interleaving input and output.
+<p>
+To implement this sort of processing we would have to be able to suspend pipes on input, feeding data when it becomes available. This isn't possible with the sort of pipes we have here and would require symmetric pipes, so we abandon this idea.
+<p>
+Out of curiosity let's, nevertheless, ask if given these preconditions it were possible to have even a real <em>pipe spaghetti</em> that is, a <em>web</em> of pipes emanating from one source and converging into one sink. Obviously, such a construct couldn't be assembled by recursively assembling less complex structures into more complex ones but we'd have to wire the filters and subpipes together by individually connecting their inputs and outputs. If we think about how data would travel through such a web we see that instead of our pull style communication scheme (asking generators for input) we would need a push style communication (calling functions for processing output). (Our pull style scheme doesn't harmonize with the type of output dispatching the switches perform - being able to examine the data to be routed - and would require dispatching the <em>request for input</em> based only on the data that already <em>has</em> been output, that is without being able to examine the input.) Having that, we could even imagine <em>processing webs</em> with multiple inputs and outputs. This would be an interesting project to implement and experiment with to see what it could do for us.
+<p>
+<H2>Working on Notation</H2>
+<p>
+While the main goal we pursued by implementing pipes was to get a natural notation for <em>implementing</em> data transformations (for data streams of undefined length, that is) that can be then combined to more complex transformations, let's see if the notation for <em>using</em> these transformations can be enhanced. For this, we will apply some metaprogramming.
+<p>
+The inline notation for invoking pipes, that is, building a pipe for single use and - without storing it in a variable - using it immediately, looks a bit clumsy. Take as an example our grep utility (omitting <code>paragraphize</code>):
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; pipe( filereader(), grep( "foobar" ), filewriter() )( "data.in", "data.out" )
+
+</pre>
+</DL>
+<p>
+This is far from the cleanness of the UNIX notation for pipes which would be roughly equivalent to
+<p>
+<DL>
+<dt><dd><pre>
+
+$ filereader "data.in" | grep "foobar" | filewriter "data.out"
+
+</pre>
+</DL>
+<p>
+When thinking about how we could use an operator notation to construct pipes, we first note that we have two options. Remember that a filter is a function taking as input parameter a generator and as output parameter a function. Having the generator at hand (which is the case when we are going to execute the pipe we are building on the fly), we can substitute <code>coroutine.yield</code> for output and wrap the following filter into a coroutine, thus getting another generator that yields the input as processed by the filter. We can then take this as input for the next filter and repeat the procedure, ending, after the last filter, with a generator that yields the output of the whole pipe. We could use this in a <code>for</code> loop, but to <em>execute</em> the pipe we had to add another construct to drain the generator or, better, append the sink by some other construct, providing it with its output parameter. The notation for output would this way be different to the one used for feeding input. Also, if we build generator chains this way, we'll reimplement most of what <code>pipe()</code> does but won't be able to use this notation to create pipes we could use as subpipes, for instance.
+<p>
+I therefore settled for the second option we have: building a reusable pipe and execute it immediately.
+<p>
+Building pipes is easy. All we need is to wrap the first filter into a proxy, that is, a table with attached metatable that defines the metamethods implementing the operators we need. Since the first filter is often a data source built by <code>source()</code> or one provided by our library like <code>luareader</code>, this wrapping can mostly be hidden. For those cases where it must be done explicitly, we make the <code>bind()</code> function publicly visible:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Metatable</span>
+
+<span class="keyword">local</span> sPipeOperations
+
+
+
+<span class="comment">-- Binds its argument to the library by wrapping it into a proxy</span>
+
+<span class="keyword">function</span> bind( pValue )
+
+    <span class="keyword">local</span> lProxy = { payload = pValue }
+
+    <span class="library">setmetatable</span>( lProxy, sPipeOperations )
+
+    <span class="keyword">return</span> lProxy
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The metatable defines the <code>__mul</code> metamethod to implement the * operator for connecting filters. I chose multiplication instead of, for instance, addition or concatenation, because the effects of filters stuffed together indeed do <em>multiply</em>, not add. (You can see this very clearly in our <code>seq_squares_squared</code> example above.) Besides, the asterisk not only looks prominent but, more importantly, binds stronger than most other operators, making it possible to apply those to a pipe without using parentheses. The operator returns a proxy as well so we can chain it:
+<p>
+<DL>
+<dt><dd><pre class="code">
+sPipeOperations = {
+
+    <span class="comment">-- Chains a proxy with a function or other proxy</span>
+
+    __mul = <span class="keyword">function</span>( pHeadProxy, pFilter )
+
+        <span class="keyword">local</span> lProxy = { head = pHeadProxy, payload = fncompile( pFilter ) }
+
+        <span class="library">setmetatable</span>( lProxy, sPipeOperations )
+
+        <span class="keyword">return</span> lProxy
+
+    <span class="keyword">end</span>,
+
+    ...
+
+}
+
+</pre>
+
+</DL>
+<p>
+To be able to call the wrapped functions transparently, we also implement the <code>__call</code> metamethod as executing the function the proxy represents with the given arguments. We build the function represented by the proxy using two internal utility functions:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Compiles a proxy to the function it represents</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> fncompile( pSpec )
+
+    <span class="keyword">if</span> <span class="library">type</span>( pSpec ) == <span class="string">"function"</span> <span class="keyword">then</span>
+
+        <span class="keyword">return</span> pSpec
+
+    <span class="keyword">else</span>
+
+        <span class="keyword">if</span> pSpec.head <span class="keyword">then</span>
+
+            <span class="keyword">return</span> fncompile( pipe( <span class="library">unpack</span>( unchain( pSpec ) ) ) )
+
+        <span class="keyword">else</span>
+
+            <span class="keyword">return</span> fncompile( pSpec.payload )
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Collects the payloads of a proxy chain into an array</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> unchain( pProxy )
+
+    <span class="keyword">if</span> <span class="keyword">not</span> pProxy <span class="keyword">then</span> <span class="keyword">return</span> {} <span class="keyword">end</span>
+
+    <span class="keyword">local</span> lResult = unchain( pProxy.head )
+
+    <span class="library">table.insert</span>( lResult, pProxy.payload )
+
+    <span class="keyword">return</span> lResult
+
+<span class="keyword">end</span>
+
+
+
+sPipeOperations = {
+
+    ...
+
+    __call = <span class="keyword">function</span>( pProxy, ... )
+
+        <span class="keyword">return</span> fncompile( pProxy )( <span class="library">unpack</span>( arg ) )
+
+    <span class="keyword">end</span>,
+
+    ...
+
+}
+
+</pre>
+
+</DL>
+<p>
+The reason <code>fncompile()</code> is implemented as a separate function and is also called on the result of <code>pipe()</code> is that we want to be able to freely mix and match pipes constructed using * or <code>pipe()</code>. For this to achieve, <code>pipe()</code> like any other function taking functions as arguments uses <code>fncompile()</code> to convert them before use and, like any function building filters, returns a <em>bound</em> function. (I won't provide the changed functions here again, though.)
+<p>
+We can now stuff together pipes or call functions taking a pipe as parameter without using <code>pipe()</code> anymore, and if the data source or the first filter is <em>bound</em> also without using <code>bind()</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; seq = bind( seq )
+
+&gt; average_of_seq_of_powers = seq * square * square * avg
+
+&gt; return average_of_seq_of_powers( 4 )
+
+88.5
+
+&gt; filter_foobar_lines = filereader() * grep( "foobar" ) * filewriter()
+
+&gt; filter_foobar_lines( "data.in", "data.out" )
+
+</pre>
+</DL>
+<p>
+Concerning inline calls we still haven't won much until now since all we can remove now from the ugly notation form above are four letters: <code>pipe</code>. We need to keep the parentheses around the pipe constructor expression since the function call operator binds stronger than multiplication:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; (filereader() * grep( "foobar" ) * filewriter())( "data.in", "data.out" )
+
+</pre>
+</DL>
+<p>
+So, this isn't yet where we would like to arrive. For pipes that must be called with two arguments there is probably nothing we can easily do any more without overcomplicating matters.
+<p>
+We <em>can</em>, however, achieve a pipe like notation for feeding data in, combined with an assignment for the result of the transformation when the pipe is to be called with <em>only</em> an input argument and <em>returns</em> its result (that is, works as a function call with a single argument). Remember our <code>average_of_seq_of_powers</code> example above that we will now rewrite as follows:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; result =  4 .. seq * square * square * avg
+
+</pre>
+</DL>
+<p>
+Data transformations the result of which goes into a program variable for later processing are a common case, and at the same time we are accustomed to use an assignment notation in such cases. So this notation seems like a good compromise, and most likely we wouldn't gain much more if we tried to tweak the notation further until we get the receiver of the result at the right end of the pipe like UNIX.
+<p>
+The above notation becomes possible if we implement the <code>__concat</code> metamethod that Lua calls for the .. operator if it's provided by any one of the two operands:
+<p>
+<DL>
+<dt><dd><pre class="code">
+sPipeOperations = {
+
+    ...
+
+    __concat = <span class="keyword">function</span>( pInput, pProxy )
+
+        <span class="keyword">return</span> fncompile( pProxy )( pInput )
+
+    <span class="keyword">end</span>
+
+}
+
+</pre>
+
+</DL>
+<p>
+(Note that we cannot use the more nicely looking &gt; operator by implementing the <code>__lt</code> metamethod since Lua would convert its result to a boolean what is not what we need.)
+<p>
+Let's finally illustrate the power of this notation, returning to our <code>seq_of_average_of_seq_of_powers</code> subpipe example. As we are forced to compute a value instead of writing to output, we'll add another average computation, getting the average of the averages of the sequences of length 1 up to the given number, of the powers of 4:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; return 4 .. seq * pass( seq * square * square * avg ) * avg
+
+32.666666666667
+
+</pre>
+</DL>
+<p>
+This completes our metaprogramming trip. Before coming to some finishing thoughts, let's note the following observation: We could use the .. notation we implemented for calling <em>any</em> function taking one argument if we <code>bind</code> it before use:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; return 1 + "4" .. bind( tonumber )
+
+5
+
+</pre>
+</DL>
+<p>
+And, if all functions we have at hand are <em>bound</em>, we could construct entire call chains this way by using the concatenation operator! (Using other operators in conjunction like in the above example would, however, be subject to operator precedence, so I wouldn't recommend it.) There is, however a better way to represent such call chains if our data is represented as tables (which is more often than not the case): We could equip our data with a metatable defining a <code>__call</code> metamethod that calls the function given to it as first argument with the data and the remaining arguments). The resulting notation could look like this (the <code>map</code> function, not provided here, builds a table by storing the values from the source table, converted by the function provided to it, under their original keys in the result table):
+<p>
+<DL>
+<dt><dd><pre>
+
+t (map, tonumber) (map, square) (avg)
+
+</pre>
+</DL>
+<p>
+This looks like a pretty nice function call chain converting an array of strings representing numbers <code>t</code> to numbers, squaring them and computing the average. It evaluates to
+<p>
+<DL>
+<dt><dd><pre>
+
+avg( map( map( t, tonumber ), square ) )
+
+</pre>
+</DL>
+<p>
+what is much less readable.
+<p>
+Note that the functions <code>square</code> and <code>avg</code> above are <em>not</em> those we defined earlier. Those were filters, and we could use them in a pipe to compute the same result (provided we had a function <code>values</code> accepting a table and returning a generator yielding its values). We could then use one of the following notations, the first one exploiting the <code>__call</code> metamethod of the table, and the second one the <code>__concat</code> metamethod of the pipe proxy:
+<p>
+<DL>
+<dt><dd><pre>
+
+t (source( values ) * pass( tonumber ) * square * avg)
+
+t .. source( values ) * pass( tonumber ) * square * avg
+
+</pre>
+</DL>
+<p>
+Note that while the second notation looks much nicer, it <em>cannot</em> be used as a statement like the first one - Lua requires us something to do with the returned value. This isn't normally a problem since we'd anyway want to use the result the pipe provides as return value, but it would be a limitation if the result of the expression were entirely in side effects. But in this case the notation would probably anyway suffer from the lack to provide an output parameter what could be easily done with the first notation:
+<p>
+<DL>
+<dt><dd><pre>
+
+t (source( values ) * pass( tonumber ) * square, print)
+
+</pre>
+</DL>
+<p>
+<H2>Some Final Considerations</H2>
+<p>
+We have arrived at the end of our discussion, let's add some final considerations about the mechanism we implemented.
+<p>
+You might have wondered why we don't need a boolean return from the output function in our filter interface to indicate to the filter that the output went o.k. and, more importantly, that more output will be accepted. After all, we implemented our filters as active entities writing output, and there must be someone to receive it. On UNIX, we see the <code>pipe closed</code> error when a filter tries to write to the input of the next filter if that has already finished execution and closed its input so that no more data is accepted.
+<p>
+The reason we don't need this is that in our implementation any filter is <em>resumed</em> by the filter following it when <em>requests</em> input. That is, it can <em>only</em> execute if the previous output has been processed <em>and new output is accepted</em> (it's even <em>expected</em>, indeed). So there can never be a situation where a filter processed its input and cannot deliver its output: output can never fail - we won't see the <em>pipe closed</em> error we know from UNIX some day! This is an immediate result of our <em>pull style</em> communication scheme. This communication scheme thus also results in a nice symmetry of our filter interface: The input function takes no value and returns data, and the output function takes data and returns no value.
+<p>
+A side effect of this is that there is no guarantee for any filter to read its input to end. Premature end of input processing thus will go unnoticed. It would be easy to implement such a check - any filter must not die before its predecessor - but is probably not worth the effort. (There may, however, remain open files if for instance file readers aren't exhausted but throwing an error wouldn't help with this anyway.)
+<p>
+If we implemented pipes using a <em>push style</em> communication scheme (having filters yield on input and resume their output) we'd have another situation: When output returns (from the resume call to the next filter) it knows if this filter is still alive and thus will accept more input. It could communicate this to the calling filter so it could stop processing (or ignore it, provoking a <em>pipe closed</em> error on the next output). The input/output interface would then lose its symmetry, and the loops making up filter implementations wouldn't any more be controlled by input alone. As it seems, our intuitive pull style implementation is preferrable also from this perspective and yields more natural implementations.
+<p>
+Thinking again about output being unable to fail, there seems to be discrepancy with reality where output, for instance to a network connection, <em>can</em> surely fail. Let's therefore have a closer look:
+<p>
+Any filter in a pipe but the last gets <code>coroutine.yield</code> as output. This call indeed can never fail. (It returns when the coroutine gets resumed again.) The last filter in a pipe, on the other hand, is supposed to be a data sink, so it won't call its output, meaning the output call can't fail for it too. So, where do the output errors emerge then? Obviously where the <em>data sink</em> calls some function that may fail. This means that it's the data sinks who need to have a contract with whatever they deliver their data to that allows for communicating the state of the output channel and handle any errors. Alternatively, we could instead of writing a custom data sink, <code>drain()</code> the pipe in a custom program loop to feed its output into some channel, handling any issues ourselves. In neither case any filter has to deal with any communication errors. (If, however, we give a function that may fail as output to a pipe not ending with a sink, errors will either go unnoticed or will be thrown to our code that called the pipe executing.)
+<p>
+What about input errors? Any error occurring in any filter is transparently forwarded (re-thrown along the input chain) to the data sink. Thus, the sink or, if we like a loop we write to read from the end of the pipe, will handle (or not handle) input errors as well as output errors.
+<p>
+Another interesting observation: Remember the scenario of reading and writing input and output of a pipe from controlling code running in <em>one</em> thread.
+<p>
+To solve the synchronization problems it poses we could decide to decouple the code handling both ends of the pipe by using a callback architecture: giving a <code>callback</code> to the pipe through which it can obtain its input, and thus having the controlling code to manage only the output end of the pipe. As it turns out, this is <em>exactly</em> how we work with pipes in this article: The <code>callback</code> is the input function given to the pipe (the generator)! This is the scenario of <code>drain()</code>.
+<p>
+Looking from the other end, we could decide to provide a <code>call forward</code> to the pipe to use for delivering its output and have the controlling code handle only the input end of the pipe. Again, this is what our filter interface is about: What we give as output parameter <em>is</em> such a <code>call forward</code> function. This is the scenario of <code>feed()</code>.
+<p>
+If we compare the two scenarios, we see that in both scenarios the pipes (which are, as we know, inherently active as is every filter) are wrapped into passive entities represented by functions, reacting only on external stimulus (function call): Pulling data from the output end of the pipe in the pull type pipes implementation we use here or feeding data into the input end of the pipe if we implemented pipes in push style, having the filters yield on input instead of output. (This leads to a less natural and more complicated solution than the generator approach we used here, and additionally poses the stated restrictions on using for loops in filter implementations, anyway.)
+<p>
+As long as pipes are only <em>executed</em> (that is, contain a data source <em>and</em> a data sink), there would be no externally visible difference between the two pipe implementations.
+<p>
+Have at this place a final look again at our <em>filter web</em> from the same section: This is, in fact, an event driven application that is built from a web of active processing nodes. It reacts on events happening on its inputs (the input functions being called from external to feed data in), transforming them into events on its outputs (calling the output functions to deliver data) and/or changing its internal state (possibly even reconfiguring itself). There might be any sort of processing nodes, not just what we consider to be filters, by the way! While this is in essence a <code>call forward</code> architecture, event driven applications are typically seen in a <code>callback</code> architecture. This is interesting, but there's no contradiction, everything depends on the viewpoint from which we are looking at a call - from the called (application) or calling (framework) code. So, when we connect our <em>processing web</em> to some framework feeding its inputs from the external sources (mouse events, for instance) and maybe also providing the functions it uses for output (graphic routines, for instance), we'll naturally provide our input functions to it as <code>callbacks</code>.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FiltersAndPipesReloaded" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FiltersAndPipesReloaded" >history</a><br>Last edited March 28, 2012 7:00 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FiltersAndPipesReloaded" >(diff)</a>
+</body>
+</html>

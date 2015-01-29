@@ -1,0 +1,594 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Save Table To File</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SaveTableToFile&amp;body=1" title="List pages referring to SaveTableToFile">Save Table To File</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Save a Table to file; Load a Table from file
+<p>
+Characteristics:
+<p>
+<UL>
+<li> Userdata, Functions, Metatables are not saved.
+<li> Only plain values such as tables, strings and numbers are saved
+<li> References are saved.
+<li> Only saves to file
+</UL>
+<p>
+<a href="/files/wiki_insecure/users/chill/table.save-1.0.lua">Files:wiki_insecure/users/chill/table.save-1.0.lua</a>
+<p>
+NOTICE: NOT suitable for huge tables. Saving a table containing 100.000 subtables with 25 (1 short text line and 24 numerical entries) fields works. Somewhere above that performance is disastrous when saving. And you get an "constant table overflow" error when you try to read it back. With smaller tables it seems to work. Especially considering it is a cut and past solution to your need.
+There is some test code that shows that you can very well save such big tables, of course this is also a machine issue.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--[[
+
+   Save Table to File
+
+   Load Table from File
+
+   v 1.0
+
+   
+
+   Lua 5.2 compatible
+
+   
+
+   Only Saves Tables, Numbers and Strings
+
+   Insides Table References are saved
+
+   Does not save Userdata, Metatables, Functions and indices of these
+
+   ----------------------------------------------------
+
+   table.save( table , filename )
+
+   
+
+   on failure: returns an error msg
+
+   
+
+   ----------------------------------------------------
+
+   table.load( filename or stringtable )
+
+   
+
+   Loads a table that has been saved via the table.save function
+
+   
+
+   on success: returns a previously saved table
+
+   on failure: returns as second argument an error msg
+
+   ----------------------------------------------------
+
+   
+
+   Licensed under the same terms as Lua itself.
+
+]]</span><span class="comment">--</span>
+
+<span class="keyword">do</span>
+
+   <span class="comment">-- declare local variables</span>
+
+   <span class="comment">--// exportstring( string )</span>
+
+   <span class="comment">--// returns a "Lua" portable version of the string</span>
+
+   <span class="keyword">local</span> <span class="keyword">function</span> exportstring( s )
+
+      <span class="keyword">return</span> <span class="library">string.format</span>(<span class="string">"%q"</span>, s)
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="comment">--// The Save Function</span>
+
+   <span class="keyword">function</span> <span class="library">table.save</span>(  tbl,filename )
+
+      <span class="keyword">local</span> charS,charE = <span class="string">"   "</span>,<span class="string">"\n"</span>
+
+      <span class="keyword">local</span> file,err = <span class="library">io.open</span>( filename, <span class="string">"wb"</span> )
+
+      <span class="keyword">if</span> err <span class="keyword">then</span> <span class="keyword">return</span> err <span class="keyword">end</span>
+
+
+
+      <span class="comment">-- initiate variables for save procedure</span>
+
+      <span class="keyword">local</span> tables,lookup = { tbl },{ [tbl] = 1 }
+
+      file:write( <span class="string">"return {"</span>..charE )
+
+
+
+      <span class="keyword">for</span> idx,t <span class="keyword">in</span> <span class="library">ipairs</span>( tables ) <span class="keyword">do</span>
+
+         file:write( <span class="string">"-- Table: {"</span>..idx..<span class="string">"}"</span>..charE )
+
+         file:write( <span class="string">"{"</span>..charE )
+
+         <span class="keyword">local</span> thandled = {}
+
+
+
+         <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>( t ) <span class="keyword">do</span>
+
+            thandled[i] = <span class="keyword">true</span>
+
+            <span class="keyword">local</span> stype = <span class="library">type</span>( v )
+
+            <span class="comment">-- only handle value</span>
+
+            <span class="keyword">if</span> stype == <span class="string">"table"</span> <span class="keyword">then</span>
+
+               <span class="keyword">if</span> <span class="keyword">not</span> lookup[v] <span class="keyword">then</span>
+
+                  <span class="library">table.insert</span>( tables, v )
+
+                  lookup[v] = #tables
+
+               <span class="keyword">end</span>
+
+               file:write( charS..<span class="string">"{"</span>..lookup[v]..<span class="string">"},"</span>..charE )
+
+            <span class="keyword">elseif</span> stype == <span class="string">"string"</span> <span class="keyword">then</span>
+
+               file:write(  charS..exportstring( v )..<span class="string">","</span>..charE )
+
+            <span class="keyword">elseif</span> stype == <span class="string">"number"</span> <span class="keyword">then</span>
+
+               file:write(  charS..<span class="library">tostring</span>( v )..<span class="string">","</span>..charE )
+
+            <span class="keyword">end</span>
+
+         <span class="keyword">end</span>
+
+
+
+         <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">pairs</span>( t ) <span class="keyword">do</span>
+
+            <span class="comment">-- escape handled values</span>
+
+            <span class="keyword">if</span> (<span class="keyword">not</span> thandled[i]) <span class="keyword">then</span>
+
+            
+
+               <span class="keyword">local</span> str = <span class="string">""</span>
+
+               <span class="keyword">local</span> stype = <span class="library">type</span>( i )
+
+               <span class="comment">-- handle index</span>
+
+               <span class="keyword">if</span> stype == <span class="string">"table"</span> <span class="keyword">then</span>
+
+                  <span class="keyword">if</span> <span class="keyword">not</span> lookup[i] <span class="keyword">then</span>
+
+                     <span class="library">table.insert</span>( tables,i )
+
+                     lookup[i] = #tables
+
+                  <span class="keyword">end</span>
+
+                  str = charS..<span class="string">"[{"</span>..lookup[i]..<span class="string">"}]="</span>
+
+               <span class="keyword">elseif</span> stype == <span class="string">"string"</span> <span class="keyword">then</span>
+
+                  str = charS..<span class="string">"["</span>..exportstring( i )..<span class="string">"]="</span>
+
+               <span class="keyword">elseif</span> stype == <span class="string">"number"</span> <span class="keyword">then</span>
+
+                  str = charS..<span class="string">"["</span>..<span class="library">tostring</span>( i )..<span class="string">"]="</span>
+
+               <span class="keyword">end</span>
+
+            
+
+               <span class="keyword">if</span> str ~= <span class="string">""</span> <span class="keyword">then</span>
+
+                  stype = <span class="library">type</span>( v )
+
+                  <span class="comment">-- handle value</span>
+
+                  <span class="keyword">if</span> stype == <span class="string">"table"</span> <span class="keyword">then</span>
+
+                     <span class="keyword">if</span> <span class="keyword">not</span> lookup[v] <span class="keyword">then</span>
+
+                        <span class="library">table.insert</span>( tables,v )
+
+                        lookup[v] = #tables
+
+                     <span class="keyword">end</span>
+
+                     file:write( str..<span class="string">"{"</span>..lookup[v]..<span class="string">"},"</span>..charE )
+
+                  <span class="keyword">elseif</span> stype == <span class="string">"string"</span> <span class="keyword">then</span>
+
+                     file:write( str..exportstring( v )..<span class="string">","</span>..charE )
+
+                  <span class="keyword">elseif</span> stype == <span class="string">"number"</span> <span class="keyword">then</span>
+
+                     file:write( str..<span class="library">tostring</span>( v )..<span class="string">","</span>..charE )
+
+                  <span class="keyword">end</span>
+
+               <span class="keyword">end</span>
+
+            <span class="keyword">end</span>
+
+         <span class="keyword">end</span>
+
+         file:write( <span class="string">"},"</span>..charE )
+
+      <span class="keyword">end</span>
+
+      file:write( <span class="string">"}"</span> )
+
+      file:close()
+
+   <span class="keyword">end</span>
+
+   
+
+   <span class="comment">--// The Load Function</span>
+
+   <span class="keyword">function</span> <span class="library">table.load</span>( sfile )
+
+      <span class="keyword">local</span> ftables,err = <span class="library">loadfile</span>( sfile )
+
+      <span class="keyword">if</span> err <span class="keyword">then</span> <span class="keyword">return</span> _,err <span class="keyword">end</span>
+
+      <span class="keyword">local</span> tables = ftables()
+
+      <span class="keyword">for</span> idx = 1,#tables <span class="keyword">do</span>
+
+         <span class="keyword">local</span> tolinki = {}
+
+         <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">pairs</span>( tables[idx] ) <span class="keyword">do</span>
+
+            <span class="keyword">if</span> <span class="library">type</span>( v ) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+               tables[idx][i] = tables[v[1]]
+
+            <span class="keyword">end</span>
+
+            <span class="keyword">if</span> <span class="library">type</span>( i ) == <span class="string">"table"</span> <span class="keyword">and</span> tables[i[1]] <span class="keyword">then</span>
+
+               <span class="library">table.insert</span>( tolinki,{ i,tables[i[1]] } )
+
+            <span class="keyword">end</span>
+
+         <span class="keyword">end</span>
+
+         <span class="comment">-- link indices</span>
+
+         <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>( tolinki ) <span class="keyword">do</span>
+
+            tables[idx][v[2]],tables[idx][v[1]] =  tables[idx][v[1]],<span class="keyword">nil</span>
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> tables[1]
+
+   <span class="keyword">end</span>
+
+<span class="comment">-- close do</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- ChillCode</span>
+
+</pre>
+
+</DL>
+Testcode
+<DL>
+<dt><dd><pre class="code">
+<span class="library">dofile</span>( <span class="string">"table.save-1.0.lua"</span> )
+
+
+
+<span class="keyword">function</span> Main()
+
+     
+
+<span class="library">print</span>( <span class="string">"Serialise Test ..."</span> )
+
+   
+
+<span class="keyword">local</span> t = {}
+
+t.a = 1
+
+t.b = 2
+
+t.c = {}
+
+<span class="comment">-- self reference</span>
+
+t.c.a = t
+
+t.inass = { 1,2,3,4,5,6,7,8,9,10 }
+
+t.inasst = { {1},{2},{3},{4},{5},{6},{7},{8},{9},{10} }
+
+<span class="comment">-- random</span>
+
+t.f = { [{ a = 5, b = 7, }] = <span class="string">"helloooooooo"</span>, [{ 1,2,3, m = 5, 5,6,7 }] = <span class="string">"A Table"</span>, }
+
+
+
+t.func = <span class="keyword">function</span>(x,y)
+
+   <span class="library">print</span>( <span class="string">"Hello\nWorld"</span> )
+
+   <span class="keyword">local</span> sum = x+y
+
+   <span class="keyword">return</span> sum
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- get test string, not string.char(26)</span>
+
+<span class="keyword">local</span> str = <span class="string">""</span>
+
+<span class="keyword">for</span> i = 0, 255 <span class="keyword">do</span>
+
+   str = str..<span class="library">string.char</span>( i )
+
+<span class="keyword">end</span>
+
+t.lstri = { [str] = 1 }
+
+t.lstrv = str
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> test() <span class="library">print</span>(<span class="string">"Hello"</span>) <span class="keyword">end</span>
+
+
+
+t[test] = 1
+
+
+
+   
+
+<span class="library">print</span>( <span class="string">"\n## BEFORE SAVE ##"</span> )
+
+
+
+printtbl( t )
+
+
+
+<span class="comment">--// test save to file</span>
+
+<span class="library">assert</span>( <span class="library">table.save</span>( t, <span class="string">"test_tbl.lua"</span> ) == <span class="keyword">nil</span> )
+
+   
+
+<span class="comment">-- load table from file</span>
+
+<span class="keyword">local</span> t2,err = <span class="library">table.load</span>( <span class="string">"test_tbl.lua"</span> )
+
+
+
+<span class="library">assert</span>( err == <span class="keyword">nil</span> )
+
+
+
+
+
+<span class="library">print</span>( <span class="string">"\n## AFTER SAVE ##"</span> )
+
+
+
+<span class="library">print</span>( <span class="string">"\n## LOAD FROM FILE ##"</span> )
+
+
+
+printtbl( t2 )
+
+
+
+<span class="library">print</span>( <span class="string">"\n//Test References"</span> )
+
+   
+
+<span class="library">assert</span>( t2.c.a == t2 )
+
+   
+
+<span class="library">print</span>( <span class="string">"\n//Test Long string"</span> )
+
+
+
+<span class="library">assert</span>( t.lstrv == t2.lstrv )
+
+
+
+<span class="library">print</span>( <span class="string">"\n//Test Function\n\n"</span> )
+
+
+
+<span class="library">assert</span>( t2.func == <span class="keyword">nil</span> )
+
+
+
+<span class="library">print</span>( <span class="string">"\n*** Test SUCCESSFUL ***"</span> )
+
+
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> printtbl( t,tab,lookup )
+
+   <span class="keyword">local</span> lookup = lookup <span class="keyword">or</span> { [t] = 1 }
+
+   <span class="keyword">local</span> tab = tab <span class="keyword">or</span> <span class="string">""</span>
+
+   <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">pairs</span>( t ) <span class="keyword">do</span>
+
+      <span class="library">print</span>( tab..<span class="library">tostring</span>(i), v )
+
+      <span class="keyword">if</span> <span class="library">type</span>(i) == <span class="string">"table"</span> <span class="keyword">and</span> <span class="keyword">not</span> lookup[i] <span class="keyword">then</span>
+
+         lookup[i] = 1
+
+         <span class="library">print</span>( tab..<span class="string">"Table: i"</span> )
+
+         printtbl( i,tab..<span class="string">"\t"</span>,lookup )
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> <span class="library">type</span>(v) == <span class="string">"table"</span> <span class="keyword">and</span> <span class="keyword">not</span> lookup[v] <span class="keyword">then</span>
+
+         lookup[v] = 1
+
+         <span class="library">print</span>( tab..<span class="string">"Table: v"</span> )
+
+         printtbl( v,tab..<span class="string">"\t"</span>,lookup )
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> SaveHugeTable()
+
+
+
+   <span class="keyword">local</span> _t = {}
+
+
+
+   <span class="keyword">for</span> i=1,1000000 <span class="keyword">do</span>
+
+
+
+      <span class="keyword">local</span> __t = {}
+
+      <span class="library">table.insert</span>(_t, __t)
+
+      <span class="library">table.insert</span>(__t, <span class="string">"THIS IS A STRING WITH A FEW CHARS"</span>)
+
+      <span class="keyword">for</span> i=1,30 <span class="keyword">do</span>
+
+         <span class="library">table.insert</span>(__t, i)
+
+      <span class="keyword">end</span>   
+
+   <span class="keyword">end</span>
+
+   
+
+   <span class="library">print</span>(<span class="string">"Built Hunge Table!"</span>)
+
+
+
+   t1 = <span class="library">os.clock</span>()
+
+   <span class="library">assert</span>( <span class="library">table.save</span>( _t, <span class="string">"test_huge_tbl.lua"</span> ) == <span class="keyword">nil</span> )
+
+   <span class="library">print</span>(<span class="string">"Done Saving: "</span>..<span class="library">os.difftime</span>(<span class="library">os.clock</span>(), t1))
+
+   
+
+   _t = <span class="keyword">nil</span>
+
+   <span class="library">collectgarbage</span>()
+
+   
+
+   t1 = <span class="library">os.clock</span>()
+
+   <span class="keyword">local</span> t2,err = <span class="library">table.load</span>( <span class="string">"test_huge_tbl.lua"</span> )
+
+   <span class="library">print</span>(<span class="string">"Done Loading: "</span>..<span class="library">os.difftime</span>(<span class="library">os.clock</span>(), t1))
+
+   
+
+   <span class="library">print</span>(<span class="string">"Num: "</span>..#t2)
+
+
+
+   <span class="library">assert</span>( err == <span class="keyword">nil</span> )
+
+   
+
+   <span class="library">print</span>( <span class="string">"\n*** Test SUCCESSFUL ***"</span> )
+
+   
+
+   <span class="library">io.read</span>()
+
+<span class="keyword">end</span>
+
+
+
+
+
+Main()
+
+<span class="comment">--SaveHugeTable()</span>
+
+
+
+<span class="library">io.read</span>()
+
+</pre>
+
+</DL>
+<H3>See Also</H3>
+<p>
+<UL>
+<li> <a href="../wiki/TableSerialization.html" >TableSerialization</a> - Recursive table print/serialization
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SaveTableToFile" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SaveTableToFile" >history</a><br>Last edited August 7, 2013 2:19 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SaveTableToFile" >(diff)</a>
+</body>
+</html>

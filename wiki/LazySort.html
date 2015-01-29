@@ -1,0 +1,428 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lazy Sort</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LazySort&amp;body=1" title="List pages referring to LazySort">Lazy Sort</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Inside quick sort, there is a binary tree waiting to be discovered.
+<p>
+The basic quick sort algorithm looks like this:
+<p>
+<DL>
+<dt><dd><pre>
+
+To quicksort(Set)
+
+  If Set is empty, then return an empty vector
+
+  Otherwise
+
+    Select a value in Set, Pivot
+
+    Make Left from all values in Set less than Pivot
+
+    Make Right from all values in Set greater than Pivot
+
+    Return the concatenation of Quicksort(Left), Pivot, Quicksort(Right)
+
+</pre>
+</DL>
+<p>
+The binary tree becomes quite obvious if the concatenation in the last step is replaced by making a binary tree node. The final vector can then be created by flattening the binary tree.
+<p>
+Similarly, we could compute factorial(n) by first making a vector of integers from 1 to n and then multiplying the elements of the vector.
+<p>
+In both cases, we have a kind of "virtual" intermediate structure, which we actually eliminate in practice by incorporating it into program flow. [1] However, it can be useful sometimes to reveal the intermediate structure.
+<p>
+For example, suppose we have a very large vector of family incomes, say of a million families. We want to compute some measure of income inequality; a common one is to find the ratio between the average income of the highest quintile (that is, the 20% of the population with the highest incomes) and the lowest quintile (that is, the 20% of the population with the lowest incomes).
+<p>
+To compute this value, we need to semi-sort the vector of incomes. Ideally, we want to just sort it enough so that we can extract the (unordered) first and last quintiles. One general-purpose way of doing this is to run the quick sort algorithm lazily; first, we stop when we reach the node corresponding to the 20% point; and then we start again,  stopping when we reach the 80% point. To do that (in general), we need keep at least part of the implicit binary tree around.
+<p>
+One way of doing this is to change quicksort so that the recursion is replaced by a "promise"; that is, instead of actually doing the recursion, we make a function closure which when called will do the next recursion step.
+<p>
+The Lua distribution includes <code>sort.lua</code> which has a simple implementation of quick sort; slightly simplified, the core is as follows:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> qsort(vec, low, high)
+
+  <span class="keyword">if</span> low &lt; high <span class="keyword">then</span>
+
+    <span class="keyword">local</span> middle = partition(vec, low, high)
+
+    qsort(vec, low, middle-1)
+
+    qsort(vec, middle+1, high)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+I've separated out the <code>partition</code> function and given variables possibly more meaningful names to make the algorithm a little clearer.
+<p>
+The lazy version looks something like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Ensure that that the element at i is in the right position,</span>
+
+<span class="comment">-- and return a closure which can be used for continuing the sort.</span>
+
+<span class="keyword">function</span> quicksorter(i, vec, low, high)
+
+  <span class="keyword">if</span> low &gt;= high <span class="keyword">then</span>
+
+    <span class="keyword">return</span> quicksorter
+
+  <span class="keyword">else</span> <span class="comment">-- low &lt; high</span>
+
+    <span class="comment">-- partition the vector and initialize the child closures</span>
+
+    <span class="keyword">local</span> middle = partition(vec, low, high)
+
+    <span class="keyword">local</span> left, right = quicksorter
+
+
+
+    <span class="comment">-- Create the promise</span>
+
+    <span class="keyword">local</span> <span class="keyword">function</span> self(i, vec, low, high)
+
+      <span class="keyword">if</span> i &lt; middle <span class="keyword">then</span>
+
+        left = left(i, vec, low, middle-1)
+
+        <span class="keyword">return</span> self
+
+      <span class="keyword">elseif</span> i &gt; middle <span class="keyword">then</span>
+
+        right = right(i, vec, middle+1, high)
+
+        <span class="keyword">return</span> self
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    
+
+    <span class="comment">-- Force the promise until i is in the right position</span>
+
+    <span class="keyword">return</span> self(i, vec, low, high)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> lazysort(vec, low, high)
+
+  <span class="keyword">local</span> sorter = quicksorter
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(i)
+
+    sorter = sorter(i, vec, low, high)
+
+    <span class="keyword">return</span> vec[i]
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+I haven't actually tested the code above, but I did write a real version of lazysort; you can download it from <a href="http://lua-users.org/files/wiki_insecure/users/rici/lazysort.lua">[here]</a>. The real version includes a couple of efficiencies: first, it uses an insertion sort for small ranges; and, second, it merges the binary tree so that it is always complete.
+<p>
+The sample code includes a test suite and benchmark, and some commented out pieces which make it possible to view the "virtual" binary tree, by recursing down the closures with a sentinel index value. I used that to make the following illustration of how it works:
+<p>
+First, let's test it:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> rangemean(v, low, high)
+
+  <span class="keyword">local</span> sum = v[low]
+
+  <span class="keyword">for</span> i = low+1, high <span class="keyword">do</span> sum = sum + v[i] <span class="keyword">end</span>
+
+  <span class="keyword">return</span> sum / (high - low + 1)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> disparity(v)
+
+  <span class="keyword">local</span> getter = lazysort(v)
+
+  <span class="keyword">local</span> bottom = <span class="library">math.ceil</span>(#v / 5)
+
+  getter(bottom)
+
+  <span class="keyword">local</span> top = <span class="library">math.floor</span>(#v * 4 / 5)
+
+  getter(top)
+
+  <span class="keyword">return</span> rangemean(v, top, #v) / rangemean(v, 1, bottom)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; math.randomseed(31415926)
+
+&gt; test = {}; for i = 1, 1e6 do test[i] = math.random(1e4) end
+
+&gt; now = os.clock(); print(disparity(test)); print(os.clock() - now)
+
+8.9768793870336
+
+0.6796875
+
+&gt;
+
+&gt; -- By comparison:
+
+&gt;
+
+&gt; math.randomseed(31415926)
+
+&gt; test = {}; for i = 1, 1e6 do test[i] = math.random(1e4) end
+
+&gt; now = os.clock(); table.sort(test); print (rangemean(test,8e5,1e6)/rangemean(test,1,2e5)); print(os.clock() - now)
+
+8.9768793870336
+
+1.8828125
+
+</pre>
+</DL>
+<p>
+So even though it's written in Lua and table.sort is written in C, it's three times as fast for this computation. In other words, it's not a toy.
+<p>
+Here's how it works. Let's take a slightly smaller sample:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; test = {}; for i = 1, 500 do test[i] = math.random(1e4) end
+
+&gt; getter = lazysort(test)
+
+&gt; =getter(100)
+
+1954
+
+&gt;
+
+&gt; -- By uncommenting the viewing code, we can look at the tree structure:
+
+&gt; getter""
+
+Root
+
++-Sorted [1, 1)
+
++-Node [1, 501)
+
+| +-Node [1, 249)
+
+| | +-Node [1, 169)
+
+| | | +-Leaf [1, 47) Unsorted
+
+| | | +-Sorted [47, 48)
+
+| | | +-Node [48, 169)
+
+| | |   +-Leaf [48, 83) Unsorted
+
+| | |   +-Sorted [83, 103)
+
+| | |   +-Leaf [103, 169) Unsorted
+
+| | +-Sorted [169, 170)
+
+| | +-Leaf [170, 249) Unsorted
+
+| +-Sorted [249, 250)
+
+| +-Leaf [250, 501) Unsorted
+
++-Sorted [501, 500)
+
+&gt; 
+
+&gt; -- "Partitioned" would be a better word than "Unsorted". 
+
+&gt; -- Now, let's ask for another element, some distance away
+
+&gt;
+
+&gt; =getter(400)
+
+7877
+
+&gt; getter""
+
+Root
+
++-Sorted [1, 1)
+
++-Node [1, 501)
+
+| +-Node [1, 249)
+
+| | +-Node [1, 169)
+
+| | | +-Leaf [1, 47) Unsorted
+
+| | | +-Sorted [47, 48)
+
+| | | +-Node [48, 169)
+
+| | |   +-Leaf [48, 83) Unsorted
+
+| | |   +-Sorted [83, 103)
+
+| | |   +-Leaf [103, 169) Unsorted
+
+| | +-Sorted [169, 170)
+
+| | +-Leaf [170, 249) Unsorted
+
+| +-Sorted [249, 250)
+
+| +-Node [250, 501)
+
+|   +-Leaf [250, 382) Unsorted
+
+|   +-Sorted [382, 383)
+
+|   +-Node [383, 501)
+
+|     +-Node [383, 441)
+
+|     | +-Leaf [383, 391) Unsorted
+
+|     | +-Sorted [391, 408)
+
+|     | +-Leaf [408, 441) Unsorted
+
+|     +-Sorted [441, 442)
+
+|     +-Leaf [442, 501) Unsorted
+
++-Sorted [501, 500)
+
+&gt;
+
+&gt; -- Leaf [250, 501) has now been expanded down to element 400.
+
+&gt;
+
+&gt; -- Now, let's watch as it merges tree nodes.
+
+&gt;
+
+&gt; =getter(387)
+
+7546
+
+&gt; getter""
+
+Root
+
++-Sorted [1, 1)
+
++-Node [1, 501)
+
+| +-Node [1, 249)
+
+| | +-Node [1, 169)
+
+| | | +-Leaf [1, 47) Unsorted
+
+| | | +-Sorted [47, 48)
+
+| | | +-Node [48, 169)
+
+| | |   +-Leaf [48, 83) Unsorted
+
+| | |   +-Sorted [83, 103)
+
+| | |   +-Leaf [103, 169) Unsorted
+
+| | +-Sorted [169, 170)
+
+| | +-Leaf [170, 249) Unsorted
+
+| +-Sorted [249, 250)
+
+| +-Node [250, 501)
+
+|   +-Leaf [250, 382) Unsorted
+
+|   +-Sorted [382, 408)
+
+|   +-Node [408, 501)
+
+|     +-Leaf [408, 441) Unsorted
+
+|     +-Sorted [441, 442)
+
+|     +-Leaf [442, 501) Unsorted
+
++-Sorted [501, 500)
+
+&gt;
+
+&gt; Leaf [383, 391] has been fully sorted, so it can be merged into it's parent, Node [383, 441).
+
+&gt; That in turn creates another merge, leaving the tree as shown above. 
+
+</pre>
+</DL>
+<p>
+<p>
+[1] For a slightly more academic (but still accessible) discussion of this, read Lex Augusteijn's interesting paper on <a href="http://citeseer.ist.psu.edu/augusteijn99sorting.html">[Sorting Morphisms.]</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LazySort" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LazySort" >history</a><br>Last edited May 12, 2008 11:13 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LazySort" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,1497 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Module Definition</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ModuleDefinition&amp;body=1" title="List pages referring to ModuleDefinition">Module Definition</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+There are many ways to define a "module" <a href="http://en.wikipedia.org/wiki/Modularity_%28programming%29.html">[1]</a> in Lua.
+<p>
+<H2>From a Table</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- mymodule.lua</span>
+
+<span class="keyword">local</span> M = {} <span class="comment">-- public interface</span>
+
+
+
+<span class="comment">-- private</span>
+
+<span class="keyword">local</span> x = 1
+
+<span class="keyword">local</span> <span class="keyword">function</span> baz() <span class="library">print</span> <span class="string">'test'</span> <span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> M.foo() <span class="library">print</span>(<span class="string">"foo"</span>, x) <span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> M.bar()
+
+  M.foo()
+
+  baz()
+
+  <span class="library">print</span> <span class="string">"bar"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> M
+
+
+
+<span class="comment">-- Example usage:</span>
+
+<span class="keyword">local</span> MM = <span class="library">require</span> <span class="string">'mymodule'</span>
+
+MM.bar()
+
+</pre>
+
+</DL>
+<p>
+This is a common approach.  It is simple, relies on no external code, avoids globals, and has few pitfalls.  Externally facing variables are prefixed by "<code>M.</code>" and clearly seen.
+<p>
+<H2>Using the <code>module</code> Function</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">module</span>(..., <span class="library">package.seeall</span>)  <span class="comment">-- optionally omitting package.seeall if desired</span>
+
+
+
+<span class="comment">-- private</span>
+
+<span class="keyword">local</span> x = 1
+
+<span class="keyword">local</span> <span class="keyword">function</span> baz() <span class="library">print</span> <span class="string">'test'</span> <span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> foo() <span class="library">print</span>(<span class="string">"foo"</span>, x) <span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> bar()
+
+  foo()
+
+  baz()
+
+  <span class="library">print</span> <span class="string">"bar"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Example usage:</span>
+
+<span class="library">require</span> <span class="string">'mymodule'</span>
+
+mymodule.bar()
+
+</pre>
+
+</DL>
+<p>
+This is also common and shorter.  It uses Lua's <code>module</code> function.  Some other ways of using the <code>module</code> function are in <em>Programming in Lua</em> <a href="http://www.inf.puc-rio.br/~roberto/pil2/">[2]</a>.  However, see <a href="../wiki/LuaModuleFunctionCritiqued.html" >LuaModuleFunctionCritiqued</a> for criticisms of this approach.
+<p>
+<H2>From a Table - Using Locals Internally</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="comment">-- private</span>
+
+<span class="keyword">local</span> x = 1
+
+<span class="keyword">local</span> <span class="keyword">function</span> baz() <span class="library">print</span> <span class="string">'test'</span> <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> foo() <span class="library">print</span>(<span class="string">"foo"</span>, x) <span class="keyword">end</span>
+
+M.foo = foo
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> bar()
+
+  foo()
+
+  baz()
+
+  <span class="library">print</span> <span class="string">"bar"</span>
+
+<span class="keyword">end</span>
+
+M.bar = bar
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+This is similar to the table approach, but even inside the module itself it uses lexicals when referring to externally faced variables.  Although this code is more verbose (repetitive), lexicals can be more efficient for performance critical code and more suitable for static analysis approaches to <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>.  Futhermore, this approach prevents changes made to <code>M</code>--e.g. from a client--from affecting the behavior inside the module; for example, in the regular tables approach, <code>M.bar()</code> internally calls <code>M.foo()</code>, so the behavior of <code>M.bar()</code> will change if <code>M.foo()</code> were replaced.  This has some implications for <a href="../wiki/SandBoxes.html" >SandBoxes</a> too, and it is the reason for the extra locals in <code>etc/strict.lua</code> in Lua 5.1.3.
+<p>
+<H2>localmodule</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="keyword">local</span> x = 1  <span class="comment">-- private</span>
+
+
+
+<span class="keyword">local</span> M_baz = 1  <span class="comment">-- public</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> M_foo()
+
+  M_baz = M_baz + 1
+
+  <span class="library">print</span> (<span class="string">"foo"</span>, x, M_baz)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> M_bar()
+
+  M_foo()
+
+  <span class="library">print</span> <span class="string">"bar"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">require</span> <span class="string">'localmodule'</span>.export(M)
+
+
+
+<span class="keyword">return</span> M
+
+
+
+<span class="comment">-- Example usage:</span>
+
+<span class="keyword">local</span> MM = <span class="library">require</span> <span class="string">'mymodule'</span>
+
+MM.baz = 10
+
+MM.bar()
+
+MM.foo = <span class="keyword">function</span>() <span class="library">print</span> <span class="string">'hello'</span> <span class="keyword">end</span>
+
+MM.bar()
+
+
+
+<span class="comment">-- Output:</span>
+
+<span class="comment">-- foo     1       11</span>
+
+<span class="comment">-- bar</span>
+
+<span class="comment">-- hello</span>
+
+<span class="comment">-- bar</span>
+
+</pre>
+
+</DL>
+<p>
+This approach is more novel.  It defines all externally facing variables in the module using lexical (local) variables.  It makes heavy use of lexicals.  Reliance on lexicals has some advantages such as when using the static analysis methods of <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>.  
+<p>
+The <code>export</code> function uses the <code>debug</code> module to read the current function's local variables prefixed by <code>M_</code> (<code>debug.getlocal</code>) and expose them (read/write) through the module table <code>M</code> via metafunctions.  The ability to write to these variables is made possible by searching for and using (whenever possible) the upvalues located in closures (<code>debug.getupvalue/debug.getupvalue</code>), such as in the nested closures.  This avoids the repetition seen in "From a Table - Using Locals Internally".  You may selectively replace <code>M_foo</code> style references with <code>M.foo</code> style references if more dynamic behavior is desired.
+<p>
+The implementation of <code>localmodule</code> assumes that symbols have not been stripped (luac -s) and that the debug module has not been removed, so this approach does have a bit more baggage.
+<p>
+The <code>localmodule</code> module is defined as
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- localmodule.lua</span>
+
+<span class="comment">-- David Manura, 2008-03, Licensed under the same terms as Lua itself (MIT License).</span>
+
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="comment">-- Creates metatable.</span>
+
+<span class="keyword">local</span> getupvalue = <span class="library">debug.getupvalue</span>
+
+<span class="keyword">local</span> setupvalue = <span class="library">debug.setupvalue</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> makemt(t)
+
+  <span class="keyword">local</span> mt = <span class="library">getmetatable</span>(t)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> mt <span class="keyword">then</span>
+
+    mt = {}
+
+    <span class="library">setmetatable</span>(t, mt)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> varsf,varsi = {},{}
+
+  <span class="keyword">function</span> mt.__index(_,k)
+
+    <span class="keyword">local</span> a = varsf[k]
+
+    <span class="keyword">if</span> a <span class="keyword">then</span>
+
+      <span class="keyword">local</span> _,val = getupvalue(a,varsi[k])
+
+      <span class="keyword">return</span> val
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> mt.__newindex(_,k,v)
+
+    <span class="keyword">local</span> a = varsf[k]
+
+    <span class="keyword">if</span> a <span class="keyword">then</span>
+
+      setupvalue(a,varsi[k], v)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> varsf,varsi
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Makes locals in caller accessible via the table P.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> export(P)
+
+  P = P <span class="keyword">or</span> {}
+
+
+
+  <span class="keyword">local</span> varsf,varsi = makemt(P)
+
+
+
+  <span class="comment">-- For each local variable, attempt to locate an upvalue</span>
+
+  <span class="comment">-- for it in one of the local functions.</span>
+
+  <span class="comment">--</span>
+
+  <span class="comment">-- TODO: This may have corner cases. For example, we might want to</span>
+
+  <span class="comment">-- check that these functions are lexically nested in the current</span>
+
+  <span class="comment">-- function (possibly with something like lbci).</span>
+
+  <span class="keyword">for</span> i=1,<span class="library">math.huge</span> <span class="keyword">do</span>
+
+    <span class="keyword">local</span> name,val = <span class="library">debug.getlocal</span>(2, i)
+
+    <span class="keyword">if</span> val == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(val) == <span class="string">'function'</span> <span class="keyword">then</span>
+
+      <span class="keyword">local</span> f = val
+
+      <span class="keyword">for</span> j=1,<span class="library">math.huge</span> <span class="keyword">do</span>
+
+        <span class="keyword">local</span> name,val = <span class="library">debug.getupvalue</span>(f, j)
+
+        <span class="keyword">if</span> val == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+        <span class="keyword">if</span> name:find(<span class="string">"M_"</span>) == 1 <span class="keyword">then</span>
+
+          name = name:sub(3)
+
+          varsf[name] = f
+
+          varsi[name] = j
+
+          <span class="comment">--print('DEBUG:upvalue', name)</span>
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- For each local variable, it no upvalue was found, just</span>
+
+  <span class="comment">-- resort to making a copy of it instead.</span>
+
+  <span class="keyword">for</span> i=1,<span class="library">math.huge</span> <span class="keyword">do</span>
+
+    <span class="keyword">local</span> name,val = <span class="library">debug.getlocal</span>(2, i)
+
+    <span class="keyword">if</span> val == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    <span class="keyword">if</span> name:find(<span class="string">"M_"</span>) == 1 <span class="keyword">then</span>
+
+      name = name:sub(3)
+
+      <span class="keyword">if</span> <span class="keyword">not</span> varsf[name] <span class="keyword">then</span>
+
+        <span class="library">rawset</span>(P, name, val)
+
+        <span class="comment">--print('DEBUG:copy', name)</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> P
+
+<span class="keyword">end</span>
+
+M.export = export
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+<H2>Pattern: Module System with Public/Private Namespaces</H2>
+<p>
+As noted in Programming in Lua, 2nd edition p.144, when using the Lua 5.1 module system with the <code>package.seeall</code> option (or the equivalent <code>setmetatable(M, {__index = _G})</code> trick), there is a peculiarity in that global variables are accessible through the module table.  For example, if you have a module named <code>complex</code> defined as such:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- complex.lua</span>
+
+<span class="library">module</span>(<span class="string">"complex"</span>, <span class="library">package.seeall</span>)
+
+<span class="comment">-- ...</span>
+
+</pre>
+
+</DL>
+<p>
+then doing
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"complex"</span>
+
+<span class="library">print</span>(complex.math.sqrt(2))
+
+</pre>
+
+</DL>
+<p>
+prints the square root of 2 because <code>math</code> is a global variable.  Furthermore, if a global variable with name <code>complex</code> already exists (possibly defined in some unrelated file), then the <code>require</code> will fail:
+<p>
+<DL>
+<dt><dd><pre>
+
+-- put this in the main program:
+
+complex = 123
+
+-- then deep in some module do this:
+
+local c = require "complex"
+
+--&gt; fails with "name conflict for module 'complex'"
+
+</pre>
+</DL>
+<p>
+This is a type of namespace pollution and possibly a source of errors.
+<p>
+The problem as I see it is that the environment used internally by the module is the same as the table exposed to the client of the module.  We can make these two separate tables as given in the below solution:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- cleanmodule.lua</span>
+
+
+
+<span class="comment">-- Declare module cleanly.</span>
+
+<span class="comment">-- Create both public and private namespaces for module.</span>
+
+<span class="comment">-- Global assignments inside module get placed in both</span>
+
+<span class="comment">-- public and private namespaces.</span>
+
+<span class="keyword">function</span> cleanmodule(modname)
+
+  <span class="keyword">local</span> pub = {}     <span class="comment">-- public namespace for module</span>
+
+  <span class="keyword">local</span> priv = {}  <span class="comment">-- private namespace for module</span>
+
+  <span class="keyword">local</span> privmt = {}
+
+  privmt.__index = <span class="library">_G</span>
+
+  privmt.__newindex = <span class="keyword">function</span>(priv, k, v)
+
+    <span class="comment">--print("DEBUG:add",k,v)</span>
+
+    <span class="library">rawset</span>(pub, k, v)
+
+    <span class="library">rawset</span>(priv, k, v)
+
+  <span class="keyword">end</span>
+
+  <span class="library">setmetatable</span>(priv, privmt)
+
+  <span class="library">setfenv</span>(2, priv)
+
+
+
+  <span class="library">package.loaded</span>[modname] = pub
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Require module, but store module only in</span>
+
+<span class="comment">-- private namespace of caller (not public namespace).</span>
+
+<span class="keyword">function</span> cleanrequire(name)
+
+  <span class="keyword">local</span> result = <span class="library">require</span>(name)
+
+  <span class="library">rawset</span>(<span class="library">getfenv</span>(2), name, result)
+
+  <span class="keyword">return</span> result
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- test.lua</span>
+
+<span class="library">require</span> <span class="string">"cleanmodule"</span>
+
+
+
+m2 = 123  <span class="comment">-- variable that happens to have same name as a module</span>
+
+
+
+cleanrequire <span class="string">"m1"</span>
+
+
+
+m1.test()
+
+
+
+<span class="library">assert</span>(m1)
+
+<span class="library">assert</span>(<span class="keyword">not</span> m1.m2)  <span class="comment">-- works correctly!</span>
+
+<span class="library">assert</span>(m1.test)
+
+<span class="library">assert</span>(m1.helper)
+
+
+
+<span class="library">assert</span>(m2 == 123)  <span class="comment">-- works correctly!</span>
+
+
+
+<span class="library">print</span>(<span class="string">"done"</span>)
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- m1.lua</span>
+
+cleanmodule(...)
+
+
+
+cleanrequire <span class="string">"m2"</span>
+
+
+
+<span class="keyword">function</span> helper()
+
+  <span class="library">print</span>(<span class="string">"123"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> test()
+
+  helper()
+
+  m2.test2()
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">assert</span>(<span class="keyword">not</span> m1)
+
+<span class="library">assert</span>(test)
+
+<span class="library">assert</span>(helper)
+
+
+
+<span class="library">assert</span>(m2)
+
+<span class="library">assert</span>(m2.test2)
+
+<span class="library">assert</span>(<span class="keyword">not</span> m2.m1)
+
+<span class="library">assert</span>(<span class="keyword">not</span> m2.m2)
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- m2.lua</span>
+
+cleanmodule(...)
+
+
+
+<span class="keyword">function</span> test2()
+
+  <span class="library">print</span>(234)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Output:
+<DL>
+<dt><dd><pre>
+
+123
+
+234
+
+done
+
+</pre>
+</DL>
+<p>
+<strong>Take #2</strong> - Here is the latest refinement of the previous code.  This version only replaces <code>module</code> not <code>require</code>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- cleanmodule.lua</span>
+
+
+
+<span class="comment">-- Helper function added to modules defined by cleanmodule</span>
+
+<span class="comment">-- to support importing module symbols into client namespace.</span>
+
+<span class="comment">-- Usage:</span>
+
+<span class="comment">--   local mm = require "mymodule"  -- only local exported</span>
+
+<span class="comment">--   require "mymodule" ()          -- export module table to environment</span>
+
+<span class="comment">--   require "mymodule" ":all"      -- export also all functions</span>
+
+<span class="comment">--                                     to environment.</span>
+
+<span class="comment">--   require "mymodule" (target,":all")  -- export instead to given table</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> import(public, ...)
+
+  <span class="comment">-- Extract arguments.</span>
+
+  <span class="keyword">local</span> target, options = ...
+
+  <span class="keyword">if</span> <span class="library">type</span>(target) ~= <span class="string">"table"</span> <span class="keyword">then</span>
+
+    target, options = <span class="keyword">nil</span>, target
+
+  <span class="keyword">end</span>
+
+  target = target <span class="keyword">or</span> <span class="library">getfenv</span>(2)
+
+
+
+  <span class="comment">-- Export symbols.</span>
+
+  <span class="keyword">if</span> options == <span class="string">":all"</span> <span class="keyword">then</span>
+
+    <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(public) <span class="keyword">do</span> target[k] = v <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- Build public module tables in caller.</span>
+
+  <span class="keyword">local</span> prevtable, prevprevtable, prevatom = target, <span class="keyword">nil</span>, <span class="keyword">nil</span>
+
+  public._NAME:gsub(<span class="string">"[^%.]+"</span>, <span class="keyword">function</span>(atom)
+
+    <span class="keyword">local</span> <span class="library">table</span> = <span class="library">rawget</span>(prevtable, atom)
+
+    <span class="keyword">if</span> <span class="library">table</span> == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+      <span class="library">table</span> = {}; <span class="library">rawset</span>(prevtable, atom, <span class="library">table</span>)
+
+    <span class="keyword">elseif</span> <span class="library">type</span>(<span class="library">table</span>) ~= <span class="string">'table'</span> <span class="keyword">then</span>
+
+      <span class="library">error</span>(<span class="string">'name conflict for module '</span> .. public._NAME, 4)
+
+    <span class="keyword">end</span>
+
+    prevatom = atom; prevprevtable = prevtable; prevtable = <span class="library">table</span>
+
+  <span class="keyword">end</span>)
+
+  <span class="library">rawset</span>(prevprevtable, prevatom, public)
+
+
+
+  <span class="keyword">return</span> public
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Declare module cleanly.</span>
+
+<span class="comment">-- Create both public and private namespaces for module.</span>
+
+<span class="comment">-- Global assignments inside module get placed in both</span>
+
+<span class="comment">-- public and private namespaces.</span>
+
+<span class="keyword">function</span> cleanmodule(modname)
+
+  <span class="keyword">local</span> pubmt = {__call = import}
+
+  <span class="keyword">local</span> pub = {import = import, _NAME = modname} <span class="comment">-- public namespace for module</span>
+
+  <span class="keyword">local</span> priv = {_PUBLIC = pub, _PRIVATE = priv,
+
+                _NAME = modname} <span class="comment">-- private namespace for module</span>
+
+  <span class="keyword">local</span> privmt = {
+
+    __index = <span class="library">_G</span>,
+
+    __newindex = <span class="keyword">function</span>(priv, k, v)
+
+      <span class="library">rawset</span>(pub, k, v)
+
+      <span class="library">rawset</span>(priv, k, v)
+
+    <span class="keyword">end</span>
+
+  }
+
+  <span class="library">setmetatable</span>(pub, pubmt)
+
+  <span class="library">setmetatable</span>(priv, privmt)
+
+  <span class="library">setfenv</span>(2, priv)
+
+
+
+  pub:import(priv)
+
+
+
+  <span class="library">package.loaded</span>[modname] = pub
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+This is typically used in this way:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- somemodule.lua</span>
+
+<span class="library">require</span> <span class="string">"cleanmodule"</span>
+
+cleanmodule(...)
+
+
+
+<span class="keyword">local</span> om = <span class="library">require</span> <span class="string">"othermodule"</span>
+
+
+
+om.hello()
+
+
+
+<span class="library">require</span> <span class="string">"othermodule"</span> ()
+
+
+
+othermodule.hello()
+
+
+
+<span class="library">require</span> <span class="string">"othermodule"</span> <span class="string">":all"</span>
+
+
+
+hello()
+
+</pre>
+
+</DL>
+<p>
+The caller has full control in deciding how it wants to the called module to modify the caller's (private) namespace.
+<p>
+One small problem you might run into is when setting a global twice:
+<p>
+<DL>
+<dt><dd><pre class="code">
+cleanmodule(...)
+
+<span class="keyword">local</span> enable_spanish = <span class="keyword">true</span>
+
+<span class="keyword">function</span> test() <span class="library">print</span>(<span class="string">"hello"</span>) <span class="keyword">end</span>
+
+<span class="keyword">if</span> enable_spanish <span class="keyword">then</span> test = <span class="keyword">function</span>() <span class="library">print</span>(<span class="string">"hola"</span>) <span class="keyword">end</span> <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Here, the metamethod only activates on the first set, so the public namespace will incorrectly contain the first function defined above.  The work around is to explicitly set to <code>nil</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+cleanmodule(...)
+
+<span class="keyword">local</span> enable_spanish = <span class="keyword">true</span>
+
+<span class="keyword">function</span> test() <span class="library">print</span>(<span class="string">"hello"</span>) <span class="keyword">end</span>
+
+<span class="keyword">if</span> enable_spanish <span class="keyword">then</span> test = <span class="keyword">nil</span>; test = <span class="keyword">function</span>() <span class="library">print</span>(<span class="string">"hola"</span>) <span class="keyword">end</span> <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<em>(This example was originally in Lua<code></code>Design<code></code>Patterns.)</em>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>, 200703
+<p>
+<strong>Take #3</strong> - Here is some further refinement of Take #2. This is a trivial change but might be useful. I placed the cleanmodule code in an anonymous function and called the anonymous function.  I also included _G in the private module table.  This code can be placed at the beginning of any module file and will not replace any functions at all. It has the same problem as Take #2 when replacing a value but the same workaround will work.
+<p>
+<DL>
+<dt><dd><pre class="code">
+
+
+(<span class="keyword">function</span> (modname)
+
+	<span class="comment">-- Helper function added to modules defined by cleanmodule</span>
+
+	<span class="comment">-- to support importing module symbols into client namespace.</span>
+
+	<span class="comment">-- Usage:</span>
+
+	<span class="comment">--   local mm = require "mymodule"  -- only local exported</span>
+
+	<span class="comment">--   require "mymodule" ()          -- export module table to environment</span>
+
+	<span class="comment">--   require "mymodule" ":all"      -- export also all functions</span>
+
+	<span class="comment">--                                     to environment.</span>
+
+	<span class="comment">--   require "mymodule" (target,":all")  -- export instead to given table</span>
+
+	<span class="keyword">local</span> <span class="keyword">function</span> import(public, ...)
+
+		<span class="comment">-- Extract arguments.</span>
+
+		<span class="keyword">local</span> target, options = ...
+
+		<span class="keyword">if</span> <span class="library">type</span>(target) ~= <span class="string">"table"</span> <span class="keyword">then</span>
+
+			target, options = <span class="keyword">nil</span>, target
+
+		<span class="keyword">end</span>
+
+		target = target <span class="keyword">or</span> <span class="library">getfenv</span>(2)
+
+
+
+		<span class="comment">-- Export symbols.</span>
+
+		<span class="keyword">if</span> options == <span class="string">":all"</span> <span class="keyword">then</span>
+
+			<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(public) <span class="keyword">do</span> target[k] = v <span class="keyword">end</span>
+
+		<span class="keyword">end</span>
+
+
+
+		<span class="comment">-- Build public module tables in caller.</span>
+
+		<span class="keyword">local</span> prevtable, prevprevtable, prevatom = target, <span class="keyword">nil</span>, <span class="keyword">nil</span>
+
+		public._NAME:gsub(<span class="string">"[^%.]+"</span>, <span class="keyword">function</span>(atom)
+
+			<span class="keyword">local</span> <span class="library">table</span> = <span class="library">rawget</span>(prevtable, atom)
+
+			<span class="keyword">if</span> <span class="library">table</span> == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+				<span class="library">table</span> = {}; <span class="library">rawset</span>(prevtable, atom, <span class="library">table</span>)
+
+			<span class="keyword">elseif</span> <span class="library">type</span>(<span class="library">table</span>) ~= <span class="string">'table'</span> <span class="keyword">then</span>
+
+				<span class="library">error</span>(<span class="string">'name conflict for module '</span> .. public._NAME, 4)
+
+			<span class="keyword">end</span>
+
+			prevatom = atom; prevprevtable = prevtable; prevtable = <span class="library">table</span>
+
+		<span class="keyword">end</span>)
+
+		<span class="library">rawset</span>(prevprevtable, prevatom, public)
+
+
+
+		<span class="keyword">return</span> public
+
+	<span class="keyword">end</span>
+
+
+
+	<span class="keyword">local</span> pubmt = {__call = import}
+
+	<span class="keyword">local</span> pub = {import = import, _NAME = modname} <span class="comment">-- public namespace for module</span>
+
+	<span class="keyword">local</span> priv = {_PUBLIC = pub, _PRIVATE = priv,
+
+		_NAME = modname, <span class="library">_G</span> = <span class="library">_G</span> } <span class="comment">-- private namespace for module</span>
+
+	<span class="keyword">local</span> privmt = {
+
+		__index = <span class="library">_G</span>,
+
+		__newindex = <span class="keyword">function</span>(priv, k, v)
+
+			<span class="library">rawset</span>(pub, k, v)
+
+			<span class="library">rawset</span>(priv, k, v)
+
+		<span class="keyword">end</span>
+
+	}
+
+	<span class="library">setmetatable</span>(pub, pubmt)
+
+	<span class="library">setmetatable</span>(priv, privmt)
+
+	<span class="library">setfenv</span>(2, priv)
+
+
+
+	pub:import(priv)
+
+
+
+	<span class="library">package.loaded</span>[modname] = pub
+
+<span class="keyword">end</span>)(...)
+
+</pre>
+
+</DL>
+--PeterSchwier<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PeterSchwier" >?</a>, 2009Feb04
+<p>
+<strong>Take #4</strong> - Here a rework of Take #2.  This achieves public/private namespaces within the existing framework of the <code>module</code> function (without replacing module nor require).  However, it does nothing to address the problem of the <code>module</code> function writing to _G rather than to the client's private environment (which might be thought of as an orthogonal problem solvable by redefining <code>module</code>).
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- package/clean.lua</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- To be used as an option to function module to expose global</span>
+
+<span class="comment">-- variables to the private implementation (like package.seeall)</span>
+
+<span class="comment">-- but not expose them through the public interface.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Changes the environment to a private environment that proxies _G.</span>
+
+<span class="comment">-- Writes to the private environment are trapped to write to both</span>
+
+<span class="comment">-- the private environment and module (the module's public API).</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--</span>
+
+<span class="comment">--  -- baz.lua</span>
+
+<span class="comment">--  module(..., package.clean)</span>
+
+<span class="comment">--  function foo() print 'test' end</span>
+
+<span class="comment">--  function bar() foo() end</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Now, a client using this module</span>
+
+<span class="comment">--</span>
+
+<span class="comment">--  require "baz"</span>
+
+<span class="comment">--  assert(not baz.print) -- globals not exposed (unlike package.seeall)</span>
+
+<span class="comment">--  baz.bar() -- ok</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Careful: Redefinitions will not propogate to module.  Allowing that</span>
+
+<span class="comment">-- would require making the private environment an empty proxy table.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Note: this addresses only one aspect of the problems with the module</span>
+
+<span class="comment">-- function.  It does not addess the global namespace pollution issues.  Doing</span>
+
+<span class="comment">-- so likely requires redefining the module function to write to the client's</span>
+
+<span class="comment">-- private environment rather than _G, or avoiding</span>
+
+<span class="comment">-- the module function entirely using a simple table approach [1]).</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- [1] http://lua-users.org/wiki/ModuleDefinition</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Released under the public domain.  David Manura, 2009-09-14.</span>
+
+<span class="keyword">function</span> <span class="library">package.clean</span>(<span class="library">module</span>)
+
+  <span class="keyword">local</span> privenv = {_PACKAGE_CLEAN = <span class="keyword">true</span>}
+
+  <span class="library">setfenv</span>(3, <span class="library">setmetatable</span>(privenv,
+
+      {__index=<span class="library">_G</span>, __newindex=<span class="keyword">function</span>(_,k,v) <span class="library">rawset</span>(privenv,k,v); <span class="library">module</span>[k]=v <span class="keyword">end</span>}
+
+  ))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> <span class="library">package.clean</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- package/veryclean.lua</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- This is similar to package.clean except that the public interface is</span>
+
+<span class="comment">-- maintained in a separate table M, even in the private implementation.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--</span>
+
+<span class="comment">--  -- baz.lua</span>
+
+<span class="comment">--  module(..., package.veryclean)</span>
+
+<span class="comment">--  function M.foo() print 'test' end</span>
+
+<span class="comment">--  function M.bar() M.foo() end</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- This makes public methods more explicit and also simplifies</span>
+
+<span class="comment">-- the implementation.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Released under the public domain.  David Manura, 2009-09-14.</span>
+
+
+
+<span class="keyword">function</span> <span class="library">package.veryclean</span>(<span class="library">module</span>)
+
+  <span class="keyword">local</span> privenv = {M=<span class="library">module</span>, _PACKAGE_VERYCLEAN = <span class="keyword">true</span>}
+
+  <span class="library">setfenv</span>(3, <span class="library">setmetatable</span>(privenv, {__index=<span class="library">_G</span>}))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> <span class="library">package.veryclean</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- package/strict.lua</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Here's an optional replacement for strict.lua compatible with</span>
+
+<span class="comment">-- package.clean and package.veryclean.  Example:</span>
+
+<span class="comment">--</span>
+
+<span class="comment">--  module(..., package.veryclean, package.strict)</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Released under the public domain.  David Manura, 2009-09-14.</span>
+
+<span class="keyword">function</span> <span class="library">package.strict</span>(t)
+
+  <span class="keyword">local</span> privenv = <span class="library">getfenv</span>(3)
+
+  <span class="keyword">local</span> top = <span class="library">debug.getinfo</span>(3,<span class="string">'f'</span>).func
+
+
+
+  <span class="keyword">local</span> mt = <span class="library">getmetatable</span>(privenv)
+
+
+
+  <span class="keyword">function</span> mt.__index(t,k)
+
+    <span class="keyword">local</span> v=<span class="library">_G</span>[k]
+
+    <span class="keyword">if</span> v ~= <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> v <span class="keyword">end</span>
+
+    <span class="library">error</span>(<span class="string">"variable '"</span> .. k .. <span class="string">"' is not declared"</span>, 2)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">if</span> <span class="library">rawget</span>(privenv, <span class="string">'_PACKAGE_CLEAN'</span>) <span class="keyword">then</span>
+
+    <span class="keyword">local</span> old_newindex = <span class="library">assert</span>(mt.__newindex)
+
+    <span class="keyword">function</span> mt.__newindex(t,k,v)
+
+      <span class="keyword">if</span> <span class="library">debug.getinfo</span>(2,<span class="string">'f'</span>).func ~= top <span class="keyword">then</span>
+
+        <span class="library">error</span>(<span class="string">"assign to undeclared variable '"</span> .. k .. <span class="string">"'"</span>, 2)
+
+      <span class="keyword">end</span>
+
+      old_newindex(t,k,v)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">function</span> mt.__newindex(t,k,v)
+
+      <span class="library">error</span>(<span class="string">"assign to undeclared variable '"</span> .. k .. <span class="string">"'"</span>, 2)
+
+      old_newindex(t,k,v)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> <span class="library">package.strict</span>
+
+</pre>
+
+</DL>
+<p>
+<strong>Take #5</strong> - a rework of Take #4 on package.clean(). Uses proxy tables to solve the redeclaration problem. Inherits CLEAN_ENV instead of _G to avoid seeing the polluted global environment, thus solving the problem of dependencies hiding that module() introduces. You could copy the contents of _G into CLEAN_ENV at the very beginning of your program for instance so that modules always see a Lua environment clean of any externally introduced dependencies.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- kinda bloated at 4 tables and a closure per module :)</span>
+
+<span class="keyword">local</span> CLEAN_ENV = { <span class="library">pairs</span> = <span class="library">pairs</span>, <span class="library">unpack</span> = <span class="library">unpack</span>, ... }
+
+<span class="keyword">local</span> P_meta = {__index = CLEAN_ENV}
+
+<span class="keyword">function</span> <span class="library">package.clean</span>(M)
+
+  <span class="keyword">local</span> P = <span class="library">setmetatable</span>({}, P_meta)
+
+  <span class="library">setfenv</span>(3, <span class="library">setmetatable</span>({}, {__index = P, __newindex = <span class="keyword">function</span>(t,k,v) M[k]=v; P[k]=v; <span class="keyword">end</span>}))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/CosminApreutesei.html" >CosminApreutesei</a>, 2009oct
+<p>
+<strong>Take #6</strong> an adaption of Take #1 -- the first example, with inspiration from #4 to split module and seeall into orthogonal functions. Here, we use one single table for the module namespace, to avoid all sync issues with the double system. The private module environment is an empty proxy table, with a custom-defined lookup routine (_M[k] or _G[k], that's it). The indirections in private lookups assume that module lookups are more important to be fast externally than internally (you can use locals internally).
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- clean.lua</span>
+
+<span class="comment">-- Adaption of "Take #1" of cleanmodule by Ulrik Sverdrup</span>
+
+<span class="comment">-- My additions are in the public domain</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Functions:</span>
+
+<span class="comment">--  clean.module</span>
+
+<span class="comment">--  clean.require</span>
+
+<span class="comment">--  clean.seeall</span>
+
+
+
+<span class="comment">-- Declare module cleanly:</span>
+
+<span class="comment">--  module is registered in package.loaded,</span>
+
+<span class="comment">--  but not inserted in the global namespace</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> _module(modname, ...)
+
+  <span class="keyword">local</span> _M = {}     <span class="comment">-- namespace for module</span>
+
+  <span class="library">setfenv</span>(2, _M)
+
+
+
+  <span class="comment">-- Define for partial compatibility with module()</span>
+
+  _M._M = _M
+
+  _M._NAME = modname
+
+  <span class="comment">-- FIXME: _PACKAGE</span>
+
+
+
+  <span class="comment">-- Apply decorators to the module</span>
+
+  <span class="keyword">if</span> ... <span class="keyword">then</span>
+
+    <span class="keyword">for</span> _, func <span class="keyword">in</span> <span class="library">ipairs</span>({...}) <span class="keyword">do</span>
+
+      func(_M)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="library">package.loaded</span>[modname] = _M
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Called as clean.module(..., clean.seeall)</span>
+
+<span class="comment">-- Use a private proxy environment for the module,</span>
+
+<span class="comment">-- so that the module can access global variables.</span>
+
+<span class="comment">--  + Global assignments inside module get placed in the module</span>
+
+<span class="comment">--  + Lookups in the private module environment query first the module,</span>
+
+<span class="comment">--    then the global namespace.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> _seeall(_M)
+
+  <span class="keyword">local</span> priv = {}   <span class="comment">-- private environment for module</span>
+
+  <span class="keyword">local</span> privmt = {}
+
+  privmt.__index = <span class="keyword">function</span>(priv, k)
+
+    <span class="keyword">return</span> _M[k] <span class="keyword">or</span> <span class="library">_G</span>[k]
+
+  <span class="keyword">end</span>
+
+  privmt.__newindex = _M
+
+  <span class="library">setmetatable</span>(priv, privmt)
+
+  <span class="library">setfenv</span>(3, priv)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- NOTE: Here I recommend a rawset version of</span>
+
+<span class="comment">-- http://lua-users.org/wiki/SetVariablesAndTablesWithFunction</span>
+
+<span class="comment">-- But it is left out here for brevity.</span>
+
+<span class="comment">-- Require module, but store module only in</span>
+
+<span class="comment">-- private namespace of caller (not public namespace).</span>
+
+<span class="keyword">local</span> g_require = <span class="library">require</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> _require(name)
+
+  <span class="keyword">local</span> result = g_require(name)
+
+  <span class="library">rawset</span>(<span class="library">getfenv</span>(2), name, result)
+
+  <span class="keyword">return</span> result
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Ironically, this module is not itself clean, so that it</span>
+
+<span class="comment">-- can be used with 'require'</span>
+
+<span class="library">module</span>(...)
+
+
+
+<span class="library">module</span> = _module
+
+seeall = _seeall
+
+<span class="library">require</span> = _require
+
+</pre>
+
+</DL>
+<p>
+-- Ulrik, 2010apr
+<p>
+<strong>Take #7</strong> possible module declaration for Lua 5.2
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- init.lua</span>
+
+<span class="keyword">function</span> <span class="library">module</span>(...) 
+
+	<span class="keyword">local</span> m={}
+
+	<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">ipairs</span>{...} <span class="keyword">do</span>
+
+		<span class="keyword">if</span> <span class="library">type</span>(v)==<span class="string">"table"</span> <span class="keyword">then</span> <span class="library">setmetatable</span>(m,{__index=v})
+
+		<span class="keyword">elseif</span> <span class="library">type</span>(v)==<span class="string">"function"</span> <span class="keyword">then</span> v(m) 
+
+		<span class="keyword">elseif</span> <span class="library">type</span>(v)==<span class="string">"string"</span> <span class="keyword">then</span> m.notes=v <span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">return</span> m
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- init-2.lua</span>
+
+<span class="keyword">function</span> makeenv(list,r0) 
+
+	<span class="keyword">local</span> r={}
+
+	<span class="keyword">for</span> i <span class="keyword">in</span> <span class="library">string.gmatch</span>(list,<span class="string">"%a+"</span>) <span class="keyword">do</span> r[i]=<span class="library">_G</span>[i] <span class="keyword">end</span>
+
+	<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(r0) <span class="keyword">do</span> r[k]=v <span class="keyword">end</span>
+
+	<span class="keyword">return</span> r
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> safeenv(m)
+
+	<span class="keyword">return</span> makeenv(<span class="string">[[getmetatable assert pcall select type rawlen rawequal rawset rawget tonumber next tostring xpcall error ipairs unpack setmetatable pairs
+
+	string,math,table,coroutine,bit32,_VERSION]]</span>,m)
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> stdenv(m) 
+
+	m=safeenv(m)
+
+	m=makeenv(<span class="string">[[print loadfile require load loadstring dofile collectgarbage os io package debug]]</span>,m)
+
+	<span class="keyword">return</span> m
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- module1.lua</span>
+
+<span class="keyword">return</span> <span class="library">module</span>(<span class="string">"my mega module"</span>,safeenv{trace=<span class="library">print</span>},<span class="keyword">function</span>(_ENV) <span class="comment">-- safe module. there are no load require ... even no print</span>
+
+	a=20 <span class="comment">-- public var</span>
+
+	<span class="keyword">local</span> b=30 <span class="comment">-- private var</span>
+
+	<span class="keyword">function</span> dump(x) <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(x) <span class="keyword">do</span> trace(k,v) <span class="keyword">end</span> <span class="keyword">end</span>
+
+	<span class="keyword">local</span> <span class="keyword">function</span> do_something() a=a+1 <span class="keyword">end</span> <span class="comment">-- private function</span>
+
+<span class="keyword">end</span>)
+
+
+
+<span class="comment">-- module2.lua</span>
+
+<span class="keyword">return</span> <span class="library">module</span>(<span class="string">"some description"</span>,<span class="library">_G</span>,<span class="keyword">function</span>(_ENV) <span class="comment">-- see all module</span>
+
+	public_var=12345
+
+	<span class="keyword">local</span> private_var=54321
+
+	public_fn=<span class="library">print</span>
+
+	<span class="keyword">local</span> private_fn=<span class="library">print</span>
+
+<span class="keyword">end</span>)
+
+
+
+<span class="comment">-- test1.lua</span>
+
+<span class="keyword">local</span> m1=<span class="library">require</span> <span class="string">"module1"</span>
+
+m1.dump(m1)
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/ModuleVersioning.html" >ModuleVersioning</a> - module versioning convention
+<li> <a href="../wiki/ModulesTutorial.html" >ModulesTutorial</a>
+<li> <a href="../wiki/LuaModuleFunctionCritiqued.html" >LuaModuleFunctionCritiqued</a>
+<li> <a href="../wiki/BuildingModules.html" >BuildingModules</a>
+<li> <a href="../wiki/LuaModulesLoader.html" >LuaModulesLoader</a>
+<li> <a href="../wiki/ModuleExecutionProposal.html" >ModuleExecutionProposal</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ModuleDefinition" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ModuleDefinition" >history</a><br>Last edited July 31, 2012 11:36 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ModuleDefinition" >(diff)</a>
+</body>
+</html>

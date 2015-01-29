@@ -1,0 +1,209 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Binary Insert</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BinaryInsert&amp;body=1" title="List pages referring to BinaryInsert">Binary Insert</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Insert a Value Directly into a Sorted Table</H3>
+<p>
+This function inserts a value into a sorted table via a binary search algorithm.  It is faster than doing a regular table.insert(table, value) followed by a table.sort(table [, comp]).
+<p>
+<a href="/files/wiki_insecure/users/chill/table.binsearch-0.3.lua">Files:wiki_insecure/users/chill/table.binsearch-0.3.lua</a>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--[[
+
+   table.bininsert( table, value [, comp] )
+
+   
+
+   Inserts a given value through BinaryInsert into the table sorted by [, comp].
+
+   
+
+   If 'comp' is given, then it must be a function that receives
+
+   two table elements, and returns true when the first is less
+
+   than the second, e.g. comp = function(a, b) return a &gt; b end,
+
+   will give a sorted table, with the biggest value on position 1.
+
+   [, comp] behaves as in table.sort(table, value [, comp])
+
+   returns the index where 'value' was inserted
+
+]]</span><span class="comment">--</span>
+
+<span class="keyword">do</span>
+
+   <span class="comment">-- Avoid heap allocs for performance</span>
+
+   <span class="keyword">local</span> fcomp_default = <span class="keyword">function</span>( a,b ) <span class="keyword">return</span> a &lt; b <span class="keyword">end</span>
+
+   <span class="keyword">function</span> <span class="library">table.bininsert</span>(t, value, fcomp)
+
+      <span class="comment">-- Initialise compare function</span>
+
+      <span class="keyword">local</span> fcomp = fcomp <span class="keyword">or</span> fcomp_default
+
+      <span class="comment">--  Initialise numbers</span>
+
+      <span class="keyword">local</span> iStart,iEnd,iMid,iState = 1,#t,1,0
+
+      <span class="comment">-- Get insert position</span>
+
+      <span class="keyword">while</span> iStart &lt;= iEnd <span class="keyword">do</span>
+
+         <span class="comment">-- calculate middle</span>
+
+         iMid = <span class="library">math.floor</span>( (iStart+iEnd)/2 )
+
+         <span class="comment">-- compare</span>
+
+         <span class="keyword">if</span> fcomp( value,t[iMid] ) <span class="keyword">then</span>
+
+            iEnd,iState = iMid - 1,0
+
+         <span class="keyword">else</span>
+
+            iStart,iState = iMid + 1,1
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+      <span class="library">table.insert</span>( t,(iMid+iState),value )
+
+      <span class="keyword">return</span> (iMid+iState)
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- CHILLCODE</span>
+
+</pre>
+
+</DL>
+<p>
+Test suite:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- test: typical usage, with duplicates</span>
+
+t = {}
+
+<span class="library">table.bininsert</span>(t,  5)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"5"</span>)
+
+<span class="library">table.bininsert</span>(t,  4)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"45"</span>)
+
+<span class="library">table.bininsert</span>(t,  6)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"456"</span>)
+
+<span class="library">table.bininsert</span>(t,  5)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"4556"</span>)
+
+<span class="library">table.bininsert</span>(t,  6)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"45566"</span>)
+
+<span class="library">table.bininsert</span>(t,  4)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"445566"</span>)
+
+<span class="library">table.bininsert</span>(t,  0)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"0445566"</span>)
+
+
+
+<span class="comment">-- test: fcomp</span>
+
+fcomp = <span class="keyword">function</span>(a, b) <span class="keyword">return</span> (a%3) &lt; (b%3) <span class="keyword">end</span>
+
+t = {}
+
+<span class="library">table.bininsert</span>(t, 9, fcomp)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"9"</span>)
+
+<span class="library">table.bininsert</span>(t, 3, fcomp)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"93"</span>)
+
+<span class="library">table.bininsert</span>(t, 6, fcomp)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"936"</span>)
+
+<span class="library">table.bininsert</span>(t, 2, fcomp)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"9362"</span>)
+
+<span class="library">table.bininsert</span>(t, 7, fcomp)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"93672"</span>)
+
+<span class="library">table.bininsert</span>(t, 1, fcomp)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"936712"</span>)
+
+<span class="library">table.bininsert</span>(t, 5, fcomp)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"9367125"</span>)
+
+<span class="library">table.bininsert</span>(t, 8, fcomp)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"93671258"</span>)
+
+<span class="library">table.bininsert</span>(t, 4, fcomp)
+
+<span class="library">assert</span>(<span class="library">table.concat</span>(t) == <span class="string">"936714258"</span>)
+
+<span class="library">print</span> <span class="string">"DONE"</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/BinarySearch.html" >BinarySearch</a> - searches for a value in a sorted table via a binary search algorithm
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BinaryInsert" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BinaryInsert" >history</a><br>Last edited September 6, 2009 3:01 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BinaryInsert" >(diff)</a>
+</body>
+</html>

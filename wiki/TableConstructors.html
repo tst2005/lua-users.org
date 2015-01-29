@@ -1,0 +1,215 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Table Constructors</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TableConstructors&amp;body=1" title="List pages referring to TableConstructors">Table Constructors</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<hr><DL>
+<dt><dd><strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: This page seems a bit dated, relating to Lua 4 table construction issues that are now resolved in Lua 5, and it's not really clear from the scattered discussion what the problems and resolutions were.  Perhaps someone can write a summary of this and identify any issues that do remain. --<a href="../wiki/DavidManura.html" >DavidManura</a></strong>
+</DL>
+<hr><em>Note: Wow, with lua 4.1work4 this proposal has been adopted (well, the most relevant part at least). </em>
+<p>
+<em>I didn't even know the lua authors took notice of my proposal, so this came as a surprise - i can only say: THANKS! :-)</em>
+<p>
+<em>There is only one thing left to do, that i still think would be nice: Specify a start for a range</em> <code> t = {[97]="a","b","c","d","e"} </code>
+<p>
+<em>And maybe making the comma optional in some cases would be cool. (Joshua Jensen has been stirring this up again in 2/2003)</em>
+<hr>I think that the current use of ; and , in table constructors is confusing. At least it is something you cannot easily deduce from reading sample code.
+<p>
+Someone who sees two tables t = {1,2,3} and t2 = {x=1,y=2} and tries to intuitively combine them will fail.
+<p>
+i am wondering if the table constructor syntax could be improved:
+<p>
+currently a table constructor is seperated in 2 parts: the lfieldlist (vector-like constructor) and the ffieldlist (map-like constructor) if a constructor contains both vector-like and map-like constructor parts, they must be separated with a semicolon:
+<p>
+<DL>
+<dt><dd><pre class="code">
+t = {1,2;x=1,y=2}
+
+</pre>
+
+</DL>
+<p>
+i find this not intuitive, i'd rather like to write:
+<p>
+<DL>
+<dt><dd><pre class="code">
+t = {1,2,x=1,y=2}
+
+</pre>
+
+</DL>
+<p>
+or to go even further, i'd like to be able to mix the two, like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+t = {1,2,x=1,y=2,3,4} <span class="comment">-- equivalent to: {1,2,3,4;x=1,y=2}</span>
+
+t2 = {x=1,y=2;1,2,3,4;color=<span class="string">"red"</span>} <span class="comment">-- equivalent to: {1,2,3,4;color="red",x=1,y=2}</span>
+
+</pre>
+
+</DL>
+<p>
+and one more thing that would be nice would be to specify where a list should start: (somehow like c-enums)
+<p>
+<DL>
+<dt><dd><pre class="code">
+t = {[97]=<span class="string">"a"</span>,<span class="string">"b"</span>,<span class="string">"c"</span>,<span class="string">"d"</span>,<span class="string">"e"</span>} <span class="comment">-- equivalent to:</span>
+
+{[97]=<span class="string">"a"</span>,[98]=<span class="string">"b"</span>,[99]=<span class="string">"c"</span>,[100]=<span class="string">"d"</span>,[101]=<span class="string">"e"</span>}
+
+</pre>
+
+</DL>
+<p>
+to achieve both, assume that if no explicit index is given, the last numeric index + 1 should be used.
+<p>
+<DL>
+<dt><dd><em>Note: this has to be a (with large lists slow) run-time calculation. </em> <code>[f()]="a"</code><em> is perfectly valid and the compiler does not know at all what index f() will give.  So what do you do with this: </em><code> { [1]=1, [3]=3, n=6, 11, 22 } </code><em> What indexes would 11 and 22 get?  2 and 4?  Or 2 and 3?  Or 4 and 5?  Or 7 and 8?  And what about the n?  Should it be updated?  It's not that easy ;-)  --ET</em>
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><code> {[1]=1, [3]=3, n=6, 11, 22} </code> should be equivalent to <code> {[1]=1, [3]=3, n=6, [4]=11, [5]=22} </code> from my definition to use the last (or more specifically the last used) numeric index +1. also i'd like to ignore the messy "n" field ;) 
+<dt><dd>To make it more clear, another example: <code> {[100]=0,[10]=1,2,3} </code> should be equivalent <code> {[100]=0,[10]=1,[11]=2,[12]=3} </code> - there is no complicated run-time calculation involved. just store the last used numeric index somewhere while constructing the table. --<a href="../wiki/PeterPrade.html" >PeterPrade</a>
+</DL>
+</DL>
+<p>
+for backwards compatibility, ";" could be treated equivalent to "," so all those forms would be valid:
+<p>
+<DL>
+<dt><dd><pre class="code">
+t = {1,2,3}
+
+t = {1;2;3}
+
+t = {1,2;n=2}
+
+t = {1,2,;n=2,}
+
+</pre>
+
+</DL>
+<hr>What is the reason for the current syntax? well, it helps the compiler to create a more efficient bytecode:
+<p>
+<DL>
+<dt><dd><pre class="code">
+v = {1,2,3}
+
+</pre>
+
+</DL>
+<p>
+results in the following, optimized code:
+<p>
+<pre>
+
+     1  [1]     CREATETABLE     3
+
+     2  [1]     PUSHINT         1
+
+     3  [1]     PUSHINT         2
+
+     4  [1]     PUSHINT         3
+
+     5  [1]     SETLIST         0 3
+
+     6  [1]     SETGLOBAL       0       ; v
+
+</pre>
+<p>
+while 
+<p>
+<DL>
+<dt><dd><pre class="code">
+m = {[1]=1, [2]=2, [3]=3}
+
+</pre>
+
+</DL>
+<p>
+results in the less efficient code:
+<p>
+<pre>
+
+     7  [2]     CREATETABLE     3
+
+     8  [2]     PUSHINT         1
+
+     9  [2]     PUSHINT         1
+
+    10  [2]     PUSHINT         2
+
+    11  [2]     PUSHINT         2
+
+    12  [2]     PUSHINT         3
+
+    13  [2]     PUSHINT         3
+
+    14  [2]     SETMAP          3
+
+    15  [2]     SETGLOBAL       1       ; m
+
+</pre>
+<p>
+As we can see, if we use a lfieldlist to construct a table we get more efficient code - even if the resulting tables are exactly the same. The current table constructor syntax seems to be tailored to help the parser create the most efficient code without having to analyze the contents of the table being constructed.
+<p>
+<hr>Summary: i'd like to see those things changed:
+<p>
+<UL>
+<li> make it possible to use a , instead of the ; in a table constructor - this would be more intuitive imho
+<li> make it possible to specify the first index of a list - this would be a very nice feature i think
+<li> the parser should create efficient code even if i use the map-style constructor for my lists (generated code will usually use the indexed syntax)
+</UL>
+<p>
+Would it be hard to achieve this? I think not:
+<p>
+<UL>
+<li> a new Opcode would be needed to create lists that do not start with an index of 1
+<li> the parser would become a bit more complicated as it needs to postpone the decision what code to create for an entry until we have parsed the next entry (so we can decide to switch to a list-style constructor when we come across at least 2 consequent numbered entries)
+</UL>
+<p>
+<em>The idea to make the separator optional won't work, as this example points out: </em> <code> t={print "text"} </code>
+<p>
+(<a href="../wiki/PeterPrade.html" >PeterPrade</a>)
+<p>
+<em>It is redundant in the ffieldpart </em><code>({ name=value name=value ... })</code><em> of table constructors.  Only the </em><code>[expr]=value</code><em> fields need a (leading) comma so that the </em><code>[]</code><em> is not made part of the previous expression.  But that would give a syntax error anyway (</em><code>name=val[foo]=val2)</code><em>). --ET</em>
+<p>
+<hr>Opinions? (for example: "don't talk about it, just code it!" or "i like the current syntax")
+<p>
+More Ideas? 
+<p>
+<UL>
+<li> Joshua Jensen was talking about the possibility to specify the size of a table in a constructor (no nice syntax found for this yet)
+<li> please add here...
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TableConstructors" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TableConstructors" >history</a><br>Last edited July 7, 2007 7:25 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TableConstructors" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,1076 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Yet Another Class Implementation</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=YetAnotherClassImplementation&amp;body=1" title="List pages referring to YetAnotherClassImplementation">Yet Another Class Implementation</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Note: The project is now hosted on Github : <a href="https://github.com/jpatte/yaci.lua">https://github.com/jpatte/yaci.lua</a>.
+<p>
+Everyone is invited to contribute. Don't hesitate to fork the repo, post issues and suggest changes! 
+<p>
+<H2>Introduction</H2>
+<p>
+This isn't certainly quite original, but I thought it could be useful for some other Lua users or fans.
+I've seen several implementations for classes which suggest how to use metatables to simulate object oriented aspects like intanciation or inheritance etc (see for example <a href="../wiki/ObjectOrientationTutorial.html" >ObjectOrientationTutorial</a>, <a href="../wiki/LuaClassesWithMetatable.html" >LuaClassesWithMetatable</a>, <a href="../wiki/InheritanceTutorial.html" >InheritanceTutorial</a>, <a href="../wiki/ClassesAndMethodsExample.html" >ClassesAndMethodsExample</a> and <a href="../wiki/SimpleLuaClasses.html" >SimpleLuaClasses</a>), but I thought it should be possible to go even further than that, by adding some additional features and facilities. This is why I suggest here yet another implementation, which is mainly based on the other ones, but with some additional stuff in it. I don't pretend it to be the best way, but I think it could be useful for some other persons than me, thus I wanted to share it here ;)
+<p>
+Note that this code has been designed to be as comfortable as possible to use; therefore this is certainly not the fastest way of doing things. It is rather complicated, it makes intensive use of metatables, upvalues, proxies... I tried to optimize it a lot but I'm not an expert thus maybe there were some shortcuts that I didn't know yet.
+<p>
+The code can be found here: <a href="/files/wiki_insecure/users/jpatte/YaciCode.lua">Files:wiki_insecure/users/jpatte/YaciCode.lua</a>. I'll now describe what you can do with it. Any comments and suggestions are welcome!
+<p>
+<H2>Features</H2>
+<p>
+<H3>Content</H3>
+<p>
+This code "exports" only 2 things: the base class 'Object', and a function 'newclass()'.
+<p>
+<H3>Class Definition</H3>
+<p>
+There are basically 2 ways of defining a new class: by calling 'newclass()' or by using 'Object:subclass()'. Those functions return the new class. 
+<p>
+When creating a class you should specify a name for it. This is not absolutely required, but it could be helpful (for debugging purposes etc). If you don't give any name the class will be called "Unnamed". Having several unnamed classes is not a problem.
+<p>
+When you use 'Object:subclass()', the new class will be a direct subclass of 'Object'. However 'newclass()' accepts a second argument, which can be another superclass than 'Object' (If you don't give any class, the class 'Object' will be chosen; that means that all classes are subclasses of 'Object'). Note that each class has the 'subclass()' method, thus you could use it too.
+<p>
+<p>
+Let's take an example to illustrate this:
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- 'LivingBeing' is a subclass of 'Object'</span>
+
+LivingBeing = newclass(<span class="string">"LivingBeing"</span>)
+
+
+
+<span class="comment">-- 'Animal' is a subclass of 'LivingBeing'</span>
+
+Animal = newclass(<span class="string">"Animal"</span>, LivingBeing)
+
+
+
+<span class="comment">-- 'Vegetable' is another subclass of 'LivingBeing'</span>
+
+Vegetable = LivingBeing:subclass(<span class="string">"Vegetable"</span>)
+
+
+
+Dog = newclass(<span class="string">"Dog"</span>, Animal)   <span class="comment">-- create some other classes...</span>
+
+Cat = Animal:subclass(<span class="string">"Cat"</span>)
+
+Human = Animal:subclass(<span class="string">"Human"</span>)
+
+
+
+Tree = newclass(<span class="string">"Tree"</span>, Vegetable)
+
+</pre>
+
+</DL>
+<p>
+Note that the exact code of 'newclass()' is
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> newClass(name, baseClass)
+
+ baseClass = baseClass <span class="keyword">or</span> Object
+
+ <span class="keyword">return</span> baseClass:subClass(name)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+It was just added for convenience.
+<p>
+<H3>Methods Definition</H3>
+<p>
+Methods are created in a rather natural way:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> Animal:eat()
+
+  <span class="library">print</span> <span class="string">"An animal is eating..."</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Animal:speak()
+
+  <span class="library">print</span> <span class="string">"An animal is speaking..."</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Dog:eat()
+
+  <span class="library">print</span> <span class="string">"A dog is eating..."</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Dog:speak()
+
+  <span class="library">print</span> <span class="string">"Wah, wah!"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Cat:speak()
+
+  <span class="library">print</span> <span class="string">"Meoow!"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Human:speak()
+
+  <span class="library">print</span> <span class="string">"Hello!"</span>
+
+<span class="keyword">end</span> </pre>
+
+</DL>
+<p>
+The method 'init()' is considered as a constructor. Thus:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> Animal:init(name, age)
+
+  self.name = name
+
+  self.age = age
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Dog:init(name, age, master)
+
+  self.super:init(name, age)   <span class="comment">-- notice call to superclass's constructor</span>
+
+  self.master = master
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Cat:init(name, age)
+
+  self.super:init(name, age)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Human:init(name, age, city)
+
+  self.super:init(name, age)
+
+  self.city = city
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Subclasses may call the constructor of their superclass through the field 'super' (See below). Note that 'Object:init()' exists but does nothing, so it is not required to call it.
+<p>
+<H3>Events Definition</H3>
+<p>
+You may also define events for the class instances, exactly in the same way as for the methods:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> Animal:__tostring()
+
+  <span class="keyword">return</span> <span class="string">"An animal called "</span> .. self.name .. <span class="string">" and aged "</span> .. self.age 
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Human:__tostring()
+
+  <span class="keyword">return</span> <span class="string">"A human called "</span> .. self.name .. <span class="string">" and aged "</span> .. self.age .. <span class="string">",
+
+         living at "</span> .. self.city
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+Any events could be used, excepted '__index' and '__newindex' which are needed for OO implementation. You can use this feature to define operators like '__add', '__eq' etc. '__tostring' is a really useful event here, therefore the class 'Object' implements a default version for it, which simply returns a string "a xxx" where 'xxx' is the name of the instance's class.
+<p>
+<H3>Instance Creation</H3>
+<p>
+Each class has a method 'new()', used for instanciation. All arguments are forwarded to the instance's constructor.
+<DL>
+<dt><dd><pre class="code">
+Robert = Human:new(<span class="string">"Robert"</span>, 35, <span class="string">"London"</span>)
+
+Garfield = Cat:new(<span class="string">"Garfield"</span>,  18)
+
+</pre>
+
+</DL>
+The result is the same if you "call" the classes directly:
+<DL>
+<dt><dd><pre class="code">
+Mary = Human(<span class="string">"Mary"</span>, 20, <span class="string">"New York"</span>)
+
+Albert = Dog(<span class="string">"Albert"</span>, 5, Mary)
+
+</pre>
+
+</DL>
+<p>
+<H3>Classes services</H3>
+<p>
+Besides 'subclass()' and 'new()', each class owns several other methods:
+<UL>
+<li> 'inherits()' can be used to check if a class inherits another class. For example, "Human:inherits(Animal)" returns true, and "Vegetal:inherits(Dog)" returns false (Mainly used for internal purposes)
+<li> 'name()' returns the class's name (the one you specified when you created it).
+<li> 'super()' returns the superclass
+<li> 'made()' is used to check if an instance implements this class or not. For example, "Dog:made(Albert)" returns true, while "Cat:made(Robert)" returns false; however, "Animal:made(Albert)" and "Animal:made(Robert)" both return true. I preferred this way to an 'isa()' method in the instances (e.g. "Albert:isa(Dog)"), because 'isa()' requires that 'Albert' in that case is really an instance (and not a string, a function etc), and we cannot be totally sure of the variable's type without testing it (see the function arguments for example). Here, 'made()' will also check the argument's type for you.
+</UL>
+<p>
+<H3>Instances services</H3>
+<p>
+Every instances permit access to the variables defined in the constructor of their class (and of their superclasses). They also have a 'class()' method returning their class, and a field 'super' used to access the superclass's members if you overrode it. For example:
+<DL>
+<dt><dd><pre class="code">
+A = newclass(<span class="string">"A"</span>)
+
+<span class="keyword">function</span> A:test() <span class="library">print</span>(self.a) <span class="keyword">end</span>
+
+<span class="keyword">function</span> A:init(a) self.a = a <span class="keyword">end</span>
+
+B = newclass(<span class="string">"B"</span>, A)
+
+<span class="keyword">function</span> B:test() <span class="library">print</span>(self.a .. <span class="string">"+"</span> .. self.b) <span class="keyword">end</span>
+
+<span class="keyword">function</span> B:init(b) self.super:init(5) self.b = b <span class="keyword">end</span>
+
+
+
+b = B:new(3)
+
+b:test()   <span class="comment">-- prints "5+3"</span>
+
+b.super:test()   <span class="comment">-- prints "5"</span>
+
+<span class="library">print</span>(b.a)   <span class="comment">-- prints "5"</span>
+
+<span class="library">print</span>(b.super.a)   <span class="comment">-- prints "5"</span>
+
+</pre>
+
+</DL>
+The superclass's members are created (and initialized) when the "self.super:init()" method is called.
+You should generally call this method at the beginning of the constructor to initialize them. 
+<p>
+Note that as 'b' is an instance of 'B', 'b.super' is simply an instance of 'A' (So be careful, here 'super' is dynamic, not static).
+<p>
+<H3>Static variables</H3>
+<p>
+Each time you define a new method for a class, it goes in a "static" table (this way we cannot mix class methods with class services). This table is accessible through a 'static' field. This is mainly done to permit access to static variables in classes. Example:
+<DL>
+<dt><dd><pre class="code">
+A = newclass(<span class="string">"A"</span>)
+
+<span class="keyword">function</span> A:init(a) self.a = a <span class="keyword">end</span>
+
+A.test = 5   <span class="comment">-- a static variable in A</span>
+
+
+
+a = A(3)
+
+prints(a.a)   <span class="comment">-- prints 3</span>
+
+prints(a.test)   <span class="comment">-- prints 5</span>
+
+prints(A.test)   <span class="comment">-- prints nil (!)</span>
+
+prints(A.static.test)   <span class="comment">-- prints 5</span>
+
+</pre>
+
+</DL>
+<H2>The end</H2>
+<p>
+Whew - I think that's all. :) Again, any remarks and comments will be appreciated. But this is my first submission here, so don't smash me too hard :D -- Julien Patte, 19 Jan 2006 (julien.patte AT gmail DOT com)
+<p>
+Last minute note: I just discovered <a href="../wiki/SimpleLuaClasses.html" >SimpleLuaClasses</a>, which I didn't see before. I was amazed (and happy) that there were so many resemblances between our implementations, at least in the way people would use it. However, here only events must be copied for inheritance, each instance holds an instance of its superclass, and there are some other additional details.
+<p>
+<em>Im still not fully satisfied by this code. Even instances variables (other than functions) are "virtual" here, and that's a huge problem, since it could bring some weird bugs if superclasses and subclasses use some variables with the same name. But I guess it can't be easily helped :/ -- Julien Patte</em>
+<p>
+<H2>Bugfix</H2>
+<p>
+I've found a subtle but confusing bug: instance variables are <em>usually</em> virtual ('protected' in C++-speak) except for some particular situations involving calling overridden superclass functions from inside subclass functions, for example when <code>B:Update()</code> calls <code>self.super:Update()</code> (ie <code>A:Update()</code>) internally. This can leave multiple variables of the same name but with different values scattered across several levels of inheritance, which tends to break things, be confusing, and generally make one unhappy.
+<p>
+The fix for this is to add the following:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> c_istuff.__newindex(inst,key,value)
+
+  <span class="keyword">if</span> inst.super[key] ~= <span class="keyword">nil</span> <span class="keyword">then</span> inst.super[key] = value;
+
+  <span class="keyword">else</span> <span class="library">rawset</span>(inst,key,value); <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+just after <code>function c_istuff.__index(inst,key) ... end</code> inside the <code>subClass</code> function on Julien's otherwise very clever code. And now it should all work. Be careful though, as fixing this might break things that rely on it being broken -- specifically, situations where superclass variable names are inadvertently reused on subclasses.
+<p>
+-- Damian Stewart (damian AT frey DOT co DOT nz), 6 Oct 2006
+<p>
+<H2>Beginner's notes</H2>
+<p>
+Couple of comments for Lua and/or YaciCode<a href="/cgi-bin/wiki.pl?action=edit&amp;id=YaciCode" >?</a> beginners.
+<p>
+<H3>Instance variables</H3>
+You <strong>must</strong> define all instance variables of a class in the <code>init()</code> method, using <code>false</code> for anything you'd like to be <code>nil</code>. This has to do with how Lua manages tables and the method used by YaciCode<a href="/cgi-bin/wiki.pl?action=edit&amp;id=YaciCode" >?</a> to provide inheritance, and is related to the bug above as well. If you fail to do this, you'll have surprises calling overridden superclass functions from inside subclass functions. 
+<p>
+<DL>
+<dt><dd><pre class="code">
+A = newclass(<span class="string">"A"</span>)
+
+
+
+<span class="keyword">function</span> A:init(a_data)
+
+  self.a_data = a_data
+
+  self.foo = <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> A:setFoo(foo)
+
+  self.foo = foo
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> A:free()
+
+  <span class="keyword">if</span> self.foo <span class="keyword">then</span> self.foo = <span class="keyword">nil</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+B = A:subclass(<span class="string">"B"</span>)
+
+
+
+<span class="keyword">function</span> B:init(a_data, b_data)
+
+  self.super:init(a_data)
+
+  self.b_data = b_data
+
+  self.b_table = {<span class="string">'some'</span>, <span class="string">'values'</span>, <span class="string">'here'</span>}
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> B:free()
+
+  self.b_table = <span class="keyword">nil</span>
+
+  self.super:free()
+
+  <span class="keyword">if</span> self.foo <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"self.foo still exists!!!"</span>) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- and now some calls</span>
+
+myA = A:new(<span class="string">"a_data"</span>)
+
+myB = B:new(<span class="string">"a_data2"</span>, <span class="string">"b_data"</span>)
+
+
+
+myB:setFoo({<span class="string">'some'</span>, <span class="string">'more'</span>, <span class="string">'values'</span>})
+
+
+
+myB:free()
+
+<span class="comment">-- will print "self.foo still exists" !!!</span>
+
+</pre>
+
+</DL>
+<p>
+<code>myB:setFoo()</code> calls <code>A.setFoo(myB)</code> (i.e., <code>self</code> is <code>myB</code>). <code>myB.foo</code> does not exist in <code>myB</code> or higher in the hierarchy, so the <code>foo</code> key is added to the <code>myB</code> table. When freeing, <code>B.free(myB)</code> is called (<code>self</code> is <code>myB</code>). <code>self:super:free()</code> calls <code>A.free(self.super)</code>, i.e. <code>A.free</code> is <strong>not</strong> called with <code>myB</code>, but with <code>myB.super</code>, a pseudo-object of class <code>A</code> maintained by YaciCode<a href="/cgi-bin/wiki.pl?action=edit&amp;id=YaciCode" >?</a>, which has <strong>no</strong> <code>foo</code> instance variable! 
+The thing is, <code>self.foo = nil</code> had <em>no</em> side effect whatsoever in <code>A:init()</code>. It did not create a <code>foo</code> instance variable. 
+<p>
+If you do <code>self.foo=false</code>, however, it does create a <code>foo</code> instance variable and when <code>myB:setFoo()</code> calls <code>A.setFoo(myB)</code>, <code>myB.foo</code> does not exist <em>but</em> it does higher in the hierarchy (with value <code>false</code>) and in this case, it ends up replaced by the <code>foo</code> function parameter. The nice thing with <code>false</code> is that is makes test like <code>if self.foo then</code> work the same if self.foo is  <code>nil</code> or  <code>false</code>.
+<p>
+<H3><code>self.super</code> dynamicity</H3>
+The text above mentions <code>self.super</code> is dynamic. What it means in practice is that you should probably define functions at each level of the hierarchy if the function calls its superclass. Consider:
+<p>
+<DL>
+<dt><dd><pre class="code">
+A = newclass(<span class="string">"A"</span>)
+
+
+
+<span class="keyword">function</span> A;init(...) ... <span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> A:free()
+
+  <span class="library">print</span>(<span class="string">"A:free()"</span>)
+
+<span class="keyword">end</span>
+
+
+
+B = A:subclass(<span class="string">"B"</span>)
+
+
+
+<span class="keyword">function</span> B:init(...) ... <span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> B:free()
+
+  self.super:free()
+
+  <span class="library">print</span>(<span class="string">"B:free()"</span>)
+
+<span class="keyword">end</span>
+
+
+
+C = B:subclass(<span class="string">"C"</span>)
+
+
+
+<span class="keyword">function</span> C:init(...) ... <span class="keyword">end</span>
+
+<span class="comment">-- Note C has no "free" method</span>
+
+
+
+<span class="comment">-- code</span>
+
+myC = C:new()
+
+
+
+myC:free()
+
+<span class="comment">-- prints:</span>
+
+B:free()
+
+B:free()
+
+A:free()
+
+<span class="comment">-- i.e. B:free is called **twice**</span>
+
+</pre>
+
+</DL>
+<p>
+What happens is that <code>myC:free()</code> is <code>C.free(myC)</code>. Since C has no <code>free</code> method, but B has one, what ends up called is <code>B.free(myC)</code>. In this function we do <code>self.super:free()</code>, which is really <code>myC.super.free(myC.super)</code>. And it turns out <code>myC.super.free</code> is (again) <code>B.free</code> so what is called is really  <code>B.free(myC.super)</code> and  <code>B.free</code> ends up being called twice, once with the original object as a parameter, and then once with the "pseudo" superclass object YaciCode<a href="/cgi-bin/wiki.pl?action=edit&amp;id=YaciCode" >?</a> maintains behind the scenes.
+<p>
+This could have unwanted side effects, so it's probably best to define explicitly  <code>C.free()</code>, if only just to do <code>self.super:free()</code>...
+<p>
+Note the same happens with <code>init()</code> but since all classes define it, there is no such side effect.
+<p>
+-- Frederic Thomas (fred AT thomascorner DOT com), 22 Feb 2007
+<p>
+<H2>New version 1.2</H2>
+<p>
+Well, Frederic has pointed out a very annoying problem... 
+<p>
+Basically one would like to say this: <em>"Currently, if B is a subclass of A, and <code>myB</code> is an instance of B, <code>myB:foo()</code> is equivalent to <code>A.foo(myB)</code> if <code>foo()</code> is defined in A and not in B; altough what we need is an equivalent form <code>A.foo(myB.super)</code> instead"</em>. This sounds right, because the two bugs Frederic's just mentioned are a direct consequence of that fact.
+This change isn't really difficult to make, and the two sample codes above can work correctly just by replacing the instances' <code>__index</code> metamethod by something a little more sophisticated.
+<p>
+However... What about <em>virtual</em>?
+What if one wants to call a virtual method <code>bar()</code> defined in B from the method <code>foo()</code> defined in A?
+If we applied this change, this kind of things wouldn't be possible anymore because there wouldn't be any access to the virtual fields in B from the methods defined in A -- as it is the case now because <code>foo()</code> receives <code>myB</code> as argument instead of <code>myB.super</code>, and thus it can access  the methods defined at B's level.
+<p>
+Here is an example to illustrate this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+A = newclass(<span class="string">"A"</span>)
+
+
+
+<span class="keyword">function</span> A:whoami()
+
+  <span class="keyword">return</span> <span class="string">"A"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> A:test()
+
+  <span class="library">print</span>(self:whoami())
+
+<span class="keyword">end</span>
+
+
+
+B = newclass(<span class="string">"B"</span>, A)
+
+
+
+<span class="keyword">function</span> B:whoami()		<span class="comment">-- is it a virtual function?</span>
+
+  <span class="keyword">return</span> <span class="string">"B"</span>
+
+<span class="keyword">end</span>
+
+
+
+myB = B()
+
+myB:test() <span class="comment">-- what should be printed here? "A" or "B"?</span>
+
+</pre>
+
+</DL>
+<p>
+Java users e.g would like to see "B" (because methods are virtual by default in Java), although C++ users would prefer to see "A" because <code>whoami()</code> isn't declared as "virtual". And the problem is: there is no keyword "virtual" nor "final" in Lua. So what would be the best behaviour?
+<p>
+While writing the code I thought that all methods should be virtual by default, and this is why I organized things in this way. But the bugs Frederic's reported are too important to be acceptable, in my opinion.
+<p>
+Thus I wrote a new version of "YaciCode<a href="/cgi-bin/wiki.pl?action=edit&amp;id=YaciCode" >?</a>" where these bugs are fixed, where default virtual is disabled, and with some new class functions to provide virtual methods and casting functionalities. The new code can be found here: <a href="/files/wiki_insecure/users/jpatte/YaciCode12.lua">Files:wiki_insecure/users/jpatte/YaciCode12.lua</a> . If possible I'd like to have people approbation before editing my notes above to add explanations about the new functionalities. Every tests I did ran fine, but I could have missed something; and again, any comments are appreciated if you see a "more suitable way" of doing things :-)
+<p>
+Here is a couple of notes about the major changes in this version:
+<p>
+<H3>Internal reorganization</H3>
+<p>
+In order to manage castings and explicit virtual I had to add several things to the code, and in particular a weak table <code>metaObj</code> that associates an instance object with its meta-information (which is not visible by the user). These informations concern the object's class, its "superobject", its "lowerobject", etc. This was mainly needed for casting implementation: casting back <code>myB.super</code> into a B instance (i.e, <code>myB</code> itself) is now possible because there is a link from <code>myB.super</code> to <code>myB</code> in the meta-informations. 
+This table could be used to store any other information about each instance in future versions.
+<p>
+The <code>__index</code> metamethod for class instances is a little more complex than before, in order to transform <code>myB:foo(myB)</code> into <code>A.foo(myB.super)</code> instead of <code>A.foo(myB)</code> if <code>foo()</code> is defined at A's level; this "simple" change fixes the two bugs that Frederic mentioned above. 
+<p>
+The classes may have some meta-informations too, and in particular they maintain a list of their virtual methods. Every time an instance is created, the "virtual table" is directly copied into the instance (and into all its "superinstances"). That means that virtual methods have a higher priority than the simple methods declared by the class (and this is exactly what we want: if A and B define the virtual method <code>foo()</code>, <code>B.foo</code> must have a higher priority than <code>A.foo()</code> at each level of the hierarchy).
+<p>
+By the way, as there is a <code>Object</code> class, I'm considering the introduction of a <code>Class</code> class. Any classes would be instances of <code>Class</code>; e.g. one should write <code>A = Class:new("A")</code> or <code>A = Class("A")</code> instead of <code>A = newclass("A")</code>. This isn't difficult to implement and would bring more "homogeneity" to the code. What's your opinion about it?
+<p>
+<H3>Virtual</H3>
+<p>
+Here we are.
+As I said, virtual is now disabled by default (this is due to the new <code>__index</code> metamethod). In the example code I gave about the <code>whoami()</code> function, the current implementation would print "A", because <code>A:test()</code> receives <code>myB.super</code> as <code>self</code> instead of <code>myB</code>. But what if we want to make <code>whoami()</code> virtual? In other terms, how could we override <code>A:whoami()</code> with <code>B:whoami()</code>, even at A's level (and only for B's instances)?
+Well, you just have to write <code>A:virtual("whoami")</code> to explicitly declare <code>whoami()</code> as virtual. This must be written outside any method, and after the method definition. Thus:
+<p>
+<DL>
+<dt><dd><pre class="code">
+A = newclass(<span class="string">"A"</span>)
+
+
+
+<span class="keyword">function</span> A:whoami()
+
+  <span class="keyword">return</span> <span class="string">"A"</span>
+
+<span class="keyword">end</span>
+
+A:virtual(<span class="string">"whoami"</span>) <span class="comment">-- whoami() is declared virtual</span>
+
+
+
+<span class="keyword">function</span> A:test()
+
+  <span class="library">print</span>(self:whoami())
+
+<span class="keyword">end</span>
+
+
+
+B = newclass(<span class="string">"B"</span>, A)
+
+
+
+<span class="keyword">function</span> B:whoami() <span class="comment">-- now yes, whoami() is virtual</span>
+
+  <span class="keyword">return</span> <span class="string">"B"</span>
+
+<span class="keyword">end</span>
+
+					<span class="comment">-- no need to declare it again</span>
+
+myB = B()
+
+myB:test() <span class="comment">-- will print "B"</span>
+
+</pre>
+
+</DL>
+<p>
+It is also possible to declare some methods as <em>abstract</em> (i.e. pure virtual methods); you just have to call <code>A:virtual()</code> with the name of the abstract method without defining it. An error will be raised if you try to call it without having defined it lower in the hierarchy.
+Here is an example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+A = newclass(<span class="string">"A"</span>)
+
+
+
+A:virtual(<span class="string">"whoami"</span>) <span class="comment">-- whoami() is abstract</span>
+
+
+
+<span class="keyword">function</span> A:test()
+
+  <span class="library">print</span>(self:whoami())
+
+<span class="keyword">end</span>
+
+
+
+B = newclass(<span class="string">"B"</span>, A)
+
+
+
+<span class="keyword">function</span> B:whoami() <span class="comment">-- define whoami() here</span>
+
+  <span class="keyword">return</span> <span class="string">"B"</span>
+
+<span class="keyword">end</span>
+
+					
+
+myB = B()
+
+myB:test() <span class="comment">-- will print "B"</span>
+
+
+
+myA = A()  <span class="comment">-- no error here! </span>
+
+myA:test() <span class="comment">-- but will raise an error here</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>"Protected" and "private" attributes</H3>
+<p>
+Damian wrote here: <em>"This can leave multiple variables of the same name but with different values scattered across several levels of inheritance, which tends to break things, be confusing, and generally make one unhappy."</em> 
+<p>
+Well, personally I tend to think the opposite. IMHO the encapsulation principle should also be applied between a class and its subclasses; that means that an instance of a subclass should have no knowledge of the attributes declared in its superclasses. It may have access to some methods and services provided by the superclasses, but it should not know <em>how</em> these services are implemented. This is the parent's business, not the child's business. 
+In practice, I would say that every <em>attributes</em> in a class should be declared as "private": if a class and its subclass use an attribute of the same name for their respective business, there should be no interference between them. And if the implementation of the superclass' services has to change, there must only be a minimal impact on the subclasses, and this is mainly possible because the subclasses <em>do not know</em> what are the exact attributes used at the higher levels.
+<p>
+These are two opposite opinions, and it's really difficult (impossible?) to tell who's right and who's wrong. So the best thing we could say is probably <em>"Let the user decide what he wants to do"</em> :-)
+<p>
+It is now possible to define "protected" and "private" attributes in a class, depending on the order these attributes are initialized. Note that "protected" and "private" aren't the best terms here (because there is no real protection mechanism), we should rather talk about "shared" and "non shared" attributes between a class and its subclasses. You will also note that this distinction is made by the subclass itself (and not by the superclass), which can decide (in its constructor) if certain attributes of the superclass should be shared or overridden.
+<p>
+Consider the following example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+A = newclass(<span class="string">"A"</span>)
+
+
+
+<span class="keyword">function</span> A:init(x)
+
+  self.x = x
+
+  self.y = 1  <span class="comment">-- attribute 'y' is for internal use only</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> A:setY_A(y)
+
+  self.y = y
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> A:setX(x)
+
+  self.x = x
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> A:doYourJob()
+
+  self.x = 0   <span class="comment">-- change attributes values</span>
+
+  self.y = 0
+
+  <span class="comment">-- do something here...</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+B = A:subclass(<span class="string">"B"</span>)
+
+
+
+<span class="keyword">function</span> B:init(x,y)
+
+  self.y = y              <span class="comment">-- B wants to have its own 'y' attribute (independant from A.y)</span>
+
+  self.super:init(x)      <span class="comment">-- initialise A.x (and A.y)</span>
+
+                          <span class="comment">-- x is shared between A and B</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> B:setY(y)
+
+  self.y = y
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> B:setY_B(y)
+
+  self.y = y
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> B:doYourJob()
+
+  self.x = 5
+
+  self.y = 5
+
+  self.super:doYourJob()  <span class="comment">-- look at A:doYourJob</span>
+
+  <span class="library">print</span>(self.x)           <span class="comment">-- prints "0": B.x has been modified by A</span>
+
+  <span class="library">print</span>(self.y)           <span class="comment">-- prints "5": B.y remains (safely) unchanged</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+myB = B(3,4)
+
+<span class="library">print</span>(myB.x, myB.y, myB.super.x, myB.super.y) <span class="comment">-- prints "3 4 3 1"</span>
+
+
+
+myB:setX(5)
+
+myB:setY(6)
+
+<span class="library">print</span>(myB.x, myB.y, myB.super.x, myB.super.y) <span class="comment">-- prints "5 6 5 1"</span>
+
+
+
+myB:setY_A(7)
+
+myB:setY_B(8)
+
+<span class="library">print</span>(myB.x, myB.y, myB.super.x, myB.super.y) <span class="comment">-- prints "5 8 5 7"</span>
+
+
+
+myB:doYourJob()
+
+</pre>
+
+</DL>
+<p>
+You can see that the different behaviours of the attributes 'x' and 'y' come from the order of initialisation in the constructor. The "first" class that defines an attribute will get possession of that attribute, even if some superclasses declare an attribute with the same name "later" in the initialisation process. I personnaly suggest to initialise all "non shared" attributes at the beginning of the constructor, then call the superclass' constructor, then eventually use some of the superclass' methods. On the contrary if you want to access an attribute defined by a superclass, you may not set its value before the superclass' constructor has done it.
+<p>
+I hope this solution will be suitable for everyone ;-) 
+<p>
+<H3>Castings</H3>
+<p>
+Now comes another problem: by transforming <code>myB:foo()</code> into <code>A.foo(myB.super)</code>, a part of information about <code>myB</code> is "lost". <code>foo()</code> is at A's level; but what if we want to access from <code>foo()</code> some specific (non virtual) methods/attributes defined at B's level? The answer is: we should be able to <em>cast</em> <code>myB.super</code> "back" to <code>myB</code>. 
+<p>
+This can be done with two new class methods: <code>cast()</code> and <code>trycast()</code>. 
+A simple example is...
+<p>
+<DL>
+<dt><dd><pre class="code">
+A = newclass(<span class="string">"A"</span>)
+
+
+
+<span class="keyword">function</span> A:foo()
+
+  <span class="library">print</span>(self.b) <span class="comment">-- prints "nil"! There is no field 'b' at A's level</span>
+
+  aB = B:cast(self)  <span class="comment">-- explicit casting to a B</span>
+
+  <span class="library">print</span>(aB.b)  <span class="comment">-- prints "5"</span>
+
+<span class="keyword">end</span>
+
+
+
+B = newclass(<span class="string">"B"</span>,A)
+
+
+
+<span class="keyword">function</span> B:init(b) 
+
+	self.b = b
+
+<span class="keyword">end</span>
+
+
+
+myB = B(5)
+
+myB:foo()
+
+</pre>
+
+</DL>
+<p>
+<code>C:cast(x)</code> tries to find the "sub-objet" or "super-object" in 'x' corresponding to the class C, by searching higher and lower in the hierarchy. Intuitively, we will have <code>myB.super == A:cast(myB)</code> and <code>myB == B:cast(myB.super)</code>. Of course this works with more than 2 levels of inheritance.
+If the casting fails, an error will be raised.
+<p>
+<code>C:trycast(x)</code> does exactly the same, except that it simply returns <code>nil</code> when casting is impossible instead of raising an error.
+<code>C:made(x)</code>, which was already existing, has been modified and returns now <code>true</code> if <code>C:trycast(x)</code> does not return nil i.e, if casting is possible.
+<p>
+Let's take another example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+A = newclass(<span class="string">"A"</span>)
+
+<span class="keyword">function</span> A:asA() <span class="keyword">return</span> self <span class="keyword">end</span>
+
+
+
+B = newclass(<span class="string">"B"</span>,A)
+
+<span class="keyword">function</span> B:asB() <span class="keyword">return</span> self <span class="keyword">end</span>
+
+
+
+C = newclass(<span class="string">"C"</span>,B)
+
+
+
+D = newclass(<span class="string">"D"</span>,A) <span class="comment">-- subclass of A</span>
+
+
+
+a, b, c, d = A(), B(), C(), D()
+
+
+
+b_asA = b:asA()
+
+c_asA = c:asA()
+
+c_asB = c:asB()
+
+
+
+<span class="library">print</span>( A:made(c) ) <span class="comment">-- true</span>
+
+<span class="library">print</span>( A:made(d) ) <span class="comment">-- true</span>
+
+
+
+<span class="library">print</span>( B:made(a) ) <span class="comment">-- false</span>
+
+<span class="library">print</span>( B:made(c) ) <span class="comment">-- true</span>
+
+<span class="library">print</span>( B:made(d) ) <span class="comment">-- false</span>
+
+
+
+<span class="library">print</span>( C:made(b) ) <span class="comment">-- false</span>
+
+<span class="library">print</span>( C:made(c) ) <span class="comment">-- true</span>
+
+<span class="library">print</span>( C:made(d) ) <span class="comment">-- false</span>
+
+
+
+<span class="library">print</span>( D:made(d) ) <span class="comment">-- true</span>
+
+<span class="library">print</span>( D:made(a) ) <span class="comment">-- false</span>
+
+
+
+<span class="library">print</span>( b_asA:class() , B:made(b_asA) ) <span class="comment">-- class A, true</span>
+
+
+
+<span class="library">print</span>( c_asA:class() , C:made(c_asA) ) <span class="comment">-- class A, true</span>
+
+<span class="library">print</span>( c_asB:class() , C:made(c_asB) ) <span class="comment">-- class B, true</span>
+
+
+
+<span class="library">print</span>( c:asA() == c.super.super ) <span class="comment">-- true</span>
+
+<span class="library">print</span>( C:cast( c:asA() ) == c ) <span class="comment">-- true</span>
+
+</pre>
+
+</DL>
+<p>
+And a last one (it isn't really a good practice to write things like that, but it's still a good example for casting operations):
+<p>
+<DL>
+<dt><dd><pre class="code">
+A = newclass(<span class="string">"A"</span>)
+
+
+
+<span class="keyword">function</span> A:printAttr() 
+
+  <span class="keyword">local</span> s
+
+  <span class="keyword">if</span> B:made(self) <span class="keyword">then</span> s = B:cast(self) <span class="library">print</span>(s.b)
+
+  <span class="keyword">elseif</span> C:made(self) <span class="keyword">then</span> s = C:cast(self) <span class="library">print</span>(s.c)
+
+  <span class="keyword">elseif</span> D:made(self) <span class="keyword">then</span> s = D:cast(self) <span class="library">print</span>(s.d)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span> 
+
+
+
+B = newclass(<span class="string">"B"</span>,A) 
+
+<span class="keyword">function</span> B:init() self.b = 2 <span class="keyword">end</span>
+
+
+
+C = newclass(<span class="string">"C"</span>,A) 
+
+<span class="keyword">function</span> C:init() self.c = 3 <span class="keyword">end</span>
+
+
+
+D = newclass(<span class="string">"D"</span>,A) 
+
+<span class="keyword">function</span> D:init() self.d = 4 <span class="keyword">end</span>
+
+
+
+manyA = { C(), B(), D(), B(), D(), C(), C(), B(), D() }
+
+
+
+<span class="keyword">for</span> _, a <span class="keyword">in</span> <span class="library">ipairs</span>(manyA) <span class="keyword">do</span>
+
+  a:printAttr()
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Comments</H3>
+<p>
+Here was a description of the changes introduced by the new version 1.2; I hope these improvements will be helpful. 
+Please don't hesitate to give a feedback, if you think one could do even better or if you find a bug somewhere ;-)
+<p>
+The new version is available at <a href="/files/wiki_insecure/users/jpatte/YaciCode12.lua">Files:wiki_insecure/users/jpatte/YaciCode12.lua</a> , if possible I'd like to receive some comments on this version before updating the whole page. Thanks a lot for your interest! 
+<p>
+-- Julien Patte (julien.patte AT gmail DOT com), 25 Feb 2007 
+<p>
+<H3>Bugfix</H3>
+<p>
+Peter Bohac reported a bug in version 1.2 about the class() method. As a side effect the default <code>__tostring</code> metamethod (which uses this method) raises an error when an instance is "printed". The bugfix is rather simple:
+<p>
+1 - at line 149:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> inst_stuff.class() <span class="keyword">return</span> theclass <span class="keyword">end</span></pre>
+
+</DL>
+it should be "theClass" instead of "theclass"... 
+<p>
+2 - after line 202, there should be a definition of the Object:class() method:
+<DL>
+<dt><dd><pre class="code">
+obj_inst_stuff.__newindex = obj_newitem
+
+<span class="keyword">function</span> obj_inst_stuff.class() <span class="keyword">return</span> Object <span class="keyword">end</span></pre>
+
+</DL>
+<p>
+This bug has been fixed in the file YaciCode12.lua.
+<p>
+-- Julien Patte (julien.patte AT gmail DOT com), 19 Mar 2007 
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/ObjectOrientedProgramming.html" >ObjectOrientedProgramming</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=YetAnotherClassImplementation" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=YetAnotherClassImplementation" >history</a><br>Last edited April 28, 2013 7:29 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=YetAnotherClassImplementation" >(diff)</a>
+</body>
+</html>

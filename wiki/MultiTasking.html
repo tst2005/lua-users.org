@@ -1,0 +1,87 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Multi Tasking</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MultiTasking&amp;body=1" title="List pages referring to MultiTasking">Multi Tasking</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page contains links and/or discussions related to multitasking/multithreading/parallelization<a href="http://en.wikipedia.org/wiki/Computer_multitasking.html">[1]</a> in Lua.
+<p>
+<UL>
+<li> Cooperative:
+<UL>
+<li> Standard Lua coroutines <a href="http://www.lua.org/manual/5.1/manual.html#2.11">[2]</a> - lightweight cooperative multitasking
+<li> <a href="http://coco.luajit.org/">[Coco]</a> (5.1) - true C coroutines for Lua (yield from anywhere)
+<li> <a href="http://northarc.com/tuna/">[tuna]</a> (5.1/5.2) - cooperative C-level scheduler, in some ways like Coco.  High memory efficiency.  Win32 (Win64 soon) and Linux x86/64
+<li> <a href="http://www.keplerproject.org/copas/">[Copas]</a> (5.1) - a dispatcher based on coroutines and LuaSocket<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaSocket" >?</a> that can be used by request/response servers.
+<li> <a href="http://luaforge.net/projects/luaevent/">[LuaEvent]</a> (5.1) - a binding to libevent, offers a coroutine dispatcher a-la Copas.
+<li> <a href="http://github.com/brimworks/lua-ev">[lua-ev]</a> (5.1) - a binding to libev, still young.
+<li> <a href="https://github.com/SierraWireless/luasched">[luasched]</a> (5.1) - collaborative multithreading, shared memory
+<li> <a href="https://github.com/xopxe/Lumen">[Lumen]</a> (5.1/5.2/LuaJIT) - pure-lua collaborative multithreading, shared memory, inspired in luasched.
+</UL>
+<li> Preemptive, shared state:
+<UL>
+<li> <a href="http://www.cs.princeton.edu/~diego/professional/luathread/">[LuaThread]</a> (5.0/5.1) - threads share the same Lua state (synchronized); uses native OS threads (preemptive)
+</UL>
+<li> Preemptive, message passing:
+<UL>
+<li> <a href="https://github.com/Neopallium/lua-zmq">[zmq.threads]</a> - The <a href="http://zero.mq/">[ZeroMQ]</a> Lua bindings has a wrapper for <a href="https://github.com/Neopallium/lua-llthreads">[lua-llthreads]</a> to add message passing support to lua-llthreads.
+<li> <a href="https://github.com/LuaLanes/lanes">[Lanes]</a> (5.1/5.2) - completely separate Lua states, one per thread, with asynchronous message passing
+<li> <a href="http://luatask.luaforge.net">[LuaTask]</a> (5.1) - multiple concurrent, independent Lua states, one per thread, with message passing
+<li> <a href="https://github.com/mbalmer/mqlua">[mqlua]</a> (5.1/5.2) - <a href="../wiki/MqLua.html" >MqLua</a> - Run multiple Lua states in POSIX threads and use ZeroMQ for communication.
+</UL>
+<li> Preemptive
+<UL>
+<li> <a href="https://github.com/Neopallium/lua-llthreads">[lua-llthreads]</a> - provides a very simple interface to pthreads.  Each thread has an independent Lua state.
+<li> <a href="https://github.com/moteus/lua-llthreads2">[lua-llthreads2]</a> - drop-in replacement for <a href="https://github.com/Neopallium/lua-llthreads">[lua-llthreads]</a> library with several additional functionality.
+<li> <a href="http://peterodding.com/code/lua/apr/docs/#multi_threading">[Lua/APR multithreading]</a> - multiple concurrent, independent Lua states, one per OS thread.  Uses Apache APR.
+</UL>
+<li> Cooperative, message passing:
+<UL>
+<li> <a href="http://concurrentlua.luaforge.net/">[ConcurrentLua]</a> (5.1) - implements Erlang-style concurrency for Lua ("share-nothing asynchronous message-passing model" implemented with coroutines extended with message-passing primitives and also supporting distributed programming).  See <a href="http://web.it.kth.se/~johanmon/theses/eleftherios.pdf">[Concurrency Oriented Programming in Lua]</a> (M.S. thesis by Eleftherios Chatzimparmpas, 2007).
+<li> <a href="http://luaforge.net/projects/luaproc/">[luaproc]</a> - for details, see: <a href="http://www.inf.puc-rio.br/~roberto/docs/ry08-05.pdf">[Exploring Lua for Concurrent Programming]</a> by Alexandre Skyrme, Noemi Rodriguez, and Roberto Ierusalimschy. [2008]
+</UL>
+<li> Threading only on the C side:
+<UL>
+<li> <a href="http://luaforge.net/projects/helper-threads/">[Helper Threads Toolkit]</a> - multitheading tasks only spawned on the C side
+<li> <a href="http://lua-users.org/lists/lua-l/2006-11/msg00368.html">[Occasional threading]</a> - similar to Helper Threads Toolkit
+</UL>
+<li> Other:
+<UL>
+<li> <a href="http://www.keplerproject.org/rings/">[Rings]</a> - provides a way to create multiple communicating Lua states (doesn't in itself provide multithreading)
+<li> <a href="http://smc.sourceforge.net/">[SMC]</a> (5.<strong>?</strong>) - the State Machine Compiler, makes custom <a href="http://en.wikipedia.org/wiki/Finite_state_machine.html">[FSM]</a>-based dispatchers for Lua (among many other languages).
+<li> <a href="http://www.bellfelljar.org/tractwo/wiki/Lua%20Projects.html">[Miros]</a> (5.1) - a Lua module that implements a Hierarchical State Machine (<a href="http://en.wikipedia.org/wiki/UML_state_machine#Hierarchically_nested_states.html">[HSM]</a>) class (i.e. one that implements behavioral inheritance).
+<li> <a href="http://www.lua.inf.puc-rio.br/luagravity/">[LuaGravity]</a> - roughly based on Esterel and FrTime<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FrTime" >?</a>, two synchronous reactive languages.
+<li> <a href="http://github.com/iamaleksey/lua-zmq">[lua-zmq]</a> - a binding to ZeroMQ<a href="http://www.zeromq.org/">[3]</a>, the high-performance message queue library with a socket-style API.
+<li> <a href="http://github.com/mbalmer/luaproxy">[luaproxy]</a> - spawn and access separate Lua states from within Lua. 
+</UL>
+</UL>
+<p>
+A comparison of a number of Lua multithreading libraries is in <a href="http://kotisivu.dnainternet.net/askok/bin/lanes/comparison.html">[Lanes]</a>.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MultiTasking" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MultiTasking" >history</a><br>Last edited June 9, 2014 10:00 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MultiTasking" >(diff)</a>
+</body>
+</html>

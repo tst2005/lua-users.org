@@ -1,0 +1,73 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Compression And Archiving</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CompressionAndArchiving&amp;body=1" title="List pages referring to CompressionAndArchiving">Compression And Archiving</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here's various links relating to compression, decompression, and archiving in Lua.
+<p>
+<UL>
+<li> <a href="http://luaforge.net/projects/lzlib/">[lzlib/lgzip]</a> (5.1) - read/write gzip files.  Interface based on Lua io library. Uses zlib <a href="http://www.zlib.net/">[1]</a>. (Tiago Dionizio)
+<li> <a href="http://github.com/brimworks/lua-zlib">[lua-zlib]</a> (5.1) - Simple streaming interface to zlib.
+<li> <a href="http://www.keplerproject.org/luazip/">[LuaZip]</a> (5.0/5.1) - lightweight library to read files stored in zip files.  Uses zziplib <a href="http://zziplib.sourceforge.net/">[2]</a>. (Danilo Tuler)
+<li> <a href="http://github.com/brimworks/lua-zip">[lua-zip]</a> (5.1) - Read and <strong>write</strong> zip files.  Uses <a href="http://www.nih.at/libzip/">[libzip]</a>.
+<li> <a href="http://github.com/harningt/lua-bz2">[lua-bz2]</a> (5.1) - read bzip2 files.  Uses libbzip2. (<a href="../wiki/ThomasHarningJr.html" >ThomasHarningJr</a>)
+<li> <a href="http://github.com/brimworks/lua-archive">[LibArchive]</a> (5.1) - Lua binding to libarchive <a href="http://code.google.com/p/libarchive/">[3]</a>, supporting a variety of archiving and compression formas (Brian Maher)
+<li> <a href="http://code.google.com/p/lua-larc/">[LArc]</a> (5.1) - read/write various compressed formats (gzip/bzip2/xv/zip/zip64/tar).   Uses zlib/libbzip2/liblzma for core compress/decompress routines in C and higher-level functions in Lua. (Tom Harris)
+<li> <a href="../wiki/ModuleCompressDeflateLua.html" >ModuleCompressDeflateLua</a> (5.1) - implementation of DEFLATE (e.g. gzip/zlib) in pure Lua (decompress only). (<a href="../wiki/DavidManura.html" >DavidManura</a>)
+<li> <a href="http://wowace.com/projects/libcompress/">[LibCompress]</a> (5.1) - LZW and Huffman compression/decompression in pure Lua. Can automatically choose the most efficient algorithm for specific data.
+<li> <a href="../wiki/LuaRocks.html" >LuaRocks</a> has pure Lua implementations of tar and zip (using lzlib).
+<li> <code>os.execute</code> or <code>io.popen</code> may be used to execute a command directly (e.g. <code>os.execute("unzip foo.zip")</code>).  <a href="../wiki/LuaRocks.html" >LuaRocks</a> and <a href="../wiki/LuaDist.html" >LuaDist</a> make use of this.
+<li> <a href="https://github.com/moteus/ZipWriter/">[ZipWriter]</a> (5.1/5.2) - Library for creating ZIP archive.
+</UL>
+<p>
+For compression by removing whitespace or comments, the following utilities are available:
+<p>
+<UL>
+<li> <a href="http://www.tecgraf.puc-rio.br/%7Elhf/ftp/lua/#lstrip">[lstrip]</a> (5.1) - A tool for compressing Lua programs by removing comments and whitespace.
+<li> <a href="http://code.google.com/p/luasrcdiet/">[LuaSrcDiet]</a> (5.1) - Similar to lstrip, but also able to rename local variables.
+<li> <a href="http://matthewwild.co.uk/projects/squish/home">[squish]</a> - Compress and archive Lua code+files <a href="/lists/lua-l/2009-07/msg00392.html">[4]</a>. Based on Lua<code></code>Src<code></code>Diet. Optionally uses <a href="../wiki/ModuleCompressDeflateLua.html" >ModuleCompressDeflateLua</a>.
+</UL>
+<p>
+Main qualitative characteristics of these libraries include
+<p>
+<UL>
+<li> Which formats are supported?
+<li> Are read and/or write modes supported? any other limitations?
+<li> What is the core implementation?  binding to C library or pure Lua implementation?
+</UL>
+<p>
+Other programming languages cross reference:
+<p>
+<UL>
+<li> <a href="http://docs.python.org/library/archiving.html">[Python]</a>
+<li> Wikipedia: <a href="http://en.wikipedia.org/wiki/Data_compression.html">[Data compression]</a> <a href="http://en.wikipedia.org/wiki/File_archiver.html">[File archiver]</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CompressionAndArchiving" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CompressionAndArchiving" >history</a><br>Last edited May 5, 2014 5:57 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CompressionAndArchiving" >(diff)</a>
+</body>
+</html>

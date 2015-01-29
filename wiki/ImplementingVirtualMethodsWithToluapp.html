@@ -1,0 +1,260 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Implementing Virtual Methods With Toluapp</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ImplementingVirtualMethodsWithToluapp&amp;body=1" title="List pages referring to ImplementingVirtualMethodsWithToluapp">Implementing Virtual Methods With Toluapp</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This tolua++ addon can be used to generate code to allow c++ virtual methods to be implemented from lua. This code is a modified version of the code used on lua_qt, combined with <a href="../wiki/ToluappClassAccessLabels.html" >ToluappClassAccessLabels</a> to implement access labels.
+Note that this is not a patch; it can be used with an unmodified tolua++ binary (version 1.0.7 or higher).
+<p>
+2 files are needed:
+<p>
+<a href="/files/wiki_insecure/users/ArielManzur/tolua++/virtual_method_hooks.lua">Files:wiki_insecure/users/ArielManzur/tolua++/virtual_method_hooks.lua</a>
+<p>
+<a href="/files/wiki_insecure/users/ArielManzur/tolua++/tolua_base.h">Files:wiki_insecure/users/ArielManzur/tolua++/tolua_base.h</a>
+<p>
+<H3>Usage example</H3>
+<p>
+Create a .pkg file
+<p>
+<pre>
+
+// mypackage.pkg
+
+
+
+$#include "tolua_base.h"
+
+
+
+class Widget {
+
+
+
+protected:
+
+   virtual bool input_event(Event* e);
+
+
+
+public:
+
+
+
+   virtual void add_child(Widget* child);
+
+
+
+   void close();
+
+
+
+   Widget(string p_name);
+
+};
+
+</pre>
+<p>
+Generate the package
+<p>
+<pre>
+
+tolua++ -L virtual_method_hooks.lua mypackage.pkg &gt; mypackage.cpp
+
+(compile 'mypackage.cpp' with the rest of the code)
+
+</pre>
+<p>
+Use the class Lua__Widget from your lua script
+<p>
+<pre>
+
+
+
+-- custom_widget.lua
+
+require "mypackage"
+
+
+
+local CustomWidget = {}
+
+CustomWidget.__index = CustomWidget
+
+
+
+function CustomWidget:input_event(e)
+
+
+
+   if e.type = Event.KEY_PRESS and e.key_code == KEY_ESCAPE then
+
+      -- close the widget when escape is pressed
+
+      self:close()
+
+      return true
+
+   end
+
+
+
+   -- call Widget::input_event
+
+   return self:Widget__input_event(e)
+
+end
+
+
+
+function CustomWidget:new(name)
+
+
+
+   -- create a table and make it an 'instance' of CustomWidget
+
+   local t = {}
+
+   setmetatable(t, CustomWidget)
+
+
+
+   -- create a Lua__Widget object, and make the table inherit from it
+
+   local w = Lua__Widget:new(name)
+
+   tolua.setpeer(w, t) -- use 'tolua.inherit' on lua 5.0
+
+
+
+   -- 'w' will be the lua object where the virtual methods will be looked up
+
+   w:tolua__set_instance(w)
+
+
+
+   return w -- return 't' on lua 5.0 with tolua.inherit
+
+end
+
+
+
+</pre>
+<p>
+In this example, the class 'Lua__Widget' is generated. Lua__Widget has all the constructors of Widget, and a method 'tolua__set_instance', to provide the lua object where the virtual methods will be looked up (in this case, we use the same userdata object used for the c++ object, because our lua functions override the c++ functions). This object will be passed as <code>self</code> on the lua methods. Lua__Widget also exposes the virtual methods from Widget to be called directly.
+<p>
+<H3>Inheritance</H3>
+<p>
+A subclass that inherits from a class with virtual methods will also generate code to implement those methods from lua, but only if the subclass has any virtual methods itself. For example, if we add the following to our pkg:
+<p>
+<pre>
+
+class Label : public Widget {
+
+
+
+public:
+
+   void set_text(string p_text);
+
+};
+
+</pre>
+<p>
+this will <strong>not</strong> generate a <code>Lua__Label</code> class. For that, we need to add at least one virtual method. Consider the following example:
+<p>
+<pre>
+
+class Label : public Widget {
+
+
+
+private:
+
+   virtual void add_child(Widget* child);
+
+
+
+public:
+
+   void set_text(string p_text);
+
+};
+
+</pre>
+<p>
+In this case, the only virtual method available for the class Lua__Label will be <code>input_event</code> (inherited from Widget). The reason to declare <code>add_child</code> as private on the pkg is because if the method is actually private and we don't declare it as such on the pkg, the generated code will try to use it on Lua__Label, and that will produce a compile error.
+<p>
+<H3>Tweaking</H3>
+<p>
+The file virtual_method_hooks.lua has 3 flags that can be changed (found at the beginning of the file).
+<p>
+<UL>
+<li> <code>disable_virtual_hooks</code>: a quick flag to disable the whole thing. If it's set to <code>true</code>, no special code will be generated for virtual methods.
+<li> <code>enable_pure_virtual</code>: enables support for pure virtual methods. If it's set to <code>false</code>, the output code will be more "conservative" when it comes to classes with pure virtual methods. No constructors will be output, and the code will only compile with GCC 4 (through a preprocessor switch), which is more permissive with pure virtual classes.
+<li> <code>default_private_access</code>: this is a flag to fully enable the code from <a href="../wiki/ToluappClassAccessLabels.html" >ToluappClassAccessLabels</a>. By default, tolua++ treats the contents of a class a <code>public</code>, but since we can have <code>private</code> virtual methods, there is an option to set the access to <code>private</code> by default on pkg files too.
+</UL>
+<p>
+<H3>Overloading</H3>
+<p>
+Since lua doesn't enforce signatures for functions, the only way to lookup a function is by its name, so when there are more than 1 c++ methods with the same name, your lua function should be prepared to handle all versions of the functions.
+<p>
+Also, when looking for methods on parent classes, only the names are used to match them (this is a limitation of the current version). For example, if you add this to the example package:
+<p>
+<pre>
+
+
+
+class Button : public Widget {
+
+
+
+public:
+
+   virtual void add_child(Label* child);
+
+};
+
+</pre>
+<p>
+only the last version of <code>add_child</code> will be available for the class <code>Lua__Button</code>.
+<p>
+<H3>Other limitations</H3>
+<p>
+Only one level of namespaces is supported for the moment.
+To avoid infinite recursion, only lua functions (and not lua_cfunctions) are called from the virtual methods.
+<p>
+Some versions of tolua++ (like <strong>1.0.92</strong>) have problems with the 'default_private_access' flag. If the methods on your virtual class are not being exported, try setting the flag to <code>false</code>. You'll have to add a <code>private:</code> label to the class declarations that have private stuff by default at the beginning.
+<p>
+<H3>Contact</H3>
+<p>
+Send questions, bugs, or comments to <a href="mailto:puntob@gmail.com">mailto:puntob@gmail.com</a>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ImplementingVirtualMethodsWithToluapp" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ImplementingVirtualMethodsWithToluapp" >history</a><br>Last edited January 20, 2009 6:38 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ImplementingVirtualMethodsWithToluapp" >(diff)</a>
+</body>
+</html>

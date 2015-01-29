@@ -1,0 +1,216 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Simple Debugger</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SimpleDebugger&amp;body=1" title="List pages referring to SimpleDebugger">Simple Debugger</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<hr><DL>
+<dt><dd><strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  It does not run as is under Lua 5.</strong>
+</DL>
+<hr>Lua provides tools for debugging, but they are not well advertised.  You can use <code>_ERRORMESSAGE</code> to get a stack traceback and you can modify <code>_ALERT</code> to call <code>debug</code> so that you can examine global variables when an error occurs.  With a little more code you can even dump out the local variables.<a href="/files/wiki_insecure/users/pshook/simpledebugger/simpledebugger.lua">[1]</a>
+<p>
+This code<a href="/files/wiki_insecure/users/pshook/simpledebugger/testdebugger.lua">[2]</a> has a bug in it.
+<DL>
+<dt><dd><pre>
+
+      1 require'simpledebugger.lua'
+
+      2 
+
+      3 function here( t, str, pat )
+
+      4   assert( type(t,'table'), 'expecting a table' )
+
+      5   assert( type(str,'string'), 'expecting a string' )
+
+      6   pat = pat or '$(%b&lt;&gt;)'
+
+      7   local f = function(w)
+
+      8     local m = t[strsub(w,2,-2)] or w
+
+      9     if type(m,'function') then m = m(t) end
+
+     10     return tostring(m)
+
+     11   end
+
+     12   return( gsub( str, pat, f ) )
+
+     13 end
+
+     14 
+
+     15 temp = [[ 
+
+     16   this is a $&lt;x&gt; for $&lt;y&gt;
+
+     17 ]]
+
+     18 local tab = { x = 'test', y = 'fun' }
+
+     19 write( here( tab, temp ) )
+
+     20 write( here( temp, tab ) )
+
+     21 print"game over"
+
+</pre>
+</DL>
+If we run the code, we see that it dies due to a failed assertion.
+<DL>
+<dt><dd><pre>
+
+$ lua -v testdebugger.lua 
+
+Lua 4.1 (work4)  Copyright (C) 1994-2001 TeCGraf, PUC-Rio
+
+ 
+
+  this is a test for fun
+
+error: assertion failed!  expecting a table
+
+stack traceback:
+
+   1:  function `assert' [C]
+
+   2:  function `here' at line 4 [file `testdebugger.lua']
+
+   3:  main of file `testdebugger.lua' at line 20
+
+lua_debug&gt; 
+
+</pre>
+</DL>
+We can dump out the locals at stack level 2 and we see that the function was called with the arguments switched.
+<DL>
+<dt><dd><pre>
+
+lua_debug&gt; locals(2)
+
+t = " \
+
+  this is a $&lt;x&gt; for $&lt;y&gt;\
+
+"
+
+str = { -- table: 0x80649b8
+
+  y = "fun",
+
+  x = "test"
+
+}
+
+pat = nil
+
+lua_debug&gt;
+
+</pre>
+</DL>
+You can also dump out the locals further up the stack. Enter <code>cont</code> to quit out of <code>debug</code>.
+<DL>
+<dt><dd><pre>
+
+lua_debug&gt; locals(3)
+
+tab = { -- table: 0x80649b8
+
+  y = "fun",
+
+  x = "test"
+
+}
+
+lua_debug&gt; cont
+
+</pre>
+</DL>
+If we add <code>stop"it"</code> just after line 8, we can inspect the variables in the function <code>here</code>.
+<DL>
+<dt><dd><pre>
+
+$ lua -v testdebugger.lua 
+
+Lua 4.1 (work4)  Copyright (C) 1994-2001 TeCGraf, PUC-Rio
+
+error: it
+
+stack traceback:
+
+   1:  function &lt;7:file `testdebugger.lua'&gt; at line 9
+
+   2:  function `gsub' [C]
+
+   3:  function `here' at line 13 [file `testdebugger.lua']
+
+   4:  main of file `testdebugger.lua' at line 20
+
+lua_debug&gt; locals()
+
+w = "&lt;x&gt;"
+
+m = "test"
+
+lua_debug&gt; cont
+
+error: it
+
+stack traceback:
+
+   1:  function &lt;7:file `testdebugger.lua'&gt; at line 9
+
+   2:  function `gsub' [C]
+
+   3:  function `here' at line 13 [file `testdebugger.lua']
+
+   4:  main of file `testdebugger.lua' at line 20
+
+lua_debug&gt; locals()
+
+w = "&lt;y&gt;"
+
+m = "fun"
+
+lua_debug&gt; cont
+
+ 
+
+  this is a test for fun
+
+game over
+
+</pre>
+</DL>
+<p>
+<p>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SimpleDebugger" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SimpleDebugger" >history</a><br>Last edited December 30, 2006 11:04 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SimpleDebugger" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,419 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Javadoc Comment</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteJavadocComment&amp;body=1" title="List pages referring to SciteJavadocComment">Scite Javadoc Comment</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<pre class="code">
+<span class="comment">--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~--</span>
+
+<span class="comment">--                                                                            --</span>
+
+<span class="comment">-- Greetings, SciTE-user.                                                     --</span>
+
+<span class="comment">-- This script is a little helper to create and maintain javadoc-style        --</span>
+
+<span class="comment">-- comments. It works like the commenter in Eclipse; i.e.                     --</span>
+
+<span class="comment">-- If you put                                                                 --</span>
+
+<span class="comment">-- /**|                                                                       --</span>
+
+<span class="comment">-- and press Enter (the | indicates where the cursor is located), you get     --</span>
+
+<span class="comment">-- /**                                                                        --</span>
+
+<span class="comment">--  * |                                                                       --</span>
+
+<span class="comment">--  */                                                                        --</span>
+
+<span class="comment">--                                                                            --</span>
+
+<span class="comment">-- When pressing Enter in the situation                                       --</span>
+
+<span class="comment">--     /**                                                                    --</span>
+
+<span class="comment">--      * One Bourbon, One Scotch, One Beer|                                  --</span>
+
+<span class="comment">--      */                                                                    --</span>
+
+<span class="comment">-- you get                                                                    --</span>
+
+<span class="comment">--     /**                                                                    --</span>
+
+<span class="comment">--      * One Bourbon, One Scotch, One Beer                                   --</span>
+
+<span class="comment">--      * |                                                                   --</span>
+
+<span class="comment">--      */                                                                    --</span>
+
+<span class="comment">--                                                                            --</span>
+
+<span class="comment">-- There is also a setting javadoc_find_params, which will find parameters    --</span>
+
+<span class="comment">-- for a function; e.g.                                                       --</span>
+
+<span class="comment">-- /**|                                                                       --</span>
+
+<span class="comment">-- bool born(int under, char *a="a bad", array sign) {                        --</span>
+
+<span class="comment">-- }                                                                          --</span>
+
+<span class="comment">-- will evaluate to                                                           --</span>
+
+<span class="comment">-- /**                                                                        --</span>
+
+<span class="comment">--  *                                                                         --</span>
+
+<span class="comment">--  * @param under                                                            --</span>
+
+<span class="comment">--  * @param *a (default: "a bad")                                            --</span>
+
+<span class="comment">--  * @param sign                                                             --</span>
+
+<span class="comment">--  * @return                                                                 --</span>
+
+<span class="comment">--  */                                                                        --</span>
+
+<span class="comment">-- bool born(int under, char *a="a bad", array sign) {                        --</span>
+
+<span class="comment">-- }                                                                          --</span>
+
+<span class="comment">-- It check for an opening bracket, and then considers every text between     --</span>
+
+<span class="comment">-- commas as a parameter; if there is a space, then the first word is         --</span>
+
+<span class="comment">-- considered the type.                                                       --</span>
+
+<span class="comment">--                                                                            --</span>
+
+<span class="comment">-- for any comments, suggestions or bugs etc, feel free to mail me at         --</span>
+
+<span class="comment">-- jerous (a.t.) gmail.com                                                    --</span>
+
+<span class="comment">--                                                                            --</span>
+
+<span class="comment">-- I hope it is usefull for you,                                              --</span>
+
+<span class="comment">-- jerous.                                                                    --</span>
+
+<span class="comment">--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~--</span>
+
+
+
+
+
+<span class="comment">--~ determines if the script should try to find parameters, and add them to</span>
+
+<span class="comment">--~ the comment. It will only look for them, if you put the cursor on 1 line</span>
+
+<span class="comment">--~ before the function declaration.</span>
+
+javadoc_find_params = <span class="keyword">true</span>
+
+
+
+<span class="comment">--~ create and maintain javadoc comments</span>
+
+<span class="comment">--~ note: won't work correctly if the comment starts at the first line</span>
+
+<span class="comment">--~ so just move it to the second line, and everything is ok!</span>
+
+<span class="keyword">function</span> OnChar(c)
+
+	expand = <span class="string">"/**"</span>
+
+	<span class="keyword">if</span> c~=<span class="string">"\n"</span> <span class="keyword">then</span>
+
+		<span class="keyword">return</span> <span class="keyword">false</span>
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="comment">-- are we creating a new comment?</span>
+
+	<span class="keyword">if</span> editor:textrange(editor.CurrentPos-<span class="library">string.len</span>(expand)-1, editor.CurrentPos-1)==expand <span class="keyword">then</span>
+
+		<span class="comment">-- check here first if we create</span>
+
+		<span class="comment">-- if modify, then skip over to the next if where we continue a comment</span>
+
+		<span class="comment">-- we suppose if the next line starts with "*" it is a valid comment</span>
+
+		next_line = editor:GetLine(editor:LineFromPosition(editor.CurrentPos)+1)
+
+		<span class="keyword">if</span> next_line==<span class="keyword">nil</span> <span class="keyword">or</span> <span class="library">string.find</span>(next_line, <span class="string">"^%s*%*"</span>)==<span class="keyword">nil</span> <span class="keyword">then</span>		
+
+			prev_line = editor:GetLine(editor:LineFromPosition(editor.CurrentPos)-1)
+
+			t1,t2,indent = <span class="library">string.find</span>(prev_line, <span class="string">"^(%s*)"</span>)
+
+			
+
+			insert = indent..<span class="string">" * \n"</span>
+
+			inserted = <span class="keyword">false</span>
+
+			
+
+			<span class="keyword">if</span> next_line ~= <span class="keyword">nil</span> <span class="keyword">and</span> javadoc_find_params==<span class="keyword">true</span> <span class="keyword">then</span>
+
+				<span class="comment">-- here we try to retrieve the function's parameters!</span>
+
+				balance=0
+
+				pos=editor:PositionFromLine(editor:LineFromPosition(editor.CurrentPos)+1)
+
+				
+
+				<span class="comment">-- see if there is a "(" on the following line; if not, then</span>
+
+				<span class="comment">-- we just create an empty comment</span>
+
+				<span class="keyword">while</span> char_at(pos)~=<span class="string">"("</span> <span class="keyword">and</span> char_at(pos)~=<span class="string">"\n"</span> <span class="keyword">and</span> pos&lt;editor.Length <span class="keyword">do</span>
+
+					pos = pos+1
+
+				<span class="keyword">end</span>
+
+				
+
+				<span class="keyword">if</span> char_at(pos)==<span class="string">"("</span> <span class="keyword">then</span>
+
+					param = <span class="string">""</span>
+
+					pos = pos+1
+
+					
+
+					<span class="keyword">while</span> (char_at(pos)~=<span class="string">")"</span> <span class="keyword">or</span> balance~=0) <span class="keyword">and</span> pos&lt;editor.Length <span class="keyword">do</span>
+
+						<span class="keyword">if</span> char_at(pos)==<span class="string">","</span> <span class="keyword">and</span> balance==0 <span class="keyword">then</span>
+
+							insert = insert..process_param(param, indent)
+
+							param = <span class="string">""</span>
+
+							pos=pos+1
+
+							<span class="comment">-- skip whitespaces after ","</span>
+
+							<span class="keyword">while</span> char_at(pos)==<span class="string">" "</span> <span class="keyword">do</span>
+
+								pos=pos+1
+
+							<span class="keyword">end</span> 
+
+						<span class="keyword">end</span>
+
+						<span class="keyword">if</span> char_at(pos)==<span class="string">"("</span> <span class="keyword">then</span>
+
+							balance = balance+1
+
+						<span class="keyword">end</span>
+
+						<span class="keyword">if</span> char_at(pos)==<span class="string">")"</span> <span class="keyword">then</span>
+
+							balance = balance-1
+
+						<span class="keyword">end</span>
+
+						param = param..char_at(pos)
+
+						pos=pos+1
+
+					<span class="keyword">end</span>
+
+					
+
+					insert=insert..process_param(param, indent)..indent..<span class="string">" * @return \n"</span>..indent..<span class="string">" */"</span>
+
+					inserted=<span class="keyword">true</span>
+
+				<span class="keyword">end</span>
+
+			<span class="keyword">end</span>
+
+	
+
+			<span class="keyword">if</span> javadoc_find_params==<span class="keyword">false</span> <span class="keyword">or</span> inserted==<span class="keyword">false</span> <span class="keyword">then</span>
+
+				insert = insert..indent..<span class="string">" */"</span>
+
+			<span class="keyword">end</span>
+
+			
+
+			editor:insert(-1, insert)
+
+			<span class="comment">-- position at the end of the line</span>
+
+			editor:GotoPos(editor.LineEndPosition[editor:LineFromPosition(editor.CurrentPos)])
+
+			<span class="keyword">return</span>
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="comment">-- are we continuing a comment?</span>
+
+	i = editor:LineFromPosition(editor.CurrentPos)-1
+
+	<span class="keyword">while</span> i&gt;0 <span class="keyword">do</span>
+
+		line = editor:GetLine(i)
+
+		i = i-1
+
+		
+
+		<span class="keyword">if</span> <span class="library">string.find</span>(line, <span class="string">"^%s*%*/"</span>) <span class="keyword">then</span>
+
+			<span class="keyword">break</span>
+
+		<span class="keyword">end</span>
+
+		
+
+		<span class="keyword">if</span> <span class="library">string.find</span>(line, <span class="string">"^(%s*)/%*%*"</span>)~=<span class="keyword">nil</span> <span class="keyword">then</span>
+
+			<span class="comment">-- now we're sure we're processing a javadoc comment!</span>
+
+			<span class="comment">-- so insert a new line!</span>
+
+		
+
+			prev_line = editor:GetLine(editor:LineFromPosition(editor.CurrentPos)-1)
+
+			t1,t2,indent = <span class="library">string.find</span>(prev_line, <span class="string">"^(%s*)%*"</span>)
+
+			<span class="keyword">if</span> indent==<span class="keyword">nil</span> <span class="keyword">then</span>
+
+				t1,t2,indent=<span class="library">string.find</span>(prev_line, <span class="string">"^(%s*)"</span>)
+
+				indent = indent .. <span class="string">" "</span>
+
+			<span class="keyword">end</span>
+
+			editor:insert(-1, indent..<span class="string">"* "</span>)
+
+			
+
+			<span class="comment">-- position at the end of the line</span>
+
+			editor:GotoPos(editor.LineEndPosition[editor:LineFromPosition(editor.CurrentPos)])
+
+			<span class="keyword">break</span>
+
+		<span class="keyword">end</span>
+
+
+
+		<span class="keyword">if</span> <span class="library">string.find</span>(line, <span class="string">"^%s*%*"</span>)==<span class="keyword">nil</span> <span class="keyword">then</span>
+
+			<span class="comment">-- we're not inside a comment</span>
+
+			<span class="comment">-- abort the mission</span>
+
+			<span class="keyword">break</span>
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">function</span> process_param(param, indent)
+
+	<span class="keyword">if</span> param==<span class="string">""</span> <span class="keyword">then</span>
+
+		<span class="keyword">return</span> <span class="string">""</span>
+
+	<span class="keyword">end</span>
+
+	default=<span class="string">""</span>
+
+	insert=<span class="string">""</span>
+
+	<span class="comment">-- if there is a space, we suppose the first word is the type</span>
+
+	<span class="comment">-- so we omit that!</span>
+
+	t1,t2,t3,param=<span class="library">string.find</span>(param, <span class="string">"^([a-zA-Z_0-9&amp;\*]* )(.*)$"</span>)
+
+	
+
+	<span class="comment">-- check if there is a default, indicated by "param=value"</span>
+
+	<span class="keyword">if</span> <span class="library">string.find</span>(param, <span class="string">"="</span>,0,<span class="keyword">true</span>)~=<span class="keyword">nil</span> <span class="keyword">then</span>
+
+		t1,t2,param,default=<span class="library">string.find</span>(param, <span class="string">"^(.-)=(.*)$"</span>)
+
+	<span class="keyword">end</span>
+
+	
+
+	insert = insert..indent..<span class="string">" * @param "</span>..param
+
+	<span class="keyword">if</span> default~=<span class="string">""</span> <span class="keyword">then</span>
+
+		insert = insert .. <span class="string">" (default: "</span>..default..<span class="string">")"</span>
+
+	<span class="keyword">end</span>
+
+	insert = insert..<span class="string">"\n"</span>
+
+	
+
+	<span class="keyword">return</span> insert
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- returns the character at position p as a string</span>
+
+<span class="keyword">function</span> char_at(p)
+
+	<span class="keyword">return</span> <span class="library">string.char</span>(editor.CharAt[p])
+
+<span class="keyword">end</span>
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteJavadocComment" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteJavadocComment" >history</a><br>Last edited April 20, 2007 10:36 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteJavadocComment" >(diff)</a>
+</body>
+</html>

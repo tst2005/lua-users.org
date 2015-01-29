@@ -1,0 +1,464 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Bitwise Operators</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BitwiseOperators&amp;body=1" title="List pages referring to BitwiseOperators">Bitwise Operators</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+As of version 5.2, Lua ships with the library <a href="http://www.lua.org/manual/5.2/manual.html#6.7">[bit32]</a> that adds support for bitwise operations.
+Previous versions of Lua did not include bitwise operators. However, there are Lua libraries for this as well as some patched versions of Lua.
+<p>
+Implementations of bitwise operators in Lua:
+<p>
+<UL>
+<li> C Library implementations:
+<UL>
+<li> <a href="http://bitop.luajit.org">[Lua BitOp]</a> (5.1) - C library providing bitwise operations on fixed-sized bitfields implemented as Lua numbers.  Has consistent semantics across 16, 32 and 64 bit platforms as well as IEEE 754 doubles, <code>int32_t</code> and <code>int64_t</code> <code>lua_Number</code> types.  Also defines LuaJIT 2 bit op semantics.  Generally regarded as current best-practice for bit ops in Lua.  Similar interface to bitlib but newer and intended to supersede it <a href="/lists/lua-l/2008-12/msg00287.html">[2]</a><a href="/lists/lua-l/2008-12/msg00201.html">[3]</a>.
+<li> <a href="http://luaforge.net/projects/bitlib">[bitlib]</a> (5.0/5.1) - original C library providing bitwise operations on fixed-size bitfields implemented as Lua numbers.
+<li> <a href="http://staff.science.uva.nl/~hansm/publications.html">http://staff.science.uva.nl/~hansm/publications.html</a> adt.bits module in lua-modules.zip (Hans van der Meer) - implements arbitrary length bitfields as userdata in C.
+<li> <a href="http://luci.subsignal.org/api/nixio/modules/nixio.bit.html">[nixio.bit]</a> - drop-in replacement for bitlib, included with nixio
+</UL>
+<li> Pure Lua implementations:
+<UL>
+<li> <a href="http://ricilake.blogspot.com/2007/10/iterating-bits-in-lua.html">[Iterating bits in Lua]</a> (5.1) - bitwise test/set/clear operations - blogged by <a href="../wiki/RiciLake.html" >RiciLake</a>
+<li> <a href="http://luaforge.net/projects/bit">[LuaBit]</a> (5.1)
+<li> <a href="http://www.dialectronics.com/Lua/">[BinDecHex.lua]</a> - (5.0/5.1) implementations of bitwise operations and binary&lt;-&gt;decimal&lt;-&gt;hexadecimal conversion.
+<li> <a href="../wiki/BitUtils.html" >BitUtils</a> - some bitwise operators implementations on the wiki.
+<li> <a href="/lists/lua-l/2002-09/msg00134.html">LuaList:2002-09/msg00134.html</a> (4.0) (post by <a href="../wiki/RobertoIerusalimschy.html" >RobertoIerusalimschy</a>)
+<li> <a href="https://github.com/davidm/lua-bit-numberlua/">[bit.numberlua]</a> (used by <a href="../wiki/ModuleCompressDeflateLua.html" >ModuleCompressDeflateLua</a>).  Pure Lua number-based implementations of bitwise operators.  Provides interfaces similar to Lua 5.2 "bit32" and <a href="../wiki/LuaJit.html" >LuaJit</a> Bit<code></code>Op "bit".  bxor implementation is similar to Roberto's. (<a href="../wiki/DavidManura.html" >DavidManura</a>)
+</UL>
+<li> Lua patch implementations (extended compiler syntax and VM opcodes):
+<UL>
+<li> Bitwise operators in <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a> (5.1) - patch for bitwise operators
+<li> <a href="../wiki/RiscLua.html" >RiscLua</a> - a variant of Lua patched with bitwise operators
+<li> hextype.patch - <a href="/lists/lua-l/2006-11/msg00430.html">LuaList:2006-11/msg00430.html</a> (5.1) - patch supporting new hex type (different from Lua_Number) with bitwise operators
+<li> Enum/bit operations in <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a> (5.1) - 32-bit bitfields, supporting overloaded [] and () ops.
+</UL>
+</UL>
+<p>
+<H3>Lua Bit<code></code>Op (release 1.0.1) Description</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+bit.tobit(x)          <span class="comment">-- normalize number to the numeric range of</span>
+
+                      <span class="comment">-- bit operations (all bit ops use this implicitly)</span>
+
+bit.tohex(x[,n])      <span class="comment">-- convert x to hex with n digits (default 8)</span>
+
+bit.bnot(x)           <span class="comment">-- bitwise not of x</span>
+
+bit.band(x1[,x2...])  <span class="comment">-- bitwise and of x1, x2, ...</span>
+
+bit.bor(x1[,x2...])   <span class="comment">-- bitwise or of x1, x2, ...</span>
+
+bit.bxor(x1[,x2...])  <span class="comment">-- bitwise xor of x1, x2, ...</span>
+
+bit.lshift(x, n)      <span class="comment">-- left-shift of x by n bits</span>
+
+bit.rshift(x, n)      <span class="comment">-- logical right-shift of x by n bits</span>
+
+bit.arshift(x, n)     <span class="comment">-- arithmetic right-shift of x by n bits</span>
+
+bit.rol(x, n)         <span class="comment">-- left-rotate of x by n bits</span>
+
+bit.ror(x, n)         <span class="comment">-- right-rotate of x by n bits</span>
+
+bit.bswap(x)          <span class="comment">-- byte-swap of x (little-endian &lt;-&gt; big-endian)</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>bitlib (release 25) Description</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+bit.bits           <span class="comment">-- number of bits usable in bitwise operations</span>
+
+bit.bnot(a)        <span class="comment">-- returns the one's complement of a</span>
+
+bit.band(w1, ...)  <span class="comment">-- returns the bitwise and of the w's</span>
+
+bit.bor(w1, ...)   <span class="comment">-- returns the bitwise or of the w's</span>
+
+bit.bxor(w1, ...)  <span class="comment">-- returns the bitwise exclusive or of the w's</span>
+
+bit.lshift(a, b)   <span class="comment">-- returns a shifted left b places</span>
+
+bit.rshift(a, b)   <span class="comment">-- returns a shifted logically right b places</span>
+
+bit.arshift(a, b)  <span class="comment">-- returns a shifted arithmetically right b places</span>
+
+bit.cast(a)        <span class="comment">-- cast a to the internally-used integer type</span>
+
+</pre>
+
+</DL>
+<p>
+bitlib is implemented in C.  Internally, each bit array is implemented as an integer type.  MIT licensed.
+<p>
+<H3>adt.bits (2009-04)</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+bits.create(value, number)     <span class="comment">-- return bitmap of given size set to value</span>
+
+bits:set(value)                <span class="comment">-- set all bits to value, return bitmap</span>
+
+bits:set(value, n1[,n2[n3,...]]) <span class="comment">-- set these bits to value, return bitmap</span>
+
+bits:get(n)                    <span class="comment">-- get value of this bit</span>
+
+bits:get(n1[,n2[n3,...]])      <span class="comment">-- get value of these bits</span>
+
+bits:iterator()                <span class="comment">-- return iterator for all bits =&gt; i,v</span>
+
+bits:iterator(n)               <span class="comment">-- return iterator starting at bit n =&gt; i,v</span>
+
+bits:iterator(n1, n2)          <span class="comment">-- return iterator over range [n1..n2] =&gt; i,v</span>
+
+bits:index(value)              <span class="comment">-- return iterator =&gt; next index with the value</span>
+
+bits:index(value, start)       <span class="comment">-- return index of next bit with the value</span>
+
+bits:isequal(b)  bits == b     <span class="comment">-- return true or false for equality</span>
+
+bits:notbits()   - bits        <span class="comment">-- return NOT of the bitmap</span>
+
+bits:orbits(b)   bits + b      <span class="comment">-- return OR of the bitmaps</span>
+
+bits:andbits(b)  bits * b      <span class="comment">-- return AND of the bitmaps</span>
+
+bits:xorbits(b)  bits % b      <span class="comment">-- return XOR of the bitmaps</span>
+
+bits:orbits(n1, n2[, n3,...])  <span class="comment">-- return OR of these bits</span>
+
+bits:andbits(n1, n2[, n3,...]) <span class="comment">-- return AND of these bits</span>
+
+bits:xorbits(n1, n2[, n3,...]) <span class="comment">-- return XOR of these bits</span>
+
+bits:copy()                    <span class="comment">-- return a copy of the bitmap</span>
+
+bits:printlimit()              <span class="comment">-- return current limit</span>
+
+bits:printlimit(n|<span class="string">"all"</span>|<span class="string">"*"</span>)   <span class="comment">-- set n or all bits printed, return new limit</span>
+
+bits:size(), #bits             <span class="comment">-- return the bit capacity</span>
+
+bits:ones()                    <span class="comment">-- return the number of 1 bits</span>
+
+bits.version()                 <span class="comment">-- return the version of module</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Iterating bits in Lua Description</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> bit(p)
+
+  <span class="keyword">return</span> 2 ^ (p - 1)  <span class="comment">-- 1-based indexing</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Typical call:  if hasbit(x, bit(3)) then ...</span>
+
+<span class="keyword">function</span> hasbit(x, p)
+
+  <span class="keyword">return</span> x % (p + p) &gt;= p       
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> setbit(x, p)
+
+  <span class="keyword">return</span> hasbit(x, p) <span class="keyword">and</span> x <span class="keyword">or</span> x + p
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> clearbit(x, p)
+
+  <span class="keyword">return</span> hasbit(x, p) <span class="keyword">and</span> x - p <span class="keyword">or</span> x
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<UL>
+<li> <a href="http://ricilake.blogspot.com/2007/10/iterating-bits-in-lua.html">[Iterating bits in Lua]</a> - some pure Lua 5.1 bitwise operations blogged by <a href="../wiki/RiciLake.html" >RiciLake</a>
+</UL>
+<p>
+This is more of a design pattern than an actual library.  It is implemented in Lua.  Internally, each bit array is implemented as a Lua number.  The primitive operations above provide simple code to test/set/clear bits in a number.  Bitwise operations can be defined in terms of these functions.
+<p>
+<H3>Lua<code></code>Bit (release 0.4) Description</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+bit.bnot(n) <span class="comment">-- bitwise not (~n)</span>
+
+bit.band(m, n) <span class="comment">-- bitwise and (m &amp; n)</span>
+
+bit.bor(m, n) <span class="comment">-- bitwise or (m | n)</span>
+
+bit.bxor(m, n) <span class="comment">-- bitwise xor (m ^ n)</span>
+
+bit.brshift(n, bits) <span class="comment">-- right shift (n &gt;&gt; bits)</span>
+
+bit.blshift(n, bits) <span class="comment">-- left shift (n &lt;&lt; bits)</span>
+
+bit.blogic_rshift(n, bits) <span class="comment">-- logic right shift(zero fill &gt;&gt;&gt;)</span>
+
+</pre>
+
+</DL>
+<p>
+Lua<code></code>Bit is implemented entirely in Lua.  Internally, each bit array is implemented as a Lua number or a Lua array of digits.  This package also includes functions for converting numbers to/from hex strings, a 'utf8' module for UTF8 -&gt; UCS2 string conversion, and a 'noki' module related to Nokia PCs.  MIT licensed.
+<p>
+<H3>Bin<code></code>Dec<code></code>Hex (2007-10) Description</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+Hex2Bin(s)
+
+Bin2Hex(s)
+
+Hex2Dec(s)
+
+Dec2Hex(s)
+
+Bin2Dec(s)
+
+Dec2Bin(s [, num])
+
+BMAnd(v, m)
+
+BMNAnd(v, m)
+
+BMOr(v, m)
+
+BMXOr(v, m)
+
+BMNot(v, m) 
+
+</pre>
+
+</DL>
+<p>
+Bin<code></code>Dec<code></code>Hex is written entirely in Lua.  Internally, each bit array is implemented as a Lua string in Big-endian form.  BSD licensed.
+<p>
+<H3>Bit<code></code>Utils Description</H3>
+<p>
+<a href="../wiki/BitUtils.html" >BitUtils</a> provides a few assorted code snippets implemented entirely in Lua.  Internally, in general, each bit array is implemented as a Lua number.  
+<p>
+<H3>Bitwise Operators Power Patch Description</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+Infix bitwise operators for AND (&amp;, __and), OR (|, __or), XOR (^^, __xor).
+
+Infix bitwise operators for SHIFT LEFT (&lt;&lt;, __shl) and SHIFT RIGHT (&gt;&gt;, __shr).
+
+Unary bitwise negation operator (~, __not).
+
+Infix arithmetic operator for INTEGER DIVISION (\, __intdiv).
+
+    accepts both ~= and != for comparison. 
+
+</pre>
+</DL>
+<p>
+This is implemented as a patch to Lua.  Internally, each bit array is implemented as a Lua number.  Operators are provided as syntax extensions and as VM opcodes (including metamethods).
+<p>
+<H3>Risc<code></code>Lua Description</H3>
+<p>
+<a href="../wiki/RiscLua.html" >RiscLua</a> uses hex literals and has bitwise operators, each with a corresponding event:
+<p>
+<DL>
+<dt><dd><pre>
+
+x&amp;y                __bit_and
+
+x|y                __bit_or
+
+x^^y               __bit_xor
+
+~x                 __bit_not
+
+-- also has arithmetic shifts:
+
+x&lt;&lt;y              __bit_lshift
+
+x&gt;&gt;y              __bit_rshift
+
+</pre>
+</DL>
+<p>
+This is implemented as a patch to Lua.  Internally, each bit array is implemented as a Lua number.  Operators are provided as syntax extensions and as VM opcodes (including metamethods).  The patch is not standalone but rather incorporated into <a href="../wiki/RiscLua.html" >RiscLua</a>.
+<p>
+<H3>hextype.patch Description</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+| &amp; ^^ &lt;&lt; &gt;&gt; ~ \\ !=
+
+</pre>
+</DL>
+<p>
+This is implemented as a patch to Lua.  Internally, each bit array is implemented as a new primitive value type (<code>type(x) == 'hex'</code>, <code>LUA_THEX</code>) different from 'number'.  This type is itself internally an unsigned integer.  Operators are provided as syntax extensions and as VM opcodes (including metamethods).
+<p>
+<H3>Enum/bit operations in <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a> Description</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- example</span>
+
+<span class="keyword">local</span> a1= enum.new( 0x10, <span class="string">"I'm A"</span> )
+
+<span class="library">assert</span>( <span class="library">tonumber</span>(a1)==16 )
+
+<span class="library">assert</span>( <span class="library">tostring</span>(a1)==<span class="string">"0x10"</span> )
+
+<span class="library">assert</span>( <span class="library">tonumber</span>(a1<span class="string">"not"</span>)==4294967279 )
+
+<span class="library">assert</span>( <span class="library">tostring</span>(a1<span class="string">"not"</span>)==<span class="string">"0xffffffef"</span> )
+
+<span class="keyword">local</span> c1= enum.new( 10 )   <span class="comment">-- I'm None!</span>
+
+<span class="library">assert</span>( c1[3] == 1 )  <span class="comment">-- 10 == 0x1010: bit 3 _is_ set</span>
+
+</pre>
+
+</DL>
+<p>
+This is implemented as a patch to Lua.  Internally, each bit array is implemented as a new primitive value type (<code>type()</code> returns two values: "enum" and the enum family name).  enum values have overloaded <code>[]</code> and <code>()</code> operations for performing bit-wise operations on the Lua side.
+<p>
+<H3>Plea</H3>
+<p>
+The implementations above deal differently (or not at all in some cases) with two issues:
+<UL>
+<li> how is the sign treated in right shifts?
+<li> how are results converted back to Lua numbers (especially with respect to the sign of the result)
+</UL>
+<p>
+One of the implementations assumes a 32 bit integer and provides signed and unsigned right shifts.
+<p>
+Another uses <code>long long</code> and <code>unsigned long long</code> and depends on the C compiler to perform right shifts
+correctly in each case (it happens to work great for me on x86 with gcc, but C89 and C99 don't specify how 
+signed right shifts are performed; it is "implementation-defined behavior").
+<p>
+A third seems to completely ignore the issue and gives us whatever the C compiler decides to do with
+<code>lua_Integer</code>s.
+<p>
+Note that when adding operators, Java defines the <code>&gt;&gt;</code> operator to use sign extension and the <code>&gt;&gt;&gt;</code> 
+operator to use zero extension.
+<p>
+None of them seem to provide a way to portably convert an arbitrary sized bit field to a signed number.
+<p>
+<a href="http://lua-users.org/lists/lua-l/2005-09/msg00155.html">[This]</a> patch would be great if <code>bitfield</code> took
+another optional boolean argument to indicate that the result should be sign extended to the full size
+of a <code>lua_Integer</code>.
+<p>
+BTW, a branch free way to sign extend a bitfield (Henry S. Warren Jr., CACM v20 n6 June 1977) is this:
+<DL>
+<dt><dd><pre>sext = 1 &lt;&lt; (len - 1); i = (i ^ sext) - sext;</pre>
+</DL>
+assuming <code>i</code> is right aligned and all bits to the 
+left of the field are zero; this is the case in the patch above where this would be nice (where <code>sextp</code> is
+the optional argument indicating that sign extension is desired):
+<DL>
+<dt><dd><pre>if (len &lt; LI_BITS)
+
+{ i &amp;= LI_MASK(len);
+
+  if (sextp) 
+
+  { lua_Integer sext = 1 &lt;&lt; (len - 1);
+
+    i = (i ^ sext) - sext;
+
+  }
+
+}
+
+</pre>
+</DL>
+<p>
+<H3>Purpose</H3>
+<p>
+There are at least two very different reasons for bitwise operations: (1) set operations on a small 
+universe of members and (2) manipulation of fields in explicit representations of data defined externally
+to the Lua program. The referenced implementations of bitwise operators are designed primarily for
+the latter. For an implementation of the former, see Asko's Enum/bit operations patch in <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a>.
+<p>
+<H3>Examples</H3>
+<p>
+Here's a sampling of Lua code that utilizes bitwise operators (use cases):
+<p>
+<UL>
+<li> <a href="../wiki/BaseSixtyFour.html" >BaseSixtyFour</a>
+<li> <a href="../wiki/ModuleCompressDeflateLua.html" >ModuleCompressDeflateLua</a> (deflate/gzip/zlib)
+<li> <a href="../wiki/SerialCommunication.html" >SerialCommunication</a>
+<li> <a href="http://www.equi4.com/wikis/lua/38">[MD5 in Lua (4.x)]</a>
+<li> <a href="http://github.com/fab13n/metalua/tree/master/src/compiler/lopcodes.lua">[Metalua's Lua opcode functions (lopcodes.lua)]</a>
+<li> <a href="http://scite-tools.googlecode.com/svn/branches/scite-st/lexers/lexers_doc.txt">[scite-st lexers]</a>
+<li> <a href="https://www.jero.cc/linux-doc/nmap/nselib/packet.lua">[packet.lua in nmaps]</a>
+<li> Examples contained in the <a href="http://bitop.luajit.org">[Lua BitOp]</a> distribution: MD5 and nsievebits (bit vectors).
+<li> <a href="../wiki/HammingWeight.html" >HammingWeight</a> (bit and bit32)
+</UL>
+<p>
+Typical uses include
+<p>
+<UL>
+<li> reading/writing/encoding/decoding binary structures (files, protocols, encodings, compressions) in Lua -- see <a href="../wiki/StructurePacking.html" >StructurePacking</a>
+<li> calling C API functions that take bit flags (typically OR-ed) or structures -- including Alien
+<li> algorithms more efficiently expressed in terms of bit vectors
+</UL>
+<p>
+<H3>Comments</H3>
+<p>
+For a language intended to be interfaced to C/C++, it's strange that bitwise operators are not part of the syntax. Sure, they can be implemented as functions -- but this is clumsy.  See <a href="../wiki/FeatureProposals.html" >FeatureProposals</a>.
+<p>
+"How can bitwise operations be performed?" is a <a href="../wiki/LuaFaq.html" >LuaFaq</a> question.
+<p>
+Note: hex literals were added in Lua 5.1: 0xfe.
+<p>
+Java has an abstraction of bit vectors called <code>EnumSet</code> <a href="http://java.sun.com/j2se/1.5.0/docs/api/java/util/EnumSet.html">[1]</a>.  Something similar might be done on Lua.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BitwiseOperators" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BitwiseOperators" >history</a><br>Last edited July 16, 2013 4:15 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BitwiseOperators" >(diff)</a>
+</body>
+</html>

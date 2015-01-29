@@ -1,0 +1,201 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Display Calendar In Html</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=DisplayCalendarInHtml&amp;body=1" title="List pages referring to DisplayCalendarInHtml">Display Calendar In Html</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Displays a Calendar in HTML.  This is ideal for 'Kepler' (Lua's equivalent of PHP).
+<p>
+This code requires the <code>get_date_parts</code>, <code>get_days_in_month</code> and <code>get_day_of_week</code> functions from <a href="../wiki/DayOfWeekAndDaysInMonthExample.html" >DayOfWeekAndDaysInMonthExample</a>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- based on original code from sam_lie</span>
+
+<span class="keyword">function</span> show_calendar(cdate)
+
+  <span class="keyword">local</span> yy, mm, dd = get_date_parts(cdate)
+
+  <span class="keyword">local</span> month_days = get_days_in_month(mm, yy)
+
+  <span class="keyword">local</span> day_week = get_day_of_week(1, mm, yy)
+
+
+
+        <span class="comment">--- day in which the calendar day start.. 1=Sunday, 2="Monday"</span>
+
+  <span class="keyword">local</span> day_start = 2
+
+
+
+  <span class="keyword">local</span> days_of_week = {{ <span class="string">"Sun"</span>, 1 }, { <span class="string">"Mon"</span>, 2 } , { <span class="string">"Tue"</span>, 3 }, { <span class="string">"Wed"</span>, 4 }, { <span class="string">"Thu"</span>, 5 }, { <span class="string">"Fri"</span>, 6 }, { <span class="string">"Sat"</span>, 7 }}
+
+  <span class="keyword">local</span> days_of_week_ordered = {}
+
+  
+
+  <span class="keyword">for</span> k=1, 7 <span class="keyword">do</span>
+
+    p = k+day_start-1
+
+    <span class="keyword">if</span> (p&gt;7) <span class="keyword">then</span>
+
+      p=p-7
+
+    <span class="keyword">end</span>
+
+    v = {}
+
+    v.dayname = days_of_week[p][1]
+
+    v.daynum = days_of_week[p][2]
+
+    <span class="library">table.insert</span>(days_of_week_ordered, v)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> out = <span class="string">"&lt;h3&gt;"</span> .. cdate .. <span class="string">"&lt;/h3&gt;"</span>
+
+  out = out .. <span class="string">"&lt;table border='1' width='80%' cellspacing='2' cellpadding='5'&gt;"</span>
+
+
+
+  out = out .. <span class="string">"&lt;tr&gt;"</span>
+
+  <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(days_of_week_ordered) <span class="keyword">do</span>
+
+    out = out .. <span class="string">"&lt;td&gt;"</span> .. v.dayname .. <span class="string">"&lt;/td&gt;"</span>
+
+
+
+    <span class="keyword">if</span> (day_week == v.daynum) <span class="keyword">then</span>
+
+      d = - i + 2
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  out = out .. <span class="string">"&lt;/tr&gt;"</span>
+
+
+
+  <span class="keyword">while</span> (d &lt; month_days) <span class="keyword">do</span>
+
+    out = out .. <span class="string">"&lt;tr&gt;"</span>
+
+    <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(days_of_week) <span class="keyword">do</span>
+
+      <span class="keyword">if</span> (d&gt;=1 <span class="keyword">and</span> d &lt;=month_days) <span class="keyword">then</span>
+
+        <span class="keyword">if</span> (d==dd) <span class="keyword">then</span>
+
+          out = out .. <span class="string">"&lt;td bgcolor='#FFFF99'&gt;"</span> .. d .. <span class="string">"&lt;/td&gt;"</span>
+
+        <span class="keyword">else</span>
+
+          out = out .. <span class="string">"&lt;td&gt;"</span> .. d .. <span class="string">"&lt;/td&gt;"</span>
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">else</span>
+
+        out = out .. <span class="string">"&lt;td&gt; &lt;/td&gt;"</span>
+
+      <span class="keyword">end</span>
+
+
+
+      d = d + 1
+
+    <span class="keyword">end</span>
+
+    out = out .. <span class="string">"&lt;/tr&gt;"</span>
+
+  <span class="keyword">end</span>
+
+
+
+  out = out .. <span class="string">"&lt;/table&gt;"</span>
+
+
+
+  <span class="keyword">return</span> out
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Here is a test:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(show_calendar(<span class="string">'2007-01-01'</span>))  <span class="comment">-- test</span>
+
+</pre>
+
+</DL>
+<p>
+Alternate version by <a href="../wiki/RichardWarburton.html" >RichardWarburton</a> that doesn't have the dependencies above:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="library">print</span> = <span class="keyword">function</span>(...) SAPI.Response.write (<span class="library">table.concat</span>(arg)) <span class="keyword">end</span> <span class="comment">-- suggestion if using Kepler</span>
+
+
+
+<span class="keyword">function</span> displayMonth(month, year, weekStart)
+
+  <span class="keyword">local</span> t,wkSt = <span class="library">os.time</span>{year=year, month=month+1, day=0}, weekStart <span class="keyword">or</span> 1
+
+  <span class="keyword">local</span> d = <span class="library">os.date</span>(<span class="string">"*t"</span>, t)
+
+  <span class="keyword">local</span> mthDays, stDay = d.day,(d.wday-d.day-wkSt+1)%7
+
+  <span class="library">print</span>(<span class="string">'&lt;table class="month"&gt;\n&lt;caption&gt;'</span>, <span class="library">os.date</span>(<span class="string">'%B'</span>,t), <span class="string">'&lt;/caption&gt;\n&lt;tr&gt;'</span>)
+
+  <span class="keyword">for</span> x=0,6 <span class="keyword">do</span> <span class="library">print</span>(<span class="library">os.date</span>(<span class="string">"&lt;th&gt;%a&lt;/th&gt;"</span>, <span class="library">os.time</span>{year=2006, month=1, day=x+wkSt})) <span class="keyword">end</span>
+
+  <span class="library">print</span>(<span class="string">'&lt;/tr&gt;\n&lt;tr&gt;'</span>, <span class="library">string.rep</span>(<span class="string">'&lt;td&gt;&lt;/td&gt;'</span>, stDay))
+
+  <span class="keyword">for</span> x=1,mthDays-1 <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"&lt;td&gt;"</span>, x, <span class="string">"&lt;/td&gt;"</span>, (x+stDay)%7==0 <span class="keyword">and</span> <span class="string">"&lt;/tr&gt;\n&lt;tr&gt;"</span> <span class="keyword">or</span> <span class="string">""</span>) <span class="keyword">end</span>
+
+  <span class="library">print</span>(<span class="string">'&lt;td&gt;'</span>, mthDays, <span class="string">'&lt;/td&gt;'</span>, <span class="library">string.rep</span>(<span class="string">'&lt;td&gt;&lt;/td&gt;'</span>, (7-(mthDays+stDay))%7), <span class="string">"&lt;/tr&gt;\n&lt;/table&gt;\n"</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DisplayCalendarInHtml" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=DisplayCalendarInHtml" >history</a><br>Last edited January 1, 2011 9:00 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=DisplayCalendarInHtml" >(diff)</a>
+</body>
+</html>

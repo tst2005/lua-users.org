@@ -1,0 +1,271 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Simple Lua Api Example</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SimpleLuaApiExample&amp;body=1" title="List pages referring to SimpleLuaApiExample">Simple Lua Api Example</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a simple introductory example of how to interface to Lua from C.  The C program loads a Lua script file, sets some Lua variables, runs the Lua script, and reads back the return value.  The below example works with Lua 5.1.
+<p>
+First, create the below Lua script file and save it as "script.lua".  This script will dump to the screen the contents of a table named "foo" (that will be created from the C program) and return the sum of this table's components.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- script.lua</span>
+
+<span class="comment">-- Receives a table, returns the sum of its components.</span>
+
+<span class="library">io.write</span>(<span class="string">"The table the script received has:\n"</span>);
+
+x = 0
+
+<span class="keyword">for</span> i = 1, #foo <span class="keyword">do</span>
+
+  <span class="library">print</span>(i, foo[i])
+
+  x = x + foo[i]
+
+<span class="keyword">end</span>
+
+<span class="library">io.write</span>(<span class="string">"Returning data back to C\n"</span>);
+
+<span class="keyword">return</span> x
+
+</pre>
+
+</DL>
+<p>
+In order to access it from C, we could hack a little program that would construct the table, pass it to the script, and get the returned value.  Create a C program called "test.c" as follows: 
+<p>
+<DL>
+<dt><dd><pre>
+
+/*
+
+ * test.c
+
+ * Example of a C program that interfaces with Lua.
+
+ * Based on Lua 5.0 code by Pedro Martelletto in November, 2003.
+
+ * Updated to Lua 5.1. David Manura, January 2007.
+
+ */
+
+
+
+#include &lt;lua.h&gt;
+
+#include &lt;lauxlib.h&gt;
+
+#include &lt;stdlib.h&gt;
+
+#include &lt;stdio.h&gt;
+
+
+
+
+
+int
+
+main(void)
+
+{
+
+    int status, result, i;
+
+    double sum;
+
+    lua_State *L;
+
+
+
+    /*
+
+     * All Lua contexts are held in this structure. We work with it almost
+
+     * all the time.
+
+     */
+
+    L = luaL_newstate();
+
+
+
+    luaL_openlibs(L); /* Load Lua libraries */
+
+
+
+    /* Load the file containing the script we are going to run */
+
+    status = luaL_loadfile(L, "script.lua");
+
+    if (status) {
+
+        /* If something went wrong, error message is at the top of */
+
+        /* the stack */
+
+        fprintf(stderr, "Couldn't load file: %s\n", lua_tostring(L, -1));
+
+        exit(1);
+
+    }
+
+
+
+    /*
+
+     * Ok, now here we go: We pass data to the lua script on the stack.
+
+     * That is, we first have to prepare Lua's virtual stack the way we
+
+     * want the script to receive it, then ask Lua to run it.
+
+     */
+
+    lua_newtable(L);    /* We will pass a table */
+
+
+
+    /*
+
+     * To put values into the table, we first push the index, then the
+
+     * value, and then call lua_rawset() with the index of the table in the
+
+     * stack. Let's see why it's -3: In Lua, the value -1 always refers to
+
+     * the top of the stack. When you create the table with lua_newtable(),
+
+     * the table gets pushed into the top of the stack. When you push the
+
+     * index and then the cell value, the stack looks like:
+
+     *
+
+     * &lt;- [stack bottom] -- table, index, value [top]
+
+     *
+
+     * So the -1 will refer to the cell value, thus -3 is used to refer to
+
+     * the table itself. Note that lua_rawset() pops the two last elements
+
+     * of the stack, so that after it has been called, the table is at the
+
+     * top of the stack.
+
+     */
+
+    for (i = 1; i &lt;= 5; i++) {
+
+        lua_pushnumber(L, i);   /* Push the table index */
+
+        lua_pushnumber(L, i*2); /* Push the cell value */
+
+        lua_rawset(L, -3);      /* Stores the pair in the table */
+
+    }
+
+
+
+    /* By what name is the script going to reference our table? */
+
+    lua_setglobal(L, "foo");
+
+
+
+    /* Ask Lua to run our little script */
+
+    result = lua_pcall(L, 0, LUA_MULTRET, 0);
+
+    if (result) {
+
+        fprintf(stderr, "Failed to run script: %s\n", lua_tostring(L, -1));
+
+        exit(1);
+
+    }
+
+
+
+    /* Get the returned value at the top of the stack (index -1) */
+
+    sum = lua_tonumber(L, -1);
+
+
+
+    printf("Script returned: %.0f\n", sum);
+
+
+
+    lua_pop(L, 1);  /* Take the returned value out of the stack */
+
+    lua_close(L);   /* Cya, Lua */
+
+
+
+    return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+It's now time to compile it. Keep in mind you'll need to link against -llua (Lua) possibly -lm (the math library). In the system I wrote this simple test, "cc -o test test.c -I/usr/local/include -L/usr/local/lib -llua -lm" generated the binary as expected. On another system (OpenSuse<a href="/cgi-bin/wiki.pl?action=edit&amp;id=OpenSuse" >?</a> 11.4, gcc4.7) -ldl was also needed to resolve undefined references to "dlopen" etc.
+<p>
+Finally, running the test you should get something like:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ ./test                                           
+
+The table the script received has:
+
+1       2
+
+2       4
+
+3       6
+
+4       8
+
+5       10
+
+Returning data back to C
+
+Script returned: 30
+
+</pre>
+</DL>
+<p>
+That should demonstrate how the basic API works and how values are passed between C and Lua.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SimpleLuaApiExample" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SimpleLuaApiExample" >history</a><br>Last edited July 22, 2012 1:28 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SimpleLuaApiExample" >(diff)</a>
+</body>
+</html>

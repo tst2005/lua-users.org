@@ -1,0 +1,779 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Interpreter In Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaInterpreterInLua&amp;body=1" title="List pages referring to LuaInterpreterInLua">Lua Interpreter In Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here's is a Lua 5.1 interpreter (lua.c) reimplemented in Lua.  The primary goal is to most <em>faithfully</em> reimplement the standard Lua 5.1 interpreter in pure Lua.  The goal is a bit different from <a href="../wiki/InteractiveLua.html" >InteractiveLua</a>, which also implements a Lua interpreter but has differences and extensions.  The task here is also partly analogous to <a href="../wiki/LuaCompilerInLua.html" >LuaCompilerInLua</a> (the Lua compiler front-end, luac.c, partially reimplemented in Lua).
+<p>
+<H3>Possible applications</H3>
+<p>
+Here's some things this might be used for:
+<p>
+<UL>
+<li> Provide a Lua interpreter for "alternative implementations" of Lua (see section under <a href="../wiki/LuaAddons.html" >LuaAddons</a>) that lack a full Lua interpreter.  For example, it would avoid writing <a href="http://github.com/fperrad/lua/blob/47c85a4e98d2fc57726d543ce0f4ecfebe40b7e2/lua.pir">[lua.pir]</a> for Lua under Parrot.
+<li> Allow modifications to the Lua interpreter to be done more easily and readily since the implementation is in Lua rather than C.
+</UL>
+<p>
+<H3>Status</H3>
+<p>
+<strong>WARNING:</strong> This is not completed but was quickly done just an experiment.
+Fix omissions/bugs and test if you want to use this in production.
+Particularly pay attention to error handling.
+<p>
+<H3>Source</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- lua.lua - Lua 5.1 interpreter (lua.c) reimplemented in Lua.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- WARNING: This is not completed but was quickly done just an experiment.</span>
+
+<span class="comment">-- Fix omissions/bugs and test if you want to use this in production.</span>
+
+<span class="comment">-- Particularly pay attention to error handling.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- (c) David Manura, 2008-08</span>
+
+<span class="comment">-- Licensed under the same terms as Lua itself.</span>
+
+<span class="comment">-- Based on lua.c from Lua 5.1.3.</span>
+
+<span class="comment">-- Improvements by Shmuel Zeigerman.</span>
+
+
+
+<span class="comment">-- Variables analogous to those in luaconf.h</span>
+
+<span class="keyword">local</span> LUA_INIT = <span class="string">"LUA_INIT"</span>
+
+<span class="keyword">local</span> LUA_PROGNAME = <span class="string">"lua"</span>
+
+<span class="keyword">local</span> LUA_PROMPT   = <span class="string">"&gt; "</span>
+
+<span class="keyword">local</span> LUA_PROMPT2  = <span class="string">"&gt;&gt; "</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> LUA_QL(x) <span class="keyword">return</span> <span class="string">"'"</span> .. x .. <span class="string">"'"</span> <span class="keyword">end</span>
+
+
+
+<span class="comment">-- Variables analogous to those in lua.h</span>
+
+<span class="keyword">local</span> LUA_RELEASE   = <span class="string">"Lua 5.1.3"</span>
+
+<span class="keyword">local</span> LUA_COPYRIGHT = <span class="string">"Copyright (C) 1994-2008 Lua.org, PUC-Rio"</span>
+
+
+
+
+
+<span class="comment">-- Note: don't allow user scripts to change implementation.</span>
+
+<span class="comment">-- Check for globals with "cat lua.lua | luac -p -l - | grep ETGLOBAL"</span>
+
+<span class="keyword">local</span> <span class="library">_G</span> = <span class="library">_G</span>
+
+<span class="keyword">local</span> <span class="library">assert</span> = <span class="library">assert</span>
+
+<span class="keyword">local</span> <span class="library">collectgarbage</span> = <span class="library">collectgarbage</span>
+
+<span class="keyword">local</span> <span class="library">loadfile</span> = <span class="library">loadfile</span>
+
+<span class="keyword">local</span> <span class="library">loadstring</span> = <span class="library">loadstring</span>
+
+<span class="keyword">local</span> <span class="library">pcall</span> = <span class="library">pcall</span>
+
+<span class="keyword">local</span> <span class="library">rawget</span> = <span class="library">rawget</span>
+
+<span class="keyword">local</span> <span class="library">select</span> = <span class="library">select</span>
+
+<span class="keyword">local</span> <span class="library">tostring</span> = <span class="library">tostring</span>
+
+<span class="keyword">local</span> <span class="library">type</span> = <span class="library">type</span>
+
+<span class="keyword">local</span> <span class="library">unpack</span> = <span class="library">unpack</span>
+
+<span class="keyword">local</span> <span class="library">xpcall</span> = <span class="library">xpcall</span>
+
+<span class="keyword">local</span> io_stderr = <span class="library">io.stderr</span>
+
+<span class="keyword">local</span> io_stdout = <span class="library">io.stdout</span>
+
+<span class="keyword">local</span> io_stdin = <span class="library">io.stdin</span>
+
+<span class="keyword">local</span> string_format = <span class="library">string.format</span>
+
+<span class="keyword">local</span> string_sub = <span class="library">string.sub</span>
+
+<span class="keyword">local</span> os_getenv = <span class="library">os.getenv</span>
+
+<span class="keyword">local</span> os_exit = <span class="library">os.exit</span>
+
+
+
+
+
+<span class="keyword">local</span> progname = LUA_PROGNAME
+
+
+
+<span class="comment">-- Use external functions, if available</span>
+
+<span class="keyword">local</span> lua_stdin_is_tty = <span class="keyword">function</span>() <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+<span class="keyword">local</span> setsignal = <span class="keyword">function</span>() <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> print_usage()
+
+  io_stderr:write(string_format(
+
+  <span class="string">"usage: %s [options] [script [args]].\n"</span> ..
+
+  <span class="string">"Available options are:\n"</span> ..
+
+  <span class="string">"  -e stat  execute string "</span> .. LUA_QL(<span class="string">"stat"</span>) .. <span class="string">"\n"</span> ..
+
+  <span class="string">"  -l name  require library "</span> .. LUA_QL(<span class="string">"name"</span>) .. <span class="string">"\n"</span> ..
+
+  <span class="string">"  -i       enter interactive mode after executing "</span> ..
+
+              LUA_QL(<span class="string">"script"</span>) .. <span class="string">"\n"</span> ..
+
+  <span class="string">"  -v       show version information\n"</span> ..
+
+  <span class="string">"  --       stop handling options\n"</span> ..
+
+  <span class="string">"  -        execute stdin and stop handling options\n"</span>
+
+  ,
+
+  progname))
+
+  io_stderr:flush()
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> l_message (pname, msg)
+
+  <span class="keyword">if</span> pname <span class="keyword">then</span> io_stderr:write(string_format(<span class="string">"%s: "</span>, pname)) <span class="keyword">end</span>
+
+  io_stderr:write(string_format(<span class="string">"%s\n"</span>, msg))
+
+  io_stderr:flush()
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> report(status, msg)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> status <span class="keyword">and</span> msg ~= <span class="keyword">nil</span> <span class="keyword">then</span>
+
+    msg = (<span class="library">type</span>(msg) == <span class="string">'string'</span> <span class="keyword">or</span> <span class="library">type</span>(msg) == <span class="string">'number'</span>) <span class="keyword">and</span> <span class="library">tostring</span>(msg)
+
+          <span class="keyword">or</span> <span class="string">"(error object is not a string)"</span>
+
+    l_message(progname, msg);
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> status
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> tuple(...)
+
+  <span class="keyword">return</span> {n=<span class="library">select</span>(<span class="string">'#'</span>, ...), ...}
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> traceback (message)
+
+  <span class="keyword">local</span> tp = <span class="library">type</span>(message)
+
+  <span class="keyword">if</span> tp ~= <span class="string">"string"</span> <span class="keyword">and</span> tp ~= <span class="string">"number"</span> <span class="keyword">then</span> <span class="keyword">return</span> message <span class="keyword">end</span>
+
+  <span class="keyword">local</span> <span class="library">debug</span> = <span class="library">_G</span>.debug
+
+  <span class="keyword">if</span> <span class="library">type</span>(<span class="library">debug</span>) ~= <span class="string">"table"</span> <span class="keyword">then</span> <span class="keyword">return</span> message <span class="keyword">end</span>
+
+  <span class="keyword">local</span> tb = <span class="library">debug.traceback</span>
+
+  <span class="keyword">if</span> <span class="library">type</span>(tb) ~= <span class="string">"function"</span> <span class="keyword">then</span> <span class="keyword">return</span> message <span class="keyword">end</span>
+
+  <span class="keyword">return</span> tb(message, 2)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> docall(f, ...)
+
+  <span class="keyword">local</span> tp = {...}  <span class="comment">-- no need in tuple (string arguments only)</span>
+
+  <span class="keyword">local</span> F = <span class="keyword">function</span>() <span class="keyword">return</span> f(<span class="library">unpack</span>(tp)) <span class="keyword">end</span>
+
+  setsignal(<span class="keyword">true</span>)
+
+  <span class="keyword">local</span> result = tuple(<span class="library">xpcall</span>(F, traceback))
+
+  setsignal(<span class="keyword">false</span>)
+
+  <span class="comment">-- force a complete garbage collection in case of errors</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> result[1] <span class="keyword">then</span> <span class="library">collectgarbage</span>(<span class="string">"collect"</span>) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">unpack</span>(result, 1, result.n)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> <span class="library">dofile</span>(name)
+
+  <span class="keyword">local</span> f, msg = <span class="library">loadfile</span>(name)
+
+  <span class="keyword">if</span> f <span class="keyword">then</span> f, msg = docall(f) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> report(f, msg)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> dostring(s, name)
+
+  <span class="keyword">local</span> f, msg = <span class="library">loadstring</span>(s, name)
+
+  <span class="keyword">if</span> f <span class="keyword">then</span> f, msg = docall(f) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> report(f, msg)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> dolibrary (name)
+
+  <span class="keyword">return</span> report(docall(<span class="library">_G</span>.require, name))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> print_version()
+
+  l_message(<span class="keyword">nil</span>, LUA_RELEASE .. <span class="string">"  "</span> .. LUA_COPYRIGHT)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> getargs (argv, n)
+
+  <span class="keyword">local</span> arg = {}
+
+  <span class="keyword">for</span> i=1,#argv <span class="keyword">do</span> arg[i - n] = argv[i] <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="library">_G</span>.arg <span class="keyword">then</span>
+
+    <span class="keyword">local</span> i = 0
+
+    <span class="keyword">while</span> <span class="library">_G</span>.arg[i] <span class="keyword">do</span>
+
+      arg[i - n] = <span class="library">_G</span>.arg[i]
+
+      i = i - 1
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> arg
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--FIX? readline support</span>
+
+<span class="keyword">local</span> history = {}
+
+<span class="keyword">local</span> <span class="keyword">function</span> saveline(s)
+
+<span class="comment">--  if #s &gt; 0 then</span>
+
+<span class="comment">--    history[#history+1] = s</span>
+
+<span class="comment">--  end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> get_prompt (firstline)
+
+  <span class="comment">-- use rawget to play fine with require 'strict'</span>
+
+  <span class="keyword">local</span> pmt = <span class="library">rawget</span>(<span class="library">_G</span>, firstline <span class="keyword">and</span> <span class="string">"_PROMPT"</span> <span class="keyword">or</span> <span class="string">"_PROMPT2"</span>)
+
+  <span class="keyword">local</span> tp = <span class="library">type</span>(pmt)
+
+  <span class="keyword">if</span> tp == <span class="string">"string"</span> <span class="keyword">or</span> tp == <span class="string">"number"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="library">tostring</span>(pmt)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> firstline <span class="keyword">and</span> LUA_PROMPT <span class="keyword">or</span> LUA_PROMPT2
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> incomplete (msg)
+
+  <span class="keyword">if</span> msg <span class="keyword">then</span>
+
+    <span class="keyword">local</span> ender = LUA_QL(<span class="string">"&lt;eof&gt;"</span>)
+
+    <span class="keyword">if</span> string_sub(msg, -#ender) == ender <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">true</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">false</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> pushline (firstline)
+
+  <span class="keyword">local</span> prmt = get_prompt(firstline)
+
+  io_stdout:write(prmt)
+
+  io_stdout:flush()
+
+  <span class="keyword">local</span> b = io_stdin:read<span class="string">'*l'</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> b <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span> <span class="comment">-- no input</span>
+
+  <span class="keyword">if</span> firstline <span class="keyword">and</span> string_sub(b, 1, 1) == <span class="string">'='</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="string">"return "</span> .. string_sub(b, 2)  <span class="comment">-- change '=' to `return'</span>
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">return</span> b
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> loadline ()
+
+  <span class="keyword">local</span> b = pushline(<span class="keyword">true</span>)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> b <span class="keyword">then</span> <span class="keyword">return</span> -1 <span class="keyword">end</span>  <span class="comment">-- no input</span>
+
+  <span class="keyword">local</span> f, msg
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>  <span class="comment">-- repeat until gets a complete line</span>
+
+    f, msg = <span class="library">loadstring</span>(b, <span class="string">"=stdin"</span>)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> incomplete(msg) <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>  <span class="comment">-- cannot try to add lines?</span>
+
+    <span class="keyword">local</span> b2 = pushline(<span class="keyword">false</span>)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> b2 <span class="keyword">then</span> <span class="comment">-- no more input?</span>
+
+      <span class="keyword">return</span> -1
+
+    <span class="keyword">end</span>
+
+    b = b .. <span class="string">"\n"</span> .. b2 <span class="comment">-- join them</span>
+
+  <span class="keyword">end</span>
+
+
+
+  saveline(b)
+
+
+
+  <span class="keyword">return</span> f, msg
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> dotty ()
+
+  <span class="keyword">local</span> oldprogname = progname
+
+  progname = <span class="keyword">nil</span>
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    <span class="keyword">local</span> result
+
+    <span class="keyword">local</span> status, msg = loadline()
+
+    <span class="keyword">if</span> status == -1 <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    <span class="keyword">if</span> status <span class="keyword">then</span>
+
+      result = tuple(docall(status))
+
+      status, msg = result[1], result[2]
+
+    <span class="keyword">end</span>
+
+    report(status, msg)
+
+    <span class="keyword">if</span> status <span class="keyword">and</span> result.n &gt; 1 <span class="keyword">then</span>  <span class="comment">-- any result to print?</span>
+
+      status, msg = <span class="library">pcall</span>(<span class="library">_G</span>.print, <span class="library">unpack</span>(result, 2, result.n))
+
+      <span class="keyword">if</span> <span class="keyword">not</span> status <span class="keyword">then</span>
+
+        l_message(progname, string_format(
+
+            <span class="string">"error calling %s (%s)"</span>,
+
+            LUA_QL(<span class="string">"print"</span>), msg))
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  io_stdout:write<span class="string">"\n"</span>
+
+  io_stdout:flush()
+
+  progname = oldprogname
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> handle_script(argv, n)
+
+  <span class="library">_G</span>.arg = getargs(argv, n)  <span class="comment">-- collect arguments</span>
+
+  <span class="keyword">local</span> fname = argv[n]
+
+  <span class="keyword">if</span> fname == <span class="string">"-"</span> <span class="keyword">and</span> argv[n-1] ~= <span class="string">"--"</span> <span class="keyword">then</span>
+
+    fname = <span class="keyword">nil</span>  <span class="comment">-- stdin</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> status, msg = <span class="library">loadfile</span>(fname)
+
+  <span class="keyword">if</span> status <span class="keyword">then</span>
+
+    status, msg = docall(status, <span class="library">unpack</span>(<span class="library">_G</span>.arg))
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> report(status, msg)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> collectargs (argv, p)
+
+  <span class="keyword">local</span> i = 1
+
+  <span class="keyword">while</span> i &lt;= #argv <span class="keyword">do</span>
+
+    <span class="keyword">if</span> string_sub(argv[i], 1, 1) ~= <span class="string">'-'</span> <span class="keyword">then</span>  <span class="comment">-- not an option?</span>
+
+      <span class="keyword">return</span> i
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">local</span> prefix = string_sub(argv[i], 1, 2)
+
+    <span class="keyword">if</span> prefix == <span class="string">'--'</span> <span class="keyword">then</span>
+
+      <span class="keyword">if</span> #argv[i] &gt; 2 <span class="keyword">then</span> <span class="keyword">return</span> -1 <span class="keyword">end</span>
+
+      <span class="keyword">return</span> argv[i+1] <span class="keyword">and</span> i+1 <span class="keyword">or</span> 0
+
+    <span class="keyword">elseif</span> prefix == <span class="string">'-'</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> i
+
+    <span class="keyword">elseif</span> prefix == <span class="string">'-i'</span> <span class="keyword">then</span>
+
+      <span class="keyword">if</span> #argv[i] &gt; 2 <span class="keyword">then</span> <span class="keyword">return</span> -1 <span class="keyword">end</span>
+
+      p.i = <span class="keyword">true</span>
+
+      p.v = <span class="keyword">true</span>
+
+    <span class="keyword">elseif</span> prefix == <span class="string">'-v'</span> <span class="keyword">then</span>
+
+      <span class="keyword">if</span> #argv[i] &gt; 2 <span class="keyword">then</span> <span class="keyword">return</span> -1 <span class="keyword">end</span>
+
+      p.v = <span class="keyword">true</span>
+
+    <span class="keyword">elseif</span> prefix == <span class="string">'-e'</span> <span class="keyword">then</span>
+
+      p.e = <span class="keyword">true</span>
+
+      <span class="keyword">if</span> #argv[i] == 2 <span class="keyword">then</span>
+
+        i = i + 1
+
+        <span class="keyword">if</span> argv[i] == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> -1 <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">elseif</span> prefix == <span class="string">'-l'</span> <span class="keyword">then</span>
+
+      <span class="keyword">if</span> #argv[i] == 2 <span class="keyword">then</span>
+
+        i = i + 1
+
+        <span class="keyword">if</span> argv[i] == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> -1 <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">return</span> -1  <span class="comment">-- invalid option</span>
+
+    <span class="keyword">end</span>
+
+    i = i + 1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> 0
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> runargs(argv, n)
+
+  <span class="keyword">local</span> i = 1
+
+  <span class="keyword">while</span> i &lt;= n <span class="keyword">do</span> <span class="keyword">if</span> argv[i] <span class="keyword">then</span>
+
+    <span class="library">assert</span>(string_sub(argv[i], 1, 1) == <span class="string">'-'</span>)
+
+    <span class="keyword">local</span> c = string_sub(argv[i], 2, 2) <span class="comment">-- option</span>
+
+    <span class="keyword">if</span> c == <span class="string">'e'</span> <span class="keyword">then</span>
+
+      <span class="keyword">local</span> chunk = string_sub(argv[i], 3)
+
+      <span class="keyword">if</span> chunk == <span class="string">''</span> <span class="keyword">then</span> i = i + 1; chunk = argv[i] <span class="keyword">end</span>
+
+      <span class="library">assert</span>(chunk)
+
+      <span class="keyword">if</span> <span class="keyword">not</span> dostring(chunk, <span class="string">"=(command line)"</span>) <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+    <span class="keyword">elseif</span> c == <span class="string">'l'</span> <span class="keyword">then</span>
+
+      <span class="keyword">local</span> filename = string_sub(argv[i], 3)
+
+      <span class="keyword">if</span> filename == <span class="string">''</span> <span class="keyword">then</span> i = i + 1; filename = argv[i] <span class="keyword">end</span>
+
+      <span class="library">assert</span>(filename)
+
+      <span class="keyword">if</span> <span class="keyword">not</span> dolibrary(filename) <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    i = i + 1
+
+  <span class="keyword">end</span> <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">true</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> handle_luainit()
+
+  <span class="keyword">local</span> init = os_getenv(LUA_INIT)
+
+  <span class="keyword">if</span> init == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span>  <span class="comment">-- status OK</span>
+
+  <span class="keyword">elseif</span> string_sub(init, 1, 1) == <span class="string">'@'</span> <span class="keyword">then</span>
+
+    <span class="library">dofile</span>(string_sub(init, 2))
+
+  <span class="keyword">else</span>
+
+    dostring(init, <span class="string">"="</span> .. LUA_INIT)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> import = <span class="library">_G</span>.import
+
+<span class="keyword">if</span> import <span class="keyword">then</span>
+
+  lua_stdin_is_tty = import.lua_stdin_is_tty <span class="keyword">or</span> lua_stdin_is_tty
+
+  setsignal        = import.setsignal <span class="keyword">or</span> setsignal
+
+  LUA_RELEASE      = import.LUA_RELEASE <span class="keyword">or</span> LUA_RELEASE
+
+  LUA_COPYRIGHT    = import.LUA_COPYRIGHT <span class="keyword">or</span> LUA_COPYRIGHT
+
+  <span class="library">_G</span>.import = <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">if</span> <span class="library">_G</span>.arg <span class="keyword">and</span> <span class="library">_G</span>.arg[0] <span class="keyword">and</span> #<span class="library">_G</span>.arg[0] &gt; 0 <span class="keyword">then</span> progname = <span class="library">_G</span>.arg[0] <span class="keyword">end</span>
+
+<span class="keyword">local</span> argv = {...}
+
+handle_luainit()
+
+<span class="keyword">local</span> has = {i=<span class="keyword">false</span>, v=<span class="keyword">false</span>, e=<span class="keyword">false</span>}
+
+<span class="keyword">local</span> script = collectargs(argv, has)
+
+<span class="keyword">if</span> script &lt; 0 <span class="keyword">then</span> <span class="comment">-- invalid args?</span>
+
+  print_usage()
+
+  os_exit(1)
+
+<span class="keyword">end</span>
+
+<span class="keyword">if</span> has.v <span class="keyword">then</span> print_version() <span class="keyword">end</span>
+
+<span class="keyword">local</span> status = runargs(argv, (script &gt; 0) <span class="keyword">and</span> script-1 <span class="keyword">or</span> #argv)
+
+<span class="keyword">if</span> <span class="keyword">not</span> status <span class="keyword">then</span> os_exit(1) <span class="keyword">end</span>
+
+<span class="keyword">if</span> script ~= 0 <span class="keyword">then</span>
+
+  status = handle_script(argv, script)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> status <span class="keyword">then</span> os_exit(1) <span class="keyword">end</span>
+
+<span class="keyword">else</span>
+
+  <span class="library">_G</span>.arg = <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">if</span> has.i <span class="keyword">then</span>
+
+  dotty()
+
+<span class="keyword">elseif</span> script == 0 <span class="keyword">and</span> <span class="keyword">not</span> has.e <span class="keyword">and</span> <span class="keyword">not</span> has.v <span class="keyword">then</span>
+
+  <span class="keyword">if</span> lua_stdin_is_tty() <span class="keyword">then</span>
+
+    print_version()
+
+    dotty()
+
+  <span class="keyword">else</span> <span class="library">dofile</span>(<span class="keyword">nil</span>)  <span class="comment">-- executes stdin as a file</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/InteractiveLua.html" >InteractiveLua</a> - also implements a Lua interpreter but has differences and extensions
+<li> <a href="../wiki/LuaCompilerInLua.html" >LuaCompilerInLua</a> - partially reimplements the Lua compiler front-end (luac.c) in Lua.
+<li> <a href="http://yueliang.luaforge.net/">[Yueliang]</a> - Lua parser, lexer, and code generator implemented in Lua.
+</UL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaInterpreterInLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaInterpreterInLua" >history</a><br>Last edited April 27, 2011 1:43 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaInterpreterInLua" >(diff)</a>
+</body>
+</html>

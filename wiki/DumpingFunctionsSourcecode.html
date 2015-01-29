@@ -1,0 +1,71 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Dumping Functions Sourcecode</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=DumpingFunctionsSourcecode&amp;body=1" title="List pages referring to DumpingFunctionsSourcecode">Dumping Functions Sourcecode</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<a href="http://wiki.tcl.tk/12094">[Zarutian]</a>: My proposal is to add a way to dump function's source code.
+That would be useful for debuggers and serilizers. 
+<p>
+I have used Tcl for a while and I find the procedure "<code>info body &lt;procedures name&gt;</code>" quite handy and I long for it in Lua.
+<p>
+<code>string.dump(&lt;function)&gt;)</code> could be expanded to <code>string.dump(&lt;function&gt;,&lt;sourcecode?&gt;)</code>
+and if <code>&lt;sourcecode&gt;</code> is not <code>nil</code> then return the function's source code.
+<p>
+Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> bla (n)
+
+  <span class="library">print</span>(n)
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>(<span class="library">string.dump</span>(bla,<span class="keyword">true</span>))
+
+</pre>
+
+</DL>
+<p>
+would print:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> (n)
+
+  <span class="library">print</span>(n)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DumpingFunctionsSourcecode" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=DumpingFunctionsSourcecode" >history</a><br>Last edited July 7, 2007 7:21 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=DumpingFunctionsSourcecode" >(diff)</a>
+</body>
+</html>

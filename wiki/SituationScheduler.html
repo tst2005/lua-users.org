@@ -1,0 +1,152 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Situation Scheduler</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SituationScheduler&amp;body=1" title="List pages referring to SituationScheduler">Situation Scheduler</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Quite some time ago I posted a simple cooperative multitasking scheduler using coroutines to the list. This is a variation of that scheduler that should work well for simple simulation and game scripting.
+<p>
+This scheduler uses the idea of a 'condition'. A coroutine will not be scheduled unless its condition is true. When a coroutine is first scheduled, it is typically given a 'true' condition and will execute in the next available slot. It may then, at any time, yield control, returning a new condition as part of the yield. If no such condition is returned, the coroutine will not be rescheduled.
+<p>
+The expectation is that helper functions like <code>wait()</code> or <code>WalkTo()</code> will include yield operations that return appropriate conditions, and the script writer will never have to worry about explicit yields. The result is a system that, within certain bounds, just works the way you'd expect.
+<p>
+The code can be found in <a href="/files/wiki_insecure/users/twrensch/play.lua">Files:wiki_insecure/users/twrensch/play.lua</a>.
+<p>
+Here's the example (which is also included in the source file above):
+<p>
+<DL>
+<dt><dd><pre>
+
+-- Wait is a function that tells the scheduler to
+
+-- wait for some number of seconds before restarting
+
+-- the script.
+
+function wait(seconds, start)
+
+	local t = (start or os.clock()) + seconds
+
+	coroutine.yield(
+
+		function() return os.clock() &gt;= t end)
+
+end
+
+
+
+-- Two pretty much identical functions that differ
+
+-- only in the label they print and the amount of
+
+-- time they wait between prints.
+
+simsch.start(
+
+	function ()
+
+		for i=1,10 do
+
+			wait(1)
+
+			print("One ", i)
+
+		end
+
+	end)
+
+
+
+simsch.start(
+
+	function ()
+
+		for i=1,10 do
+
+			wait(1.6)
+
+			print("Two ", i)
+
+		end
+
+	end)
+
+	
+
+-- Start it up
+
+simsch.run()
+
+</pre>
+</DL>
+<p>
+I imagine this being useful in scripting agents in games. For example, imagine I'm writing a script for my dog Rover. I want him to go to my home, fetch my Battle Axe and return. A script might look like this:
+<p>
+<pre>
+
+    function Rover:fetchAxe()
+
+        local location = whereAmI(self)
+
+        Rover:walkTo(self.home)
+
+        self:pickup(MyAxe)
+
+        Rover:walkTo(location)
+
+        self:drop()
+
+    end
+
+</pre>
+<p>
+Here, the <code>walkTo()</code> function would include yields with appropriate condition arguments to deal with paths and delay time. Thus the effect would be that the script would take as much game and/or real time to execute as would be appropriate for the action, namely walking to home and back to where he started. A simple version of the <code>walkTo()</code> function might simply wait an amount of time appropriate for the distance and the agent's speed:
+<p>
+<DL>
+<dt><dd><pre>
+
+    function Agent:walkTo(there)
+
+        local here = whereAmI(self)
+
+        local distance = here:distanceTo(there)
+
+        local arivalTime = now() + distance / self.speed
+
+        coroutine.yield(
+
+	    function() return now() &gt;= arivalTime end)
+
+    end
+
+</pre>
+</DL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SituationScheduler" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SituationScheduler" >history</a><br>Last edited January 19, 2004 7:12 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SituationScheduler" >(diff)</a>
+</body>
+</html>

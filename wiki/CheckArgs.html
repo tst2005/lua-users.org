@@ -1,0 +1,107 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Check Args</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CheckArgs&amp;body=1" title="List pages referring to CheckArgs">Check Args</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a C variadic<a href="http://en.wikipedia.org/wiki/Varargs.html">[1]</a> function designed for somewhat strict typing of arguments to Lua CFunctions. This code is designed for Lua 5.1 and uses the Auxiliary Library.
+<p>
+<DL>
+<dt><dd><pre>
+
+int luac_checkargs(lua_State *L, int count, ...)
+
+{
+
+  va_list ap;
+
+  int i, t, u;
+
+  va_start(ap, count);
+
+  for (i = 1; i &lt;= count; i++)
+
+  {
+
+    t = va_arg(ap, int);
+
+    if (t&lt;=LUA_TNIL) continue;
+
+    u = lua_type(L, i);
+
+    if (t!=u)
+
+    {
+
+      va_end(ap);
+
+      return luaL_typerror(L, i, lua_typename(L, t));
+
+    }
+
+  }
+
+  va_end(ap);
+
+  if (lua_gettop(L)&gt;count)
+
+    return luaL_argerror (L, count+1, "too many arguments");
+
+  return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+An example usage of this function would be as such:
+<p>
+<DL>
+<dt><dd><pre>
+
+static int luac_testcheckargs(lua_State *L)
+
+{
+
+  luac_checkargs(L, 3, LUA_TNUMBER, LUA_TNIL, LUA_TBOOLEAN);
+
+  return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+It would be useful for overloaded functions to be able to specifically test a single argument against several types. <code>LUA_TNIL</code> and <code>LUA_TNONE</code> are used as an escape, so that this function doesn't check the type of that argument.
+<p>
+<em>comments appreciated.</em>
+<p>
+--<a href="../wiki/WilliamBubel.html" >WilliamBubel</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CheckArgs" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CheckArgs" >history</a><br>Last edited August 30, 2007 11:29 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CheckArgs" >(diff)</a>
+</body>
+</html>

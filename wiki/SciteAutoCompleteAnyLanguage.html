@@ -1,0 +1,177 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Auto Complete Any Language</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteAutoCompleteAnyLanguage&amp;body=1" title="List pages referring to SciteAutoCompleteAnyLanguage">Scite Auto Complete Any Language</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a SciTE startup script that provides auto-completion for any file type.  
+It scans the file for identifiers on save, open and buffer switch and uses those identifiers in auto-completion.  
+It doesn't use any external files for lists of identifiers.
+<p>
+What constitutes an identifier is determined by the list of patterns in IDENTIFIER_PATTERNS.
+This example allows identifiers to include dots (e.g. to suggest a whole "object.member.property" string) and dashes, (e.g. "lisp-or-css-identifier").
+<p>
+This script may not behave well if you have auto-completion enabled in SciTE properties.  
+(It would probably be straightforward to make it disable itself for certain file types.)
+<p>
+<pre class="code">
+    <span class="comment">-- Dynamically generate autocomplete lists from possible identifiers in any file.</span>
+
+
+
+    <span class="keyword">local</span> IGNORE_CASE = <span class="keyword">true</span>
+
+    <span class="comment">-- Number of chars to type before the autocomplete list appears:</span>
+
+    <span class="keyword">local</span> MIN_PREFIX_LEN = 3
+
+    <span class="comment">-- Length of shortest word to add to the autocomplete list</span>
+
+    <span class="keyword">local</span> MIN_IDENTIFIER_LEN = 6
+
+    <span class="comment">-- A list of string patterns for finding suggestions for the autocomplete menu.</span>
+
+    <span class="keyword">local</span> IDENTIFIER_PATTERNS = {<span class="string">"[%a_][%w_]+"</span>, <span class="string">"[%a_][%w_.]*[%w_]"</span>, <span class="string">"[%a_][%w_-]*[%w_]"</span>}
+
+
+
+
+
+    <span class="keyword">local</span> names = {}
+
+    <span class="keyword">local</span> notempty = <span class="library">next</span>
+
+
+
+
+
+    <span class="keyword">if</span> IGNORE_CASE <span class="keyword">then</span>
+
+        normalize = <span class="library">string.lower</span>
+
+    <span class="keyword">else</span>
+
+        normalize = <span class="keyword">function</span>(word) <span class="keyword">return</span> word <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+
+
+
+
+    <span class="keyword">function</span> buildNames()
+
+        names = {}
+
+        <span class="keyword">local</span> text = editor:GetText()
+
+        <span class="keyword">for</span> i, pattern <span class="keyword">in</span> <span class="library">ipairs</span>(IDENTIFIER_PATTERNS) <span class="keyword">do</span>
+
+            <span class="keyword">for</span> word <span class="keyword">in</span> <span class="library">string.gmatch</span>(text, pattern) <span class="keyword">do</span>
+
+                <span class="keyword">if</span> <span class="library">string.len</span>(word) &gt;= MIN_IDENTIFIER_LEN <span class="keyword">then</span>
+
+                    names[word] = <span class="keyword">true</span>
+
+                <span class="keyword">end</span>
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+
+
+
+
+    <span class="keyword">function</span> handleChar()
+
+        <span class="keyword">if</span> <span class="keyword">not</span> editor:AutoCActive() <span class="keyword">then</span>
+
+            editor.AutoCIgnoreCase = IGNORE_CASE            
+
+            <span class="keyword">local</span> pos = editor.CurrentPos
+
+            <span class="keyword">local</span> startPos = editor:WordStartPosition(pos, <span class="keyword">true</span>)
+
+            <span class="keyword">local</span> len = pos - startPos
+
+            <span class="keyword">if</span> len &gt;= MIN_PREFIX_LEN <span class="keyword">then</span>
+
+                <span class="keyword">local</span> prefix = editor:textrange(startPos, pos)
+
+                <span class="keyword">local</span> menuItems = {}
+
+                <span class="keyword">for</span> name, v <span class="keyword">in</span> <span class="library">pairs</span>(names) <span class="keyword">do</span>
+
+                    <span class="keyword">if</span> normalize(<span class="library">string.sub</span>(name, 1, len)) == normalize(prefix) <span class="keyword">then</span> 
+
+                        <span class="library">table.insert</span>(menuItems, name)
+
+                    <span class="keyword">end</span>
+
+                <span class="keyword">end</span>
+
+                <span class="keyword">if</span> notempty(menuItems) <span class="keyword">then</span>
+
+                    <span class="library">table.sort</span>(menuItems)
+
+                    editor:AutoCShow(len, <span class="library">table.concat</span>(menuItems, <span class="string">" "</span>))
+
+                <span class="keyword">end</span>
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+
+
+
+
+    <span class="comment">-- Event handlers</span>
+
+    OnChar = handleChar
+
+    OnSave       = buildNames
+
+    OnSwitchFile = buildNames
+
+    OnOpen       = buildNames
+
+</pre>
+
+MartinStone<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MartinStone" >?</a>
+<p>
+<p>
+Unfortunately the AutoCShow() function seems not to work if keywords contain characters like '.'...
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteAutoCompleteAnyLanguage" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteAutoCompleteAnyLanguage" >history</a><br>Last edited May 11, 2011 3:46 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteAutoCompleteAnyLanguage" >(diff)</a>
+</body>
+</html>

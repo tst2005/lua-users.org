@@ -1,0 +1,350 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Curried Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CurriedLua&amp;body=1" title="List pages referring to CurriedLua">Curried Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em>Currying</em> is defined by Wikipedia<a href="http://en.wikipedia.org/wiki/Currying.html">[1]</a> as follows:
+<p>
+<DL>
+<dt><dd>"In computer science, currying is the technique of transforming a function taking multiple arguments into a function that takes a single argument (the first of the arguments to the original function) and returns a new function that takes the remainder of the arguments and returns the result"
+</DL>
+<p>
+You can implement curried functions in all languages that support functions as first-class objects.  For example, there's a little <a href="http://www.svendtofte.com/code/curried_javascript/">[tutorial about curried JavaScript]</a>.
+<p>
+Here is a small Lua example of a curried function:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> sum(number) 
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(anothernumber) 
+
+    <span class="keyword">return</span> number + anothernumber
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> f = sum(5)
+
+<span class="library">print</span>(f(3)) <span class="comment">--&gt; 8</span>
+
+</pre>
+
+</DL>
+<p>
+-- <a href="../wiki/WalterCruz.html" >WalterCruz</a>
+<p>
+Here is another, contributed by [<a href="../wiki/GavinWraith.html" >GavinWraith</a>], which takes a variable number of arguments terminated with a "<code>()</code>":
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> addup(x)
+
+  <span class="keyword">local</span> sum = 0
+
+  <span class="keyword">local</span> <span class="keyword">function</span> f(n)
+
+    <span class="keyword">if</span> <span class="library">type</span>(n) == <span class="string">"number"</span> <span class="keyword">then</span>
+
+      sum = sum + n
+
+      <span class="keyword">return</span> f
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">return</span> sum
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> f(x)
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span>(addup (1) (2) (3) ())  <span class="comment">--&gt; 6</span>
+
+<span class="library">print</span>(addup (4) (5) (6) ())  <span class="comment">--&gt; 15</span>
+
+</pre>
+
+</DL>
+<p>
+Although these pre-curried functions are useful, what we would really like to do is make a general-purpose function that can perform the curry operation on any other function.  To do this, we need to realize that functions can be operated upon by a "Higher-order function" -- a function that takes functions as arguments.  The following curry function is an example of this, and curries a 2-argument function:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> curry(f)
+
+    <span class="keyword">return</span> <span class="keyword">function</span> (x) <span class="keyword">return</span> <span class="keyword">function</span> (y) <span class="keyword">return</span> f(x,y) <span class="keyword">end</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+powcurry = curry(<span class="library">math.pow</span>)
+
+powcurry (2) (4) <span class="comment">--&gt; 16</span>
+
+pow2 = powcurry(2)
+
+pow2(3) <span class="comment">--&gt; 8</span>
+
+pow2(4) <span class="comment">--&gt; 16</span>
+
+pow2(8) <span class="comment">--&gt; 256</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+To go from currying 2 arguments to currying 'n' arguments is a bit more complicated.  We need to store an indeterminate number of partial applications, and unfortunately there is no way for Lua to know how many arguments a function requires; Lua functions can successfully receive any number of arguments, whether too many or too few.  So, it's necessary to tell the curry function how many single-argument calls to accept before applying those collected arguments to the original function.
+<p>
+(this code is freely available from <a href="http://tinylittlelife.org/?p=249">http://tinylittlelife.org/?p=249</a> and includes a full discussion of how to tackle this problem.)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- curry(func, num_args) : take a function requiring a tuple for num_args arguments</span>
+
+<span class="comment">--                         and turn it into a series of 1-argument functions</span>
+
+<span class="comment">-- e.g.: you have a function dosomething(a, b, c)</span>
+
+<span class="comment">-- curried_dosomething = curry(dosomething, 3) -- we want to curry 3 arguments</span>
+
+<span class="comment">-- curried_dosomething (a1) (b1) (c1) -- returns the result of dosomething(a1, b1, c1)</span>
+
+<span class="comment">-- partial_dosomething1 = curried_dosomething (a_value) -- returns a function</span>
+
+<span class="comment">-- partial_dosomething2 = partial_dosomething1 (b_value) -- returns a function</span>
+
+<span class="comment">-- partial_dosomething2 (c_value) -- returns the result of dosomething(a_value, b_value, c_value)</span>
+
+<span class="keyword">function</span> curry(func, num_args)
+
+
+
+   <span class="comment">-- currying 2-argument functions seems to be the most popular application</span>
+
+   num_args = num_args <span class="keyword">or</span> 2
+
+
+
+   <span class="comment">-- no sense currying for 1 arg or less</span>
+
+   <span class="keyword">if</span> num_args &lt;= 1 <span class="keyword">then</span> <span class="keyword">return</span> func <span class="keyword">end</span>
+
+
+
+   <span class="comment">-- helper takes an argtrace function, and number of arguments remaining to be applied</span>
+
+   <span class="keyword">local</span> <span class="keyword">function</span> curry_h(argtrace, n)
+
+      <span class="keyword">if</span> 0 == n <span class="keyword">then</span>
+
+	 <span class="comment">-- kick off argtrace, reverse argument list, and call the original function</span>
+
+         <span class="keyword">return</span> func(reverse(argtrace()))
+
+      <span class="keyword">else</span>
+
+         <span class="comment">-- "push" argument (by building a wrapper function) and decrement n</span>
+
+         <span class="keyword">return</span> <span class="keyword">function</span> (onearg)
+
+                   <span class="keyword">return</span> curry_h(<span class="keyword">function</span> () <span class="keyword">return</span> onearg, argtrace() <span class="keyword">end</span>, n - 1)
+
+                <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>  
+
+   
+
+   <span class="comment">-- push the terminal case of argtrace into the function first</span>
+
+   <span class="keyword">return</span> curry_h(<span class="keyword">function</span> () <span class="keyword">return</span> <span class="keyword">end</span>, num_args)
+
+
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- reverse(...) : take some tuple and return a tuple of elements in reverse order</span>
+
+<span class="comment">--                  </span>
+
+<span class="comment">-- e.g. "reverse(1,2,3)" returns 3,2,1</span>
+
+<span class="keyword">function</span> reverse(...)
+
+
+
+   <span class="comment">--reverse args by building a function to do it, similar to the unpack() example</span>
+
+   <span class="keyword">local</span> <span class="keyword">function</span> reverse_h(acc, v, ...)
+
+      <span class="keyword">if</span> 0 == <span class="library">select</span>(<span class="string">'#'</span>, ...) <span class="keyword">then</span>
+
+	 <span class="keyword">return</span> v, acc()
+
+      <span class="keyword">else</span>
+
+         <span class="keyword">return</span> reverse_h(<span class="keyword">function</span> () <span class="keyword">return</span> v, acc() <span class="keyword">end</span>, ...)
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>  
+
+
+
+   <span class="comment">-- initial acc is the end of the list</span>
+
+   <span class="keyword">return</span> reverse_h(<span class="keyword">function</span> () <span class="keyword">return</span> <span class="keyword">end</span>, ...)
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+The above code is Lua 5.1 compatible.
+<p>
+Since Lua 5.2 (or LuaJIT 2.0) provides an advanced debug.getinfo function that let us know how many arguments a function desires,
+we can make a practical function which mixes currying and partial application techniques.
+Here's the code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> curry(func, num_args)
+
+  num_args = num_args <span class="keyword">or</span> <span class="library">debug.getinfo</span>(func, <span class="string">"u"</span>).nparams
+
+  <span class="keyword">if</span> num_args &lt; 2 <span class="keyword">then</span> <span class="keyword">return</span> func <span class="keyword">end</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> helper(argtrace, n)
+
+    <span class="keyword">if</span> n &lt; 1 <span class="keyword">then</span>
+
+      <span class="keyword">return</span> func(<span class="library">unpack</span>(flatten(argtrace)))
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">return</span> <span class="keyword">function</span> (...)
+
+        <span class="keyword">return</span> helper({argtrace, ...}, n - <span class="library">select</span>(<span class="string">"#"</span>, ...))
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> helper({}, num_args)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> flatten(t)
+
+  <span class="keyword">local</span> ret = {}
+
+  <span class="keyword">for</span> _, v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(v) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+      <span class="keyword">for</span> _, fv <span class="keyword">in</span> <span class="library">ipairs</span>(flatten(v)) <span class="keyword">do</span>
+
+        ret[#ret + 1] = fv
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">else</span>
+
+      ret[#ret + 1] = v
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> ret
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> multiplyAndAdd (a, b, c) <span class="keyword">return</span> a * b + c <span class="keyword">end</span>
+
+
+
+curried_multiplyAndAdd = curry(multiplyAndAdd)
+
+
+
+multiplyBySevenAndAdd = curried_multiplyAndAdd(7)
+
+
+
+multiplySevenByEightAndAdd_v1 = multiplyBySevenAndAdd(8)
+
+multiplySevenByEightAndAdd_v2 = curried_multiplyAndAdd(7, 8)
+
+
+
+<span class="library">assert</span>(multiplyAndAdd(7, 8, 9) == multiplySevenByEightAndAdd_v1(9))
+
+<span class="library">assert</span>(multiplyAndAdd(7, 8, 9) == multiplySevenByEightAndAdd_v2(9))
+
+<span class="library">assert</span>(multiplyAndAdd(7, 8, 9) == multiplyBySevenAndAdd(8, 9))
+
+<span class="library">assert</span>(multiplyAndAdd(7, 8, 9) == curried_multiplyAndAdd(7, 8, 9))
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2007-01/msg00205.html">LuaList:2007-01/msg00205.html</a> - "The Curry Challenge"
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CurriedLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CurriedLua" >history</a><br>Last edited March 27, 2014 1:39 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CurriedLua" >(diff)</a>
+</body>
+</html>

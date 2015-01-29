@@ -1,0 +1,49 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Mq Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MqLua&amp;body=1" title="List pages referring to MqLua">Mq Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+mqlua  is a "different" way to execute Lua code.  It combines three existing technologies:  Lua, POSIX threads, and, 0MQ (zeromq.orq).  It comes as a binary, called "mqlua", which takes a filename of a Lua program as argument.  This Lua program is meant to "orchestrate" a network of so called nodes.
+<p>
+This program can thus create "nodes" using the "node" module. Nodes are independent Lua states running in their own thread.  Nodes can communicate using 0MQ (zeromq) message queues.  The Lua states run truly in parallel and use all available CPU cores.  This has nothing to do with Lua coroutines (which are still available to each Lua state).
+<p>
+Nodes can communicate between threads in the same process, processes on the same machine, or, processes on different machines by using zeromq message queues.  Lua nodes allow for full distributed/parallel processing, using a simple language, Lua.
+<p>
+A new Node (i.e. a Lua state running in its own thread) is created using node.create():
+<p>
+local n = node.create('worker.lua', 'bee', 42)
+<p>
+This will create a new thread with a new Lua state, running the chunk found in the file "worker.lua", passing the arguments "bee" and 42 in "..." to worker.lua.
+<p>
+Nodes can use the "zmq" module to communicate with each other.  So it is possible to run multiple independend Lua threads in one process and have them communicate with each other, or with Nodes in differents processes on the same machine, or with Nodes running on a remote machines.
+<p>
+Author: <a href="../wiki/MarcBalmer.html" >MarcBalmer</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MqLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MqLua" >history</a><br>Last edited June 9, 2014 9:59 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MqLua" >(diff)</a>
+</body>
+</html>

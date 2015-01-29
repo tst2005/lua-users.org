@@ -1,0 +1,337 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Mutable Functions</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MutableFunctions&amp;body=1" title="List pages referring to MutableFunctions">Mutable Functions</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Functions and closures implemented as first class objects can accomplish a wide variety of semantics, as we know from functional programming.  Here is shown how to use closures to implement the semantics of Lua tables and objects, without using any Lua tables.
+<p>
+We first create a <em>decorator</em> function <a href="http://en.wikipedia.org/wiki/Python_syntax_and_semantics#Decorators.html">[1]</a> called <code>mutable</code>, i.e. a function that returns a function that is a variant (wrapper) of the function passed in:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> mutable(func)
+
+  <span class="keyword">local</span> currentfunc = func
+
+  <span class="keyword">local</span> <span class="keyword">function</span> mutate(func, newfunc)
+
+    <span class="keyword">local</span> lastfunc = currentfunc
+
+    currentfunc = <span class="keyword">function</span>(...) <span class="keyword">return</span> newfunc(lastfunc, ...) <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> wrapper = <span class="keyword">function</span>(...) <span class="keyword">return</span> currentfunc(...) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> wrapper, mutate
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Here, the function wrapper provides a level of indirection to the original function (currentfunc) and allows the identity of currentfunc, which is an up-value, to be mutated.  During mutation, we allow the function replacing another function to know the identity of the function it is replacing, thereby allowing cascading effects where one function overrides or filters the behavior of the previous functions.
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> sqrt, mutate = mutable(<span class="library">math.sqrt</span>)
+
+<span class="library">assert</span>(sqrt(4) == 2)
+
+<span class="library">assert</span>(sqrt(-4) ~= sqrt(-4)) <span class="comment">-- NaN</span>
+
+mutate(sqrt, <span class="keyword">function</span>(old, x) <span class="keyword">return</span> x &lt; 0 <span class="keyword">and</span> old(-x) .. <span class="string">"i"</span> <span class="keyword">or</span> old(x) <span class="keyword">end</span>)
+
+<span class="library">assert</span>(sqrt(4) == 2)
+
+<span class="library">assert</span>(sqrt(-4) == <span class="string">"2i"</span>)
+
+</pre>
+
+</DL>
+<p>
+There's probably not much use doing the above rather than
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> sqrt(x) <span class="keyword">return</span> x &lt; 0 <span class="keyword">and</span> <span class="library">math.sqrt</span>(-x) .. <span class="string">"i"</span> <span class="keyword">or</span> <span class="library">math.sqrt</span>(x) <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+However, here's how we can simulate table semantics with functions:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> t, mutate = mutable(<span class="keyword">function</span>() <span class="keyword">end</span>)
+
+mutate(t, <span class="keyword">function</span>(old, x) <span class="keyword">if</span> x == 1 <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">"first"</span> <span class="keyword">else</span> <span class="keyword">return</span> old(x) <span class="keyword">end</span> <span class="keyword">end</span>)
+
+mutate(t, <span class="keyword">function</span>(old, x) <span class="keyword">if</span> x == 2 <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">"second"</span> <span class="keyword">else</span> <span class="keyword">return</span> old(x) <span class="keyword">end</span> <span class="keyword">end</span>)
+
+mutate(t, <span class="keyword">function</span>(old, x) <span class="keyword">if</span> x == 3 <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">"third"</span> <span class="keyword">else</span> <span class="keyword">return</span> old(x) <span class="keyword">end</span> <span class="keyword">end</span>)
+
+<span class="library">assert</span>(t(1) == <span class="string">"first"</span> <span class="keyword">and</span> t(2) == <span class="string">"second"</span> <span class="keyword">and</span> t(3) == <span class="string">"third"</span>)
+
+</pre>
+
+</DL>
+<p>
+The syntax for setting and the efficiency are lacking of course, but we gain in a more general semantics:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> t, mutate = mutable(<span class="keyword">function</span>() <span class="keyword">end</span>)
+
+mutate(t, <span class="keyword">function</span>(old, x,y) <span class="keyword">if</span> x == 1 <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">"first"</span>
+
+                                       <span class="keyword">else</span> <span class="keyword">return</span> old(x,y) <span class="keyword">end</span> <span class="keyword">end</span>)
+
+mutate(t, <span class="keyword">function</span>(old, x,y) <span class="keyword">if</span> x == 2 <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">"second"</span>
+
+                                       <span class="keyword">else</span> <span class="keyword">return</span> old(x,y) <span class="keyword">end</span> <span class="keyword">end</span>)
+
+mutate(t, <span class="keyword">function</span>(old, x,y) <span class="keyword">if</span> x &gt; 2  <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">"large number"</span>
+
+                                       <span class="keyword">else</span> <span class="keyword">return</span> old(x,y) <span class="keyword">end</span> <span class="keyword">end</span>)
+
+mutate(t, <span class="keyword">function</span>(old, x,y) <span class="keyword">if</span> y ~= 0 <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">"off axis"</span>, <span class="library">math.sqrt</span>(x^2+y^2)
+
+                                       <span class="keyword">else</span> <span class="keyword">return</span> old(x,y) <span class="keyword">end</span> <span class="keyword">end</span>)
+
+<span class="library">assert</span>(t(1,0) == <span class="string">"first"</span> <span class="keyword">and</span> t(2,0) == <span class="string">"second"</span> <span class="keyword">and</span> t(5,0) == <span class="string">"large number"</span> <span class="keyword">and</span>
+
+       t(3,4) == <span class="string">"off axis"</span>)
+
+<span class="library">assert</span>(<span class="library">select</span>(2, t(3,4)) == 5)
+
+</pre>
+
+</DL>
+<p>
+We now have the fallback semantics of metamethods (e.g. <code>__index</code>) as well as the ability to index and return multiple values, the latter of which we didn't have before with Lua tables.
+<p>
+Lets clean up the syntax with a few helper functions that wrap <code>mutate</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> SET = <span class="keyword">function</span>() <span class="keyword">end</span>    <span class="comment">-- unique key</span>
+
+<span class="keyword">local</span> MUTATE = <span class="keyword">function</span>() <span class="keyword">end</span> <span class="comment">-- unique key</span>
+
+
+
+<span class="comment">-- decorator function for adding methods.</span>
+
+<span class="keyword">function</span> mutable_helpers(func, mutate)
+
+  mutate(func, <span class="keyword">function</span>(old_func, ...)
+
+    <span class="keyword">if</span> <span class="library">select</span>(1, ...) == SET <span class="keyword">then</span>
+
+      <span class="keyword">local</span> k = <span class="library">select</span>(2, ...)
+
+      <span class="keyword">local</span> v = <span class="library">select</span>(3, ...)
+
+      mutate(func, <span class="keyword">function</span>(old_func, ...)
+
+        <span class="keyword">if</span> <span class="library">select</span>(1, ...) == k <span class="keyword">then</span> <span class="keyword">return</span> v
+
+        <span class="keyword">else</span> <span class="keyword">return</span> old_func(...) <span class="keyword">end</span>
+
+      <span class="keyword">end</span>)
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">return</span> old_func(...)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>)
+
+  mutate(func, <span class="keyword">function</span>(old_func, ...)
+
+    <span class="keyword">if</span> <span class="library">select</span>(1, ...) == MUTATE <span class="keyword">then</span>
+
+      <span class="keyword">local</span> new_func = <span class="library">select</span>(2, ...)
+
+      mutate(func, <span class="keyword">function</span>(old_func, ...)
+
+        <span class="keyword">return</span> new_func(old_func, ...)
+
+      <span class="keyword">end</span>)
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">return</span> old_func(...)
+
+    <span class="keyword">end</span>  
+
+  <span class="keyword">end</span>)
+
+  <span class="keyword">return</span> func
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The <code>mutable_helpers</code> is a decorator function that adds support for what are semantically method calls on a mutable function representing an object.  These methods are <code>SET</code> (for setting a table value) and <code>MUTATE</code> (alternate syntax for the <code>mutate</code> function).  The <code>SET</code> and <code>MUTATE</code> are unique keys identifying the methods.  These take advantage of the fact that functions are objects, which have unique identities (in special cases, strings might have been used instead for keys--e.g. <code>"set"</code> and <code>"mutate"</code>).
+<p>
+So, we can now use method-like calls in the form of message passing to access the simulated table:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> t = mutable_helpers(mutable(<span class="keyword">function</span>() <span class="keyword">end</span>))
+
+t(MUTATE, <span class="keyword">function</span>(old, ...)
+
+  <span class="keyword">local</span> x = <span class="library">select</span>(1, ...)
+
+  <span class="keyword">if</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &gt; 2 <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">"large"</span> <span class="keyword">else</span> <span class="keyword">return</span> old(...) <span class="keyword">end</span>
+
+<span class="keyword">end</span>)
+
+t(SET, 1, <span class="string">"first"</span>)
+
+t(SET, 2, <span class="string">"second"</span>)
+
+<span class="library">assert</span>(t(1) == <span class="string">"first"</span>, t(2) == <span class="string">"second"</span>, t(5) == <span class="string">"large"</span>)
+
+</pre>
+
+</DL>
+<p>
+Optionally, we can modify the default metatable on functions to use regular Lua table syntax.  (This is the only time a real Lua table is used, but it is only an artifact of the Lua meta mechanism for supporting the table syntax, and it could be avoided by some patch to Lua.)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Enable table get/set syntax.</span>
+
+<span class="comment">-- Warning: uses debug interface</span>
+
+<span class="keyword">function</span> enable_table_access()
+
+  <span class="keyword">local</span> mt = {
+
+    __index    = <span class="keyword">function</span>(t,k)   <span class="keyword">return</span> t(k) <span class="keyword">end</span>,
+
+    __newindex = <span class="keyword">function</span>(t,k,v) <span class="keyword">return</span> t(SET, k, v) <span class="keyword">end</span>,
+
+  }
+
+  <span class="library">debug.setmetatable</span>(<span class="keyword">function</span>() <span class="keyword">end</span>, mt)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+A table constructor helper function will also be defined:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> T() <span class="keyword">return</span> mutable_helpers(mutable(<span class="keyword">function</span>() <span class="keyword">end</span>)) <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> t = T()
+
+t[1] = <span class="string">"first"</span>
+
+t[2] = <span class="string">"second"</span>
+
+t[3] = <span class="string">"third"</span>
+
+<span class="library">assert</span>(t[1] == <span class="string">"first"</span> <span class="keyword">and</span> t[2] == <span class="string">"second"</span> <span class="keyword">and</span> t[3] == <span class="string">"third"</span> <span class="keyword">and</span> t[4] == <span class="keyword">nil</span>)
+
+</pre>
+
+</DL>
+<p>
+So, in terms of expression, this suggests that tables are not a necessary feature of Lua, and it may well be possible to remove them entirely from the language, though we likely wouldn't want to do that for efficiency concerns.
+<p>
+More practically, maybe this suggests that the concepts of tables and functions could be further unified in the language, though, for efficiency, preserving the distinction in the underlying implementation.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- setting properties on an object</span>
+
+obj.color = <span class="string">"blue"</span>
+
+obj[<span class="string">"color"</span>] = <span class="string">"blue"</span>
+
+obj:size(10,20,30)        <span class="comment">-- traditional syntax, method call style</span>
+
+obj(<span class="string">"size"</span>) = (10,20,30)  <span class="comment">-- multivalued setter syntax, function style</span>
+
+obj[<span class="string">"size"</span>] = (10,20,30)  <span class="comment">-- multivalued setter syntax, table style</span>
+
+obj.size    = (10,20,30)  <span class="comment">-- multivalued setter syntex, table property style</span>
+
+x,y = obj(<span class="string">"position"</span>)     <span class="comment">-- multivalued getter syntax, function style</span>
+
+x,y = obj[<span class="string">"position"</span>]     <span class="comment">-- multivalued getter syntax, table style</span>
+
+x,y = obj.position        <span class="comment">-- multivalued getter syntex, table property style </span>
+
+obj[10,20] = 2            <span class="comment">-- multivalued keys, table style</span>
+
+obj(10,20) = 2            <span class="comment">-- multivalued keys, function style</span>
+
+</pre>
+
+</DL>
+<p>
+Related discussion: <a href="/lists/lua-l/2007-07/msg00177.html">LuaList:2007-07/msg00177.html</a> - "Multiple return value in __index metamethod"
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/FuncTables.html" >FuncTables</a> - the reverse process (making tables appear like functions)
+<li> <a href="../wiki/TableFuncs.html" >TableFuncs</a> - sort-of related
+<li> <a href="../wiki/FunctionalTuples.html" >FunctionalTuples</a> - somewhat analogously presents an approach for simulating tuples using functions (rather than tables using functions).
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MutableFunctions" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MutableFunctions" >history</a><br>Last edited May 2, 2009 1:19 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MutableFunctions" >(diff)</a>
+</body>
+</html>

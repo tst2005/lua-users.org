@@ -1,0 +1,115 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Balanced</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaBalanced&amp;body=1" title="List pages referring to LuaBalanced">Lua Balanced</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua<code></code>Balanced provides functions for matching delimited snippets of Lua code in a string.
+<p>
+<strong>Home page:</strong> <a href="http://lua-users.org/wiki/LuaBalanced.html">http://lua-users.org/wiki/LuaBalanced</a> (this page)
+<p>
+<H2>Description</H2>
+<p>
+This module can, for example, match a Lua string, Lua comment, or Lua expression.  It is useful in particular for source filters or parsing Lua snippets embedded in another language.  It is inspired by Damian Conway's Text::Balanced <a href="http://search.cpan.org/dist/Text-Balanced/lib/Text/Balanced.pm">[1]</a> in Perl.  The unique feature of this implementation is that that it does not rigorously lex and parse the Lua grammar.  It doesn't need to.  It assumes during the parse that the Lua code is syntactically correct (which can be verified later using <code>loadstring</code>).  By assuming this, extraction of delimited sequences is significantly simplified yet can still be robust, and it also supports supersets of the Lua grammar.  The code, which is written entirely in Lua, is just under 200 lines of Lua code (compare to Yueliang used in <a href="../wiki/MetaLua.html" >MetaLua</a>, where the lexer alone is a few hundred lines).
+<p>
+<strong>Projects using this module:</strong> <a href="../wiki/ListComprehensions.html" >ListComprehensions</a>
+<p>
+<H2>Examples</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> lb = <span class="library">require</span> <span class="string">"luabalanced"</span>
+
+
+
+<span class="comment">-- Extract Lua expression starting at position 4.</span>
+
+<span class="library">print</span>(lb.match_expression(<span class="string">"if x^2 + x &gt; 5 then print(x) end"</span>, 4))
+
+<span class="comment">--&gt; x^2 + x &gt; 5     16</span>
+
+
+
+<span class="comment">-- Extract Lua string starting at (default) position 1.</span>
+
+<span class="library">print</span>(lb.match_string(<span class="string">[["test\"123" .. "more"]]</span>))
+
+<span class="comment">--&gt; "test\"123"     12</span>
+
+
+
+<span class="comment">-- Break Lua code into code types.</span>
+
+lb.gsub(<span class="string">[[
+
+  local x = 1  -- test
+
+  print("x=", x)
+
+]]</span>, <span class="keyword">function</span>(u, s)
+
+  <span class="library">print</span>(u .. <span class="string">'['</span> .. s .. <span class="string">']'</span>)
+
+<span class="keyword">end</span>)
+
+<span class="comment">--[[output:
+
+e[  local x = 1  ]
+
+c[-- test
+
+]
+
+e[  print(]
+
+s["x="]
+
+e[, x)
+
+]
+
+]]</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Source</H3>
+<p>
+Downloadable from <a href="http://github.com/davidm/lua-balanced">[github]</a>.
+<p>
+<H3>Author</H3>
+<p>
+<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H3>Status</H3>
+<p>
+This module is new and likely still has some bugs.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaBalanced" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaBalanced" >history</a><br>Last edited September 11, 2010 5:11 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaBalanced" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Toluapp Class Access Labels</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ToluappClassAccessLabels&amp;body=1" title="List pages referring to ToluappClassAccessLabels">Toluapp Class Access Labels</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Starting from version 1.0.7, tolua++ includes 2 new features that make it easy to implement <code>public</code>, <code>protected</code> and <code>private</code> labels in classes (or any container, including namespaces, modules, and even the main packages).
+<p>
+<H3>object access</H3>
+Every tolua++ object has an <code>access</code> flag, which determines the object's access inside its container. Container objects also have a member called <code>curr_member_access</code>, which determines the <code>access</code> of each child object at the moment of its addition to the container.
+<p>
+An object is considered public when the value of <code>access</code> is <code>nil</code>, <code>false</code>, or <code>0</code>. Anything else means non-public, and tolua++ doesn't care. The default access value for all objects is <code>nil</code>, so this new feature doesn't affect current users.
+<p>
+<H3>parser_hook</H3>
+The parser_hook is an empty function called at the begining of the main parser function, with the text to parse as a parameter. This function can be reimplemented on a custom lua file and run inside tolua++ using the <code>-L</code> option. Usually a parser function will search the beginning of the string for a token, and if it finds anything, return the string without that token (after doing whatever it has to do with the token). The <code>parser_hook</code> can safely return <code>nil</code>.
+<p>
+<H3>Implementing access labels</H3>
+<p>
+This example implements the 'parser_hook' to look for labels, and set the <code>curr_member_access</code> to the current access. It also sets <code>curr_member_access</code> to private by default (based on the fact that the default value for <code>curr_member_access</code> is <code>nil</code>). The labels will still work on other containers (modules, namespaces and the main package), but those will still be public by default.
+<p>
+<pre>
+
+-- access_hook.lua
+
+
+
+local access = {public = 0, protected = 1, private = 2}
+
+
+
+function preparse_hook(p)
+
+	-- we need to make all structs 'public' by default
+
+	p.code = string.gsub(p.code, "(struct[^;]*{)", "%1\npublic:\n")
+
+end
+
+
+
+
+
+function parser_hook(s)
+
+
+
+        local container = classContainer.curr -- get the current container
+
+        if not container.curr_member_access and container.classtype == 'class' then
+
+                -- default access for classes is private
+
+                container.curr_member_access = access.private
+
+        end
+
+
+
+        -- try labels (public, private, etc)
+
+        do
+
+                local b,e,label = string.find(s, "^%s*(%w*)%s*:[^:]") -- we need to check for [^:], otherwise it would match 'namespace::type'
+
+                if b then
+
+
+
+                        -- found a label, get the new access value from the global 'access' table
+
+                        if access[label] then
+
+                                container.curr_member_access = access[label]
+
+                        end -- else ?
+
+
+
+                        return strsub(s, e) -- normally we would use 'e+1', but we need to preserve the [^:]
+
+                end
+
+        end
+
+
+
+end
+
+</pre>
+<p>
+<strong>Usage</strong>
+<p>
+<code>$ tolua++ -L access-hook.lua package.pkg</code>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ToluappClassAccessLabels" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ToluappClassAccessLabels" >history</a><br>Last edited January 26, 2006 12:09 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ToluappClassAccessLabels" >(diff)</a>
+</body>
+</html>

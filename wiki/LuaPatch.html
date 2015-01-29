@@ -1,0 +1,107 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Patch</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaPatch&amp;body=1" title="List pages referring to LuaPatch">Lua Patch</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+luapatch is a Pure Lua implementation of the Unix patch utility (unified diffs only).
+<p>
+<H3>Web Site</H3>
+<p>
+<UL>
+<li> <a href="http://lua-users.org/wiki/LuaPatch.html">http://lua-users.org/wiki/LuaPatch</a> (this page)
+</UL>
+<p>
+<H3>Description</H3>
+<p>
+This is a Lua implementation of the patch utility [1].  It only supports unified diffs (<code>diff -u</code>).
+<p>
+A main motivation of this utility is to provide a platform-independent, easily deployable, and simple patch utility for <a href="../wiki/LuaRocks.html" >LuaRocks</a> [2].
+<p>
+<H3>Usage</H3>
+<p>
+For help:
+<p>
+<DL>
+<dt><dd><pre>
+
+./patch.lua --help
+
+</pre>
+</DL>
+<p>
+To patch current directory using patch file "mypatch":
+<p>
+<DL>
+<dt><dd><pre>
+
+./patch.lua &lt; mypatch
+
+</pre>
+</DL>
+<p>
+<H3>Download/Source</H3>
+<p>
+<UL>
+<li> <a href="http://github.com/davidm/lua-patch">http://github.com/davidm/lua-patch</a>
+</UL>
+<p>
+<H3>Status</H3>
+<p>
+This code is new should undergo further testing.  Some of the style might be further improved as it was converted from Python.
+<p>
+Note: Those code in the direct port is fairly ugly.  It is being largely rewritten.  If you want it sooner, just ask.
+<p>
+<H3>License</H3>
+<p>
+(c) 2008 David Manura, Licensed under the same terms as Lua (MIT license).
+Code is heavilly based on the Python-based patch.py version 8.06-1,
+Copyright (c) 2008 rainforce.org, MIT License .  See included LICENSE.txt file.
+<p>
+Note: the source reuses Lua optparse (<a href="../wiki/CommandLineParsing.html" >CommandLineParsing</a>) and <a href="../wiki/EnhancedFileLines.html" >EnhancedFileLines</a> (<a href="../wiki/DavidManura.html" >DavidManura</a>).
+<p>
+<H3>See Also</H3>
+<p>
+Related documentation and implementations on patch:
+<p>
+<UL>
+<li> [1] <a href="http://en.wikipedia.org/wiki/Patch_(Unix).html">[Wikipedia:Patch (Unix)]</a>
+<li> [2] <a href="http://lists.luaforge.net/pipermail/luarocks-developers/2008-September/000899.html">[luarocks-developers:2008-September/000899.html]</a>
+<li> POSIX <a href="http://www.opengroup.org/onlinepubs/009695399/utilities/patch.html">[patch]</a> and <a href="http://www.opengroup.org/onlinepubs/009695399/utilities/diff.html">[diff]</a> specifications
+<li> <a href="http://www.gnu.org/software/diffutils/manual/html_node/Detailed-Unified.html">[diffutils manual page on the patch format]</a>
+<li> <a href="http://linux.die.net/man/1/patch">[GNU patch man page]</a>
+<li> <a href="http://www.artima.com/weblogs/viewpost.jsp?thread=164293">[Unified Diff Format]</a> by Guido van Rossum
+<li> <a href="http://www.gnu.org/software/patch/">[GNU patch]</a>
+<li> <a href="http://code.google.com/p/python-patch/wiki/README.html">[patch.py]</a> - Python implementation of patch (which this is based on)
+<li> <a href="http://sourceforge.net/projects/phppatcher/">[phppatcher]</a> - PHP implementation of patch
+<li> <a href="http://members.chello.nl/~w.couwenberg">[ldiff &amp; lpatch]</a> (5.1) A very small diff and patch tool with proprietary binary diff format
+<li> <a href="http://github.com/mkottman/lua-xdiff">[lua-xdiff]</a> - Lua binding to the LibXDiff library
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaPatch" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaPatch" >history</a><br>Last edited August 19, 2010 3:39 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaPatch" >(diff)</a>
+</body>
+</html>

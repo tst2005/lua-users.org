@@ -1,0 +1,298 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Interface</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaInterface&amp;body=1" title="List pages referring to LuaInterface">Lua Interface</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua<code></code>Interface is a library for integration between the Lua language and Microsoft .NET's Common Language Runtime (CLR).  Lua scripts can use this to instantiate CLR objects, access properties, call methods, and even handle events with Lua functions.
+<p>
+<strong>Web sites:</strong>
+<p>
+<UL>
+<li> <a href="http://code.google.com/p/luainterface">http://code.google.com/p/luainterface</a> (latest 2.x source code / issues)
+<UL>
+<li> <a href="http://luaforge.net/forum/forum.php?thread_id=1278&amp;forum_id=145">[version 1.5.4 beta???]</a>
+</UL>
+<li> <a href="http://www.lua.inf.puc-rio.br/luanet/luainterface/">http://www.lua.inf.puc-rio.br/luanet/luainterface/</a> (PUC description page)
+<li> <a href="http://luaforge.net/projects/luainterface/">http://luaforge.net/projects/luainterface/</a> (old project page)
+<li> <a href="http://luaforge.net/forum/?group_id=50">http://luaforge.net/forum/?group_id=50</a> (mailing lists)
+<li> <a href="http://penlight.luaforge.net/packages/LuaInterface/">[LuaInterface Tutorial]</a> (version 1.5.3, on penlight/luaforwindows page)
+<li> <a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.91.4129&amp;rep=rep1&amp;type=pdf">[LuaInterface: Scripting the .NET CLR with Lua]</a> (2004 paper)
+<li> <a href="http://code.google.com/p/luainterface-debugger">[luainterface-debugger]</a> - debugger extension for <a href="../wiki/LuaInterface.html" >LuaInterface</a>
+<li> Lua2IR (link broken in <a href="http://www.lua.inf.puc-rio.br/projects/luanet/">[1]</a>) and as noted here <a href="/lists/lua-l/2007-10/msg00544.html">LuaList:2007-10/msg00544.html</a> apparently replaced by <a href="https://github.com/mascarenhas/luaclr/wiki">[LuaCLR]</a>.
+</UL>
+<p>
+<strong>Dependencies:</strong> .NET.  Also works on the Mono runtime <a href="http://www.mono-project.com">http://www.mono-project.com</a> on Linux.
+<p>
+Note: Version 1.5.3 builds a C module DLL that can loaded in regular Lua interpreter.  Version 2.0 and above are completely managed code. <a href="/lists/lua-l/2008-12/msg00449.html">[4]</a><a href="/lists/lua-l/2008-07/msg00066.html">[5]</a><a href="/lists/lua-l/2008-05/msg00835.html">[6]</a><a href="/lists/lua-l/2010-08/msg00372.html">[7]</a><a href="http://luaforge.net/forum/forum.php?thread_id=11708&amp;forum_id=145">[2]</a><a href="http://penlight.luaforge.net/packages/LuaInterface/">[3]</a>
+<p>
+<H2>User Comments</H2>
+<p>
+Not mentioned in the <a href="../wiki/LuaInterface.html" >LuaInterface</a> documentation is how to instantiate .NET arrays.  It is done simply by indexing a type reference with a number:
+<p>
+<DL>
+<dt><dd><pre>
+
+local a = SomeType[5]
+
+for i = 1,a.Length do
+
+	print(i, a[i - 1]) -- .NET arrays are zero-based.
+
+end
+
+</pre>
+</DL>
+<p>
+<hr>[ <a href="../wiki/LuaInterface.html" >LuaInterface</a>-1.3.0 adds the following feature ]
+<p>
+When using the CLR from Lua, the ordinary method of loading types and classes can seem a little verbose:
+<p>
+<DL>
+<dt><dd><pre class="code">
+net = <span class="library">require</span> <span class="string">"luainterface"</span>
+
+
+
+net.load_assembly(<span class="string">"System.Windows.Forms"</span>)
+
+net.load_assembly(<span class="string">"System.Drawing"</span>)
+
+
+
+Form = net.import_type(<span class="string">"System.Windows.Forms.Form"</span>)
+
+Button = net.import_type(<span class="string">"System.Windows.Forms.Button"</span>)
+
+Point = net.import_type(<span class="string">"System.Drawing.Point"</span>)
+
+
+
+<span class="keyword">local</span> form1 = Form()
+
+<span class="keyword">local</span> button1 = Button()
+
+button1.Location = Point(10, 10)
+
+</pre>
+
+</DL>
+<p>
+It would be nice if syntax like this could be used:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"net"</span>
+
+
+
+Form = net.System.Windows.Forms.Form
+
+Button = net.System.Windows.Forms.Button
+
+Point = net.System.Drawing.Point
+
+
+
+<span class="keyword">local</span> form1 = Form()
+
+<span class="keyword">local</span> button1 = Button()
+
+button1.Location = Point(10, 10)
+
+</pre>
+
+</DL>
+<p>
+Optionally, the .NET types can be made to appear as toplevel names:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"net"</span>
+
+
+
+System = net.System
+
+
+
+Form = System.Windows.Forms.Form
+
+Button = System.Windows.Forms.Button
+
+Point = System.Drawing.Point
+
+
+
+<span class="keyword">local</span> form1 = Form()
+
+<span class="keyword">local</span> button1 = Button()
+
+button1.Location = Point(10, 10)
+
+</pre>
+
+</DL>
+<p>
+It should not be necessary to make every type name toplevel:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"net"</span>
+
+
+
+System = net.System
+
+
+
+<span class="keyword">local</span> form1 = System.Windows.Forms.Form()
+
+<span class="keyword">local</span> button1 = System.Windows.Forms.Button()
+
+button1.Location = System.Drawing.Point(10, 10)
+
+</pre>
+
+</DL>
+<p>
+Here is the method:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Create a metatable for our name components</span>
+
+<span class="keyword">local</span> metatable = { [<span class="string">".NET"</span>] = {<span class="library">getmetatable</span>=<span class="library">getmetatable</span>} }
+
+
+
+<span class="comment">-- Load LuaInterface</span>
+
+<span class="keyword">local</span> g = <span class="library">getfenv</span>(0)
+
+<span class="library">setfenv</span>(0, metatable[<span class="string">".NET"</span>])
+
+<span class="keyword">local</span> init, e1, e2 = loadlib(<span class="string">"LuaInterfaceLoader.dll"</span>, <span class="string">"luaopen_luainterface"</span>)
+
+<span class="library">assert</span>(init, (e1 <span class="keyword">or</span> <span class="string">''</span>) .. (e2 <span class="keyword">or</span> <span class="string">''</span>))
+
+init()
+
+<span class="library">setfenv</span>(0, g)
+
+
+
+<span class="comment">-- Lookup a .NET identifier component.</span>
+
+<span class="keyword">function</span> metatable:__index(key) <span class="comment">-- key is e.g. "Form"</span>
+
+    <span class="keyword">local</span> mt = <span class="library">getmetatable</span>(self)
+
+    <span class="keyword">local</span> luanet = mt[<span class="string">".NET"</span>]
+
+
+
+    <span class="comment">-- Get the fully-qualified name, e.g. "System.Windows.Forms.Form"</span>
+
+    <span class="keyword">local</span> fqn = ((self[<span class="string">".fqn"</span>] <span class="keyword">and</span> self[<span class="string">".fqn"</span>] .. <span class="string">"."</span>) <span class="keyword">or</span> <span class="string">""</span>) .. key
+
+
+
+    <span class="comment">-- Try to find either a luanet function or a CLR type</span>
+
+    <span class="keyword">local</span> obj = luanet[key] <span class="keyword">or</span> luanet.import_type(fqn)
+
+
+
+    <span class="comment">-- If key is neither a luanet function or a CLR type, then it is simply</span>
+
+    <span class="comment">-- an identifier component.</span>
+
+    <span class="keyword">if</span> obj == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+		<span class="comment">-- It might be an assembly, so we load it too.</span>
+
+        luanet.load_assembly(fqn)
+
+        obj = { [<span class="string">".fqn"</span>] = fqn }
+
+        <span class="library">setmetatable</span>(obj, mt)
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- Cache this lookup</span>
+
+    self[key] = obj
+
+    <span class="keyword">return</span> obj
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- A non-type has been called; e.g. foo = System.Foo()</span>
+
+<span class="keyword">function</span> metatable:__call(...)
+
+    <span class="library">error</span>(<span class="string">"No such type: "</span> .. self[<span class="string">".fqn"</span>], 2)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- This is the root of the .NET namespace</span>
+
+net = { [<span class="string">".fqn"</span>] = <span class="keyword">false</span> }
+
+<span class="library">setmetatable</span>(net, metatable)
+
+
+
+<span class="comment">-- Preload the mscorlib assembly</span>
+
+net.load_assembly(<span class="string">"mscorlib"</span>)
+
+
+
+<span class="keyword">return</span> <span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaCom.html" >LuaCom</a>
+<li> <a href="../wiki/BindingCodeToLua.html" >BindingCodeToLua</a> (.NET)
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaInterface" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaInterface" >history</a><br>Last edited July 26, 2011 6:25 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaInterface" >(diff)</a>
+</body>
+</html>

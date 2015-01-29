@@ -1,0 +1,324 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Multiple Indices</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MultipleIndices&amp;body=1" title="List pages referring to MultipleIndices">Multiple Indices</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+I recently needed some functionality that allowed multiple indices.  Accessing it via with an array as "key" was pretty useful.  It was purpose-built for my needs -- both its semantics and performance profile -- but maybe somebody else can get some use out of it or refine it.  I wasn't sure if a true table could be used because it relies on consistent iteration order.  I wasn't sure if tables offer that.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Creates a special table that accepts keys that are arrays..</span>
+
+<span class="comment">-- You must specified the expected length of this array when</span>
+
+<span class="comment">-- creating a MultiTable.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Given mt = MultiTable(3), accessing mt[{1,2,3}] semantically</span>
+
+<span class="comment">-- acts like mt[1][2][3].</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- You can also access using a function call syntax.  The following</span>
+
+<span class="comment">-- are equivalent:</span>
+
+<span class="comment">--    mt[{1,2,3}], mt(1,2,3), mt{1,2,3}</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">function</span> MultiDimTable( dimension )
+
+    <span class="keyword">if</span> <span class="keyword">not</span> dimension <span class="keyword">then</span>
+
+        <span class="library">error</span>( <span class="string">"MultiDimTable expected dimension, got nil"</span> )
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">local</span> mt = {}    <span class="comment">-- all the nested access is hidden here</span>
+
+
+
+    <span class="keyword">local</span> <span class="keyword">function</span> mt_index(t, k)
+
+        <span class="keyword">if</span> <span class="library">type</span>(k) ~= <span class="string">'table'</span> <span class="keyword">then</span>
+
+            <span class="keyword">return</span> t[{k}]
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">if</span> dimension ~= #k <span class="keyword">then</span>
+
+            <span class="library">error</span>(<span class="string">"MultiTable key dimension was "</span> .. #k .. <span class="string">",
+
+                  expected "</span> .. dimension)
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">local</span> v = mt
+
+        <span class="keyword">for</span> i = 1, #k <span class="keyword">do</span>
+
+            v = v[ k[i] ]
+
+            <span class="keyword">if</span> <span class="keyword">not</span> v <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span> <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> v
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">local</span> <span class="keyword">function</span> mt_newindex(t, k, v)
+
+        <span class="keyword">if</span> <span class="library">type</span>(k) ~= <span class="string">'table'</span> <span class="keyword">then</span>
+
+            t[{k}] = v
+
+            <span class="keyword">return</span>
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">if</span> dimension ~= #k <span class="keyword">then</span>
+
+            <span class="library">error</span>(<span class="string">"MultiTable key dimension was "</span> .. #k .. <span class="string">",
+
+                  expected "</span> .. dimension)
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">local</span> n = mt
+
+        <span class="keyword">for</span> i = 1, #k - 1 <span class="keyword">do</span>
+
+            <span class="keyword">local</span> n_old, k_i = n, k[i]
+
+            n = n[k_i]
+
+            <span class="keyword">if</span> <span class="keyword">not</span> n <span class="keyword">then</span> n = {} ; n_old[k_i] = n <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+        n[k[#k]] = v
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">local</span> <span class="keyword">function</span> mt_call(t, k, ...)
+
+        <span class="keyword">if</span> <span class="library">type</span>(k) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+            <span class="keyword">return</span> t[k]
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> t[{k, ...}]
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>( {}, {
+
+        __index = mt_index, __newindex = mt_newindex, __call = mt_call } )
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- tests</span>
+
+<span class="keyword">do</span>
+
+    <span class="keyword">local</span> res, err
+
+    res, err = <span class="library">pcall</span>( <span class="keyword">function</span>() MultiDimTable() <span class="keyword">end</span> )
+
+    <span class="keyword">local</span> mt1 = MultiDimTable(1)
+
+    mt1[4] = 5
+
+    <span class="library">assert</span>( mt1[{4}] == 5 )
+
+    <span class="library">assert</span>( mt1[4]   == 5 )
+
+    <span class="library">assert</span>( mt1{4}   == 5 )
+
+    <span class="library">assert</span>( mt1(4)   == 5 )
+
+
+
+    mt1[<span class="string">'abc'</span>] = <span class="string">'123'</span>
+
+    <span class="library">assert</span>( mt1[{<span class="string">'abc'</span>}] == <span class="string">'123'</span> )
+
+    <span class="library">assert</span>( mt1[<span class="string">'abc'</span>] == <span class="string">'123'</span> )
+
+    <span class="library">assert</span>( mt1({<span class="string">'abc'</span>}) == <span class="string">'123'</span> )
+
+    <span class="library">assert</span>( mt1(<span class="string">'abc'</span>) == <span class="string">'123'</span> )
+
+
+
+    res, err = <span class="library">pcall</span>( <span class="keyword">function</span>() <span class="keyword">return</span> mt1[{1,2}] <span class="keyword">end</span> )
+
+    <span class="library">assert</span>( <span class="keyword">not</span> res <span class="keyword">and</span> <span class="library">string.match</span>(err,
+
+        <span class="string">'MultiTable key dimension was 2, expected 1'</span>) )
+
+
+
+    res, err = <span class="library">pcall</span>( <span class="keyword">function</span>() mt1[{1,2}] = 4 <span class="keyword">end</span> )
+
+    <span class="library">assert</span>( <span class="keyword">not</span> res <span class="keyword">and</span> <span class="library">string.match</span>(err,
+
+        <span class="string">'MultiTable key dimension was 2, expected 1'</span>) )
+
+
+
+    <span class="keyword">for</span> i = 1, 100 <span class="keyword">do</span>
+
+        <span class="keyword">local</span> n = {}
+
+        <span class="keyword">for</span> j = 1, i <span class="keyword">do</span> <span class="library">table.insert</span>(n, <span class="library">math.random</span>()) <span class="keyword">end</span>
+
+        <span class="keyword">local</span> val = <span class="library">math.random</span>()
+
+        <span class="keyword">local</span> mtn = MultiDimTable(i)
+
+        mtn[n] = val
+
+        <span class="library">assert</span>( mtn[n]           == val )
+
+        <span class="library">assert</span>( mtn(n)           == val )
+
+        <span class="library">assert</span>( mtn{<span class="library">unpack</span>(n)}   == val )
+
+        <span class="library">assert</span>( mtn[{<span class="library">unpack</span>(n)}] == val )
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+<hr><H3>Original Page Contents</H3>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>             
+
+    <span class="keyword">local</span> meta = {}
+
+
+
+    <span class="keyword">local</span> xlate = {[0] = <span class="string">"x"</span>, <span class="string">"y"</span>, <span class="string">"z"</span>}
+
+
+
+    <span class="keyword">function</span> meta:__index(key)
+
+        <span class="keyword">if</span> xlate[key] <span class="keyword">then</span> <span class="keyword">return</span> <span class="library">rawget</span>(self, xlate[key]) <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> meta:__newindex(key, val)
+
+
+
+      <span class="keyword">if</span> xlate[key] <span class="keyword">then</span>
+
+        <span class="library">rawset</span>(self, xlate[key], val)
+
+      <span class="keyword">else</span>
+
+        <span class="library">rawset</span>(self, key, val)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  
+
+    <span class="keyword">function</span> Vector(x, y, z)
+
+      <span class="keyword">return</span> <span class="library">setmetatable</span>({x=x, y=y, z=z}, meta)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+a = Vector(1, 2, 3)
+
+
+
+=a.x
+
+1
+
+ =a[0]
+
+1
+
+ a[2] = 7
+
+ =a.z
+
+7
+
+</pre>
+
+</DL>
+<p>
+How does this work?
+<p>
+Firstly data is ONLY stored in x,y,z values in out table created via Vector(1, 2, 3).  We use a dummy table and a lookup table to achieve our goal. 
+<p>
+TBC....
+<p>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MultipleIndices" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MultipleIndices" >history</a><br>Last edited March 11, 2008 11:58 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MultipleIndices" >(diff)</a>
+</body>
+</html>

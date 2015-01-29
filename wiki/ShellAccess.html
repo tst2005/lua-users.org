@@ -1,0 +1,134 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Shell Access</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ShellAccess&amp;body=1" title="List pages referring to ShellAccess">Shell Access</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following examples relate to allowing Lua to interact with the shell, such as for shell scripting.
+<p>
+<strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  Some of it does not run as is under Lua 5.</strong>
+<p>
+<H2>Piping from command</H2>
+<p>
+This reads output from a process via a pipe.  There is a way to make this work on Windows too (see <a href="../wiki/PipesOnWindows.html" >PipesOnWindows</a>, not needed for Lua 5.1.2, see below).
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Perform a shell command and return its output</span>
+
+<span class="comment">--   c: command</span>
+
+<span class="comment">-- returns</span>
+
+<span class="comment">--   o: output</span>
+
+<span class="keyword">function</span> shell(c)
+
+  <span class="keyword">local</span> input = _INPUT
+
+  <span class="keyword">local</span> o, h
+
+  h = readfrom(<span class="string">"|"</span> .. c)
+
+  o = read(<span class="string">"*a"</span>)
+
+  closefile(h)
+
+  _INPUT = input
+
+  <span class="keyword">return</span> o
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+On lua5.0.2 I think it should be something like:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> shell(c)
+
+  <span class="keyword">local</span> o, h
+
+  h = <span class="library">assert</span>(<span class="library">io.popen</span>(c,<span class="string">"r"</span>))
+
+  o = h:read(<span class="string">"*all"</span>)
+
+  h:close()
+
+  <span class="keyword">return</span> o
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Lua 5.1.2: io.popen runs fine under Windows XP "out-of-the-box", even from within a non-DOS application
+--<a href="../wiki/AndreasRozek.html" >AndreasRozek</a>
+<p>
+<H2>Process files in command-line arguments</H2>
+<p>
+A typical thing to want to do in a command-line utility is to process each file given on the command line. Here's a function to encapsulate this process:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Process all the files specified on the command-line with function f</span>
+
+<span class="comment">--   name: the name of the file being read</span>
+
+<span class="comment">--   i: the number of the argument</span>
+
+<span class="keyword">function</span> processFiles(f)
+
+  <span class="keyword">for</span> i = 1, getn(arg) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> arg[i] == <span class="string">"-"</span> <span class="keyword">then</span> readfrom()
+
+    <span class="keyword">else</span> readfrom(arg[i])
+
+    <span class="keyword">end</span>
+
+    file = arg[i]
+
+    f(arg[i], i)
+
+    readfrom() <span class="comment">-- close file, if not already closed</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ShellAccess" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ShellAccess" >history</a><br>Last edited April 17, 2007 4:26 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ShellAccess" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Manual Capitulo Siete</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ManualCapituloSiete&amp;body=1" title="List pages referring to ManualCapituloSiete">Manual Capitulo Siete</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>7 - Incompatibilidades con la versión anterior</H2>
+<p>
+Aquí presentamos las incompatibilidades que encontrarían al migrar un programa de Lua 5.0 a Lua 5.1. Podrían evitar la mayoria de las incompatibilidades por compilar Lua con opciones apropriadas (véase el archivo <code>luaconf.h</code>. Sin embargo, todas las opciones de compatibilidad serán eliminados en la próxima versión de Lua.
+<p>
+<H3>7.1 - Cambios al lenguaje</H3>
+<p>
+<UL>
+<li> El metodo de especificar "vararg" cambió del seudoargumento <code>arg</code> -- una tabla con los argumentos adicionales -- a la expresión "vararg" <code>...</code>. (Véase la opción de compilación <code>LUA_COMPAT_VARARG</code> en <code>luaconf.h</code>.)
+</UL>
+<p>
+<UL>
+<li> Había un cambio sutil en el ámbito de las variables implicitas de las construcciones <code>for</code> y <code>repeat</code>.
+</UL>
+<p>
+<UL>
+<li> La sintaxis de comentarios y cadenas largas (<code>[[cadena]]</code>) ya no permite inclusión recursiva. Podrían usar la nueva sintaxis <code>[=[cadena]=]</code> en tal caso. (Véase la opción <code>LUA_COMPAT_LSTR</code> en <code>luaconf.h</code>).
+</UL>
+<p>
+<H3>7.2 - Cambios a las bibliotecas</H3>
+<p>
+<UL>
+<li> La función <code>string.gfind</code> fue dado el nuevo nombre <code>string.gmatch</code>. (Véase la opción <code>LUA_COMPAT_GFIND</code> en <code>luaconf.h</code>).
+</UL>
+<p>
+<UL>
+<li> Cuando el tercer argumento de <code>string.gsub</code> sea una función y la función devuelva <code>nil</code> o <code>false</code>, el reemplazo es el "match" completo en lugar de la cadena vacía.
+</UL>
+<p>
+<UL>
+<li> La función <code>table.setn</code> fue desaprobado. La función <code>table.getn</code> corresponde al nuevo operador de longitud (<code>#</code>) lo cual deberían usar en lugar de la función.  (Véase la opción <code>LUA_COMPAT_GETN</code> en <code>luaconf.h</code>).
+</UL>
+<p>
+<UL>
+<li> La función <code>loadlib</code> fue dado el nuevo nombre <code>package.loadlib</code>. ((Véase la opción <code>LUA_COMPAT_LOADLIB</code> en <code>luaconf.h</code>).
+</UL>
+<p>
+<UL>
+<li> La función <code>math.mod</code> fue dado el nuevo nombre <code>math.fmod</code>. (Véase la opción <code>LUA_COMPAT_MOD</code> en <code>luaconf.h</code>).
+</UL>
+<p>
+<UL>
+<li> Las funciones <code>table.foreach</code> y <code>table.foreachi</code> están desaprobados. En su lugar, podrián usar un bucle <code>for</code> con <code>pairs</code> o <code>ipairs</code>.
+</UL>
+<p>
+<UL>
+<li> Fueron cambios importantes en la función <code>require</code> debido al nuevo sistema de módulos. Sin embargo, el funcionamento actual es más o menos compatible con lo anterior salvo por el hecho que <code>require</code> obtiene el camino de <code>package.path</code> en lugar de <code>LUA_PATH</code>.
+</UL>
+<p>
+<UL>
+<li> La función <code>collectgarbage</code> tiene diferentes argumentos. La función <code>gcinfo</code> está desaprobado y debería ser reemplazado por <code>collectgarbage("count")</code>.
+</UL>
+<p>
+<H3>7.3 - Cambios al API</H3>
+<p>
+<UL>
+<li> No se puede invocar directamente las funciones <code>luaopen_*</code> (para abrir bibliotecas). Ahora hay que invocarlos a través de Lua, como cualquier función de Lua.
+</UL>
+<p>
+<UL>
+<li> La función <code>lua_open</code> ha sido reemplazado con <code>lua_newstate</code> para permiter que el usuario establece una función de reparto de memoria. Podrían usar <code>luaL_newstate</code> en la biblioteca estándar para crear un estado con una función estándar de reparto en base de <code>realloc()</code>.
+</UL>
+<p>
+<UL>
+<li> Han estado desaprobados las functiones <code>luaL_getn</code> y <code>luaL_setn</code> en la biblioteca auxiliar. <code>lua_objlen</code> reemplaza <code>luaL_getn</code>. No hay reemplazo para <code>luaL_setn</code>.
+</UL>
+<p>
+<UL>
+<li> La función <code>luaL_openlib</code> fue reemplazado por <code>luaL_register</code>.
+</UL>
+<p>
+<UL>
+<li> La función <code>luaL_checkudata</code> ya levanta un error cuando el valor dado no es un "userdata" del tipo especificado. En la versión 5.0, devolvió <code>NULL</code> en tal circunstancia.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ManualCapituloSiete" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ManualCapituloSiete" >history</a><br>Last edited December 2, 2006 5:22 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ManualCapituloSiete" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Functors</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaFunctors&amp;body=1" title="List pages referring to LuaFunctors">Lua Functors</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page describes some utility functions that are useful for working with <em>functors</em> in Lua.  A functor is any callable entity, which includes functions and objects that define the "function" tag method.
+<p>
+<strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The code on this page is Lua 4.0 and is not compatible with Lua 5.</strong>
+<p>
+It's often useful to <em>bind</em> argument values to a functor.  <em>[explain]</em>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Bind - given functor and set of arguments, generate binding as new functor</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">function</span> Bind(functor, ...)
+
+  <span class="keyword">local</span> bound_args = arg
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+    <span class="keyword">local</span> all_args = { }
+
+    AppendList(all_args, %bound_args)
+
+    AppendList(all_args, arg)
+
+    <span class="keyword">return</span> call(%functor, all_args)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- BindFromSecond</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- This version skips the first argument when binding.</span>
+
+<span class="comment">-- It's useful for object method functors when you want to leave the object</span>
+
+<span class="comment">-- argument unbound.</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">function</span> BindFromSecond(functor, ...)
+
+  <span class="keyword">local</span> bound_args = arg
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+    <span class="keyword">local</span> all_args = { arg[1] }
+
+    AppendList(all_args, %bound_args)
+
+    AppendList(all_args, arg, 2, -1)
+
+    <span class="keyword">return</span> call(%functor, all_args)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<em>Chaining</em> of functors also comes in handy. <em>[explain]</em>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Chain - generate functor that is chain of input functors</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Return value of output functor is result of last input functor in chain.</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">function</span> Chain(...)
+
+  <span class="keyword">local</span> funs = arg
+
+  <span class="keyword">local</span> num_funs = getn(funs)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+    <span class="keyword">local</span> result
+
+    <span class="keyword">for</span> i=1, %num_funs <span class="keyword">do</span>
+
+      result = call(%funs[i], arg)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> result
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Here are some tests showing use of the interface above along with expected output.
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> a(n, s) <span class="library">print</span>(<span class="string">"a("</span>..n..<span class="string">", "</span>..s..<span class="string">")"</span>) <span class="keyword">end</span>
+
+<span class="keyword">function</span> b(n, s) <span class="library">print</span>(<span class="string">"b("</span>..n..<span class="string">", "</span>..s..<span class="string">")"</span>) <span class="keyword">end</span>
+
+
+
+MyClass = { }
+
+<span class="keyword">function</span> MyClass.test(self, n, s) <span class="library">print</span>(<span class="string">"MyClass.test("</span>..n..<span class="string">", "</span>..s..<span class="string">")"</span>) <span class="keyword">end</span>
+
+
+
+c = Bind(a, 5)
+
+d = Bind(a, 10, <span class="string">"ten"</span>)
+
+e = BindFromSecond(MyClass.test, 123)
+
+f = Chain(a, b, a)
+
+
+
+c(<span class="string">"five"</span>)       <span class="comment">--&gt; "a(5, five)"</span>
+
+d()             <span class="comment">--&gt; "a(10, ten)"</span>
+
+<span class="comment">-- assuming obj is an instance of MyClass</span>
+
+e(obj, <span class="string">"abc"</span>)   <span class="comment">--&gt; "MyClass.test(123, abc)"</span>
+
+f(66, <span class="string">"chain"</span>)  <span class="comment">--&gt; "a(66, chain)"</span>
+
+                <span class="comment">--&gt; "b(66, chain)"</span>
+
+                <span class="comment">--&gt; "a(66, chain)"</span>
+
+</pre>
+
+</DL>
+<p>
+<em>Since there was a rally call to make a "stdlua" library, I thought it was due time to fill in the implementation of these functions.  There is one dependency (<code>AppendList</code>) not shown.  I'm sure some better list utilities will be created for the library than what I have.  Anyway the prototype follows.  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a></em>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- AppendList - add items in list b to end of list a</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Optional closed range [from, to] may be provided for list b.  Negative</span>
+
+<span class="comment">-- index counts from end of table.</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">function</span> util.AppendList(ta, tb, from, to)
+
+</pre>
+
+</DL>
+<p>
+<hr>Contributors: <a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaFunctors" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaFunctors" >history</a><br>Last edited January 2, 2007 2:56 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaFunctors" >(diff)</a>
+</body>
+</html>

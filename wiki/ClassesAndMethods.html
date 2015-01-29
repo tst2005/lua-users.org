@@ -1,0 +1,219 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Classes And Methods</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ClassesAndMethods&amp;body=1" title="List pages referring to ClassesAndMethods">Classes And Methods</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: This tutorial uses Lua 4.0 concepts of tags and tag methods, which have been replaced by metatables and metamethods in Lua 5.0. See <a href="../wiki/LuaClassesWithMetatable.html" >LuaClassesWithMetatable</a>.</strong>
+<p>
+<H3>Class tables</H3>
+<p>
+Tables can be used as associative arrays. This functionality allows us to store functions in a class table, ie. with the function name mapped to the function.
+<DL>
+<dt><dd><pre class="code">
+A = {}
+
+
+
+<span class="keyword">function</span> A:add(x,y)
+
+  <span class="keyword">return</span> x+y
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span>( A:add(1,2) )  <span class="comment">-- prints 3</span>
+
+</pre>
+
+</DL>
+In this example we can only have one instance of the class <code>A</code>. If we wanted to make another instance we could make a table be, (eg. <code> B={} </code>) and copy all of the methods from <code>A</code> into <code>B</code>.
+<p>
+<H3>Tag methods</H3>
+<p>
+Multiple instances of a class can be created by using Luas <em>tag methods</em>. The tag methods can be used to redirect function requests from a class instance to the class function table. ie. We no longer need to copy all of the classes functions into each instance of the class. eg.
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- settag() returns a table "{}" which has been tagged with a new tag value</span>
+
+A = settag({},newtag())
+
+
+
+<span class="comment">-- use the index tag method to redirect a request for a function to the </span>
+
+<span class="comment">-- class function table</span>
+
+settagmethod(tag(A),<span class="string">"index"</span>, <span class="keyword">function</span>(t,f) <span class="keyword">return</span> %A[f] <span class="keyword">end</span>)
+
+
+
+<span class="keyword">function</span> A:new(x,y)  <span class="comment">-- create an instance of class A</span>
+
+  <span class="keyword">local</span> t = {x=x,y=y}
+
+  settag(t,tag(A))  <span class="comment">-- tag the new table to tell it what its class type is</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> A:add()
+
+  <span class="library">print</span> (self.x+self.y)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> A:sum(a)
+
+  <span class="library">assert</span>(tag(self)==tag(a)) <span class="comment">-- check they are same class</span>
+
+  <span class="library">print</span> (self.x+a.x,self.y+a.y)
+
+<span class="keyword">end</span>
+
+
+
+a = A:new(7,9)  <span class="comment">-- new instance of A</span>
+
+a:add()
+
+
+
+b = A:new(2,4)  <span class="comment">-- new instance of A</span>
+
+b:add()
+
+
+
+a:sum(b)  <span class="comment">-- "sum" of 2 instances</span>
+
+</pre>
+
+</DL>
+However there are problems with the example shown.
+<UL>
+<li> An unrecognised method eg. <code>a:sub()</code> will cause a stack overflow as Lua looks infinitely for the unrecognised function and then the <code>nil</code> that the tag method returns. This can be fixed by using <code>rawget(table,key)</code> to fetch the function from the function table. <code>rawget()</code> does not invoke any tag methods when getting the value of a key from a table.
+</UL><DL>
+<DL>
+<dt><dd><pre class="code">
+settagmethod(tag(A),<span class="string">"index"</span>, <span class="keyword">function</span>(t,f) <span class="keyword">return</span> <span class="library">rawget</span>(%A,f) <span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+</DL><UL>
+<li> The method called may not be a function, eg.
+</UL><DL>
+<DL>
+<dt><dd><pre class="code">
+a.number = 123
+
+a:number()  <span class="comment">-- try and call x</span>
+
+</pre>
+
+</DL>
+<dt><dd>This will result in an error as we try to call a number.
+</DL><UL>
+<li> If there is a name conflict between the function table and the class instance, which one should be used? eg.
+</UL><DL>
+<DL>
+<dt><dd><pre class="code">
+a.sum = 7
+
+<span class="library">print</span>( a.sum )  <span class="comment">-- should this print &lt;function&gt; or 7 ? (it prints 7)</span>
+
+</pre>
+
+</DL>
+</DL>
+<p>
+<p>
+<H3>Resolving name clashes</H3>
+<p>
+This problem cannot be resolved as the call request does not inform the tag method which type is required. We can take a preference, eg. class instance value takes preference over the function table value. (Doing it this we could support function overloading.)
+<p>
+If the function table takes preference, we could use the <em>gettable</em> tag method to check whether a method exists in the function table <code>A</code> first, eg.
+<DL>
+<dt><dd><pre class="code">
+settagmethod(tag(A), <span class="string">"gettable"</span>, 
+
+          <span class="keyword">function</span>(t,k)
+
+            <span class="keyword">if</span> <span class="library">rawget</span>(%A,k) <span class="keyword">then</span>
+
+              <span class="keyword">return</span> <span class="library">rawget</span>(%A,k)
+
+            <span class="keyword">else</span>
+
+              <span class="keyword">return</span> <span class="library">rawget</span>(t,k)
+
+            <span class="keyword">end</span>
+
+          <span class="keyword">end</span> )
+
+</pre>
+
+</DL>
+<p>
+<strong>Unified methods:</strong> This problem has been solved in <em>Sol</em> (a fork of Lua by Edgar Toernig) by introducing <em>Unified methods</em>. Here, a function/method table is associated with a tag. What happens when a table lookup occurs depends on how the lookup was invoked. ie. <code>a.foo</code> and <code>a:foo</code> have different implications. <code>a.foo</code> looks for a member called "foo" and <code>a:foo</code> looks in the tagged function table for a method "foo". Thus, you can have two members, one data and one a function happily living side by side, with no clash.
+<p>
+<DL>
+<dt><dd>What is the motivation for wanting methods and "data" in separate namespaces?  Sol's unified methods are cool, allowing methods and data to be separated and also providing an easier system than tag methods.  However I thought the main point of it was to allow class methods to be implemented without each table holding its own copy.  If the answer is because some class instance needs to allow the end-user to add arbitrary data fields directly, I would say maybe that's not good design and the operations should be implemented as a stand-alone functions rather than class methods, or the field access should be done through a controlled interface.  (I looked at <a href="../wiki/PythonDictionaries.html" >PythonDictionaries</a>.  Isn't this issue the result of attempting to emulate some interface in Python rather than provide one suitable for Lua?)  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>
+</DL>
+<p>
+<DL>
+<dt><dd>I'm not sure what your alternative implementation is wrt to a controlled interface. Would this resolve the <code>t.foo</code> / <code>t:foo</code> problem (and allow arbitrary data to be stored)?. It looks like the existing Lua tag method system, or modified? I don't think this is just the result of trying to emulate Python, there is a conflict here. ie. your implementation is restricted. I thought the metamechanisms were supposed to be flexible enough to implement features like this. Is this a question of implementation style? The problem could be avoided by using stand alone functions but I dont think thats very tidy (and in this example, unlike Python) --NDT
+</DL>
+<p>
+<DL>
+<dt><dd>Take a container written in C++ for example.  The field access is controlled-- either through <code>operator[]</code> or dedicated member functions.  There is no ambiguity between what is a field access and what is not.  Lua's tag methods are limited.  You can't distinguish between <code>table[x]</code> for accessing fields and <code>table.x</code> / <code>table:x</code> for calling methods.  The simple solution to your <a href="../wiki/PythonDictionaries.html" >PythonDictionaries</a> problem is to give up using native table syntaxes for element access and rely on methods such as <code>get</code> and <code>set</code>.  It will make the implementation much simpler too!  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>
+</DL>
+<p>
+<DL>
+<dt><dd>But thats not what Pythons dictionaries look like :-) I know Lua isn't Python. Sol would allow me to do what I want but Lua limits me. I could juggle the code in a number of ways to get it to work without clashes but not how I would like :-( (perhaps some variants should be added...). Thats what I was pointing out above, and the slant of the text is probably pro unified methods :-). You can only go so far in implementing certain objects in Lua. I suppose it kind of overlaps with the table.n problem - tables are multipurpose but have limitations? --NDT
+</DL>
+<p>
+<DL>
+<dt><dd>"You can only go so far in implementing certain objects in Lua."  I disagree with this.  The issue you are having is purely about the syntatic sugar.  Lua is not a fancy macro language.  On the other hand it is a powerful functional language.  Stick with functional interfaces and things work out nicely. --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>
+</DL>
+<p>
+<DL>
+<dt><dd>"You can only go so far in implementing certain objects in Lua <em>syntactically</em>" would have been more accurate. Emulating Pythons dictionaries, as close as possible, functionally and syntactically, was just an exercise which had some interesting results. Lua would have no problem emulating the functionality with different syntax/interface. The idea of this page is simply to list some ideas and limitations. --NDT
+</DL>
+<p>
+<hr>See also: <a href="../wiki/SampleCode.html" >SampleCode</a> , <a href="../wiki/PythonLists.html" >PythonLists</a> and <a href="../wiki/PythonDictionaries.html" >PythonDictionaries</a> contain class examples.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ClassesAndMethods" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ClassesAndMethods" >history</a><br>Last edited October 23, 2009 7:08 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ClassesAndMethods" >(diff)</a>
+</body>
+</html>

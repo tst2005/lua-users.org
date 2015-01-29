@@ -1,0 +1,520 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Point And Complex</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PointAndComplex&amp;body=1" title="List pages referring to PointAndComplex">Point And Complex</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Points and Complex numbers in Lua</H3>
+<p>
+It is not difficult to redefine the meaning of the usual arithmetic operators for user-defined types. Normally, this will be a run-time error; if I have a table <code>t</code> then <code>t + 1</code> will give "attempt to perform arithmetic on global `t' (a table value)". However, if that table has a metatable, then Lua will see if a function <code>__add</code> is defined, and use it instead.
+<p>
+The main question with <em>operator overloading</em> is whether it will make using your objects easier for other programmers. It is similar to user-interface decisions; it really is a good idea to keep to common user-interface conventions for your platform. In interfaces, dull is good, and the unexpected will cause misunderstanding. For instance, you can make the addition operator concatenate lists, but as Paul Graham observed <a href="http://www.paulgraham.com/arclessons.html">[1]</a>, one tends to misread such expressions as arithmetic.
+<p>
+I'm going to present two cases where redefining operators makes perfect sense, because they are both generalizations of the usual real number arithmetic we use. To add two points with <code>p1 + p2</code> is not only convenient, but mathematically correct.
+<p>
+Using this <code>Point</code> class, you will be able to express vector algebra in something like the usual notation.  For example,
+<DL>
+<dt><dd><pre class="code">
+x = ((p1^p2)..q)*q
+
+</pre>
+
+</DL>
+means: take the cross product of <code>p1</code> and <code>p2</code>, get its dot product with <code>q</code> and multiply the resulting scalar with q.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- point.lua</span>
+
+<span class="comment">-- A class representing vectors in 3D</span>
+
+<span class="comment">-- (for class.lua, see SimpleLuaClasses)</span>
+
+<span class="library">require</span> <span class="string">'class'</span>
+
+
+
+Point = class(<span class="keyword">function</span>(pt,x,y,z)
+
+   pt:set(x,y,z)
+
+ <span class="keyword">end</span>)
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> eq(x,y)
+
+  <span class="keyword">return</span> x == y
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Point.__eq(p1,p2)
+
+  <span class="keyword">return</span> eq(p1[1],p2[1]) <span class="keyword">and</span> eq(p1[2],p2[2]) <span class="keyword">and</span> eq(p1[3],p2[3])
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Point.get(p)
+
+  <span class="keyword">return</span> p[1],p[2],p[3]
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- vector addition is '+','-'</span>
+
+<span class="keyword">function</span> Point.__add(p1,p2)
+
+  <span class="keyword">return</span> Point(p1[1]+p2[1], p1[2]+p2[2], p1[3]+p2[3])
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Point.__sub(p1,p2)
+
+  <span class="keyword">return</span> Point(p1[1]-p2[1], p1[2]-p2[2], p1[3]-p2[3])
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- unitary minus  (e.g in the expression f(-p))</span>
+
+<span class="keyword">function</span> Point.__unm(p)
+
+  <span class="keyword">return</span> Point(-p[1], -p[2], -p[3])
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- scalar multiplication and division is '*' and '/' respectively</span>
+
+<span class="keyword">function</span> Point.__mul(s,p)
+
+  <span class="keyword">return</span> Point( s*p[1], s*p[2], s*p[3] )
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Point.__div(p,s)
+
+  <span class="keyword">return</span> Point( p[1]/s, p[2]/s, p[3]/s )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- dot product is '..'</span>
+
+<span class="keyword">function</span> Point.__concat(p1,p2)
+
+  <span class="keyword">return</span> p1[1]*p2[1] + p1[2]*p2[2] + p1[3]*p2[3]
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- cross product is '^'</span>
+
+<span class="keyword">function</span> Point.__pow(p1,p2)
+
+   <span class="keyword">return</span> Point(
+
+     p1[2]*p2[3] - p1[3]*p2[2],
+
+     p1[3]*p2[1] - p1[1]*p2[3],
+
+     p1[1]*p2[2] - p1[2]*p2[1]
+
+   )
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Point.normalize(p)
+
+  <span class="keyword">local</span> l = p:len()
+
+  p[1] = p[1]/l
+
+  p[2] = p[2]/l
+
+  p[3] = p[3]/l
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Point.set(pt,x,y,z)
+
+  <span class="keyword">if</span> <span class="library">type</span>(x) == <span class="string">'table'</span> <span class="keyword">and</span> <span class="library">getmetatable</span>(x) == Point <span class="keyword">then</span>
+
+     <span class="keyword">local</span> po = x
+
+     x = po[1]
+
+     y = po[2]
+
+     z = po[3]
+
+  <span class="keyword">end</span>
+
+  pt[1] = x
+
+  pt[2] = y
+
+  pt[3] = z 
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Point.translate(pt,x,y,z)
+
+   pt[1] = pt[1] + x
+
+   pt[2] = pt[2] + y
+
+   pt[3] = pt[3] + z 
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Point.__tostring(p)
+
+  <span class="keyword">return</span> <span class="library">string.format</span>(<span class="string">'(%f,%f,%f)'</span>,p[1],p[2],p[3])
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> sqr(x) <span class="keyword">return</span> x*x <span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Point.len(p)
+
+  <span class="keyword">return</span> <span class="library">math.sqrt</span>(sqr(p[1]) + sqr(p[2]) + sqr(p[3]))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<code>Point</code> is a simple class which can be constructed using call notation (see <a href="../wiki/SimpleLuaClasses.html" >SimpleLuaClasses</a>):
+<DL>
+<dt><dd><pre>
+
+&gt; p1 = Point(10,20,30)
+
+&gt; p2 = Point(1,2,3)
+
+&gt; = p1
+
+(10.000000,20.000000,30.000000)
+
+&gt; = p1 + p2
+
+(11.000000,22.000000,33.000000)
+
+&gt; = 2*p1
+
+(20.000000,40.000000,60.000000)
+
+</pre>
+</DL>
+Because <code>Point</code> defines <code>__tostring</code>, Lua knows how to print out such objects. It's perhaps not a perfect format, but it's easy to modify the code (one could make precision a <em>class property</em>). The simplified constructor syntax makes it easy for vector operations to return <code>Point</code> objects. The decision to use indices 1,2 and 3 for x, y and z components is quite arbitrary; it's easy to change to match your preferences. There are some limitations: although <code>p*2</code> should be valid, it isn't; the scalar must be first.
+<p>
+One can now define higher level operations.  For instance, here is a useful function for finding the minimum distance between a point and a line (very useful if you're doing an editable graphics program):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- given a point q, where does the perp cross the line (p1,p2)?</span>
+
+<span class="keyword">function</span> perp_to_line(p1,p2,q)
+
+  <span class="keyword">local</span> diff = p2 - p1
+
+  <span class="keyword">local</span> x = ((q - p1)..diff)/(diff..diff)
+
+  <span class="keyword">return</span> p1 + x*diff
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- minimum distance between q and a line (p1,p2)</span>
+
+<span class="keyword">function</span> min_dist_to_line(p1,p2,q)
+
+  <span class="keyword">local</span> perp = perp_to_line(p1,p2,q)
+
+  <span class="keyword">return</span> Point.len(perp-q)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+There is a 'gotcha' which you should keep in mind; Lua objects are always passed by reference, so beware of modifying points passed to functions.  Use the <em>copy constructor</em> provided, e.g. say <code>local pc = Point(p)</code> to make a local copy of a point passed as an argument.
+<p>
+<H3>Complex Numbers</H3>
+<p>
+Complex numbers are a generalization of real numbers, so they understand all the usual operations, plus some more. If <code>z</code> is complex, then <code>1.5 + z</code> and <code>z + 1.5</code> are both complex expressions, so <code>__add</code> must handle the case where one of the arguments is a plain number.
+<p>
+Please note that this Complex Number class is an example, it should not be used for serious applications.  It has some problems (which could, in principle, be fixed): division suffers from loss of precision, modulus overflows on some reasonable values, square root is careless with cuts and does not work for real values, pow only computes positive integer powers (and then slowly).
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- complex.lua</span>
+
+<span class="library">require</span> <span class="string">'class'</span>
+
+
+
+Complex = class(<span class="keyword">function</span>(c,re,im)
+
+                 <span class="keyword">if</span> <span class="library">type</span>(re) == <span class="string">'number'</span> <span class="keyword">then</span> 
+
+                   c.re = re
+
+                   c.im = im
+
+                 <span class="keyword">else</span>
+
+                   c.re = re.re
+
+                   c.im = re.im
+
+                 <span class="keyword">end</span>
+
+          <span class="keyword">end</span>)
+
+
+
+Complex.i = Complex(0,1)
+
+
+
+<span class="keyword">local</span> sqrt = <span class="library">math.sqrt</span>
+
+<span class="keyword">local</span> cos = <span class="library">math.cos</span>
+
+<span class="keyword">local</span> sin = <span class="library">math.sin</span>
+
+<span class="keyword">local</span> exp = <span class="library">math.exp</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> check(z1,z2)
+
+  <span class="keyword">if</span>     <span class="library">type</span>(z1) == <span class="string">'number'</span> <span class="keyword">then</span> <span class="keyword">return</span> Complex(z1,0),z2
+
+  <span class="keyword">elseif</span> <span class="library">type</span>(z2) == <span class="string">'number'</span> <span class="keyword">then</span> <span class="keyword">return</span> z1,Complex(z2,0) 
+
+  <span class="keyword">else</span> <span class="keyword">return</span> z1,z2
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- redefine arithmetic operators!</span>
+
+<span class="keyword">function</span> Complex.__add(z1,z2)
+
+  <span class="keyword">local</span> c1,c2 = check(z1,z2)
+
+  <span class="keyword">return</span> Complex(c1.re + c2.re, c1.im + c2.im)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Complex.__sub(z1,z2)
+
+  <span class="keyword">local</span> c1,c2 = check(z1,z2)
+
+  <span class="keyword">return</span> Complex(c1.re - c2.re, c1.im - c2.im)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Complex:__unm()
+
+  <span class="keyword">return</span> Complex(-self.re, -self.im)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Complex.__mul(z1,z2)
+
+  <span class="keyword">local</span> c1,c2 = check(z1,z2)
+
+  <span class="keyword">return</span> Complex(c1.re*c2.re - c1.im*c2.im, c1.im*c2.re + c1.re*c2.im)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Complex.__div(z1,z2)
+
+  <span class="keyword">local</span> c1,c2 = check(z1,z2)
+
+  <span class="keyword">local</span> a = c1.re
+
+  <span class="keyword">local</span> b = c1.im
+
+  <span class="keyword">local</span> c = c2.re
+
+  <span class="keyword">local</span> d = c2.im
+
+  <span class="keyword">local</span> lensq = c*c + d*d
+
+  <span class="keyword">local</span> ci = (a*c + b*d)/lensq
+
+  <span class="keyword">local</span> cr = (b*c + a*d)/lensq
+
+  <span class="keyword">return</span> Complex(cr,ci)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Complex.__pow(z,n)
+
+  <span class="keyword">local</span> res = Complex(z)
+
+  <span class="keyword">for</span> i = 1,n-1 <span class="keyword">do</span> res = res*z <span class="keyword">end</span>
+
+  <span class="keyword">return</span> res  
+
+<span class="keyword">end</span>  
+
+
+
+<span class="comment">-- this is how our complex numbers will present themselves!</span>
+
+<span class="keyword">function</span> Complex:__tostring()
+
+  <span class="keyword">return</span> self.re..<span class="string">' + '</span>..self.im..<span class="string">'i'</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- operations only valid for complex numbers</span>
+
+<span class="keyword">function</span> Complex.conj(z)
+
+  <span class="keyword">return</span> Complex(z.re,-z.im)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Complex.mod(z)
+
+  <span class="keyword">return</span> sqrt(z.re^2 + z.im^2)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- generalizations of sqrt() and exp()</span>
+
+<span class="keyword">function</span> Complex.sqrt(z)
+
+  <span class="keyword">local</span> y = sqrt((Complex.mod(z)-z.re)/2)
+
+  <span class="keyword">local</span> x = z.im/(2*y)
+
+  <span class="keyword">return</span> Complex(x,y)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Complex.exp(z)
+
+  <span class="keyword">return</span> exp(z.re)*Complex(cos(z.im),sin(z.im))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>But is it Fast?</H3>
+<p>
+Obviously vector and complex arithmetic is going to be fairly slow in Lua, but that's relative. I can create 100,000 points in about two seconds; same time for adding that number. If your program works with a few thousand points, it's going to be fast enough.  Programs that need to work with much larger number of points (such as GIS systems) would simply not use this representation, even in C++.  Instead, one could write a Lua extension for arrays of points, and manipulate them in groups.
+<p>
+<H2>Comments</H2>
+<p>
+<DL>
+<dt><dd>The expression "x = ((p1^p2)..q)*q" was not at first obvious to me.  When once sees "^" and ".." they think exponentiation and concatenation, both of which don't apply here.  Exponentiation does not apply to vectors of length &gt;= 2, so maybe that reduces the chance of confusion, but it does apply to square matrices, which are not much different from vectors and are often used in the same expression, such as <code>A^(-1)Av</code>.  ".." is odd too, though I admit the two dots somewhat resemble dot product.  Lua's automatic string conversion might increase the change for error--if one mistakenly writes "(p1..p2)..3" the ".." is silently taken as regular string concatenation.  "*" of course could be understood as scalar product, dot product, or cross product.  Unfortunately, the number of operators we have to use is limited.  These issues detract from the original argument of the article, but I agree that "+", "-", and such make perfect sense for vectors. --<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+I cannot agree with you, David. Anybody who has done maths up to first year undergraduate level would recognize '^' as vector product for 3-dimensional vectors, or as exterior product more generally. The '..' for inner product is unfortunate, I agree. Alas, the historical quirks of mathematical notation really do not fit well with computers. The best programming language I have come across for accommodating mathematical notation is Gofer (not Hugs or Haskell proper - the standardized prelude screws up, because it was designed by people without sufficient mathematical background).
+-- <a href="../wiki/GavinWraith.html" >GavinWraith</a>
+<p>
+<DL>
+<dt><dd>I think "^" (or actually \(\wedge\)) is less common.  I and someone else in the US hadn't seen it used this way, but I asked someone in the UK who said usage of "^" and "x" at the ugrad level was about fifty-fifty, though after learning exterior calculus he preferred "x" for cross product to keep the two ideas separate, something about them essentially being related by Hodge star.  Here's another reference that applies "^" as cross-product though <a href="http://www.geometryalgorithms.com/Archive/algorithm_0301/algorithm_0301.htm">[2]</a>.  In some contexts, being able to have user-defined operators would be useful, mainly for the ability to express them in infix notation <a href="http://groups.google.com/group/perl.perl6.language/browse_thread/thread/2bd28bb6b3231a7d/3b4fcc214e8b2d3f">[3]</a>.   See also <a href="../wiki/CustomOperators.html" >CustomOperators</a>. --<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+<DL>
+<dt><dd>A potential area of confusion is that <code>^</code> is right-associative in Lua but cross-products are not associative.  So, <code>a^b^c</code> would mean <code>a^(b^c)</code>.  --<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+<DL>
+<dt><dd>I stumbled onto this page in an unrelated search, but seeing the sentence "To add two points with <code>p1 + p2</code> is not only convenient, but mathematically correct." just about made me cry. There is absolutely no geometrical meaning to adding two points. After skimming the article it was fairly clear that the 'Point' class is also intended to be used for vectors, for some reason? I'm not to change anything here, but I thought it should at least be pointed out. --anonymous
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd>"Vector" would likely be more suitable under the given operations (e.g. normalize and cross product).  However, the interchange in terminology above was likely because points can be represented as <a href="http://en.wikipedia.org/wiki/Position_vector.html">[position vectors]</a>.  --<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PointAndComplex" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PointAndComplex" >history</a><br>Last edited April 29, 2014 7:17 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PointAndComplex" >(diff)</a>
+</body>
+</html>

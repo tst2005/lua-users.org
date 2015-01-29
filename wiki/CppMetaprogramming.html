@@ -1,0 +1,1021 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Cpp Metaprogramming</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CppMetaprogramming&amp;body=1" title="List pages referring to CppMetaprogramming">Cpp Metaprogramming</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Metaprogramming <a href="http://en.wikipedia.org/wiki/Metaprogramming.html">[1]</a> is sometimes achieved in C++ using the C preprocessor or templates, but we might achieve greater simplicity and flexibility (and even aspect-oriented programming <a href="http://en.wikipedia.org/wiki/Aspect-oriented_programming.html">[2]</a>) using Lua to do the metaprogramming for C++.
+<p>
+Below we express in Lua a definition of a C++ class and a C++ module (compilation unit) containing that class.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"cppmeta"</span> :import()
+
+
+
+<span class="comment">-- Define class.</span>
+
+Rectangle =
+
+  Class     <span class="string">"Rectangle"</span>
+
+  :include  <span class="string">"public &lt;string&gt;"</span>
+
+  :include  <span class="string">"&lt;sstream&gt;"</span>
+
+  :include  <span class="string">"&lt;iostream&gt;"</span>
+
+  :property <span class="string">"double width = 0.0"</span>
+
+  :property <span class="string">"double height = 0.0"</span>
+
+  :func<span class="string">[[
+
+    /* Get the surface area of the rectangle. */
+
+    double get_area() const {
+
+      return get_width() * get_height();
+
+    }
+
+  ]]</span>
+
+  :func<span class="string">[[
+
+    /* Resize rectangle by scale factor. */
+
+    void scale(double amount = 0) {
+
+      set_width(get_width() * amount);
+
+      set_height(get_height() * amount);
+
+    }
+
+  ]]</span>
+
+  :func<span class="string">[[
+
+    /* Convert rectangle to string. */
+
+    std::string tostring() {
+
+      ostringstream os;
+
+      os &lt;&lt; "Rectangle[" &lt;&lt; get_width() &lt;&lt; "," &lt;&lt; get_height() &lt;&lt; "]";
+
+      return os.str();
+
+    }
+
+  ]]</span>
+
+
+
+<span class="comment">-- Define module (compilation unit).</span>
+
+Rectanglem = 
+
+  Module   <span class="string">"rectanglem"</span>
+
+  :include <span class="string">"&lt;iostream&gt;"</span>
+
+  :using_namespace<span class="string">"std"</span>
+
+  :class(Rectangle)
+
+  :func<span class="string">[[
+
+    /* entry point */
+
+    int main() {
+
+      Rectangle s;
+
+      s.set_width(10);
+
+      s.set_height(20);
+
+      s.scale(2);
+
+      cout &lt;&lt; s.tostring() &lt;&lt; " " &lt;&lt; s.get_area() &lt;&lt; " " &lt;&lt; s.get_class_name() &lt;&lt; endl;
+
+      return 0;
+
+    }
+
+  ]]</span>
+
+
+
+<span class="comment">-- Insert into any class a member function returning class name.</span>
+
+<span class="comment">-- This is a helper function, achieving aspect oriented programming somewhat.</span>
+
+<span class="keyword">function</span> name_class(class)
+
+  <span class="keyword">local</span> ccode = cppmeta.subst(<span class="string">[[
+
+    /* Return name of class as string. */
+
+    std::string get_class_name() { return "%(name)"; }
+
+  ]]</span>, {name = class.name})
+
+  class:func(ccode):include(<span class="string">"public &lt;string&gt;"</span>)
+
+  <span class="keyword">return</span> c
+
+<span class="keyword">end</span>
+
+name_class(Rectangle) <span class="comment">-- add other functions to class.</span>
+
+
+
+Rectanglem:write() <span class="comment">-- generate source files for C++ compiler.</span>
+
+
+
+<span class="comment">-- Just for fun, print out a list of method names and descriptions too.</span>
+
+<span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(Rectangle.funcs) <span class="keyword">do</span>
+
+  <span class="library">print</span>(v.name, v.comment)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+We seek to have that automatically generate these two files in standard C++:
+<p>
+rectanglem.h
+<DL>
+<dt><dd><pre>
+
+#ifndef MODULE_rectanglem
+
+#define MODULE_rectanglem
+
+#include &lt;string&gt;
+
+
+
+class Rectangle {
+
+public:
+
+  Rectangle::Rectangle();
+
+  explicit Rectangle::Rectangle(const Rectangle &amp; other);
+
+  Rectangle &amp; operator=(const Rectangle &amp; other);
+
+  double get_width() const { return width; }
+
+  void set_width(double _) { width = _; }
+
+  double get_height() const { return height; }
+
+  void set_height(double _) { height = _; }
+
+  double get_area() const;
+
+  void scale(double amount = 0);
+
+  std::string tostring();
+
+  std::string get_class_name();
+
+
+
+private:
+
+  double width;
+
+  double height;
+
+
+
+};
+
+
+
+#endif // first include
+
+</pre>
+</DL>
+<p>
+rectanglem.cpp
+<DL>
+<dt><dd><pre>
+
+#include "rectanglem.h"
+
+#include &lt;sstream&gt;
+
+#include &lt;iostream&gt;
+
+
+
+using namespace std;
+
+
+
+Rectangle::Rectangle() : width(0.0), height(0.0)
+
+{
+
+}
+
+Rectangle::Rectangle(const Rectangle &amp; other) : width(other.width), height(other.height)
+
+{
+
+}
+
+  Rectangle &amp;
+
+Rectangle::operator=(const Rectangle &amp; other) {
+
+  width = other.width;
+
+  height = other.height;
+
+
+
+}
+
+  double
+
+Rectangle::get_area() const {
+
+  return get_width() * get_height();
+
+}
+
+  void
+
+Rectangle::scale(double amount) {
+
+  set_width(get_width() * amount);
+
+  set_height(get_height() * amount);
+
+}
+
+  std::string
+
+Rectangle::tostring() {
+
+  ostringstream os;
+
+  os &lt;&lt; "Rectangle[" &lt;&lt; get_width() &lt;&lt; "," &lt;&lt; get_height() &lt;&lt; "]";
+
+  return os.str();
+
+}
+
+  std::string
+
+Rectangle::get_class_name() { return "Rectangle"; }
+
+
+
+
+
+
+
+  int
+
+main() {
+
+  Rectangle s;
+
+  s.set_width(10);
+
+  s.set_height(20);
+
+  s.scale(2);
+
+  cout &lt;&lt; s.tostring() &lt;&lt; " " &lt;&lt; s.get_area() &lt;&lt; " " &lt;&lt; s.get_class_name() &lt;&lt; endl;
+
+  return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+The "cppmeta.lua" module is implemented at the bottom of this page.
+<p>
+Warning: This code is a rough draft.  The code currently does not handle the corner cases or even most cases.  However, I believe the approach case reasonably be made robust.  It mostly avoids the difficulties of fully parsing C++.  The code is known to run on Lua 5.1.
+<p>
+See also <a href="../wiki/LuaProxyDll.html" >LuaProxyDll</a> for a related C metaprogramming example.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<hr><DL>
+<dt><dd><pre class="code">
+<span class="comment">-- cppmeta.lua</span>
+
+<span class="comment">-- (c) David Manura, 2007-02.</span>
+
+<span class="comment">-- Licensed under the same terms as Lua itself.</span>
+
+
+
+<span class="library">module</span>(<span class="string">"cppmeta"</span>, <span class="library">package.seeall</span>)
+
+
+
+<span class="keyword">function</span> import()
+
+  <span class="keyword">local</span> env = <span class="library">getfenv</span>(2)
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(cppmeta) <span class="keyword">do</span> env[k] = v <span class="keyword">end</span>
+
+  <span class="keyword">return</span> cppmeta
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- remove leading indents from string</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> unindent(s)
+
+  <span class="keyword">local</span> spacer = <span class="library">string.match</span>(s, <span class="string">"( *)}%s*$"</span>)
+
+  <span class="keyword">local</span> t = {}
+
+  <span class="library">string.gsub</span>(s, <span class="string">"[^\n]+"</span>, <span class="keyword">function</span>(s) t[#t+1] = s; <span class="keyword">return</span> <span class="string">""</span> <span class="keyword">end</span>)
+
+  <span class="keyword">for</span> i = 1,#t <span class="keyword">do</span>
+
+     t[i] = <span class="library">string.gsub</span>(t[i], <span class="string">"^"</span> .. spacer, <span class="string">""</span>)
+
+  <span class="keyword">end</span>
+
+  s = <span class="library">table.concat</span>(t, <span class="string">"\n"</span>)
+
+  <span class="keyword">return</span> s
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- substitute variables in string</span>
+
+<span class="keyword">function</span> subst(s, vars)
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(vars) <span class="keyword">do</span>
+
+    s = <span class="library">string.gsub</span>(s, <span class="string">"%%%("</span> .. k .. <span class="string">"%)"</span>, v)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> s
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- remove whitespace at beginning and end of string</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> trim(s)
+
+  s = <span class="library">string.gsub</span>(s, <span class="string">"^%s+"</span>, <span class="string">""</span>)
+
+  s = <span class="library">string.gsub</span>(s, <span class="string">"%s+$"</span>, <span class="string">""</span>)
+
+  <span class="keyword">return</span> s
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- extracts leading C comment (if any) from string.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> remove_comment(ccode)
+
+  <span class="keyword">local</span> comment
+
+  ccode = <span class="library">string.gsub</span>(ccode, <span class="string">"^%s*/%*(.-)%*/%s*"</span>,
+
+                      <span class="keyword">function</span>(s) comment = s; <span class="keyword">return</span> <span class="string">""</span> <span class="keyword">end</span>)
+
+  <span class="keyword">return</span> ccode, comment
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- format function definition</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> format_funcdef(func, parent)
+
+  <span class="comment">-- Remove default assignments from arguments</span>
+
+  <span class="keyword">local</span> args = func.args
+
+  args = <span class="library">string.gsub</span>(args, <span class="string">"%s*=[^,)]+"</span>, <span class="string">""</span>)
+
+
+
+  <span class="keyword">local</span> body = func.body
+
+  <span class="keyword">if</span> <span class="library">string.sub</span>(body, 1, 1) == <span class="string">"{"</span> <span class="keyword">then</span> body = <span class="string">" "</span> .. body <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> mods = (func.mods == <span class="string">""</span>) <span class="keyword">and</span> <span class="string">""</span> <span class="keyword">or</span> <span class="string">" "</span> .. func.mods 
+
+
+
+  <span class="keyword">local</span> prefix = parent <span class="keyword">and</span> (parent .. <span class="string">"::"</span>) <span class="keyword">or</span> <span class="string">""</span>
+
+
+
+  <span class="keyword">local</span> cfunc = <span class="string">"  "</span> .. func.type .. <span class="string">"\n"</span>
+
+              .. prefix .. func.name .. <span class="string">"("</span> .. args .. <span class="string">")"</span> .. mods
+
+              .. body .. <span class="string">"\n"</span>
+
+
+
+  <span class="keyword">return</span> cfunc  
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- parse function from C++ string.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> parse_func(ccode)
+
+  <span class="keyword">local</span> comment
+
+  ccode, comment = remove_comment(ccode)
+
+  ccode = unindent(ccode)
+
+  <span class="keyword">local</span> <span class="library">type</span>, name, args, mods, body
+
+    = <span class="library">string.match</span>(ccode, <span class="string">"^%s*([^(]+)%s+([%w_]+)%s*%((.*)%)%s*([^{]-)%s*({.*})"</span>)
+
+  <span class="library">assert</span>(<span class="library">type</span>, ccode)
+
+  <span class="comment">--print("F", type,";",name, ";",args, ";",body)</span>
+
+  <span class="keyword">local</span> func = {name = name, args = args, <span class="library">type</span> = <span class="library">type</span>, mods = mods,
+
+                body = body, comment = comment}
+
+  <span class="keyword">return</span> func
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- parse property from C++ string</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> parse_property(ccode)
+
+  ccode = trim(ccode)
+
+  <span class="keyword">local</span> <span class="library">type</span>, name, default
+
+    = <span class="library">string.match</span>(ccode, <span class="string">"^%s*(.+)%s+([%w_]+)%s*=%s*(.-)%s*$"</span>)
+
+  <span class="comment">--print('P', type, ';', name, ';', default)</span>
+
+  <span class="library">assert</span>(<span class="library">type</span>, ccode)
+
+  <span class="keyword">local</span> prop = {name = name, <span class="library">type</span> = <span class="library">type</span>, default = default}
+
+  <span class="keyword">return</span> prop
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- parse "include" from C++ string</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> parse_include(ccode)
+
+  ccode = trim(ccode)
+
+  <span class="keyword">local</span> ccode2 = <span class="library">string.gsub</span>(ccode, <span class="string">"^%s*public%s+"</span>, <span class="string">""</span>)
+
+  <span class="keyword">local</span> visibility = (ccode2 ~= ccode) <span class="keyword">and</span> <span class="string">"public"</span> <span class="keyword">or</span> <span class="string">"private"</span>
+
+  <span class="keyword">local</span> include = {ccode2, visibility = visibility}
+
+  <span class="keyword">return</span> include
+
+<span class="keyword">end</span>
+
+
+
+Class = {}
+
+Class.__index = Class
+
+<span class="library">setmetatable</span>(Class, {__call = <span class="keyword">function</span>(self, ...) <span class="keyword">return</span> Class.new(...) <span class="keyword">end</span>})
+
+<span class="comment">-- Construct class.</span>
+
+<span class="keyword">function</span> Class.new(name)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({
+
+    name = name,
+
+    properties = {},
+
+    funcs = {},
+
+    includes = {}
+
+  }, Class)
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Use property in class.</span>
+
+<span class="keyword">function</span> Class:property(ccode)
+
+  <span class="keyword">local</span> prop = parse_property(ccode)
+
+  <span class="library">table.insert</span>(self.properties, prop)
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Use (member) function in class.</span>
+
+<span class="keyword">function</span> Class:func(ccode)
+
+  <span class="keyword">local</span> func = parse_func(ccode)
+
+  <span class="library">table.insert</span>(self.funcs, func)
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Use include in class.</span>
+
+<span class="keyword">function</span> Class:include(ccode)
+
+  <span class="keyword">local</span> include = parse_include(ccode)
+
+  <span class="library">table.insert</span>(self.includes, include)
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Return string of C++ code for class declaration.</span>
+
+<span class="keyword">function</span> Class:declaration()
+
+  <span class="keyword">local</span> cfields = <span class="string">""</span>
+
+  <span class="keyword">for</span> _,prop <span class="keyword">in</span> <span class="library">ipairs</span>(self.properties) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> cfield = <span class="string">"  %type %name;\n"</span>
+
+    cfield = <span class="library">string.gsub</span>(cfield, <span class="string">"%%type"</span>, prop.type)
+
+    cfield = <span class="library">string.gsub</span>(cfield, <span class="string">"%%name"</span>, prop.name)
+
+    cfields = cfields .. cfield
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> cpubs = <span class="string">""</span>
+
+  <span class="keyword">for</span> _,prop <span class="keyword">in</span> <span class="library">ipairs</span>(self.properties) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> cfield =
+
+        <span class="string">"  %type get_%name() const { return %name; }\n"</span> ..
+
+        <span class="string">"  void set_%name(%type _) { %name = _; }\n"</span>
+
+    cfield = <span class="library">string.gsub</span>(cfield, <span class="string">"%%type"</span>, prop.type)
+
+    cfield = <span class="library">string.gsub</span>(cfield, <span class="string">"%%name"</span>, prop.name)
+
+    cpubs = cpubs .. cfield
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">for</span> _,func <span class="keyword">in</span> <span class="library">ipairs</span>(self.funcs) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> mods = (func.mods == <span class="string">""</span>) <span class="keyword">and</span> <span class="string">""</span> <span class="keyword">or</span> <span class="string">" "</span> .. func.mods
+
+    <span class="keyword">local</span> cfunc = <span class="string">"  "</span> .. func.type .. <span class="string">" "</span> .. func.name .. <span class="string">"("</span> .. func.args .. <span class="string">")"</span> .. mods .. <span class="string">";\n"</span>
+
+    cpubs  = cpubs .. cfunc
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> c = subst(<span class="string">[[
+
+class %(name) {
+
+public:
+
+  %(name)::%(name)();
+
+  explicit %(name)::%(name)(const %(name) &amp; other);
+
+  %(name) &amp; operator=(const %(name) &amp; other);
+
+%(cpubs)
+
+private:
+
+%(cfields)
+
+};
+
+]]</span>, {name = self.name, cpubs = cpubs, cfields = cfields})
+
+  <span class="keyword">return</span> c
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Return string of C++ code for class implementation.</span>
+
+<span class="keyword">function</span> Class:implementation()
+
+  <span class="keyword">local</span> cinit = <span class="string">""</span>
+
+  <span class="keyword">if</span> #self.properties &gt; 0 <span class="keyword">then</span>
+
+    <span class="keyword">for</span> _,prop <span class="keyword">in</span> <span class="library">ipairs</span>(self.properties) <span class="keyword">do</span>
+
+      cinit = cinit .. <span class="string">", "</span> .. prop.name .. <span class="string">"("</span> .. prop.default .. <span class="string">")"</span>
+
+    <span class="keyword">end</span>
+
+    cinit = <span class="string">":"</span> .. <span class="library">string.sub</span>(cinit, 2)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> cinit3 = <span class="string">""</span>
+
+  <span class="keyword">if</span> #self.properties &gt; 0 <span class="keyword">then</span>
+
+    <span class="keyword">for</span> _,prop <span class="keyword">in</span> <span class="library">ipairs</span>(self.properties) <span class="keyword">do</span>
+
+      cinit3 = cinit3 .. <span class="string">", "</span> .. prop.name .. <span class="string">"(other."</span> .. prop.name .. <span class="string">")"</span>
+
+    <span class="keyword">end</span>
+
+    cinit3 = <span class="string">":"</span> .. <span class="library">string.sub</span>(cinit3, 2)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> cassigninit = <span class="string">""</span>
+
+  <span class="keyword">if</span> #self.properties &gt; 0 <span class="keyword">then</span>
+
+    <span class="keyword">for</span> _,prop <span class="keyword">in</span> <span class="library">ipairs</span>(self.properties) <span class="keyword">do</span>
+
+      cassigninit = cassigninit .. <span class="string">"  "</span> .. prop.name .. <span class="string">" = other."</span> .. prop.name .. <span class="string">";\n"</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> cfuncs = <span class="string">""</span>
+
+  <span class="keyword">for</span> _,func <span class="keyword">in</span> <span class="library">ipairs</span>(self.funcs) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> cfunc = format_funcdef(func, self.name)
+
+    cfuncs  = cfuncs .. cfunc
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> c = subst(<span class="string">[[
+
+%(name)::%(name)() %(cinit)
+
+{
+
+}
+
+%(name)::%(name)(const %(name) &amp; other) %(cinit3)
+
+{
+
+}
+
+  %(name) &amp;
+
+%(name)::operator=(const %(name) &amp; other) {
+
+%(cassigninit)
+
+}
+
+%(cfuncs)
+
+]]</span>, {cinit3 = cinit3, cassigninit = cassigninit, cinit = cinit,
+
+     name = self.name, cfuncs = cfuncs})
+
+  <span class="keyword">return</span> c
+
+<span class="keyword">end</span>
+
+
+
+Module = {}
+
+Module.__index = Module
+
+<span class="library">setmetatable</span>(Module, {__call = <span class="keyword">function</span>(self, ...) <span class="keyword">return</span> Module.new(...) <span class="keyword">end</span>})
+
+<span class="comment">-- Construct module.</span>
+
+<span class="keyword">function</span> Module.new(name)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({
+
+    name = name,
+
+    includes = {},
+
+    using_namespaces = {},
+
+    classes = {},
+
+    funcs = {}
+
+  }, Module)
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Use include in module.</span>
+
+<span class="keyword">function</span> Module:include(ccode)
+
+  <span class="keyword">local</span> include = parse_include(ccode)
+
+  <span class="library">table.insert</span>(self.includes, include)
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Use namespace in module.</span>
+
+<span class="keyword">function</span> Module:using_namespace(name)
+
+  name = trim(name)
+
+  <span class="library">table.insert</span>(self.using_namespaces, name)
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Define class in module.</span>
+
+<span class="keyword">function</span> Module:class(o)
+
+  <span class="library">table.insert</span>(self.classes, o)
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Define function in module.</span>
+
+<span class="keyword">function</span> Module:func(ccode)
+
+  <span class="keyword">local</span> func = parse_func(ccode)
+
+  <span class="library">table.insert</span>(self.funcs, func)
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Return srting of C++ code for module header.</span>
+
+<span class="keyword">function</span> Module:header()
+
+  <span class="keyword">local</span> cincludes = <span class="string">""</span>
+
+  <span class="keyword">local</span> includes = {}
+
+  <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(includes) <span class="keyword">do</span> includes[#includes+1] = v <span class="keyword">end</span>
+
+  <span class="keyword">for</span> _,class <span class="keyword">in</span> <span class="library">ipairs</span>(self.classes) <span class="keyword">do</span>
+
+    <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(class.includes) <span class="keyword">do</span> includes[#includes+1] = v <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> found = {}
+
+  <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(includes) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> v.visibility == <span class="string">"public"</span> <span class="keyword">and</span> <span class="keyword">not</span> found[v[1]] <span class="keyword">then</span>
+
+      cincludes = cincludes .. <span class="string">"#include "</span> .. v[1] .. <span class="string">"\n"</span>
+
+      found[v[1]] = <span class="keyword">true</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> cclassdecs = <span class="string">""</span>
+
+  <span class="keyword">for</span> _,class <span class="keyword">in</span> <span class="library">ipairs</span>(self.classes) <span class="keyword">do</span>
+
+    cclassdecs = cclassdecs .. class:declaration()
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> c = subst(<span class="string">[[
+
+#ifndef MODULE_%(name)
+
+#define MODULE_%(name)
+
+%(cincludes)
+
+%(cclassdecs)
+
+#endif // first include
+
+]]</span>, {name = self.name, cincludes = cincludes, cclassdecs = cclassdecs})
+
+  <span class="keyword">return</span> c
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Return string of C++ code for module implementation.</span>
+
+<span class="keyword">function</span> Module:implementation()
+
+  <span class="keyword">local</span> cincludes = <span class="string">""</span>
+
+  <span class="keyword">local</span> found = {}
+
+  <span class="keyword">for</span> _,class <span class="keyword">in</span> <span class="library">ipairs</span>(self.classes) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> includes = class.includes
+
+    <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(includes) <span class="keyword">do</span>
+
+      <span class="keyword">if</span> v.visibility == <span class="string">"private"</span> <span class="keyword">and</span> <span class="keyword">not</span> found[v[1]] <span class="keyword">then</span>
+
+        cincludes = cincludes .. <span class="string">"#include "</span> .. v[1] .. <span class="string">"\n"</span>
+
+        found[v[1]] = <span class="keyword">true</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> cusings = <span class="string">""</span>
+
+  <span class="keyword">for</span> _,ns <span class="keyword">in</span> <span class="library">ipairs</span>(self.using_namespaces) <span class="keyword">do</span>
+
+    cusings = cusings .. <span class="string">"using namespace "</span> .. ns .. <span class="string">";\n"</span>;
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> cdefs = <span class="string">""</span>
+
+  <span class="keyword">for</span> _,class <span class="keyword">in</span> <span class="library">ipairs</span>(self.classes) <span class="keyword">do</span>
+
+    cdefs = cdefs .. class:implementation() .. <span class="string">"\n"</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> cfuncs = <span class="string">""</span>
+
+  <span class="keyword">for</span> _,func <span class="keyword">in</span> <span class="library">ipairs</span>(self.funcs) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> cfunc = format_funcdef(func)
+
+    cfuncs  = cfuncs .. cfunc
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> c = subst(<span class="string">[[
+
+#include "%(name).h"
+
+%(cincludes)
+
+%(cusings)
+
+%(cdefs)
+
+%(cfuncdefs)
+
+]]</span>, {name = self.name, cdefs = cdefs, cincludes = cincludes,
+
+     cfuncdefs = cfuncs, cusings = cusings})
+
+
+
+  <span class="keyword">return</span> c
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Write module sources to files.</span>
+
+<span class="keyword">function</span> Module:write()
+
+  <span class="keyword">local</span> fh = <span class="library">assert</span>(<span class="library">io.open</span>(self.name .. <span class="string">".h"</span>, <span class="string">"w"</span>))
+
+  fh:write(self:header())
+
+  fh:close()
+
+  <span class="keyword">local</span> fh = <span class="library">assert</span>(<span class="library">io.open</span>(self.name .. <span class="string">".cpp"</span>, <span class="string">"w"</span>))
+
+  fh:write(self:implementation())
+
+  fh:close()
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CppMetaprogramming" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CppMetaprogramming" >history</a><br>Last edited February 15, 2007 1:47 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CppMetaprogramming" >(diff)</a>
+</body>
+</html>

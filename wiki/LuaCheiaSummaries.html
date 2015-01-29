@@ -1,0 +1,244 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Cheia Summaries</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaCheiaSummaries&amp;body=1" title="List pages referring to LuaCheiaSummaries">Lua Cheia Summaries</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2><a href="../wiki/LuaCheia.html" >LuaCheia</a> Mailing List Summaries</H2>
+<p>
+Currently this is limited to important decisions being made by the group. I will also put up important milestones. Should be updated weekly, probably on Tuesdays.  - <a href="../wiki/ThomasWrensch.html" >ThomasWrensch</a>
+<p>
+<hr><H3>Monday, February 24, 2003</H3>
+<p>
+<strong>Threading Libraries</strong>
+<p>
+Discussion of which threading library to use. Some suggestions were:
+<DL>
+<dt><dd>- Pthreads
+<dt><dd>- SDL threads
+<dt><dd>- "Cheap Threads..." article
+</DL>
+<p>
+No decision reached.
+<p>
+<strong>Extensions used for different platforms</strong>
+<p>
+What extensions to use for different platforms? There seems to be two possibilities: Use a standard extension for all systems (many suggestions, including .x, .lux, .lch, etc.), or use the native platform extensions.
+<p>
+The consensus seems to be to use the platform standard file extension.
+<p>
+<strong>CVS Structure</strong>
+<p>
+Considerable discussion of CVS structure. Issues:
+<DL>
+<dt><dd>- Including Lua source in the CVS?
+<dt><dd>- Overall structure changes suggested.
+</DL>
+<p>
+Lua 5.0b sources added to the CVS (minus 'test' directory)
+Many of the overall structure change suggestions were agreed to. Some were made (?). Still in flux.
+<p>
+<strong>Posting to <a href="../wiki/LuaCheia.html" >LuaCheia</a> Mailing List</strong>
+<p>
+Limit posting to <a href="../wiki/LuaCheia.html" >LuaCheia</a> mailing list to people who have joined the project?
+<p>
+Consensus seems to be "yes". To do otherwise would make decision-making difficult.
+<p>
+<strong># Comments</strong>
+<p>
+Modify Lua in <a href="../wiki/LuaCheia.html" >LuaCheia</a> to accept #-line as a comment? (Actually only requires supplying a block reading function, at least in Lua 5.0).
+<p>
+It's been suggested that this is resolved as a separate readconfig() or some such function that is not part of the language. Couldn't confirm based on mailing list traffic. Needs confirmation.
+<p>
+<strong>Where do Lua Scripts Reside?</strong>
+<p>
+There was some question about where small tool scripts (in Lua) reside.
+<p>
+Unresolved.
+<p>
+<strong>Placement of <a href="../wiki/LuaCheia.html" >LuaCheia</a> module in Lua</strong>
+<p>
+Placement of the luacheia module in the global namespace of Lua. Should it be its own module (in the global 'luacheia' or part of the 'lib' module structure: 'lib.cheia').
+<p>
+Seems to be moving toward use of lib.cheia rather than a separate module name in the global space.
+<p>
+<strong>listdir function issues</strong>
+<p>
+Problem with listdir function: can't determine if a file is a subdirectory or not. Suggested solutions:
+<DL>
+<dt><dd>- Use listdir again to determine if subdir
+<dt><dd>- Mark name of directories (trailing '/' char)
+<dt><dd>- Make subdirectories subtables
+</DL>
+<p>
+Seems to be moving toward use of trailing '/' if a portable technique can be found, or use of a second listdir if not. May be able to handle conversion between these two in Lua rather than C.
+<p>
+<strong>Moving from C to Lua</strong>
+<p>
+Suggestion to move many of the functions currently stubbed out in luacheia.c (?) to Lua functions rather than C functions.
+<p>
+Several people have agreed to this, but not enough to make it a consensus.
+<p>
+<p>
+<strong>Commenting Style</strong>
+<p>
+Commenting style: put comments before or after the function prototype?
+<p>
+Consensus seems to be that either is fine, but we should probably pick one as the standard.
+(Note: Choice will probably move to after because much of the existing code is done that way).
+<p>
+<strong>Use DevCPP/MinGW for Win32</strong>
+<p>
+Move to DevCPP/MinGW for windows port (rather than MSVC).
+<p>
+Seems to be a consensus (and a good idea to boot!)
+<p>
+<p>
+<hr><H3>Monday, February 17, 2003</H3>
+<p>
+<strong>GUI APIs</strong>
+<p>
+Considerable discussion early on, main contenders seem to be FLTK and a somewhat stripped down wxWindows. Decision seems to be not to limit ourselves to a particular kit yet, as the overall architecture that's emerging can accomidate multiple different GUI systems.
+<p>
+<p>
+<strong>Modules</strong>
+<p>
+Here are some of the modules suggested to include in <a href="../wiki/LuaCheia.html" >LuaCheia</a>:
+<p>
+<UL>
+<li> PCRE (perl compatible regular expressions)
+<li> SDL
+<li> SDL_image
+<li> SDL_ttf
+<li> SDL_mixer
+<li> FLTK
+<li> wxWindows (just basic GUI)
+<li> wxWindows.<code>Scintilla</code>
+<li> wxWindows.<code>TableControl</code> (etc.)
+<li> SQL / <code>SQLite</code>
+<li> Threads
+<li> <code>BigNumbers</code>
+<li> Basic OOP
+<li> <code>LuaSocket</code>/<code>LuaSock</code>-like support
+</UL>
+<p>
+This is not a hard and fast list and should grow and change over time.
+<p>
+<strong>Module naming/namespace issues</strong>
+<p>
+A LOT of discussion, but the group seems to have settled on the use of a hierarchy of names with 'lib' as the global root for libraries and 'luacheia' as  the global name for the basic <a href="../wiki/LuaCheia.html" >LuaCheia</a> functionality. Also suggested that the load function return the function table so that it can be assigned as a shortcut. Something like:
+<p>
+<pre>
+
+   SDL = cheiaload("sdl.x")
+
+</pre>
+<p>
+Which would place a module in <code>lib.SDL</code> and also in the global SDL for
+"quick" reference.
+<p>
+<p>
+<strong>Logo (Icons)</strong>
+<p>
+Logo are sticky closely to the idea of a modified Lua logo. Several logos suggested, and placed on a web site at different sizes:
+<p>
+<a href="http://luacheia.lua-users.org/images/icons.gif">[http://luacheia.lua-users.org/images/icons.gif]</a>
+<p>
+Every seems happy with some/all of these, but no final decision has been
+made.
+<p>
+<strong>Lua version 4 and/or 5</strong>
+<p>
+This seems to be unresolved, but leaning toward focusing on Lua 5. Major arguments are:
+<p>
+<UL>
+<li> Lua 5 is the future, why work with an old version.
+<li> Lua 4 is current, and has lots of working libraries.
+</UL>
+<p>
+<p>
+<strong>Startup loading of modules</strong>
+<p>
+A general approach to startup/loading of modules was proposed. Here it is directly from the list:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; 1) When Cheialib is initialised, it adds various module-loading and
+
+&gt; directory-scanning functions to the Lua state, in the luacheia table.
+
+&gt; It also adds a some variables, like a variable containing the name  
+
+&gt; of the platform: luacheia.platform
+
+&gt; 2) Luacheia then looks for a "boot script" that contains
+
+&gt; Lua wrappers of these low level C functions using local variables
+
+&gt; and setglobals(). The boot script is at a precomiled location
+
+&gt; (on POSIX), or in the program's own directory (on Windows),
+
+&gt; when all the hlua wrapper functions are defined, most of the global
+
+&gt; low level luacheia functions are disabled (apart from the directory
+
+&gt; scanning ones.).
+
+&gt; 3) The boot script then looks for modules it has to load,
+
+&gt; and loads them using the wrappers, finally retuirning control
+
+&gt; to the Lua interpreter.
+
+</pre>
+</DL>
+<p>
+<p>
+Several people thought this was a good approach, but not enough to have
+me say it is emerging as a group decision.
+<p>
+<strong>Static versus Dynamic linking</strong>
+<p>
+Dynamic seems to be the preference with several people pointing out that
+there are very good reasons to allow for static linking, such as OSes
+that don't support dynamic libraries and the creating of all-in-one
+binaries.
+<p>
+There's an emerging agreement to do dynamic linking while
+trying to make the building of staticly linked versions as easy as
+possible.
+<p>
+<p>
+<strong>Ship only on full moon</strong>
+<p>
+Suggested, agreed on by quite a few people. Seems to be a firm decision.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaCheiaSummaries" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaCheiaSummaries" >history</a><br>Last edited October 13, 2005 6:51 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaCheiaSummaries" >(diff)</a>
+</body>
+</html>

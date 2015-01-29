@@ -1,0 +1,195 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Latex</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteLatex&amp;body=1" title="List pages referring to SciteLatex">Scite Latex</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Typografic quotes and auto section closing</H3>
+<p>
+Load this script for .tex files and it will automatically insert \end{group} when you hit enter after a \begin{group}. It's not perfect, but it works most of the time for my LaTeX code formatting style. It will also replace the normal inch-symbols (") with the appropriate (German) symbol ("` and "').
+<pre class="code">
+prevquote=<span class="string">"'"</span>;
+
+nextquote=<span class="string">"`"</span>;
+
+
+
+<span class="keyword">function</span> ReplaceQuote()
+
+	at = editor.CurrentPos;
+
+	editor:insert(at, nextquote);
+
+	editor:GotoPos(at+1);
+
+	prevquote, nextquote = nextquote, prevquote;
+
+<span class="keyword">end</span>;
+
+
+
+
+
+<span class="keyword">function</span> CheckBlock()
+
+	<span class="keyword">local</span> m_end = 0;
+
+	<span class="keyword">local</span> senv, env;
+
+	
+
+	line = editor:LineFromPosition(editor.CurrentPos);
+
+	str = editor:GetLine(line-1);
+
+	
+
+	<span class="comment">-- look for last \begin{foo}</span>
+
+	<span class="keyword">repeat</span>
+
+		senv = env;
+
+		m_start, m_end, env = <span class="library">string.find</span>(str, <span class="string">'\\begin{(.-)}'</span>, m_end);
+
+	<span class="keyword">until</span> m_start == <span class="keyword">nil</span>;
+
+	
+
+	<span class="comment">-- add \end{foo}</span>
+
+	<span class="keyword">if</span>(senv) <span class="keyword">then</span>
+
+		<span class="keyword">local</span> pos = editor.CurrentPos;
+
+		editor:insert(pos,
+
+			<span class="string">"\\end{"</span>..senv..<span class="string">'}'</span>);
+
+	<span class="keyword">end</span>;
+
+<span class="keyword">end</span>;
+
+
+
+
+
+<span class="keyword">function</span> OnChar(char)
+
+	<span class="keyword">if</span>(char==<span class="string">'"'</span>) <span class="keyword">then</span>
+
+		ReplaceQuote();
+
+	<span class="keyword">elseif</span>(char==<span class="string">"\n"</span>) <span class="keyword">then</span>
+
+		CheckBlock();
+
+	<span class="keyword">end</span>;
+
+<span class="keyword">end</span>;
+
+</pre>
+
+<em>-- SebastianSteinlechner<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SebastianSteinlechner" >?</a></em>
+<p>
+<H3>Command shortcuts</H3>
+This is a framework for mapping e.g. \frac{}{} to a key combination. Sorry, no automation yet, you have to manually add the appropriate command entries in you latex.properties file.
+<pre class="code">
+<span class="keyword">function</span> add_tags(a, b)
+
+	<span class="keyword">if</span>(editor:GetSelText() ~= <span class="string">''</span>) <span class="keyword">then</span>
+
+		editor:ReplaceSel(a .. editor:GetSelText() .. b);
+
+	<span class="keyword">else</span>
+
+		editor:insert(editor.CurrentPos, a..b);
+
+		editor:GotoPos(editor.CurrentPos + <span class="library">string.len</span>(a));
+
+	<span class="keyword">end</span>;
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> tex_frac()
+
+	add_tags(<span class="string">'\\frac{'</span>, <span class="string">'}{}'</span>);
+
+<span class="keyword">end</span>;
+
+
+
+<span class="keyword">function</span> tex_up()
+
+	add_tags(<span class="string">'^{'</span>, <span class="string">'}'</span>);
+
+<span class="keyword">end</span>;
+
+
+
+<span class="keyword">function</span> tex_down()
+
+	add_tags(<span class="string">'_{'</span>, <span class="string">'}'</span>);
+
+<span class="keyword">end</span>;
+
+</pre>
+
+<em>-- SebastianSteinlechner<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SebastianSteinlechner" >?</a></em>
+<p>
+<H3>Tab arrays to Tex arrays</H3>
+If you copy&amp;paste a table from e.g. Excel / OOo Calc, it will be tab separated. Mark the lines and run this script over it, and it will come out with tabs (\t) replaced by \t&amp;, and lines ended with \\.
+<pre class="code">
+<span class="keyword">function</span> tex_makearray()
+
+	<span class="keyword">if</span>(editor:GetSelText() == <span class="string">''</span>) <span class="keyword">then</span>
+
+		<span class="keyword">return</span>;
+
+	<span class="keyword">end</span>;
+
+	
+
+	<span class="keyword">local</span> mytext = editor:GetSelText();
+
+	mytext = <span class="library">string.gsub</span>(mytext, <span class="string">"\t"</span>, <span class="string">"\t&amp; "</span>);
+
+	mytext = <span class="library">string.gsub</span>(mytext, <span class="string">"\n"</span>, <span class="string">"\\\\\n"</span>);
+
+	editor:ReplaceSel(mytext);
+
+<span class="keyword">end</span>;
+
+</pre>
+
+<em>-- SebastianSteinlechner<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SebastianSteinlechner" >?</a></em>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteLatex" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteLatex" >history</a><br>Last edited August 31, 2006 7:55 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteLatex" >(diff)</a>
+</body>
+</html>

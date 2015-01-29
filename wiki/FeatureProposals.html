@@ -1,0 +1,185 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Feature Proposals</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FeatureProposals&amp;body=1" title="List pages referring to FeatureProposals">Feature Proposals</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Some of these are less actual feature proposals than discussion areas for various supposed Lua warts (which may have multiple solutions)...
+<p>
+<strong>Core</strong>
+<p>
+<UL>
+<li> <strong>Lua function calls can block indefinitely</strong>.  Debug hooks with a yield provide only a partial way around this.  See <a href="../wiki/NonBlockingLuaExecution.html" >NonBlockingLuaExecution</a>.
+<li> Support 64-bit integers as a native Lua type.  The current 'number' type as a double doesn't give 64-bit precision, but many apps which embed Lua need 64-bit integers, forcing them to handle it with a userdata - but that doesn't work for standard-library functions like math and tonumber() coercions.  Considering most computers are now 64-bit CPUs and more will be by the time the next major Lua version becomes popular, the ability to use 64-bit integers will become more important.
+</UL>
+<p>
+<strong>Libraries and Functionality</strong>
+<p>
+<UL>
+<li> <strong>Standardization for commonly needed non-ANSI C functionality</strong> is lacking (e.g. chdir/list-dir, sleep, ...).  See <a href="../wiki/StandardLibraries.html" >StandardLibraries</a>/<a href="../wiki/ExtensionProposal.html" >ExtensionProposal</a>.  One suggestion is for Lua to at least define the interface for these function even if it does not include an implementation (for ANSI C reasons).
+<li> <strong>Allow chaining of table.sort()</strong>. Make <code>table.sort(t, comp)</code> return <code>t</code> just like <code>setmetatable()</code> does. This seems to be just a matter of adding a <code>lua_settop(L, 1);</code> and changing the return value from 0 to 1 in the <code>sort()</code> function of ltablib.c.
+<li> <strong>Runtime Serialisation</strong>. The <a href="../wiki/EngramProposal.html" >EngramProposal</a> to leverage the dump format for messaging and persistence serialisation.
+</UL>
+<p>
+<strong>Syntax</strong>
+<p>
+<UL>
+<li> <strong>A macro/syntax-extension facility</strong> is commonly wanted.  There are various implementations: Metalua<a href="http://metalua.luaforge.net">[1]</a>, luaSub<a href="http://luaforge.net/projects/luasuper/">[2]</a>, <a href="../wiki/LuaFish.html" >LuaFish</a>, <a href="../wiki/LuaMacro.html" >LuaMacro</a>, and token filters.
+<li> <strong><a href="../wiki/ShortAnonymousFunctions.html" >ShortAnonymousFunctions</a> are verbose</strong>, e.g. <code>|x| x*x</code> rather than <code>function(x) return x*x end</code>.  This is fairly frequently noted.
+<li> <strong><a href="../wiki/StatementsInExpressions.html" >StatementsInExpressions</a></strong> are not supported (without resorting to anonymous closures), which limits expressibility and some macro applications.
+<li> <strong><a href="../wiki/CustomOperators.html" >CustomOperators</a></strong> are currently not directly supported.
+<li> <strong><a href="../wiki/AssociativityOfConcatenation.html" >AssociativityOfConcatenation</a> <code>..</code> is right associative</strong> and limited to about 200 concatentations (same for <code>^</code>), which may be a limitation.
+<li> <strong><a href="../wiki/TernaryOperator.html" >TernaryOperator</a></strong> (conditional expressions as in C's <code>a ? b : c</code>) are only partly approximated by <code>x and y or b</code>.
+<li> <strong>":" and "." can sometimes be confused</strong> -- see <a href="../wiki/ColonForMethodCall.html" >ColonForMethodCall</a>.
+<li> <strong><a href="../wiki/ExpressionsAsStatements.html" >ExpressionsAsStatements</a></strong> would shorten some code.
+<li> <strong>Constants in octal and binary notation</strong>, e.g. 0d81 0o722 0b0101011101011101111, are not directly supported.
+<li> <strong><a href="../wiki/MakeSuperfluousTokensOptional.html" >MakeSuperfluousTokensOptional</a></strong> (e.g. '<code>then</code>' and '<code>do</code>').  Others strongly objection to this.  This seems unlikely except e.g. via token filtering.
+<li> <strong>Some Lua's syntax (e.g. ~=) is unfamiliar</strong> to those coming from a C language background (!=).  See <a href="../wiki/SyntaxAddition.html" >SyntaxAddition</a>.
+<li> <strong><a href="../wiki/MethodCurry.html" >MethodCurry</a></strong> - have method calls (<code>foo:bar()</code>) without the call part (<code>foo:bar</code>) evaluate to curried closures
+</UL>
+<p>
+<strong>Semantics</strong>
+<p>
+<UL>
+<li> <strong><a href="../wiki/CountingFromOne.html" >CountingFromOne</a></strong> bothers some people.
+<li> <strong><code>dofile</code> doesn't execute in the caller environment</strong> but rather in the global one: <a href="../wiki/DofileNamespaceProposal.html" >DofileNamespaceProposal</a>.
+<li> <strong>Obtaining the source of a Lua function at run-time</strong>: <a href="../wiki/DumpingFunctionsSourcecode.html" >DumpingFunctionsSourcecode</a>
+<li> <a href="../wiki/InfAndNanComparisons.html" >InfAndNanComparisons</a> might be introduced (like the existent ones in C).
+</UL>
+<p>
+<strong>Expressibility</strong>
+<p>
+<UL>
+<li> <strong><code>nil</code> and NaN cannot be stored in tables</strong> -- see <a href="../wiki/StoringNilsInTables.html" >StoringNilsInTables</a>
+<li> <strong>Not all objects are fully virtualizable.</strong>  An object with a metatable currently cannot act as if it were a value of any other type, including the built-in types. <a href="../wiki/LuaVirtualization.html" >LuaVirtualization</a> / <a href="../wiki/GeneralizedPairsAndIpairs.html" >GeneralizedPairsAndIpairs</a>
+<li> <strong>I/O library abstraction</strong>. The I/O library assumes standard file handles are used (stdout/stderr/stdin).  This is frequently not the case for embedded systems, game consoles, and GUI applications.  Patching liolib.lua becomes necessary.  See <a href="/lists/lua-l/2008-07/msg00345.html">LuaList:2008-07/msg00345.html</a> .
+<li> <strong>Varargs and tuples </strong>. See <a href="../wiki/VarargTheSecondClassCitizen.html" >VarargTheSecondClassCitizen</a> .  This might allow varargs (<code>...</code>) to be stored and manipulated more easily and efficiently.  Also, Rici's immutable tuple type proposal with postfix unpack operator <code>...</code>, e.g. <code>e = &lt;4,5&gt;; assert(e[2] == 5); assert(#e == 2); a,b,c... = d,e...; assert(c == &lt;5&gt;); assert(&lt;2,3&gt; .. &lt;4&gt; == &lt;2,3,4&gt;); t[&lt;2,3&gt;] = &lt;3,4&gt;; function f(a...) return function(b...) return a,b end end; assert(&lt;f&lt;1,2&gt;&lt;3,4&gt;&gt; == &lt;&lt;1,2&gt;,&lt;3,4&gt;&gt;)</code>
+<li> <strong><a href="../wiki/TableScopeBlocks.html" >TableScopeBlocks</a></strong> - support new "using..in..end" block to change global scope to table scope
+</UL>
+<p>
+<p>
+<strong>Code Quality/Correctness/Error Handling</strong>
+<p>
+<UL>
+<li> <strong>The <code>module</code> function exposes many warts</strong> in module definition: <a href="../wiki/LuaModuleFunctionCritiqued.html" >LuaModuleFunctionCritiqued</a>. Possibly eliminate or modify this function.
+<li> <strong>Exception handling limitations.</strong>  Resource clean-up on scope exit would avoid needing to write some programs in an awkward way to ensure correctness (e.g. file handle close upon an exception).  See <a href="../wiki/ResourceAcquisitionIsInitialization.html" >ResourceAcquisitionIsInitialization</a>.  try/finally, RAII, and scope exit blocks are proposed.  See Chapter 13 of Lua Programming Gems concerning these limitations.
+<li> <strong><code>level</code> in <code>error(message,level)</code> is cumbersome to manage.</strong> It's not even set in <code>assert</code> -- see <a href="../wiki/LuaCarp.html" >LuaCarp</a>.
+<li> <strong><a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a></strong> is not sufficient for a number of users.  The <code>checkglobals</code> function was recommended for inclusion (in addition to the existing etc/strict.lua and test/globals.lua solutions).
+<UL>
+<li> Sub-issue: Add to the debug library the capability to list the global variables accessed by another function, possibly along the lines of lhf's lbci<a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lbci">[3]</a>.  See "<code>checkglobals</code>" in <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a> for use case.
+</UL>
+<li> <strong>Review Lua scoping (<a href="../wiki/LocalByDefault.html" >LocalByDefault</a>).</strong>  Some have recommended that "nothing-by-default" (neither "local-by-default" not "global-by-default).  See also in relation to <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>.
+</UL>
+<p>
+<strong>Packaging</strong>
+<p>
+<UL>
+<li> <strong>Something like Perl CPAN for Lua</strong> is recommended by a number of users.  <a href="../wiki/LuaRocks.html" >LuaRocks</a> is moving in this direction.
+</UL>
+<p>
+<strong>Coding Style</strong>
+<p>
+<UL>
+<li> <strong>More comments in the Lua source</strong> have been required by a number of people.  This may be internal to the source or external (e.g. a book explaining the source code).  See <a href="../wiki/LuaSource.html" >LuaSource</a>.
+</UL>
+<p>
+<strong>Uncategorized</strong>
+<p>
+<UL>
+<li> <a href="../wiki/TrailingNilParameters.html" >TrailingNilParameters</a> - differences in the handling of extra (or missing) parameters in C and Lua can sometimes be confusing...
+<li> <a href="../wiki/TableConstructors.html" >TableConstructors</a> - better table constructor syntax proposal
+<li> <a href="../wiki/PackagingLuaLibraries.html" >PackagingLuaLibraries</a> - comments on packaging standardization
+<li> The type() function is useful for figuring out built-in Lua types, but not for object-oriented tables/userdata. It would be nice to have a new typeof() function which checks its arg for a new metamethod '__typeof'. For example, an embedding app could give each userdata class/object it pushes a metatable __typeof string for its type, and a Lua module providing table-based objects can do likewise.
+</UL>
+<p>
+<H2>User Maintained Lists</H2>
+<p>
+These user pages maintain lists of feature proposals:
+<p>
+<UL>
+<li> <a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>
+<li> <a href="../wiki/RiciLake.html" >RiciLake</a>
+<li> <a href="../wiki/DavidManura.html" >DavidManura</a>
+</UL>
+<p>
+<H2>Lua 5.2</H2>
+<p>
+<UL>
+<li> <strong>Coroutine yielding</strong> didn't support all use cases.  See <code>yield</code> across a <code>pcall</code><a href="http://coco.luajit.org/">[4]</a>, <a href="../wiki/YieldableForLoops.html" >YieldableForLoops</a>, <a href="../wiki/ResumableVmPatch.html" >ResumableVmPatch</a>, <a href="http://coxpcall.luaforge.net/">[coxpcall]</a>. Mostly resolved in 5.2.
+<li> <strong>Weak tables</strong> establish a contingency relationship between key and value which is not known to the garbage collection algorithm. See <a href="../wiki/GarbageCollectingWeakTables.html" >GarbageCollectingWeakTables</a>.
+<li> <strong><a href="../wiki/BitwiseOperators.html" >BitwiseOperators</a> are frequently needed</strong> but were not in the standard Lua distribution until 5.2.  They were frequently requested and there are many competing implementations.
+<li> <strong><code>continue</code> statements in loops</strong> are not available.  This has been asked for by quite a few people.  See <a href="../wiki/ContinueProposal.html" >ContinueProposal</a>. (Resolved with goto statements in 5.2.)
+<li> <strong>The <a href="../wiki/FrontierPattern.html" >FrontierPattern</a> <code>%f</code></strong> pattern expression was undocumented until 5.2.
+<li> Allow the Lua interpreter to <strong>locate a script from the module search path.</strong>  See <a href="../wiki/ModuleExecutionProposal.html" >ModuleExecutionProposal</a>. Exposed in Lua 5.2 as package.searchpath.
+</UL>
+<p>
+See also <a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a>.
+<p>
+<H2>Past Resolved Issues</H2>
+<p>
+These issues were closed, retracted, or since implemented.
+<p>
+<UL>
+<li> <a href="../wiki/BooleanTypeProposal.html" >BooleanTypeProposal</a> - making a distinction between <code>nil</code> and <code>false</code>
+<li> <a href="../wiki/LuaTableSize.html" >LuaTableSize</a> - discussion about Lua's infamous "<code>n</code>" field (though there are still some issues noted in <a href="../wiki/StoringNilsInTables.html" >StoringNilsInTables</a> above)
+<li> <a href="../wiki/HereDoc.html" >HereDoc</a> - heredoc support - retracted proposal
+</UL>
+<p>
+<H2>Lua Patches</H2>
+<p>
+Some features have been implemented as a non-standard patch: <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a>.  Other ideas are implemented in <a href="../wiki/MetaLuaRecipes.html" >MetaLuaRecipes</a>.
+<p>
+<H2>Miscellaneous Examples</H2>
+<p>
+This prints "1".  Possibly would be better to require that "<code>--[[</code>" comments terminate with "<code>--]]</code>" rather than just "<code>]]</code>".
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--[[
+
+  g = f[x[y]]</span>
+
+  <span class="library">print</span>(1)
+
+<span class="comment">--]]</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H2>Personal Comments</H2>
+<p>
+<em>Can we remove items that are not actually feature proposals from this page (e.g. <a href="../wiki/StoringNilsInTables.html" >StoringNilsInTables</a>)?  Perhaps start LuaWarts<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaWarts" >?</a>.</em>
+<p>
+<DL>
+<dt><dd>I've started restructuring this page in terms of various classes of problems each containing some number of identified problems each having zero or more proposed solutions.  I think the problems themselves are more important and interesting than any one proposed solution when deciding how the language should evolve.  Also, the structure of the <a href="../wiki/ResourceAcquisitionIsInitialization.html" >ResourceAcquisitionIsInitialization</a> and <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a> pages is noteworthy: they similarly describe a problem and follow it by various solutions (including design patterns, patches, metaprogramming/source-filtering solutions, proposed language changes, etc.) and therefore fit this structure well.  Still maybe this all belongs on a different page.  Not all these problems are necessarily solved by language changes, though the existence of them could be a reason to at least consider language changes.--<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FeatureProposals" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FeatureProposals" >history</a><br>Last edited March 24, 2013 5:21 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FeatureProposals" >(diff)</a>
+</body>
+</html>

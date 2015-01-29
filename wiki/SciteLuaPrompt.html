@@ -1,0 +1,231 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Lua Prompt</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteLuaPrompt&amp;body=1" title="List pages referring to SciteLuaPrompt">Scite Lua Prompt</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Interactive SciTE Lua</H3>
+<p>
+This is a little script which uses the <a href="../wiki/SciteExtMan.html" >SciteExtMan</a> script manager and is one of the examples in the download.
+<p>
+It uses the extman <code>scite_OnOutputLine</code> event to grab lines entered in SciTE's output pane, and compile them using <code>loadstring</code>. It gives you a very useful way to interactively evaluate Lua expressions. One-line functions can be defined.
+<p>
+<pre>
+
+Scite/Lua
+
+&gt; = 10 + 20
+
+30
+
+&gt; print 'hello dolly'
+
+hello dolly
+
+&gt; function showkeys(t) for i in t do print(i) end end
+
+&gt; showkeys(table)
+
+setn
+
+insert
+
+getn
+
+foreachi
+
+foreach
+
+sort
+
+remove
+
+concat
+
+&gt; 
+
+</pre>
+<p>
+Event if you don't see yourself as doing Lua programming, this Lua prompt is useful as an intelligent calculator. 
+<p>
+Any global function is available. A function <code>load</code> is supplied, which will load Lua code from a file. If called with no argument, it will use the current buffer. The function <code>edit</code> will open the specified file in a new buffer. There is pop-down history list available using <code>Tools|Last Command</code>, which is <code>Ctrl-Alt-P</code>.
+<p>
+It is particularly useful for learning the SciTE and Scintilla API, since both the <code>editor</code> and <code>output</code> pane objects are directly accessible.  You can test a particular operation before writing a full-blown script.
+<p>
+<pre>
+
+&gt; = output.Length
+
+405
+
+&gt; output:AppendText('hello, world!\n')
+
+hello, world!
+
+&gt; 
+
+</pre>
+<p>
+<H3>Issues</H3>
+<p>
+The SciTE Lua environment has a nasty suprise for people expecting global objects to survive for the whole session. If you switch buffers in SciTE, the global environment is cleared out. Only global objects created initially in files loaded by your Lua startup script will be preserved.
+<p>
+<p>
+<H3>Source</H3>
+The source is found in <a href="/files/wiki_insecure/editors/SciTE/extman.zip">Files:wiki_insecure/editors/SciTE/extman.zip</a>.
+<p>
+<pre class="code">
+ <span class="comment">-- prompt.lua</span>
+
+ scite_Command(<span class="string">'Last Command|do_command_list|Ctrl+Alt+P'</span>)
+
+
+
+ <span class="keyword">local</span> prompt = <span class="string">'&gt; '</span>
+
+ <span class="keyword">local</span> history_len = 4
+
+ <span class="keyword">local</span> prompt_len = <span class="library">string.len</span>(prompt)
+
+ <span class="library">print</span> <span class="string">'Scite/Lua'</span>
+
+ trace(prompt)
+
+
+
+ <span class="keyword">function</span> <span class="library">load</span>(file)
+
+	<span class="keyword">if</span> <span class="keyword">not</span> file <span class="keyword">then</span> file = props[<span class="string">'FilePath'</span>] <span class="keyword">end</span>
+
+	<span class="library">dofile</span>(file)
+
+ <span class="keyword">end</span>
+
+
+
+ <span class="keyword">function</span> edit(file)
+
+	scite.Open(file)
+
+ <span class="keyword">end</span>
+
+
+
+ <span class="keyword">local</span> sub = <span class="library">string.sub</span>
+
+ <span class="keyword">local</span> commands = {}
+
+
+
+ <span class="keyword">local</span> <span class="keyword">function</span> strip_prompt(line)
+
+   <span class="keyword">if</span> sub(line,1,prompt_len) == prompt <span class="keyword">then</span>
+
+        line = sub(line,prompt_len+1)
+
+    <span class="keyword">end</span>	
+
+	<span class="keyword">return</span> line
+
+ <span class="keyword">end</span>
+
+  
+
+ scite_OnOutputLine (<span class="keyword">function</span> (line)
+
+	line = strip_prompt(line)
+
+   <span class="library">table.insert</span>(commands,1,line)
+
+    <span class="keyword">if</span> <span class="library">table.getn</span>(commands) &gt; history_len <span class="keyword">then</span>
+
+        <span class="library">table.remove</span>(commands,history_len+1)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> sub(line,1,1) == <span class="string">'='</span> <span class="keyword">then</span>
+
+        line = <span class="string">'print('</span>..sub(line,2)..<span class="string">')'</span>
+
+    <span class="keyword">end</span>    
+
+    <span class="keyword">local</span> f,err = <span class="library">loadstring</span>(line,<span class="string">'local'</span>)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> f <span class="keyword">then</span> 
+
+      <span class="library">print</span>(err)
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">local</span> ok,res = <span class="library">pcall</span>(f)
+
+      <span class="keyword">if</span> ok <span class="keyword">then</span>
+
+         <span class="keyword">if</span> res <span class="keyword">then</span> <span class="library">print</span>(<span class="string">'result= '</span>..res) <span class="keyword">end</span>
+
+      <span class="keyword">else</span>
+
+         <span class="library">print</span>(res)
+
+      <span class="keyword">end</span>      
+
+    <span class="keyword">end</span>
+
+    trace(prompt)
+
+    <span class="keyword">return</span> <span class="keyword">true</span>
+
+<span class="keyword">end</span>)
+
+
+
+<span class="keyword">function</span> insert_command(cmd)
+
+	output:AppendText(cmd)
+
+	output:GotoPos(output.Length)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> do_command_list()
+
+     <span class="keyword">if</span> <span class="library">table.getn</span>(commands) &gt; 1 <span class="keyword">then</span> 
+
+		scite_UserListShow(commands,1,insert_command)
+
+     <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteLuaPrompt" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteLuaPrompt" >history</a><br>Last edited November 15, 2006 10:34 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteLuaPrompt" >(diff)</a>
+</body>
+</html>

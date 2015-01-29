@@ -1,0 +1,347 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Simple Fit</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SimpleFit&amp;body=1" title="List pages referring to SimpleFit">Simple Fit</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here is a way to fit curves--e.g. straight lines, parabolas, and exponential functions--using <a href="../wiki/LuaMatrix.html" >LuaMatrix</a>.
+<p>
+Download the whole package from:
+<DL>
+<dt><dd><a href="http://luaforge.net/projects/luamatrix/">http://luaforge.net/projects/luamatrix/</a>
+</DL>
+<p>
+The code and method is very simple.
+<p>
+First you get the x values into a table.  Then you concatenate it with the y-values.  Use the Gauss-Jordan Method to get the results for your variables.
+<p>
+The only thing one had to think about with exponential functions was how to make them linear.  That is easy; for example:
+<p>
+<DL>
+<dt><dd><code>y = a * x^b  | ln  ==&gt;  ln(y) = ln( a ) + b * ln( x )</code>
+</DL>
+<p>
+Then one can use <code>fit.linear()</code> again to get the variables a and b.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--///////////////////--</span>
+
+<span class="comment">--// Curve Fitting //--</span>
+
+<span class="comment">--///////////////////--</span>
+
+
+
+<span class="comment">-- v 0.2</span>
+
+
+
+<span class="comment">-- Lua 5.1 compatible</span>
+
+
+
+<span class="comment">-- little add-on to the matrix module, to show some curve fitting</span>
+
+
+
+<span class="comment">-- http://luaforge.net/projects/LuaMatrix</span>
+
+<span class="comment">-- http://lua-users.org/wiki/SimpleFit</span>
+
+
+
+<span class="comment">-- Licensed under the same terms as Lua itself.</span>
+
+
+
+<span class="comment">-- requires matrix module</span>
+
+<span class="keyword">local</span> matrix = <span class="library">require</span> <span class="string">"matrix"</span>
+
+
+
+<span class="comment">-- The Fit Table</span>
+
+<span class="keyword">local</span> fit = {}
+
+
+
+<span class="comment">-- Note all these Algos use the Gauss-Jordan Method to caculate equation systems</span>
+
+
+
+<span class="comment">-- function to get the results</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> getresults( mtx )
+
+   <span class="library">assert</span>( #mtx+1 == #mtx[1], <span class="string">"Cannot calculate Results"</span> )
+
+   mtx:dogauss()
+
+   <span class="comment">-- tresults</span>
+
+   <span class="keyword">local</span> cols = #mtx[1]
+
+   <span class="keyword">local</span> tres = {}
+
+   <span class="keyword">for</span> i = 1,#mtx <span class="keyword">do</span>
+
+      tres[i] = mtx[i][cols]
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> <span class="library">unpack</span>( tres )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- fit.linear ( x_values, y_values )</span>
+
+<span class="comment">-- fit a straight line</span>
+
+<span class="comment">-- model (  y = a + b * x  )</span>
+
+<span class="comment">-- returns a, b</span>
+
+<span class="keyword">function</span> fit.linear( x_values,y_values )
+
+   <span class="comment">-- x_values = { x1,x2,x3,...,xn }</span>
+
+   <span class="comment">-- y_values = { y1,y2,y3,...,yn }</span>
+
+   
+
+   <span class="comment">-- values for A matrix</span>
+
+   <span class="keyword">local</span> a_vals = {}
+
+   <span class="comment">-- values for Y vector</span>
+
+   <span class="keyword">local</span> y_vals = {}
+
+
+
+   <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>( x_values ) <span class="keyword">do</span>
+
+      a_vals[i] = { 1, v }
+
+      y_vals[i] = { y_values[i] }
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="comment">-- create both Matrixes</span>
+
+   <span class="keyword">local</span> A = matrix:new( a_vals )
+
+   <span class="keyword">local</span> Y = matrix:new( y_vals )
+
+
+
+   <span class="keyword">local</span> ATA = matrix.mul( matrix.transpose(A), A )
+
+   <span class="keyword">local</span> ATY = matrix.mul( matrix.transpose(A), Y )
+
+
+
+   <span class="keyword">local</span> ATAATY = matrix.concath(ATA,ATY)
+
+
+
+   <span class="keyword">return</span> getresults( ATAATY )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- fit.parabola ( x_values, y_values )</span>
+
+<span class="comment">-- Fit a parabola</span>
+
+<span class="comment">-- model (  y = a + b * x + c * x² )</span>
+
+<span class="comment">-- returns a, b, c</span>
+
+<span class="keyword">function</span> fit.parabola( x_values,y_values )
+
+   <span class="comment">-- x_values = { x1,x2,x3,...,xn }</span>
+
+   <span class="comment">-- y_values = { y1,y2,y3,...,yn }</span>
+
+
+
+   <span class="comment">-- values for A matrix</span>
+
+   <span class="keyword">local</span> a_vals = {}
+
+   <span class="comment">-- values for Y vector</span>
+
+   <span class="keyword">local</span> y_vals = {}
+
+
+
+   <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>( x_values ) <span class="keyword">do</span>
+
+      a_vals[i] = { 1, v, v*v }
+
+      y_vals[i] = { y_values[i] }
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="comment">-- create both Matrixes</span>
+
+   <span class="keyword">local</span> A = matrix:new( a_vals )
+
+   <span class="keyword">local</span> Y = matrix:new( y_vals )
+
+
+
+   <span class="keyword">local</span> ATA = matrix.mul( matrix.transpose(A), A )
+
+   <span class="keyword">local</span> ATY = matrix.mul( matrix.transpose(A), Y )
+
+
+
+   <span class="keyword">local</span> ATAATY = matrix.concath(ATA,ATY)
+
+
+
+   <span class="keyword">return</span> getresults( ATAATY )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- fit.exponential ( x_values, y_values )</span>
+
+<span class="comment">-- Fit exponential</span>
+
+<span class="comment">-- model (  y = a * x^b )</span>
+
+<span class="comment">-- returns a, b</span>
+
+<span class="keyword">function</span> fit.exponential( x_values,y_values )
+
+   <span class="comment">-- convert to linear problem</span>
+
+   <span class="comment">-- ln(y) = ln(a) + b * ln(x)</span>
+
+   <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>( x_values ) <span class="keyword">do</span>
+
+      x_values[i] = <span class="library">math.log</span>( v )
+
+      y_values[i] = <span class="library">math.log</span>( y_values[i] )
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">local</span> a,b = fit.linear( x_values,y_values )
+
+
+
+   <span class="keyword">return</span> <span class="library">math.exp</span>(a), b
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> fit
+
+
+
+<span class="comment">--///////////////--</span>
+
+<span class="comment">--// chillcode //--</span>
+
+<span class="comment">--///////////////--</span>
+
+</pre>
+
+</DL>
+<p>
+Testcode:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- require fit</span>
+
+<span class="comment">-- local fit = require "fit"</span>
+
+<span class="keyword">local</span> fit = <span class="library">dofile</span>( <span class="string">"fit.lua"</span> )
+
+
+
+<span class="library">print</span>( <span class="string">"Fit a straight line "</span> )
+
+<span class="comment">-- x(i) = 2  | 3  | 4  | 5</span>
+
+<span class="comment">-- y(i) = 5  | 9  | 15 | 21</span>
+
+<span class="comment">-- model = y = a +  b * x</span>
+
+<span class="comment">-- r(i) = y(i) - ( a + b * x(i) )</span>
+
+<span class="keyword">local</span> a,b = fit.linear(	{ 2,3, 4, 5 },
+
+			{ 5,9,15,21 } )
+
+<span class="library">print</span>( <span class="string">"=&gt;    y = ( "</span>..a..<span class="string">" )  +  ( "</span>..b..<span class="string">" ) * x"</span>)
+
+
+
+<span class="library">print</span>( <span class="string">"Fit a parabola "</span> )
+
+<span class="keyword">local</span> a, b, c = fit.parabola(	{ 0,1,2,4,6 },
+
+				{ 3,1,0,1,4 } )
+
+<span class="library">print</span>( <span class="string">"=&gt;    y = ( "</span>..a..<span class="string">" )  +  ( "</span>..b..<span class="string">" ) * x  +  ( "</span>..c..<span class="string">" ) * x²"</span>)
+
+
+
+<span class="library">print</span>( <span class="string">"Fit exponential"</span> )
+
+<span class="keyword">local</span> a, b = fit.exponential( {1,  2,  3,  4,   5},
+
+			{1,3.1,5.6,9.1,12.9} )
+
+<span class="library">print</span>( <span class="string">"=&gt;    y = ( "</span>..a..<span class="string">" )  *  x^( "</span>..b..<span class="string">" )"</span>)
+
+</pre>
+
+</DL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SimpleFit" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SimpleFit" >history</a><br>Last edited August 26, 2007 3:40 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SimpleFit" >(diff)</a>
+</body>
+</html>

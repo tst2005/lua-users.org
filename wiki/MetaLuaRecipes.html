@@ -1,0 +1,787 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Meta Lua Recipes</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MetaLuaRecipes&amp;body=1" title="List pages referring to MetaLuaRecipes">Meta Lua Recipes</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+These are examples of <a href="../wiki/MetaLua.html" >MetaLua</a> syntax extensions.
+<p>
+<H2>Postfix if/unless</H2>
+<p>
+Syntax:
+<p>
+<DL>
+<dt><dd><pre>
+
+( `return´ explist? | `break´ ) ( ( `if´ | `unless´ ) expr )?
+
+</pre>
+</DL>
+<p>
+Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+-{ extension <span class="string">'ifpost'</span> }
+
+
+
+<span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span>
+
+  <span class="keyword">break</span> <span class="keyword">if</span> v &gt; 10
+
+  <span class="keyword">break</span> unless v &lt;= 10       <span class="comment">-- equivalent</span>
+
+  <span class="keyword">return</span> 1,2 <span class="keyword">if</span> v == 5
+
+  <span class="keyword">return</span> 1,2 unless v ~= 5   <span class="comment">-- equivalent</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Implementation: [*1]
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- metalua/extension/ifpost.mlua</span>
+
+<span class="comment">-- Supports postfix if/unless syntax</span>
+
+<span class="comment">--   ( return &lt;exprlist&gt;? | break ) ( ( if | unless ) &lt;expr&gt; )?</span>
+
+<span class="comment">-- similar to as in Perl.</span>
+
+<span class="comment">-- Note: this does not conflict with Lua syntax since return/break</span>
+
+<span class="comment">-- must be at the end of a block.</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> returnif_builder (x)
+
+  <span class="keyword">local</span> r, cond = <span class="library">unpack</span>(x)
+
+  <span class="keyword">if</span> cond <span class="keyword">then</span>
+
+    <span class="keyword">return</span> +{stat: <span class="keyword">if</span> -{cond[1]} <span class="keyword">then</span> -{ `Return{<span class="library">unpack</span>(r)} } <span class="keyword">end</span> }
+
+  <span class="keyword">else</span> <span class="keyword">return</span> `Return{<span class="library">unpack</span>(r)} <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> breakif_builder(x)
+
+  <span class="keyword">local</span> cond = <span class="library">unpack</span>(x)
+
+  <span class="keyword">if</span> cond <span class="keyword">then</span> <span class="keyword">return</span> +{block: <span class="keyword">if</span> -{cond[1]} <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>}
+
+  <span class="keyword">else</span> <span class="keyword">return</span> +{block: <span class="keyword">break</span> } <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> unless_builder(x)
+
+  <span class="keyword">local</span> expr = <span class="library">unpack</span>(x)
+
+  <span class="keyword">return</span> +{ <span class="keyword">not</span>( -{expr} ) }
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> return_expr_list_parser = gg.list { 
+
+   mlp.expr, separators = <span class="string">","</span>, terminators = mlp.block.terminators
+
+}
+
+
+
+mlp.lexer:add <span class="string">'unless'</span>
+
+
+
+mlp.stat:del <span class="string">'return'</span>
+
+mlp.stat:add{
+
+  <span class="string">"return"</span>, return_expr_list_parser,
+
+  gg.multisequence {
+
+    {<span class="string">"if"</span>, mlp.expr},
+
+    {<span class="string">"unless"</span>, gg.sequence { mlp.expr, builder=unless_builder } },
+
+  },
+
+  builder = returnif_builder }
+
+
+
+mlp.stat:del <span class="string">'break'</span>
+
+mlp.stat:add{
+
+  <span class="string">"break"</span>,
+
+  gg.multisequence {
+
+    {<span class="string">"if"</span>, mlp.expr},
+
+    {<span class="string">"unless"</span>, gg.sequence { mlp.expr, builder=unless_builder } },
+
+  },
+
+  builder = breakif_builder }
+
+</pre>
+
+</DL>
+<p>
+<H2>Assignments in Expressions</H2>
+<p>
+Syntax:
+<p>
+<DL>
+<dt><dd><pre>
+
+exp ::= var `=´ exp
+
+</pre>
+</DL>
+<p>
+Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+-{ extension <span class="string">'assignmentexpressions'</span> }
+
+
+
+<span class="keyword">local</span> x = t[k] <span class="keyword">or</span> (t[k] = {})
+
+
+
+<span class="comment">-- equivalent to</span>
+
+<span class="keyword">local</span> x = t[k]
+
+<span class="keyword">if</span> <span class="keyword">not</span> x <span class="keyword">then</span> x = {}; t[k] = x <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Implementation: [*1]
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- metalua/extension/assignmentexpressions.mlua</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> builder (op1, _, op2)
+
+  <span class="keyword">local</span> v = mlp.gensym()
+
+  <span class="keyword">local</span> s = `Set{ { op1 }, {v} }
+
+  <span class="keyword">return</span> `Stat{ +{block: <span class="keyword">local</span> -{v} = -{op2}; -{s} }, v }
+
+<span class="keyword">end</span>
+
+mlp.expr.infix:add{ <span class="string">'='</span>, prec=10, assoc=<span class="string">'right'</span>, builder = builder } 
+
+</pre>
+
+</DL>
+<p>
+See also <a href="../wiki/StatementsInExpressions.html" >StatementsInExpressions</a>.
+<p>
+<H2>Expressions as Statements</H2>
+<p>
+Syntax:
+<p>
+<DL>
+<dt><dd><pre>
+
+stat ::= exp
+
+</pre>
+</DL>
+<p>
+Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+-{ extension <span class="string">'expressionstatements'</span> }
+
+
+
+f() <span class="keyword">or</span> <span class="library">error</span> <span class="string">'failed!'</span>
+
+</pre>
+
+</DL>
+<p>
+Implementation: [*1]
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- metalua/extension/expressionstatements.mlua</span>
+
+
+
+<span class="comment">-- We will overwrite mlp.stat.default, which normally handles</span>
+
+<span class="comment">-- assignments and function call statements (assign_or_call_stat_parser).</span>
+
+<span class="comment">-- To avoid breaking assignments, we'll make assignments be</span>
+
+<span class="comment">-- expressions (which are in turn here made statements).</span>
+
+<span class="comment">-- Function calls, on the other hand, are already expressions.</span>
+
+extension <span class="string">'assignmentexpressions'</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> builder (expr)
+
+  <span class="keyword">local</span> v = mlp.gensym()
+
+  <span class="keyword">return</span> +{block: <span class="keyword">local</span> -{v} = -{expr[1]} }
+
+<span class="keyword">end</span>
+
+mlp.stat.default = gg.sequence{mlp.expr, builder = builder }
+
+</pre>
+
+</DL>
+<p>
+See also <a href="../wiki/ExpressionsAsStatements.html" >ExpressionsAsStatements</a>.
+<p>
+<H2>String Interpolation</H2>
+<p>
+Syntax:
+<p>
+<DL>
+<dt><dd><pre>
+
+`${´ expr `}´    (embedded in string literal)
+
+</pre>
+</DL>
+<p>
+Notice that this version of string interpolation has an edge over other solutions: interpolation is done at compile-time, not run-time, so interpolated stuff are compiled only once. -- <a href="../wiki/FabienFleutot.html" >FabienFleutot</a>.
+<p>
+Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+-{ extension <span class="string">'stringinterpolation'</span> }
+
+
+
+<span class="keyword">local</span> x = 5
+
+<span class="library">print</span>(<span class="string">"test ${x+2} asdf"</span>)  <span class="comment">--&gt; 7</span>
+
+</pre>
+
+</DL>
+<p>
+Implementation: [*1]
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- metalua/extension/stringinterpolation.mlua</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> makeparser(f)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+    <span class="keyword">local</span> res = f(...)
+
+    <span class="keyword">if</span> res <span class="keyword">and</span> res.tag == <span class="string">'String'</span> <span class="keyword">then</span>
+
+      <span class="keyword">local</span> s = res[1]
+
+      <span class="keyword">local</span> expr
+
+      <span class="comment">-- note: left-associative. desirable?</span>
+
+      <span class="keyword">local</span> <span class="keyword">function</span> concat(o)
+
+        <span class="keyword">if</span> <span class="keyword">not</span> expr <span class="keyword">then</span>
+
+          expr = o
+
+        <span class="keyword">else</span>
+
+          expr = `Op{<span class="string">'concat'</span>, expr, o}
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">local</span> i = 1
+
+      <span class="keyword">local</span> _ = s:gsub(<span class="string">'(.-)$(%b{})()'</span>,
+
+
+
+         <span class="keyword">function</span>(text, var, pos)
+
+           var = var:sub(2, var:len()-1)
+
+           <span class="keyword">if</span> text ~= <span class="string">''</span> <span class="keyword">then</span> concat(`String{text}) <span class="keyword">end</span>
+
+           <span class="keyword">local</span> expr2 = mlp.expr:parse(mlp.lexer:newstream(var))
+
+           concat( expr2 )
+
+           i = pos
+
+         <span class="keyword">end</span>
+
+      )
+
+      <span class="keyword">local</span> rest = s:sub(i)
+
+      <span class="keyword">if</span> rest ~= <span class="string">''</span> <span class="keyword">then</span> concat(`String{rest}) <span class="keyword">end</span>
+
+      expr = expr <span class="keyword">or</span> `String <span class="string">''</span>
+
+      <span class="keyword">return</span> expr
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> res
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+mlp.expr.primary.default = makeparser(mlp.expr.primary.default)
+
+mlp.expr.suffix.default.parse  = makeparser(mlp.expr.suffix.default.parse)
+
+</pre>
+
+</DL>
+<p>
+See also <a href="../wiki/StringInterpolation.html" >StringInterpolation</a>.
+<p>
+<H2>Multiline String Break Escapes</H2>
+<p>
+Syntax:
+<p>
+<DL>
+<dt><dd><pre>
+
+`$´ (`\r´ | `\n´) ... `$´     (embedded in string literal)
+
+</pre>
+</DL>
+<p>
+Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+-{ extension <span class="string">'stringbreaks'</span> }
+
+
+
+<span class="library">print</span> <span class="string">[[This is a very long sentence $
+
+       $that spans multiple lines and $
+
+       $is very long and spans multiple $
+
+       $lines.]]</span>
+
+</pre>
+
+</DL>
+<p>
+Prints "This is a very long sentence that spans multiple lines and is very long and spans multiple lines." (on one line).
+<p>
+Implementation: [*1]
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- metalua/extension/stringbreaks.mlua</span>
+
+<span class="comment">-- http://lua-users.org/lists/lua-l/2008-01/msg00790.html</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> makeparser(f)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+    <span class="keyword">local</span> res = f(...)
+
+    <span class="keyword">if</span> res <span class="keyword">and</span> res.tag == <span class="string">'String'</span> <span class="keyword">then</span>
+
+      <span class="keyword">local</span> s = res[1]
+
+      s = s:gsub(<span class="string">"%$[\r\n].-%$"</span>, <span class="string">""</span>)
+
+      <span class="keyword">return</span> `String{s}
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> res
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+mlp.expr.primary.default = makeparser(mlp.expr.primary.default)
+
+mlp.expr.suffix.default.parse  = makeparser(mlp.expr.suffix.default.parse)
+
+</pre>
+
+</DL>
+<p>
+Based on suggestion in <a href="/lists/lua-l/2008-01/msg00790.html">LuaList:2008-01/msg00790.html</a> .
+<p>
+<H2>Operator Declarations</H2>
+<p>
+Syntax:
+<p>
+<DL>
+<dt><dd><pre>
+
+stat ::= `infixoperator´ Name
+
+</pre>
+</DL>
+<p>
+Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+ -{ extension <span class="string">'infixoperator'</span> }
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> plus(x,y) <span class="keyword">return</span> x+y <span class="keyword">end</span>
+
+infixoperator plus
+
+
+
+<span class="library">print</span>(2 plus 3)
+
+</pre>
+
+</DL>
+<p>
+Implementation: [*1]
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- metalua/extension/infixoperator.mlua</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> builder (id, prec)
+
+  mlp.lexer:add(id[1][1]) <span class="comment">-- turn infix opname into a keyword</span>
+
+  mlp.expr.infix:add {id[1][1], prec=50, assoc=<span class="string">'left'</span>, builder = |op1, _, op2| `Call{id[1], op1, op2} }
+
+  <span class="keyword">return</span> +{block: }
+
+<span class="keyword">end</span>
+
+
+
+mlp.lexer:add <span class="string">'infixoperator'</span>
+
+mlp.stat:add {<span class="string">'infixoperator'</span>, mlp.id, builder = builder}
+
+</pre>
+
+</DL>
+<p>
+This example could be extended.  See also <a href="../wiki/CustomOperators.html" >CustomOperators</a>.
+<p>
+(Fabien:) Metalua has a native way to use functions at infix positions, borrowed from Haskell: a function name framed between backquotes is an infix, left-associative operator. For instance:
+<pre class="code">
+<span class="keyword">function</span> plus(a,b) <span class="keyword">return</span> a+b <span class="keyword">end</span>
+
+c = 2 `plus` 2
+
+<span class="library">assert</span>(c==4)
+
+</pre>
+
+<p>
+Metalua already defines some useful operators from C: +=, -=. /=, *=. New ones can be added easily:
+<p>
+"!=" as a more familiar alias for "~="
+<DL>
+<dt><dd><pre class="code">
+mlp.lexer:add <span class="string">"!="</span>
+
+mlp.expr.infix:add {
+
+ <span class="string">'!='</span>,
+
+ prec = 30,
+
+ builder = |a, _, b| +{-{a} ~= -{b}}
+
+}
+
+</pre>
+
+</DL>
+"!" as an alias for "not"
+<DL>
+<dt><dd><pre class="code">
+mlp.lexer:add <span class="string">"!"</span>
+
+mlp.expr.prefix:add {
+
+ <span class="string">'!'</span>,
+
+ prec = 80,
+
+ builder = |_, a| +{<span class="keyword">not</span> -{a}}
+
+}
+
+</pre>
+
+</DL>
+"&amp;&amp;" and "||"
+<DL>
+<dt><dd><pre class="code">
+mlp.lexer:add <span class="string">"&amp;&amp;"</span>
+
+mlp.expr.infix:add {
+
+ <span class="string">'&amp;&amp;'</span>,
+
+ prec = 20,
+
+ builder = |a, _, b| +{-{a} <span class="keyword">and</span> -{b}}
+
+}
+
+
+
+mlp.lexer:add <span class="string">"||"</span>
+
+mlp.expr.infix:add {
+
+ <span class="string">'||'</span>,
+
+ prec = 10,
+
+ builder = |a, _, b| +{-{a} <span class="keyword">or</span> -{b}}
+
+}
+
+</pre>
+
+</DL>
+<p>
+There is also a standard way to define new assignment operators: add an operator-&gt;builder entry in table mlp.stat.assignments:
+<p>
+<pre class="code">
+mlp.keywords.add <span class="string">"|="</span>
+
+mlp.stat.assignments[<span class="string">"|="</span>] = <span class="keyword">function</span> (left_expr_list, right_expr_list)
+
+   <span class="library">assert</span> (#left_expr_list==1 <span class="keyword">and</span> #right_expr_list==1)
+
+   <span class="keyword">local</span> left, right = left_expr_list[1], right_expr_list[1]
+
+   <span class="keyword">return</span> -{stat: (-{left}) = -{left} <span class="keyword">or</span> -{right} }
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<H2>label and goto</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+mlp.lexer:add <span class="string">"label"</span>
+
+mlp.stat:add {
+
+ <span class="string">"label"</span>,
+
+ mlp.string,
+
+ builder = |a| `Label{a[1]}
+
+}
+
+
+
+mlp.lexer:add <span class="string">"goto"</span>
+
+mlp.stat:add {
+
+ <span class="string">"goto"</span>,
+
+ mlp.string,
+
+ builder = |a| `Goto{a[1]}
+
+}
+
+</pre>
+
+</DL>
+<p>
+Example:
+<DL>
+<dt><dd><pre class="code">
+goto <span class="string">"foo"</span>
+
+<span class="library">print</span> <span class="string">"you won't see this"</span>
+
+label <span class="string">"foo"</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Constants</H2>
+<p>
+Syntax: identifiers that only contain capital letters and underscores are interpreted as constants that should not be writable to.
+<p>
+Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+ -{ extension <span class="string">'const'</span> }
+
+
+
+<span class="keyword">local</span> y
+
+<span class="keyword">local</span> MAX_SIZE = 10
+
+x,y = 1,2     <span class="comment">-- ok</span>
+
+<span class="library">print</span>(MAX_SIZE)
+
+MAX_SIZE = 11  <span class="comment">-- raises compile time error (writing to constant)</span>
+
+</pre>
+
+</DL>
+<p>
+Implementation: [*1]
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- metalua/extension/const.mlua</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> check(o)
+
+  <span class="keyword">if</span> o <span class="keyword">and</span> o.tag == <span class="string">'Id'</span> <span class="keyword">and</span> o[1]:match(<span class="string">'^[A-Z_]+$'</span>) <span class="keyword">then</span>
+
+    <span class="library">error</span>(<span class="string">'error: writing to constant '</span> .. o[1] .. <span class="string">' at line '</span> .. o.line, 3)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> const_transformer(ast)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> ast <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+  <span class="keyword">if</span> ast.tag == <span class="string">'Set'</span> <span class="keyword">then</span>
+
+    <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(ast[1]) <span class="keyword">do</span>
+
+      check(v)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+mlp.stat.transformers:add(const_transformer)
+
+</pre>
+
+</DL>
+<p>
+This example is rudimentary and could be extended.
+<p>
+<H2>Other Examples in Metalua</H2>
+<p>
+Additional examples are included in Metalua:
+<p>
+<UL>
+<li> <a href="http://repo.or.cz/w/metalua.git?a=tree;f=src/samples">http://repo.or.cz/w/metalua.git?a=tree;f=src/samples</a>
+<li> <a href="http://repo.or.cz/w/metalua.git?a=tree;f=src/lib/extension">http://repo.or.cz/w/metalua.git?a=tree;f=src/lib/extension</a>
+<li> <a href="../wiki/MethodChainingWrapper.html" >MethodChainingWrapper</a> - includes <a href="../wiki/MetaLua.html" >MetaLua</a> example that basically makes the __index metamethod lexically scoped by replacing all index operations with a user-defined function.  One purpose is to allow injection of custom functions into the string table so that those injections don't conflict with any other modules.
+</UL>
+<p>
+<hr>[*1] licensed under the same terms as Lua itself (MIT license).--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/MetaLua.html" >MetaLua</a>
+</UL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MetaLuaRecipes" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MetaLuaRecipes" >history</a><br>Last edited May 6, 2009 5:49 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MetaLuaRecipes" >(diff)</a>
+</body>
+</html>

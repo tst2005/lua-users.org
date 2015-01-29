@@ -1,0 +1,88 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Thomas Jericke</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ThomasJericke&amp;body=1" title="List pages referring to ThomasJericke">Thomas Jericke</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+We use Lua in our automation framework McRobot<a href="/cgi-bin/wiki.pl?action=edit&amp;id=McRobot" >?</a><a href="http://indel.ch/en/software/machine-software/sequence-control">[1]</a>
+<p>
+This page is used to distribute patches that I made in my private time. They should be tested by anyone who is applying them as I never tested any of them on productive Lua code.
+<p>
+It is important to consider that this patches are more for fun (yet).
+<p>
+Currently there is one patch available:
+<p>
+<H2>Optional redundant brackets</H2>
+This patch makes many of the brackets ( Parentheses ) which don't add any information to the code optional.
+<p>
+In the current version of the patch, brackets the following brackets can be left away.
+Method call without any arguments:
+<pre> 
+
+object:method 
+
+-- equals
+
+object:method()
+
+</pre>
+<p>
+Method invocation on any literal (string, number, true, false, nil)
+<pre>
+
+"Hello":upper
+
+-- equals
+
+("Hello"):upper()
+
+43:tostring
+
+-- equals
+
+(43):tostring()
+
+</pre>
+Obviously this change is only practical once a meaningful metatable was set for string, number etc.
+<p>
+Operators on tables (except call operator)
+<pre>
+
+a = { a = 12 }.a 
+
+b = { 1 = 14, 12 = "t" }[a]
+
+</pre>
+<p>
+The patch should be backward compatible for existing Lua 5.2 scripts. 
+This was tested with the Lua test suite where it passed all test with exception of some which tested an error output.
+<p>
+<a href="/files/wiki_insecure/power_patches/5.2/optbrackets-5.2.2.patch">[Download for 5.2.2)]</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ThomasJericke" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ThomasJericke" >history</a><br>Last edited May 21, 2014 9:18 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ThomasJericke" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Forge New Project</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaForgeNewProject&amp;body=1" title="List pages referring to LuaForgeNewProject">Lua Forge New Project</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page is meant to give an introduction to how to use <a href="http://luaforge.net/">[LuaForge]</a> (possibly will be moved later).
+<p>
+<em>disclaimer:  these are currently rather unspecific notes from the top of my head -- I will return here soon after checking the description against the <a href="../wiki/LuaForge.html" >LuaForge</a> UI and will update the page to better reflect reality</em>
+<p>
+<hr>The tasks a new <a href="../wiki/LuaForge.html" >LuaForge</a> user has to do is
+<p>
+<UL>
+<li> create a user account
+<li> register a project
+<li> setup for project administration
+<li> setup for development on the project
+</UL>
+<p>
+<H3>creating a user account</H3>
+<p>
+This one is easy.  
+Either go to the <a href="http://luaforge.net/">[LuaForge main page]</a> and follow the link to 
+create an account from the list of steps to do for new projects at the top.  
+Or go to the "My Page" tab where you can login or create a new account.
+Use this newly created account to login to <a href="../wiki/LuaForge.html" >LuaForge</a>.
+<p>
+for the record: the URL to create an account is <a href="http://luaforge.net/account/register.php">http://luaforge.net/account/register.php</a>
+<p>
+<H3>registering a project</H3>
+<p>
+The top of the <a href="../wiki/LuaForge.html" >LuaForge</a> main page has a link to the page where you apply to 
+have your project hosted on <a href="../wiki/LuaForge.html" >LuaForge</a>.  
+That URL is <a href="http://luaforge.net/register/">http://luaforge.net/register/</a>.  
+You have to specify several parameters of the project:
+<p>
+<UL>
+<li> a short description of your goals and priorities, which is not publicly visible and will be used by the admins to accept your application or to reject it (unknown size limit <strong>FIXME</strong>, but it's not too much what can be specified here)
+<li> the project's short name (up to 15 characters, must form a valid UNIX user name) and short title (up to 40 characters)
+<li> the project's publicly visible short summary (up to 255 characters)
+<li> which of the <a href="../wiki/LuaForge.html" >LuaForge</a> resources you want to make use of and in which way
+</UL>
+<p>
+<H3>setting up for administration</H3>
+<p>
+Once the project was accepted, visit the project's page on <a href="../wiki/LuaForge.html" >LuaForge</a>.  
+Either by going to <code>http://&lt;projectname&gt;.luaforge.net/</code> (which may not yet work 
+before dns updates propagated through caches).  
+Or by looking up the project in the bottom right hand corner of <a href="../wiki/LuaForge.html" >LuaForge</a>'s main page ("recently registered").  
+The project won't show up yet in the projects tree until it was categorized for Trove.  
+<p>
+Browse through the individual tabs and their subpages.  
+Setup or change passwords as needed (e.g. for mailing lists).  
+Create additional mailing lists, forum groups, etc.  
+<p>
+Uploading documents works at this moment.  Uploading files may work too (<strong>FIXME</strong> haven't tested that).  
+FTP access to upload or change the project's website works at this moment, too.  
+However interactive logins and cvs access won't.  These are handled in the next section.
+<p>
+<H3>setting up for development</H3>
+<p>
+As mentioned above, FTP access, documents and files upload works rather quickly.  
+Access to sources hosted on <a href="../wiki/LuaForge.html" >LuaForge</a> takes some more work:  
+<p>
+Create a SSH key (either by running the GUI style PuTTYgen program 
+from the  <a href="http://www.chiark.greenend.org.uk/~sgtatham/putty/">[PuTTY suite]</a> and exporting the public key in OpenSSH format, or by running the ssh-keygen(1) command line tool.  
+<p>
+Upload your SSH public key in the "account management" tab, an appropriate form may have appeared at the bottom of that page.  
+Paste the public key file text into the form's text input area and make sure that no line breaks were inserted.  
+Make sure that the number of keys is listed as "1" (the number one) in your account details.  
+Click the "update" button, and allow some two hours to pass by for the automat to propagate the change in the system.  
+<p>
+Now you should be able to run a SSH session against <code>cvs.luaforge.net</code>, using the private key you have created.  
+Beware that it's essential to use this very host name.  
+Although the <code>cvs.&lt;projectname&gt;.luaforge.net</code> name exists, that's a different machine and will <strong>NOT</strong> accept the login!  
+<p>
+It's important to understand that this ssh key will only get you CVS access to the project hosted on <a href="../wiki/LuaForge.html" >LuaForge</a>.  
+Interactive sessions are disabled, as is access to other machines than the CVS server.  
+<p>
+Refer to the "SCM" tab of your project for commands to carry out CVS access.
+<p>
+<hr><hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaForgeNewProject" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaForgeNewProject" >history</a><br>Last edited August 27, 2008 1:58 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaForgeNewProject" >(diff)</a>
+</body>
+</html>

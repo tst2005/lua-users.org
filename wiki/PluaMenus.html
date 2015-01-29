@@ -1,0 +1,142 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Plua Menus</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PluaMenus&amp;body=1" title="List pages referring to PluaMenus">Plua Menus</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Note page relates to Plua 1.1 only (<a href="../wiki/PluaPalmVersion.html" >PluaPalmVersion</a>).  Syntax has changed in Plua 2.0.
+<p>
+-- SD 2006-10-20
+<p>
+Plua allows you to specify menu items which it attaches to a single dynamic menu.
+<p>
+You can't create a number of menus across the top - this is supposedly a limit of the Palm OS which allows only one dynamic menu.
+<p>
+The following was my exploration of using a resource editor to hack the <a href="../wiki/PluaRuntime.html" >PluaRuntime</a>
+<p>
+It is functional but of arguable use, given that you'd have to hack
+the Plua runtime (unless some bundling trick was used or a change in
+signature).
+<p>
+Provided you give the menu items numbers above the Plua range (eg:
+1021) then they work.
+<p>
+Your pmenu items are appended to the end of the new menu, NOT normal location.
+<p>
+Interestingly, when I appended a SECOND new menu, the pmenu items
+still appeared at the end of the first one. I'm not sure this is
+<p>
+wholly repeatable as for a while they were still appearing on the
+main Menu.
+<p>
+<p>
+My hacked copy of Plua has two new menus in it:
+tst1 contains t1 &amp; t2 (and then gets pmenu items appended)
+tst2 contains t1-1 and t1-2.
+<p>
+Running menutest.lua, I get a menu id of:
+<pre>
+
+1 for the (resource-added) tst1 item t1
+
+3 for the first item added below by pmenu
+
+7 for the (resource-added) test2 item t1-1
+
+</pre>
+<p>
+ie: the menu ID's returned from pevent are just sequential from 1,
+starting from the menu at which the pmenu items appended, ignoring
+any menu ID's set in the MBAR resource.
+<p>
+<pre>
+
+-- menutest.lua
+
+-- contact dent@o...
+
+-- reports menu ID's and demonstrates tables for event handling
+
+
+
+pdestroy() pclear()
+
+ptitle("Title")
+
+mnu01t = {"Quit","-","mnu01:1","mnu01:2","mnu01'3","mnu01:4"}
+
+mnu01=pmenu(mnu01t)
+
+
+
+local eh = {}
+
+
+
+eh[menuSelect] = function(mID)
+
+palert("menu id "..mID)
+
+end
+
+
+
+eh[penDown] = function(x,y)
+
+pset(x,y)
+
+end
+
+
+
+eh[penMove] = function(x,y)
+
+plineto(x,y)
+
+end
+
+
+
+-- handle events using table
+
+repeat
+
+e, e1,e2,e3,e4=pevent()
+
+local f=eh[e]
+
+if f then f(e1,e2,e3,e4) end
+
+until e==keyDown
+
+</pre>
+<p>
+-- <a href="../wiki/AndyDent.html" >AndyDent</a> 2004-04-23
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PluaMenus" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PluaMenus" >history</a><br>Last edited October 21, 2006 2:00 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PluaMenus" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Numbered Bookmarks</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteNumberedBookmarks&amp;body=1" title="List pages referring to SciteNumberedBookmarks">Scite Numbered Bookmarks</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Much of my youth was spent using the Borland development tools, and they would use <code>ctrl+K 1</code> to set the first bookmark, and <code>Ctrl+Q 1</code> to go to that bookmark, etc.  Although my prefered style is the SciTE default (<code>F2</code> to move to next bookmark), some people may find this useful.
+<p>
+It is an example of how to create custom bookmarks with characters with Scintilla, and how to manage objects on a per-file basis using <code>OnOpen</code> and <code>OnSwitchFile</code>.
+<p>
+This script uses the <a href="../wiki/SciteExtMan.html" >SciteExtMan</a> loader for convenience, although I hope it should be clear how to do it using straight SciTE/Lua scripting.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- borland.lua</span>
+
+<span class="comment">-- Defines borland-style numbered bookmarks.</span>
+
+<span class="comment">-- Put this in your extman scite_lua directory.</span>
+
+
+
+scite_Command {
+
+  <span class="string">'ctrl-k|do_ctrl_command k|Ctrl+K'</span>,
+
+  <span class="string">'ctrl-q|do_ctrl_command q|Ctrl+Q'</span>,  
+
+} 
+
+
+
+<span class="keyword">local</span> gMarksMap = {}
+
+<span class="keyword">local</span> gMarks
+
+
+
+scite_OnOpen(<span class="keyword">function</span>(f)
+
+  gMarksMap[f] = {}
+
+ <span class="keyword">end</span>)
+
+
+
+scite_OnSwitchFile(<span class="keyword">function</span>(f)
+
+ gMarks = gMarksMap[f]
+
+
+
+<span class="keyword">end</span>)
+
+
+
+<span class="keyword">function</span> current_line()
+
+    <span class="keyword">return</span> editor:LineFromPosition(editor.CurrentPos)+1
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> markers_defined = <span class="keyword">false</span>
+
+<span class="keyword">local</span> base = 9
+
+
+
+<span class="keyword">function</span> define_markers()
+
+  <span class="keyword">local</span> zero = <span class="library">string.byte</span>(<span class="string">'0'</span>)
+
+  <span class="keyword">for</span> i = 1,9 <span class="keyword">do</span>
+
+      editor:MarkerDefine(i+base,SC_MARK_CHARACTER + zero + i)
+
+  <span class="keyword">end</span>
+
+  markers_defined = <span class="keyword">true</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> do_ctrl_command(key)
+
+    editor:BeginUndoAction()
+
+    scite_OnChar(<span class="string">'once'</span>,<span class="keyword">function</span> (ch)
+
+       editor:EndUndoAction()
+
+       editor:Undo()
+
+       <span class="keyword">local</span> num = <span class="library">tonumber</span>(ch)
+
+       <span class="keyword">local</span> mark = num <span class="keyword">and</span> gMarks[num]
+
+       <span class="keyword">local</span> line = current_line()
+
+       <span class="keyword">if</span> key == <span class="string">'k'</span> <span class="keyword">and</span> num <span class="keyword">then</span>
+
+          <span class="keyword">if</span> <span class="keyword">not</span> markers_defined <span class="keyword">then</span> define_markers() <span class="keyword">end</span>
+
+          <span class="keyword">if</span> mark <span class="keyword">then</span> <span class="comment">-- clear mark</span>
+
+             gMarks[num] = <span class="keyword">nil</span>
+
+             editor:MarkerDelete(line-1,num+base)
+
+          <span class="keyword">else</span>
+
+             gMarks[num] = line
+
+             editor:MarkerAdd(line-1,num+base)
+
+          <span class="keyword">end</span>
+
+       <span class="keyword">elseif</span> key == <span class="string">'q'</span> <span class="keyword">and</span> mark <span class="keyword">then</span>
+
+            editor:GotoLine(mark-1)
+
+       <span class="keyword">end</span>
+
+       <span class="keyword">return</span> <span class="keyword">true</span>
+
+     <span class="keyword">end</span>)
+
+<span class="keyword">end</span>     
+
+
+
+
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteNumberedBookmarks" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteNumberedBookmarks" >history</a><br>Last edited August 31, 2006 6:35 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteNumberedBookmarks" >(diff)</a>
+</body>
+</html>

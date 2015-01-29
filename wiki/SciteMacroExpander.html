@@ -1,0 +1,473 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Macro Expander</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteMacroExpander&amp;body=1" title="List pages referring to SciteMacroExpander">Scite Macro Expander</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>SciTE Macro expansion facility</H2>
+<p>
+I always enjoyed the C preprocessor macro facility. To my
+eye, this macro makes C code more readable and less error-prone:
+<p>
+<pre>
+
+ #define FOR(i,n) for(i = 0; i &lt; (n); i++)
+
+</pre>
+<p>
+Unfortunately, disciplined use of statement macros fell into
+disfavour due to abuse, and C++ stylists are generally against
+them (Stroustrup as usual takes a more pragmatic line)
+<p>
+The SciTE Lua Macro expansion facility is a simple macro
+preprocessor which expands macros in the current buffer, 
+rather like abbreviations.  For example, I can put this
+in my properties file
+<p>
+<pre>
+
+ macro.subst.1=for(i,n)=for(i = 0; i &lt; n; i++)
+
+</pre>
+<p>
+and type <code>FOR(k,10)</code> in the buffer, followed by 'Expand Macro'
+(Alt+Enter). A simple single-pass expansion takes place,
+and <code>for(k = 0; k &lt; 10; k++)</code> replaces the macro in the buffer.
+<p>
+Since it's a single-pass expansion which never happens
+automatically, there's no problem in using keywords like 'for'
+here.  
+<p>
+Line feeds are indicated using '\n' in the macro definition and
+you can always use a backslash to split the definition over
+several lines.  
+<p>
+<pre>
+
+ macro.subst.2=if(cond)=if(cond) { \n } else { \n }
+
+</pre>
+<p>
+Unlike abbreviations, the expanded code is not auto-indented. 
+It would not be difficult to expose the auto-formating code used
+by abbreviations, but until then the idea is to work with the
+standard release.
+<p>
+The most interesting part of this macro expander is that it can
+be easily extended using Lua.  Any function call occuring in
+your macro which begins with $ is assumed to be a call to a
+globally defined Lua function.  The pseudo-function 'eval' is always
+available and exists to allow you to put Lua expressions directly
+into macros:
+<p>
+<pre>
+
+ macro.subst.3=date=$eval(os.date())
+
+</pre>
+<p>
+This macro has no arguments, and inserts a reasonable representation
+of the day's date into your current file when expanded.  
+<p>
+I've defined <code>$cat</code> to perform 'token-pasting', and <code>$quote</code> to perform
+'stringizing' without the messing-about with # and ##.  Given
+<p>
+<pre>
+
+    newfn(name)=void $cat(INIT_,name) (int i) {\n}\n
+
+</pre>
+<p>
+then  <code>newfn'first'</code> expands to
+<p>
+<pre>
+
+ void INIT_first(int i) {
+
+ }
+
+</pre>
+<p>
+Please note that you can use quotes (single or double) to pass one
+argument to a macro, instead of the traditional parentheses.   
+<p>
+You don't have to specify all the arguments to a macro;  if arguments
+are not used, they are assumed to be nil.  This can be conveniently
+used when passing arguments to Lua functions.
+<p>
+<H2>Setting up</H2>
+<p>
+Put the contents of <a href="/files/wiki_insecure/editors/SciTE/macro.lua">Files:wiki_insecure/editors/SciTE/macro.lua</a> in your existing Lua startup file,
+or load it directly with 
+<p>
+<pre>
+
+ ext.lua.startup.script=$(SciteDefaultHome)/macro.lua
+
+</pre>
+<p>
+This needs an absolute path - SciTE properties are useful here!
+<p>
+In your properties file bind two keys to the functions do_macro and
+macro_select (alter them to whatever feels best, but remember you
+cannot override SciTE-defined shortcuts). The command.mode lines
+are necessary to prevent those irritating 'do you want to save' 
+messages.
+<p>
+<pre>
+
+ command.name.11.*=Expand Macro
+
+ command.11.*=do_macro
+
+ command.subsystem.11.*=3
+
+ command.mode.11.*=savebefore:no
+
+ command.shortcut.11.*=Alt+Enter
+
+
+
+ command.name.12.*=Macro Select
+
+ command.12.*=macro_select
+
+ command.subsystem.12.*=3
+
+ command.mode.12.*=savebefore:no
+
+ command.shortcut.12.*=Ctrl+=
+
+</pre>
+<p>
+You can now define some macros (they can go in any properties file
+which is loaded)
+<p>
+<pre>
+
+ macro.subst.1=for(i,n)=for(i = 0; i &lt; n; i++)
+
+ macro.subst.2=if(cond)=if(cond) { \n \
+
+                                  \n \
+
+  } else {                        \n \
+
+                                  \n \
+
+  } 
+
+ macro.subst.3=test(xx)=$quote(xx)  
+
+ macro.subst.4=date=$eval(os.date())
+
+ macro.subst.5=class(name,base)=$do_class(name,base)
+
+ macro.subst.6=insert(x)=$insert_file(x)
+
+ macro.subst.7=i(x)=$international_string(x)
+
+ macro.subst.8=_(x)=$upcase(x)
+
+</pre>
+<p>
+<H2>Examples</H2>
+<p>
+<H3>Writing C++ class bodies</H3>
+<p>
+Here we exploit the fact that if a macro argument is not specified,
+then it is treated as nil.
+<p>
+<pre>
+
+ class(name,base)=$do_class(name,base)
+
+</pre>
+<p>
+where
+<p>
+<pre>
+
+ function do_class(name,base)
+
+ local res = 'class '..name
+
+ if base then 
+
+    res = res..': public '..base
+
+ end
+
+ return res..' {\n public:\n};\n'
+
+ end
+
+</pre>
+<p>
+Now expanding <code>class(Dog,Animal)</code> will give you
+<p>
+<pre>
+
+ class Dog: public Animal {
+
+ public:
+
+ };
+
+</pre>
+<p>
+and expanding <code>class(Device)</code> will give you
+<p>
+<pre>
+
+ class Device {
+
+ public:
+
+ };
+
+</pre>
+<p>
+<H3>Including a text file</H3>
+<p>
+Useful sometimes, but only occasionally, so it isn't worth defining
+a normal command. Also, commands defined usually in Lua have
+no way of prompting the user for input. (Perhaps that would be a useful
+ability, but this is what can be done with the existing 1.6.1 version).
+<p>
+To use, type <code>insert"file"</code> and expand the macro with Alt+Enter.
+<p>
+<pre>
+
+ ... insert(x)=$insert_file(x)
+
+
+
+ function insert_file(file)
+
+  local f = io.open(file)
+
+  local txt = f:read('*a')
+
+  if txt then
+
+    f:close()
+
+    return txt
+
+  else
+
+    return ""
+
+  end
+
+ end
+
+</pre>
+<p>
+<H3>Internationalization</H3>
+<p>
+We want to write an internationizable application, but wish to avoid
+all the tedious definitions.
+<p>
+It's an example of a macro which has the side effect of updating
+a header file, apart from the text actually inserted into  your program.
+<p>
+Here's a macro that shows one approach to this problem:
+<p>
+<pre>
+
+ i(x)=$international_string(x)
+
+</pre>
+<p>
+where the Lua function is
+<p>
+<pre>
+
+ function international_string(x)
+
+  local id = convert_to_iden(x)
+
+  local f = io.open('international.h','a')
+
+  f:write('#define '..id..' '..quote(x)..'\n')
+
+  f:close()
+
+  return id
+
+ end
+
+</pre>
+<p>
+We need to convert the string into a C-style identifier, by replacing
+all illegal chars with underscores, and trimming the result to some
+maximum length.
+<p>
+<pre>
+
+ function convert_to_iden(x)
+
+  local s = string.upper(x)
+
+  s = string.gsub(s,'[^%w_]','_')
+
+  return string.sub(s,1,32)
+
+ end
+
+</pre>
+<p>
+To use this, type your strings beginning with 'i' and hit Alt+Enter
+to invoke the macro: <code>MessageBox(i"Please insert a disk"</code> becomes
+<code>MessageBox(PLEASE_INSERT_A_DISK</code> and 'international.h' will automatically be updated!
+You can of course customize this name easily by using props['InternationalHeader<a href="/cgi-bin/wiki.pl?action=edit&amp;id=InternationalHeader" >?</a>']
+and defining the name as a property.
+<p>
+<H3>Converting selected text to uppercase</H3>
+<p>
+Any macro with the name '_' has a special meaning; it will be invoked
+by 'Operate on Selection' on the currently selected text.
+<p>
+<pre>
+
+ _(x)=$upcase(x)
+
+</pre>
+<p>
+where the Lua is:
+<pre>
+
+  function upcase(x) return string.upper(x) end
+
+</pre>
+<p>
+Ctrl+= will now convert the selected text. 
+<p>
+The 'Operate on Selection' mechanism seems inflexible, since there's 
+only one operation at a time that can be used. Here's a technique
+for redefining this macro on the fly.  Add this macro
+<p>
+<pre>
+
+ def(op)=$add_macro(x)
+
+</pre>
+<p>
+and you can then add a macro at any point by expanding def.
+For example, expanding <code>def'_(x)=$quote(x)</code> will change the selection
+operation to quoting.
+<p>
+<p>
+<H3>Automatically creating C/C++ headers</H3>
+<p>
+This is something I've done hundreds of time, but a little automation
+can make this tedious task easy.
+<p>
+<pre>
+
+ include(file)=$create_include(file)
+
+
+
+ function create_include(file)
+
+  local id = '__'..convert_to_iden(file)
+
+  local path 
+
+  local find = string.find
+
+  -- is it absolute? If not, then prepend the current file's path
+
+  if find(file,'^[/\\]') or find(file,'^%a:') then
+
+     path = file
+
+  else
+
+     path = props['FileDir']..'/'..f
+
+  end
+
+  local f = io.open(path,'w')
+
+  local copyright = props['CopyrightNotice']
+
+  if copyright then f:write(copyright) end
+
+  f:write '\n'
+
+  f:write ('#ifndef '..id..'\n')
+
+  f:write ('#define '..id..'\n\n')
+
+  f:write ('#endif\n')
+
+  f:close()
+
+  
+
+  return '#include '..quote(file)
+
+ end
+
+</pre>
+<p>
+where <code>convert_to_iden</code> was previously defined, and <code>quote</code> is already
+defined by the Lua Macro package. An obvious improvement is to check
+whether the file already exists, and to give more flexibility about
+the location of the created file.  Once the #include has been
+inserted, you can use Open Selected Filename (Ctrl+Shift+O) to 
+open the file.
+<p>
+<H3>Possible Improvements</H3>
+<p>
+It would not be difficult to expand on Enter, by using <code>OnKey</code> (See
+Sebastian's <a href="../wiki/SciteLatex.html" >SciteLatex</a> for an example of this)  One could even expand macros
+automatically, by looking at words typed (e.g, see <a href="../wiki/SciteWordSubstitution.html" >SciteWordSubstitution</a>) but this might
+be a bit alarming.  (Of course, if you get an unexpected expansion, Ctrl+Z
+is as always your friend.) It would be cool if inserted text would obey
+the indentation rules for the current language, like abbreviations, but that
+would require some changes to SciTE itself, and may not always be wanted
+(so then the question is: how to indicate that smart insertion is needed?)
+<p>
+It is not always easy to remember all defined macros, so a drop-down list
+would be useful.  This is not difficult to do using <code>editor:UserListShow</code>
+and <code>OnUserListSelection</code>; if the macro doesn't take arguments, then
+selecting it would expand it immediately.
+<p>
+For me, the most exciting and open-ended feature is the ability to execute
+arbitrary Lua code 'in-line', which is only limited by our ingenuity.
+<p>
+<a href="../wiki/SteveDonovan.html" >SteveDonovan</a>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteMacroExpander" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteMacroExpander" >history</a><br>Last edited March 7, 2007 1:43 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteMacroExpander" >(diff)</a>
+</body>
+</html>

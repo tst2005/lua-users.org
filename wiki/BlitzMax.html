@@ -1,0 +1,133 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Blitz Max</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BlitzMax&amp;body=1" title="List pages referring to BlitzMax">Blitz Max</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page briefly describes the author's version of "axe.lua", a Lua API interface for <a href="http://www.blitzbasic.com/Products/blitzmax.php">[BlitzMAX]</a> and <a href="http://www.blitzbasic.com/Products/maxgui.php">[MaxGUI]</a>
+<p>
+<H3>Introduction</H3>
+<p>
+<a href="http://www.blitzbasic.com/Products/blitzmax.php">[BlitzMAX]</a> is a fast cross-platform BASIC compiler and run-time system for Windows 98/ME/2000/XP, MacOS X and Linux. Primarily intended for game development, it offers support for 2D graphics, 3D graphics (with a module), audio and networking - <a href="http://www.blitzbasic.com/Products/maxgui.php">[MaxGUI]</a> is an add-on for graphical user interfaces in BlitzMAX.
+<p>
+BlitzMAX already contains an interface for the Lua (5.1.1) API (axe.lua, written by Thomas Mayer, Noel Cower and Simon Armstrong). The author's version is an update for Lua 5.1.2 which also contains several bugfixes, additional documentation and a slightly different string handling (see below). Currently (May 5th, 2007), the module has not yet been uploaded to the official BlitzMAX module servers - thus, you will have to download and install it manually. As soon as the module servers offer the new version, a simple "module synchronization" from within the BlitzMAX IDE will be sufficient to update the old axe.lua.
+<p>
+<H3>String Handling</H3>
+<p>
+Several Lua API functions work on or return C-style strings, containing 8-bit characters and terminated by a null byte (\0). For Lua itself, a string is nothing but a sequence of bytes (including null bytes) with a separately stored length. As a consequence, Lua strings can also be used as a buffer for arbitrary data (images, sound samples etc.)
+<p>
+BlitzMAX offers strong type checking and supports both 8-bit and 16-bit character strings. 
+<p>
+In order to combine these two worlds, the actual interface uses the following rules:
+<p>
+<UL>
+<li> whenever the Lua API expects a string parameter <em>without</em> additional length information, BlitzMAX provides a "CString" containing 8-bit characters and terminated with a null byte
+<li> whenever the Lua API returns a string value <em>without</em> additional length information, BlitzMAX expects a "CString" and automatically converts it into its internal format
+</UL>
+<p>
+<code>lua_pushstring</code> and <code>lua_tostring</code> are examples for these kinds of functions. Most strings are usually passed this way.
+<p>
+<UL>
+<li> whenever the Lua API expects a string parameter <em>with</em> additional length information, BlitzMAX provides its string "as is" (i.e., without any conversion, just as a sequence of bytes)
+<li> whenever the Lua API returns a string value <em>with</em> additional length information, BlitzMAX takes the Lua string "as is" (i.e., without any conversion, just as a sequence of bytes) and builts an internal string from it
+</UL>
+<p>
+<code>lua_pushlstring</code> and <code>lua_tolstring</code> are examples for these kinds of functions. They are useful to pass UTF-encoded Unicode strings between Lua and BlitzMAX.
+<p>
+Additionally, the interface provides two functions
+<p>
+<UL>
+<li> <code>function lua_pushbytearray (lua_state:byte ptr, Buffer:byte[])</code>
+<li> <code>function lua_tobytearray:byte[] (lua_state:byte ptr, index:int)</code>
+</UL>
+<p>
+which can be used to pass BlitzMAX byte arrays to and from Lua - on the Lua side, they appear as strings which are, however, never converted by the interface in any way.
+<p>
+Nota bene: please keep in mind, that <em>both</em> the Lua API and the BlitzMAX API have to copy the strings passed between Lua and BlitzMAX. Lua makes a copy in order to avoid "dangling pointers", BlitzMAX makes a copy when converting between a C string and its internal format. Passing large amounts of text could therefore require both memory and processor capacity.
+<p>
+Byte-array-based interface functions still copy their parameters once.
+<p>
+If you want to avoid copies at all, you may have to consider using (light or full) userdata objects. 
+<p>
+<H3>Limitations</H3>
+<p>
+Almost every Lua API interface type and function have been replicated in BlitzMAX. However, as it seems impossible to define BlitzMAX functions with variable argument lists, the following API functions are not available under BlitzMAX:
+<p>
+<UL>
+<li> <code>lua_pushfstring</code>
+<li> <code>lua_pushvfstring</code> and
+<li> <code>luaL_error</code>
+</UL>
+<p>
+Additionally, the following function is also missing
+<p>
+<UL>
+<li> <code>luaL_checkoption</code>
+</UL>
+<p>
+All other functions have been replicated and are therefore available under BlitzMAX.
+<p>
+<H3>Download and Installation</H3>
+<p>
+<UL>
+<li> download the most recent version of axe.lua from <a href="http://www.Andreas-Rozek.de/BlitzMax/lua.bmx">http://www.Andreas-Rozek.de/BlitzMax/lua.bmx</a>
+<li> navigate to the folder with the original axe.lua module (i.e., &lt;blitzmax-installation-folder&gt;/mod/axe.mod/lua.mod/)
+<li> make a copy of the original lua.bmx file (just in case that you want to re-install the previous version later)
+<li> move the new lua.bmx file into that directory
+</UL>
+<p>
+Within your BlitzMAX IDE
+<p>
+<UL>
+<li> "build modules" either by pressing Ctrl-D (or Command-D under MacOS X) or choosing "Program"-&gt;"Build Modules"
+<li> "document modules" by choosing "Program"-&gt;"Document Modules..."
+</UL>
+<p>
+You are now able to "<code>import axe.lua</code>" into your BlitzMAX code. Additionally, the module documentation now also allows to directly jump to the section within the Lua Reference Manual where a given API function is described. 
+<p>
+<H3>Related Work</H3>
+<p>
+This version of axe.lua is required for <a href="../wiki/BlitzLua.html" >BlitzLua</a>, the author's Lua interface for BlitzMAX/MaxGUI modules. <a href="../wiki/BlitzLua.html" >BlitzLua</a> allows you to run (embedded or stand-alone) Lua scripts with full access to BlitzMAX's 2D and 3D graphics, sound and networking capabilities.
+<p>
+<H3>Acknowledgments</H3>
+<p>
+This work is based on the Lua API Interface written by Thomas Mayer, Noel Cower and Simon Armstrong.
+<p>
+<H3>References</H3>
+<p>
+<UL>
+<li> <a href="http://www.lua.org/manual/5.1/">[1]</a> Lua 5.1. Reference Manual
+<li> <a href="http://www.blitzbasic.com/Products/blitzmax.php">[2]</a> BlitzMAX Product Description
+<li> <a href="http://www.blitzbasic.com/Products/maxgui.php">[3]</a> MaxGUI Product Description
+<li> <a href="http://www.blitzbasic.com/Community/_index_.php">[4]</a> BlitzMAX and MaxGUI Forums
+</UL>
+<p>
+--<a href="../wiki/AndreasRozek.html" >AndreasRozek</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BlitzMax" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BlitzMax" >history</a><br>Last edited November 8, 2011 7:19 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BlitzMax" >(diff)</a>
+</body>
+</html>

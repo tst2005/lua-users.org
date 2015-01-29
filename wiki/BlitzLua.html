@@ -1,0 +1,163 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Blitz Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BlitzLua&amp;body=1" title="List pages referring to BlitzLua">Blitz Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<a href="../wiki/BlitzLua.html" >BlitzLua</a> is a Lua runtime environment written in <a href="http://www.blitzbasic.com/Products/blitzmax.php">[BlitzMAX]</a>, which also provides Lua interfaces for many BlitzMAX and <a href="http://www.blitzbasic.com/Products/maxgui.php">[MaxGUI]</a> modules.
+<p>
+<H3>Description</H3>
+<p>
+With <a href="../wiki/BlitzLua.html" >BlitzLua</a>, it is possible to run (embedded or stand-alone) Lua scripts with full access to graphical user interfaces, 2D and 3D graphics, sound and networking. <a href="../wiki/BlitzLua.html" >BlitzLua</a> uses the author's version of the BlitzMAX Lua API interface <a href="http://lua-users.org/wiki/BlitzMax.html">[1]</a>.
+<p>
+<H3>Introduction</H3>
+<p>
+<a href="http://www.blitzbasic.com/Products/blitzmax.php">[BlitzMAX]</a> is a fast cross-platform BASIC compiler and run-time system for Windows 98/ME/2000/XP, MacOS X and Linux. Primarily intended for game development, it offers support for 2D and 3D graphics, audio and networking - <a href="http://www.blitzbasic.com/Products/maxgui.php">[MaxGUI]</a> is an add-on for graphical user interfaces in BlitzMAX.
+<p>
+<a href="../wiki/BlitzLua.html" >BlitzLua</a> makes the power of BlitzMAX, MaxGUI (and MiniB3D) available to Lua. As a consequence, a Lua programmer may create complete cross-platform applications (including real-time 3D games) with neat multimedia and networking capabilities.
+<p>
+<H3>Interfacing Techniques</H3>
+<p>
+<a href="../wiki/BlitzLua.html" >BlitzLua</a> comes in three "flavours": a "<em>function interface</em>", an "<em>object interface</em>" and an "<em>objective interface</em>" - all of them are concurrently available and may safely coexist, as long as they are not mixed. The following diagram illustrates their relationship:
+<p>
+<img src="http://www.Andreas-Rozek.de/BlitzMax/ForumResources/BlitzLua-Flavours.png"> 
+<p>
+BlitzMAX uses a convention which closely resembles the way Lua handles "methods": while BlitzMAX also supports true objects (with properties and methods), most modules primarily export functions whose first argument is the object which the function is expected to act on - just like Lua functions with a leading "self" argument.
+<p>
+The "<em>function interface</em>" directly maps these <a href="../wiki/BlitzMax.html" >BlitzMax</a> functions to corresponding Lua counterparts. On top of it, the "<em>object interface</em>" directly maps <a href="../wiki/BlitzMax.html" >BlitzMax</a> types to Lua "classes" (i.e., tables with an associated metatable). Alternatively, the "<em>objective interface</em>" provides Lua "prototypes" (again, on top of the "<em>function interface</em>") which only roughly resemble their <a href="../wiki/BlitzMax.html" >BlitzMax</a> counterparts, but offer additional functionality (such as an automatic layouting facility for graphical user interfaces)
+<p>
+Which kind of interface you should use, depends on your <a href="../wiki/BlitzMax.html" >BlitzMax</a> knowledge: experienced <a href="../wiki/BlitzMax.html" >BlitzMax</a> programmers should consider one of the first two interfaces, as the resulting Lua code will look very similar to their <a href="../wiki/BlitzMax.html" >BlitzMax</a> programs. Lua Programmers without any <a href="../wiki/BlitzMax.html" >BlitzMax</a> knowledge, however, should choose the "<em>objective interface</em>" instead, which is the most comfortable one.
+<p>
+The Details of every "flavour" are described in separate documents:
+<UL>
+<li> "The <a href="../wiki/BlitzLuaFunctionInterface.html" >BlitzLuaFunctionInterface</a>" - a direct mapping of <a href="../wiki/BlitzMax.html" >BlitzMax</a> functions
+<li> "The <a href="../wiki/BlitzLuaObjectInterface.html" >BlitzLuaObjectInterface</a>" - a direct mapping of <a href="../wiki/BlitzMax.html" >BlitzMax</a> types and global functions
+<li> "The <a href="../wiki/BlitzLuaObjectiveInterface.html" >BlitzLuaObjectiveInterface</a>" - Lua prototypes for <a href="../wiki/BlitzMax.html" >BlitzMax</a>
+</UL>
+<p>
+<strong>Current Status</strong>
+<p>
+<a href="../wiki/BlitzLua.html" >BlitzLua</a> should currently be considered as "pre-alpha": it has only roughly been tested, and this will not change until the "<em>objective interface</em>" has been fully implemented. It is just because of the number of requests why the author has decided to publish his <a href="../wiki/BlitzMax.html" >BlitzMax</a> interface in such an early state.
+<p>
+Especially the OpenGL interface should not be taken seriously: it has been automatically created from the <a href="../wiki/BlitzMax.html" >BlitzMax</a> source - but that source is so "C-like" (with pointers everywhere) that it will take a lot of effort to go through every function and (manually) decide which pointer represents a variable parameter or the start of an array.
+<p>
+<strong>The "<em>function interface</em>" is available and fully usable</strong>, the "<em>object interface</em>" is planned for May 18th, 2007, while the "<em>objective interface</em>" will hopefully be published around May 25th, 2007.
+<p>
+<H3>Using the Module within a <a href="../wiki/BlitzMax.html" >BlitzMax</a> Application</H3>
+<p>
+If you intend to use Lua in order to script a <a href="../wiki/BlitzMax.html" >BlitzMax</a> application, you should first import the <a href="../wiki/BlitzLua.html" >BlitzLua</a> module
+<p>
+<pre>
+
+  import lua.environment
+
+</pre>
+<p>
+and then create a new Lua state using
+<p>
+<pre>
+
+  local LuaState:byte ptr = createLuaVM()
+
+</pre>
+<p>
+rather than with <code>luaL_newstate</code> or similar. <code>CreateLuaVM</code> creates a new Lua state, loads all intrinsic Lua libraries and initializes the <a href="../wiki/BlitzMax.html" >BlitzMax</a> interface (in all three "flavours"). The resulting <code>LuaState</code> may then be used as "usual".
+<p>
+<H3>Using the <a href="../wiki/BlitzLua.html" >BlitzLua</a> Standalone Executable</H3>
+<p>
+The <a href="../wiki/BlitzLua.html" >BlitzLua</a> package also includes a precompiled executable (called "<a href="../wiki/BlitzLua.html" >BlitzLua</a>"), which can be used to run stand-alone Lua scripts requiring the <code>Lua.Environment</code>. In fact, all examples in this documentation (regardless of the employed "flavour") need the <a href="../wiki/BlitzLua.html" >BlitzLua</a> executable to be run.
+<p>
+<a href="../wiki/BlitzLua.html" >BlitzLua</a> can be invoked as follows
+<p>
+<pre>
+
+  BlitzLua &lt;lua-script&gt; &lt;script-arguments&gt; ...
+
+</pre>
+<p>
+The concrete name of the executable depends on your platform (under Windows, the full name is <code>BlitzLua.exe</code>; under Linux, it is called <code>BlitzMax</code>; under MacOS X, it is part of the <code>BlitzLua.app</code> bundle). <em>&lt;lua-script&gt;</em> stands for the name (or access path) of the Lua script to be evaluated. Any other arguments are passed to the given Lua  script - use the global table <code>ArgList[i]</code> to access the i-th command line argument.
+<p>
+<H3>Download and Installation</H3>
+<p>
+If you plan to use <a href="../wiki/BlitzLua.html" >BlitzLua</a> for stand-alone scripts only, the simplest approach is to download the executable for your platform, copy it to whereever you want it to be and invoke it with the file (path and) name of the script to be evaluated as the first argument - that's all: there is no installation required.
+<p>
+Precompiled executables are available for
+<p>
+<UL>
+<li> <a href="http://www.Andreas-Rozek.de/BlitzMax/BlitzLua.debug.exe">[Windows 98/ME/2000/XP]</a>
+<li> <a href="http://www.Andreas-Rozek.de/BlitzMax/BlitzLua.debug.app.zip">[MacOS X]</a> 
+<li> <a href="http://www.Andreas-Rozek.de/BlitzMax/BlitzLua.debug">[Linux]</a>
+</UL>
+<p>
+If you are interested in the source code or want to use the interface for your own BlitzMAX/MaxGUI applications, you need to download the full package:
+<p>
+<UL>
+<li> <a href="http://www.Andreas-Rozek.de/BlitzMax/BlitzLua.zip">[ZIP-Archive, all platforms]</a>
+</UL>
+<p>
+You should create a new folder named <code>lua.mod</code> within the module area of your BlitzMAX installation (i.e., &lt;blitzmax-installation-folder&gt;/mod/lua.mod) and unpack the contents of the ZIP archive into that folder.
+<p>
+After unpacking, you should rebuild your modules from within the BlitzMAX IDE:
+<p>
+<UL>
+<li> either press Ctrl-D (or Command-D under MacOS X) or 
+<li> choose "Program"-&gt;"Build Modules" from the main menu
+</UL>
+<p>
+You are now able to <code>import</code> the Lua interface modules.
+<p>
+<H3>Future Plans</H3>
+<p>
+<a href="../wiki/BlitzLua.html" >BlitzLua</a> is not yet complete, although the most important features have already been implemented. For the near future, the author plans the following extensions (some of them require the extension of BlitzMAX itself, which may take a little longer)
+<p>
+<UL>
+<li> better Clipboard and Printer support (BlitzMAX is a bit weak in that area)
+<li> support for Drag-and-Drop
+<li> Windows registry access (Windows only)
+<li> MiniB3D extension (there is an extended MiniB3D module which seems worth to be replicated)
+<li> support for IrrLicht<a href="/cgi-bin/wiki.pl?action=edit&amp;id=IrrLicht" >?</a> and the Leadwerks engine (there are already some BlitzMAX modules for these 3D engines, they are definitely worth replicating)
+<li> spatial audio, MIDI
+<li> IP Multicast, higher-level networking
+<li> OpenGL (the actual interface is just unusable and needs to be considerably modified)
+<li> Force Feedback (is there a BlitzMAX module for force feedback? the author would really like to see that)
+<li> Newton Physics Engine (a BlitzMAX module for Newton exists already)
+</UL>
+<p>
+<H3>Additional Information</H3>
+<p>
+<UL>
+<li> <a href="../wiki/BlitzLuaModules.html" >BlitzLuaModules</a> - a list of BlitzMAX modules and their <a href="../wiki/BlitzLua.html" >BlitzLua</a> interface state
+<li> <a href="../wiki/BlitzLuaFaq.html" >BlitzLuaFaq</a> - Frequently asked questions about <a href="../wiki/BlitzLua.html" >BlitzLua</a>
+</UL>
+<p>
+<H3>Author</H3>
+<p>
+<a href="../wiki/AndreasRozek.html" >AndreasRozek</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BlitzLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BlitzLua" >history</a><br>Last edited October 31, 2009 6:56 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BlitzLua" >(diff)</a>
+</body>
+</html>

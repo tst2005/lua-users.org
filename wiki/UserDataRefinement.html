@@ -1,0 +1,1046 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: User Data Refinement</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=UserDataRefinement&amp;body=1" title="List pages referring to UserDataRefinement">User Data Refinement</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Userdata "Environment" Tables</H2>
+<p>
+<H3>Motivation</H3>
+<p>
+Perhaps I should have written this first, as a couple of people have pointed out (see the section Motivation below).
+<p>
+<H3>A small proposal</H3>
+<p>
+A userdata has both a metatable and an environment table. It seems logical that the metatable contains information which is general to the datatype of the userdata, while the environment table contains information which is specific to the instance of the userdata. (See Footnote at bottom. <em>How do you insert anchors into this Wiki?</em>)
+<p>
+The methods also have an environment table. Methods are typically common to all instances of a userdata type; one would expect their environment tables to refer to the userdata's metatable (or some other table shared by all type instances). Unless the methods themselves are specific to the instance, it is hard to imagine a case where the environment table of the method function would be the environment table of the userdata.
+<p>
+So we would normally expect some sort of relationship (possibly equality) between:
+<p>
+<UL>
+<li> the <em>environment</em> table of a method
+<li> the <em>metatable</em> of a userdata
+</UL>
+<p>
+(see Code Snippet 1 below.)
+<p>
+The current API for creating a userdata by default initializes the userdata's metatable to <code>NULL</code> and its environment table to the environment table of the caller. But that seems inverted from the common case, which, based on the above analysis, would be to initialize the userdata's metatable to the environment table of the caller, and its environment table to <code>NULL</code>. (Userdata environment tables cannot be <code>NULL</code> in the current implementation, but see below.)
+(See Code Snippet 2 below.)
+<p>
+Now, it may be that a given userdata type always requires an environment table (such as Mike Pall's useful example of queues, although even then an empty queue might not require an environment table), but there are also use cases where the environment table is optional. For example, one might use the environment table to store instance properties which belong to the scripting environment rather than to the C implementation, or even to use it to allow userdata method's to be overridden for a particular instance by the Lua code. (This implies an implementation of the <code>__index</code> metamethod which does appropriate lookups.)
+<p>
+The current implementation has no easy way of specifying "no environment table". One could create an empty table, but if the use of the environment table is uncommon in instances of a userdata type, that would be extremely wasteful. The workaround I chose is to just leave the userdata's environment table set to the metatable (i.e. the environment table of the function which created the userdata), and check for that condition.
+(See Code Snippet 3 below.)
+<p>
+So, in short, userdata environment tables are useful and usable, but the implementation feels awkward because it does not conform to (what I see as) the common case.
+<p>
+About a year ago, I proposed a slightly different (and also flawed) implementation <a href="/lists/lua-l/2004-07/msg00399.html">[1]</a>. I now think that proposal was flawed because it tried to recycle the <code>lua_raw*</code> functions, in somewhat the same way that I think the proposed 5.1 implementation is flawed because it tries to recycle the <code>lua_{g,s}etfenv</code> functions. The fact is that the association between a userdata and an instance table is not the same as either a metatable nor an environment table, and the API is more understandable if it does not try to impose an analogy which does not exist.
+<p>
+<H3>Metadata have peers, not environments</H3>
+Let's rename the userdata environment table its "peer table", and make it optional. This requires only a very slight adjustment: we need two new API functions which are more analagous to <code> lua_{g,s}etmetatable()</code> than to <code> lua_{g,s}etfenv()</code>, but which basically have the same effect:
+<DL>
+<dt><dd><pre>
+
+  /**
+
+   * If the indexed object is a metatable and has a peer table, push it onto
+
+   * the stack and return 1. Otherwise, leave the stack unaltered and return 0
+
+   */
+
+  int lua_getpeer (lua_State *L, int index);
+
+   
+
+  /**
+
+   * If the indexed object is a metatable, set its peer table to the table
+
+   * on the top of the stack, or to NULL if the top of the stack is nil,
+
+   * and return 1, Otherwise return 0. Pop the stack in either case.
+
+   */
+
+  int lua_setpeer (lua_State *L, int index);
+
+</pre>
+</DL>
+<p>
+The actual code to do this is essentially simply moved from the <code>lua_getfenv()</code> and <code>lua_setfenv()</code> APIs, and does not increase the size of <code>lapi.o</code> by more than a few bytes. The only other modification necessary is in <code>lgc.c</code> where a check must be made for <code>peer</code> being <code>NULL</code>, similar to the check for <code>metatable</code> being <code>NULL</code>.
+<p>
+Also, to cover the common case where metatables are attached to userdata on creation, we augment <code>lua_newuserdata()</code> to take an extra argument, which is the index of the metatable or 0. A common call would be:
+<DL>
+<dt><dd><pre>
+
+  self = lua_newuserdatameta(L, sizeof(*self), LUA_ENVIRONINDEX); // but read on
+
+</pre>
+</DL>
+The peer table would be initialized to <code>NULL</code>. This change is also trivial.
+<p>
+<H3>They also have C peers</H3>
+Now, let's consider another aspect of userdata. In many cases, userdata are simply boxed pointers, but sometimes it would be useful to have two versions of the same structure binding: one is a boxed pointer; the other is an unboxed structure. It is not easy to deal with this duality without duplicating a lot of code, and this is IMHO unnecessary. So the following proposal attempts to solve that problem as well.
+<p>
+So far, in terms of the <code>Udata</code> structure, I've proposed little more than a renaming exercise, along with some different creation defaults. The <code>Udata</code> structure has not really been changed, so it continues to suffer from the alignment problem introduced by adding an environment table. In 5.1, the <code>Udata</code> header is now, effectively, five pointer/longs: <code>next</code>, flags, <code>metatable</code>, <code>env</code>, <code>size</code>. If the payload is forced to double-pointer alignment, padding is introduced in the header. If the payload is not forced to double-pointer alignment, it is almost guaranteed to be double-pointer unaligned. (So, for example, in x86 if the payload were a vector of doubles, all of them would be doubleword unaligned.) Consequently, it seems that the cost of adding yet another pointer to the <code>Udata</code> header is fairly small.
+<p>
+In a typical case of a userdata containing a boxed pointer, the payload is only the size of a <code>void*</code>; we could actually put that in the <code>Udata</code> header, and improve alignment (on some platforms, even taking advantage of unused padding.) But in that case, we could consistently set this pointer to the address of the userdata payload, meaning that the payload address could be looked up without a conditional, regardless of whether the userdata was boxed or not. This is very similar to the way <code>UpVal</code>s are implemented.
+<p>
+Now, any <code>CFunction</code> which only needs to know the address of the <code>C</code> structure corresponding to the userdata can simply replace <code>lua_touserdata()</code> with <code>lua_tocpeer()</code> and be used with either a boxed or unboxed version of the userdata. In fact, it may be that <code>lua_touserdata()</code> should return the <code>cpeer</code> for full userdata, and that the new API function should be something like <code>lua_topayload()</code>.
+<p>
+The metamethod which really cares whether the userdata is boxed or not is the <code>__gc</code> metamethod, if it exists. Fortunately, only two flags are used in <code>CommonHeader</code>, so there is room to insert an <code>isboxed</code> flag byte without bloating <code>Udata</code>'s any further. So we just need to add (another!) parameter to the newuserdata API.
+<DL>
+<dt><dd><pre>
+
+  Udata *luaS_newudata (lua_State *L, size_t s, Table *e, void *cpeer) {
+
+    // ...
+
+    u-&gt;uv.isboxed = (cpeer != NULL);
+
+    u-&gt;uv.metatable = e;
+
+    u-&gt;uv.peer = NULL;
+
+    u-&gt;uv.cpeer = cpeer ? cpeer : rawuvalue(o) + 1;
+
+    // ...
+
+
+
+/* One new api function; the other one queries isboxed. */
+
+  void *lua_tocpeer (lua_State *L, int index) {
+
+    StkId o = index2adr(L, idx);
+
+    api_checkvalidindex(L, o);
+
+    api_check(L, ttisuserdata(L, o));
+
+    return uvalue(o)-&gt;cpeer;
+
+  }
+
+</pre>
+</DL>
+A draft of the code changes is here: (See Pseudo Patch below). I've rewritten some of the code snippets to demonstrate the impact of these proposed changes.
+(See Comparative Code Snippets below.)
+<p>
+Finally, some optional niceties for <code>__gc</code> metamethods. Given the above, we might expect a <code>__gc</code> metamethod to look something like this:
+<DL>
+<dt><dd><pre>
+
+  int foo_gc (lua_State *L) {
+
+    Foo *self = lua_tocpeer(L, 1);
+
+    foo_destruct(self);  // delete self's references
+
+    if (lua_isboxed(L, 1)) foo_free(self); // free self's storage
+
+    return 0;
+
+  }
+
+</pre>
+</DL>
+In a common case, the <code>Foo</code> object itself would be atomic; that is, without any <code>foo_destruct()</code>. Then it would only be necessary to run the <code>__gc</code> method on a boxed userdata. To facilitate this, we could put two flags in the <code>isboxed</code> byte: <code>LUA_ISBOXED</code> and <code>LUA_NEEDSGC</code>. If the latter flag were off, then the gc would simply delete the object without making any attempt to even look for a <code>__gc</code> metamethod.
+<p>
+<hr><H3>Footnotes</H3>
+1. The userdata itself contains information specific to the instance, but the environment table adds the possibility of associating Lua objects with the userdata instance.
+<p>
+2. The datatype-common information typically includes method functions, which would actually be in the table referred to by the <code>__index</code> key in the metatable. Here, I'm assuming the common convention of pointing the metatable <code>__index</code> key back to the metatable itself (possibly mediated by an actual <code>__index</code> function).
+<p>
+-- <em><a href="../wiki/RiciLake.html" >RiciLake</a></em>
+<p>
+<hr><H2>Code Snippet 1</H2>
+<p>
+If it is known that the <code>CFunction</code> environment and the <code>userdata</code> metatable are one and the same, we can use the following instead of <code>luaL_checkudata()</code>:
+<DL>
+<dt><dd><pre>
+
+  void *luaL_checkself (lua_State *L) {
+
+    lua_getmetatable(L, 1);
+
+    if (!lua_rawequal(L, -1, LUA_ENVIRONINDEX))
+
+      luaL_error(L, "Method called without self or with incorrect self");
+
+    lua_pop(L, 1);
+
+    return lua_touserdata(L, 1);
+
+  }
+
+</pre>
+</DL>
+Compared with <code>luaL_checkudata()</code>, this saves a table lookup and a string
+comparison; given that this function must be called by every method
+(for safety), the time savings can be significant.
+<p>
+The above code could be extended to cover the case where metatable
+identity is not sufficient to identify the type of a userdata, perhaps
+because there is more than one applicable metatable. For example, the
+following would be possible (note that it deliberately leaves the
+metatable on the stack), and leaves it to the caller to produce an
+error message):
+<DL>
+<dt><dd><pre>
+
+  void *luaL_getselfmeta (lua_State *L) {
+
+    lua_getmetatable(L, 1);
+
+    if (!lua_isnil(L, -1)) {
+
+      lua_pushvalue(L, LUA_ENVIRONINDEX);
+
+      lua_gettable(L, -2);  // Are we one of the metatable's peers?
+
+      if (!lua_isnil(L, -1)) {
+
+        lua_pop(L, 1);  // Ditch the sentinel. Could have been pop 2
+
+        return lua_touserdata(L, 1);
+
+      }
+
+    }
+
+    return NULL;
+
+  }
+
+</pre>
+</DL>
+<p>
+<H2>Code Snippet 2</H2>
+<p>
+Approximate code for creating packages and userdata themselves. This code is untested; the actual binding system I use is slightly different.
+<p>
+<H3>A) Set up a module.</H3>
+Note that this could be abstracted into a single function with a few more arguments.
+<DL>
+<dt><dd><pre>
+
+  int luaopen_foo (lua_State *L) {
+
+    // Check that the typename has not been used
+
+    lua_getfield(L, LUA_REGISTRYINDEX, FOO_TYPENAME);
+
+    if (!lua_isnil(L, -1))
+
+      // Instead of throwing an error, we could just use the returned table
+
+      luaL_error(L, LUA_QS "is already in use.", FOO_TYPENAME);
+
+    // Make the metatable
+
+    lua_newtable(L);
+
+    // Register it in the Registry
+
+    lua_pushvalue(L, -1);
+
+    lua_setfield(L, LUA_REGISTRYINDEX, FOO_TYPENAME);
+
+    // Arrange for methods to inherit the metatable as env table
+
+    lua_pushvalue(L, -1);
+
+    lua_replace(L, LUA_ENVIRONINDEX);
+
+    // Fill in the metatable
+
+    luaL_openlib(L, NULL, mytypemethod_reg, 0);
+
+    // Make the actual package
+
+    luaL_openlib(L, MYTYPE_PACKAGE, mytypepkg_reg, 0);
+
+    return 1;
+
+  }
+
+</pre>
+</DL>
+<H3>B) Create a new instance of a userdata from within a method of the userdata:</H3>
+<DL>
+<dt><dd><pre>
+
+  newobj = lua_newuserdata(L, sizeof(*newobj));
+
+  lua_pushvalue(L, LUA_ENVIRONINDEX);
+
+  lua_setmetatable(L, -2);
+
+</pre>
+</DL>
+<p>
+<H3>C) Create a new instance of a userdata from an arbitrary method</H3>
+<DL>
+<dt><dd><pre>
+
+  newobj = lua_newuserdata(L, sizeof(*newobj));
+
+  lua_getfield(L, LUA_REGISTRYINDEX, FOO_TYPENAME);
+
+  if (lua_isnil(L, -1))
+
+    luaL_error(L, "Userdata type " LUA_QS " has not been registered",
+
+                  FOO_TYPENAME);
+
+  // Set both the metatable and the environment table
+
+  lua_pushvalue(L, -1);
+
+  lua_setfenv(L, -3);
+
+  lua_setmetatable(L, -2);
+
+</pre>
+</DL>
+<p>
+<H2>Code Snippet 3</H2>
+<p>
+<H3>A) Get a field</H3>
+In real life, we would probably check the key more carefully before looking it up in the metatable, and possibly in the environment table as well. Here we just look in the environment table (if there is one) or in the <code>CFunction</code>'s environment table, which we assume it the same as the <code>userdata</code>'s metatable (or at least where type methods might be found). The trick is that the <code>userdata</code>'s environment table is set to the metatable to indicate that there is no specific environment table; this allows us to save a lookup. However, as can be seen in Comparative Code Snippets (below), we can do even better with a small change to the API.
+<DL>
+<dt><dd><pre>
+
+  // Push the value of the indicated field either from the environment
+
+  // table of the indexed userdata or from the environment table of the
+
+  // calling function.
+
+  void getenvfield (lua_State *L, int index, const char *fieldname) {
+
+    lua_getfenv(L, index);
+
+    lua_getfield(L, -1, fieldname);
+
+    if (lua_isnil(L, -1)
+
+        &amp;&amp; !lua_rawequal(L, -2, LUA_ENVIRONINDEX)) {
+
+      lua_pop(L, 2);
+
+      lua_getfield(L, LUA_ENVIRONINDEX, fieldname);
+
+    }
+
+    else
+
+      lua_replace(L, -2);
+
+  }
+
+</pre>
+</DL>
+<H3>B) Set a field</H3>
+<DL>
+<dt><dd><pre>
+
+  // Put the value on the top of the stack in the environment of the
+
+  // indexed userdata with the specified fieldname
+
+  void setenvfield (lua_State *L, int index, const char *fieldname) {
+
+    lua_getfenv(L, index);
+
+    if (lua_rawequal(L, -1, LUA_ENVIRONINDEX)) {
+
+      lua_pop(L, 1);
+
+      lua_newtable(L);
+
+      lua_pushvalue(L, -1);
+
+      lua_setfenv(L, index); // Only works if index &gt; 0
+
+    }
+
+    lua_insert(L, -2);
+
+    lua_setfield(L, -2, fieldname);
+
+  }
+
+</pre>
+</DL>
+<p>
+<H2>Comparative Code Snippets</H2>
+<p>
+<H3>Make a boxed userdata</H3>
+Based on Code Snippet 2, examples B and C
+<p>
+<strong>Create a boxed userdata from within a method of the userdata.</strong>
+<DL>
+<dt><dd><pre>
+
+  void newboxed_self (lua_State *L, void *obj) {
+
+    void **newbox = lua_newuserdata(L, sizeof(*newbox));
+
+    lua_pushvalue(L, LUA_ENVIRONINDEX);
+
+    lua_setmetatable(L, -2);
+
+    *newbox = obj;
+
+  }
+
+
+
+  void newboxed_type (lua_State *L, const char *typename, void *obj) {
+
+    void *newobj = lua_newuserdata(L, sizeof(*newobj));
+
+    lua_getfield(L, LUA_REGISTRYINDEX, FOO_TYPENAME);
+
+    if (lua_isnil(L, -1))
+
+      luaL_error(L, "Userdata type " LUA_QS " has not been registered",
+
+                    FOO_TYPENAME);
+
+    // Set both the metatable and the environment table
+
+    lua_pushvalue(L, -1);
+
+    lua_setfenv(L, -3);
+
+    lua_setmetatable(L, -2);
+
+  }
+
+</pre>
+</DL>
+<p>
+<strong>With peer tables:</strong>
+<DL>
+<dt><dd><pre>
+
+  void newboxed_self (lua_State *L, void *obj) {
+
+    lua_newuserdata_ex(L, 0, LUA_ENVIRONINDEX, obj);
+
+  }
+
+
+
+  void newboxed_type (lua_State *L, const char *typename, void *obj) {
+
+    lua_getfield(L, LUA_REGISTRYINDEX, typename);
+
+    if (lua_isnil(L, -1))
+
+      luaL_error(L, "Userdata type " LUA_QS " has not been registered",
+
+                    typename);
+
+    lua_newuserdata_ex(L, 0, -1, obj);
+
+    lua_replace(L, -2);
+
+  }
+
+</pre>
+</DL>
+<H3>Get and set field</H3>
+Copied from Code Snippet 3:
+<DL>
+<dt><dd><pre>
+
+  void getenvfield (lua_State *L, int index, const char *fieldname) {
+
+    lua_getfenv(L, index);
+
+    lua_getfield(L, -1, fieldname);
+
+    if (lua_isnil(L, -1)
+
+        &amp;&amp; !lua_rawequal(L, -2, LUA_ENVIRONINDEX)) {
+
+      lua_pop(L, 2);
+
+      lua_getfield(L, LUA_ENVIRONINDEX, fieldname);
+
+    }
+
+    else
+
+      lua_replace(L, -2);
+
+  }
+
+   
+
+  void setenvfield (lua_State *L, int index, const char *fieldname) {
+
+    lua_getfenv(L, index);
+
+    if (lua_rawequal(L, -1, LUA_ENVIRONINDEX)) {
+
+      lua_pop(L, 1);
+
+      lua_newtable(L);
+
+      lua_pushvalue(L, -1);
+
+      lua_setfenv(L, index); // Only works if index &gt; 0
+
+    }
+
+    lua_insert(L, -2);
+
+    lua_setfield(L, -2, fieldname);
+
+  }
+
+</pre>
+</DL>
+<strong>Implementation with peer tables:</strong>
+<DL>
+<dt><dd><pre>
+
+  void getpeerfield (lua_State *L, int index, const char *fieldname) {
+
+    if (lua_getpeer(L, index)) {
+
+      lua_getfield(L, -1, fieldname);
+
+      if (!lua_isnil(L, -1)) {
+
+        lua_replace(L, -2);
+
+        return;
+
+      }
+
+    }
+
+    lua_getfield(L, LUA_ENVIRONINDEX, fieldname);
+
+  }
+
+
+
+  void setpeerfield (lua_State *L, int index, const char *fieldname) {
+
+    if (!lua_getpeer(L, index)) {
+
+      lua_newtable(L);
+
+      lua_pushvalue(L, -1);
+
+      lua_setpeer(L, index);  // Still only works if index &gt; 0
+
+    }
+
+    lua_insert(L, -2);
+
+    lua_setfield(L, -2, fieldname);
+
+  }
+
+</pre>
+</DL>
+<H3>Comparison</H3>
+In the absence of actual benchmarks (which are likely to be biased anyway), the best I could do was count API calls. The number of API calls may not seem like a very important metric, but profiling seems to indicate that a lot of time is spent in <code>index2adr()</code>. The numbers below are <code>api calls</code>/<code>index2adr calls</code>:
+<pre>
+
+                              current   proposed
+
+newself:                        3/2       1/1
+
+
+
+newtype:                        6/5       4/4
+
+       
+
+getfield (* common case):
+
+     peer, found in peer:       4/4       4/4
+
+     peer, found in fn env;     6/7       5/5
+
+     peer, not found:           6/7       5/5
+
+    *No peer, found in fn env:  4/4       2/2
+
+     No peer, not found:        5/6       2/2
+
+
+
+setfield (* common case):
+
+    *peer                       4/5       3/3
+
+     no peer                    8/8       6/5
+
+</pre>
+<p>
+<H2>Pseudo Patch</H2>
+<p>
+Here's most of the changes in pseudo-patch format (! indicates a change, + an addition, - a deletion). None of this code has actually been tried :)
+<p>
+<DL>
+<dt><dd><pre>
+
+/* In lobject.h */
+
+  typedef union Udata {
+
+    L_Umaxalign dummy;  /* ensures maximum alignment for `local' udata */
+
+    struct {
+
+      CommonHeader;
+
++     lu_byte isboxed;
+
+      struct Table *metatable;
+
+!     struct Table *peer;
+
++     void *cpeer;
+
+      size_t len;
+
+    } uv; 
+
+  } Udata;
+
+  
+
+/* In lstring.c; the header needs to be changed as well */
+
+! Udata *luaS_newudata (lua_State *L, size_t s, Table *e, void *cpeer) {
+
+    Udata *u;
+
+    if (s &gt; MAX_SIZET - sizeof(Udata))
+
+      luaM_toobig(L);
+
+    u = cast(Udata *, luaM_malloc(L, s + sizeof(Udata)));
+
+    u-&gt;uv.marked = luaC_white(G(L));  /* is not finalized */
+
+    u-&gt;uv.tt = LUA_TUSERDATA;
+
++   u-&gt;uv.isboxed = (cpeer != NULL);
+
+    u-&gt;uv.len = s;
+
+!   u-&gt;uv.metatable = e;
+
+!   u-&gt;uv.peer = NULL;
+
++   u-&gt;uv.cpeer = cpeer ? cpeer : rawuvalue(o) + 1;
+
+    /* chain it on udata list (after main thread) */
+
+    u-&gt;uv.next = G(L)-&gt;mainthread-&gt;next; 
+
+    G(L)-&gt;mainthread-&gt;next = obj2gco(u); 
+
+    return u;
+
+  }
+
+
+
+/* in lapi.c */
+
++ LUA_API void *lua_tocpeer (lua_State *L, int idx) {
+
++   StkId o = index2adr(L, idx);
+
++   api_checkvalidindex(L, o);
+
++   api_check(L, ttisuserdata(L, o));
+
++   return uvalue(o)-&gt;cpeer;
+
++  }
+
+
+
++ LUA_API int lua_isboxed (lua_State *L, int idx) {
+
++   StkId o = index2apr(L, idx);
+
++   api_checkvalidindex(L, o);
+
++   api_check(L, ttisuserdata(L, o));
+
++   return uvalue(o)-&gt;isboxed;
+
++ }
+
+
+
+! LUA_API void *lua_newuserdata_ex (lua_State *L, size_t size,
+
+!                                   int idx, void *cpeer) {
+
+    Udata *u;
+
++   Table *h = NULL;
+
+    lua_lock(L);
+
+    luaC_checkGC(L);
+
++   if (idx) {
+
++     api_check(L, ttistable(index2adr(L, idx)));
+
++     h = hvalue(index2adr(L, idx));
+
++   }
+
+!   u = luaS_newudata(L, size, h, cpeer);
+
+    setuvalue(L, L-&gt;top, u);
+
+    api_incr_top(L);
+
+    lua_unlock(L);
+
+    return u + 1;
+
+  } 
+
+  
+
+LUA_API void lua_getfenv (lua_State *L, int idx) {
+
+  StkId o;
+
+  lua_lock(L);
+
+  o = index2adr(L, idx);
+
+  api_checkvalidindex(L, o);
+
+!  if (ttype(o) == LUA_TFUNCTION) {
+
+-    case LUA_TFUNCTION:
+
+     sethvalue(L, L-&gt;top, clvalue(o)-&gt;c.env);
+
++  }
+
++  else {
+
+-      break;
+
+-    case LUA_TUSERDATA:
+
+-      sethvalue(L, L-&gt;top, uvalue(o)-&gt;env);
+
+-      break;
+
+-    default:
+
+       setnilvalue(L-&gt;top);
+
+       break;
+
+    }
+
+    api_incr_top(L); 
+
+    lua_unlock(L);
+
+  } 
+
+
+
++ LUA_API int lua_getpeer (lua_State *L, int idx) {
+
++   const TValue *o;
+
++   Table *peer = NULL;
+
++   int res;
+
++   lua_lock(L);
+
++   o = index2adr(L, idx);
+
++   api_checkvalidindex(L, o);
+
++   if (ttype(o) == LUA_TUSERDATA)
+
++     peer = uvalue(o)-&gt;peer;
+
++   if (peer == NULL)
+
++     res = 0;
+
++   else {
+
++     sethvalue(L, L-&gt;top, h);
+
++     api_incr_top(L);
+
++     res = 1;
+
++   }
+
++   lua_unlock(L);
+
++   return res;
+
++ }
+
+
+
+  LUA_API int lua_setfenv (lua_State *L, int idx) {
+
+    StkId o;
+
+    int res = 1;
+
+    lua_lock(L);
+
+    api_checknelems(L, 1);
+
+    o = index2adr(L, idx);
+
+    api_checkvalidindex(L, o);
+
+    api_check(L, ttistable(L-&gt;top - 1));
+
+-   switch (ttype(o)) {
+
+-     case LUA_TFUNCTION:
+
++   if (ttype(o) == LUA_TFUNCTION) {
+
+      clvalue(o)-&gt;c.env = hvalue(L-&gt;top - 1);
+
+-      break;
+
+-    case LUA_TUSERDATA:
+
+-       uvalue(o)-&gt;env = hvalue(L-&gt;top - 1);
+
+-       break;
+
+-     default: 
+
+-       res = 0;
+
+-       break;
+
+-   }
+
+    luaC_objbarrier(L, gcvalue(o), hvalue(L-&gt;top - 1));
+
++   }
+
++   else
+
++     res = 0;
+
+    L-&gt;top--;
+
+    lua_unlock(L);
+
+    return res;
+
+  } 
+
+
+
++ LUA_API int lua_setpeer (lua_State *L, int idx) {
+
++   TValue *o;
+
++   Table *peer;
+
++   int res;
+
++   lua_lock(L);
+
++   api_checknelems(L, 1);
+
++   o = index2adr(L, idx);
+
++   api_checkvalidindex(L, o);
+
++   if (ttisnil(L-&gt;top - 1))
+
++     peer = NULL;
+
++   else {
+
++     api_check(L, ttistable(L-&gt;top - 1));
+
++     peer = hvalue(L-&gt;top - 1);
+
++   }
+
++   if (ttype(obj) == LUA_TUSERDATA) {
+
++     uvalue(obj)-&gt;peer = peer;
+
++     if (peer != NULL)
+
++       luaC_objbarriert(L, rawuvalue(obj), peer);
+
++     res = 1;
+
++   }
+
++   else
+
++     res = 0;
+
++   L-&gt;top--;
+
++   lua_unlock(L);
+
++   return res;
+
++ }
+
+
+
+/* In lua.h */
+
++ LUA_API void *lua_tocpeer (lua_State *L, int index);
+
++ LUA_API int lua_isboxed (lua_State *L, int idx);
+
+
+
++ LUA_API void *lua_newuserdata_ex (lua_State *L, size_t size,
+
++                                   int idx, void *cpeer);
+
+! #define lua_newuserdata(L,sz) lua_newuserdata_ex(L, sz, 0, NULL)
+
+
+
++ LUA_API int lua_getpeer (lua_State *L, int idx);
+
++ LUA_API int lua_setpeer (lua_State *L, int idx);
+
+
+
+/* in lgc.c, reallymarkobject */
+
+    case LUA_TUSERDATA: {
+
+      Table *mt = gco2u(o)-&gt;metatable;
+
++     Table *peer = gco2u(o)-&gt;peer;
+
+      gray2black(o);  /* udata are never gray */
+
+      if (mt) markobject(g, mt);
+
+!     if (peer) markobject(g, peer);
+
+      return;
+
+    }
+
+</pre>
+</DL>
+<p>
+<H2>Motivation</H2>
+<p>
+<em>Any table can then be set as the environment that can replace the environment for an object.  Yes?</em>
+<p>
+Yes, indeed. But you cannot set "no table" as the environment for an object.
+<p>
+Consider the following case: I bind <code>myFancyWidget</code> to a Lua userdata and export it into the Lua environment.
+<p>
+The Lua script may want to override some method in a particular instance of <code>MyFancyWidget</code> (to make it fancier, maybe :). Now, it could create an entire new object to do that, but it would be a lot simpler to do this:
+<DL>
+<dt><dd><pre>
+
+function overrideCtlY(widget)
+
+  local oldDoKeyPress = myFancyWidget.doKeyPress
+
+  function widget:doKeyPress(key)
+
+    if key == "ctl-y" then
+
+      -- handle control y the way I want to
+
+    else
+
+      return oldDoKeyPress(widget, key)
+
+    end
+
+  end
+
+  return widget
+
+end
+
+
+
+local widget = overrideCtlY(MyFancyWidget.new())
+
+</pre>
+</DL>
+If I want to allow the Lua script to do that, then I need to have a place to store the overloaded <code>doKeyPress</code> member function. I can't store it in the standard metatable; that would apply to all instances. Logically, I should store it in the widget's environment table, since that is local to the widget instance.
+<p>
+In the common case, of course, no methods are overridden. So I don't want an environment table at all; I want the method lookup to go directly to the metatable. If I can't set the environment table to nil, then I have to set it to some sentinel and test for that on every lookup. So I was looking for something that:
+<p>
+a) semantically corresponded to (my) expected use of environment tables.
+<p>
+b) involved fewer API calls on common operations.
+<p>
+The goal, then, is not profound. It simply reflects my thought that setting the env table of a userdata to the env table of the currently running function is an extremely unlikely default, and that being able to set it to <code>nil</code> is a useful feature.
+<p>
+<p>
+<H3>Comments Welcome</H3>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=UserDataRefinement" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=UserDataRefinement" >history</a><br>Last edited November 29, 2008 11:15 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=UserDataRefinement" >(diff)</a>
+</body>
+</html>

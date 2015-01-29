@@ -1,0 +1,49 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Blitz Lua Faq</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BlitzLuaFaq&amp;body=1" title="List pages referring to BlitzLuaFaq">Blitz Lua Faq</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page contains a list of "frequently asked questions" about <a href="../wiki/BlitzLua.html" >BlitzLua</a>.
+<p>
+<H3>Introduction</H3>
+<p>
+<a href="../wiki/BlitzLua.html" >BlitzLua</a> is a Lua runtime environment written in BlitzMAX, a fast cross-platform BASIC compiler and run-time system for Windows 98/ME/2000/XP, MacOS X and Linux.
+<p>
+<H3>Frequently Asked Questions</H3>
+<p>
+<strong>Why not use full userdata?</strong>
+<p>
+One question which often arises is why the author does not use "full userdata" (instead of "light userdata") and therefore does not offer directly mapped objects and automatic memory management (through the use of a <code>__gc</code> metamethod)
+<p>
+The reason is BlitzMAX's garbage collection: "full userdata" objects completely "live on the Lua side" - there is no reference back to BlitzMAX which could prevent an object from being "garbage collected". Additionally, there is no direct way to pass a "full userdata" object from BlitzMAX to Lua - as a consequence, it is Lua itself which has to locate the "full userdata" object for a given BlitzMAX object (given by its pointer). Solving these two issues naturally leads to an implementation as described above.
+<p>
+--<a href="../wiki/AndreasRozek.html" >AndreasRozek</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BlitzLuaFaq" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BlitzLuaFaq" >history</a><br>Last edited May 21, 2007 7:35 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BlitzLuaFaq" >(diff)</a>
+</body>
+</html>

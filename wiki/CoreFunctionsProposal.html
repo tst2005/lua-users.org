@@ -1,0 +1,437 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Core Functions Proposal</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CoreFunctionsProposal&amp;body=1" title="List pages referring to CoreFunctionsProposal">Core Functions Proposal</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+In the following function descriptions, a pseudo-Pascal notation is used to indicate argument types. <code>array</code> is shorthand for 'array part of table' and <code>hash</code> is shorthand for 'hash part of table'.  <code>callable</code> is either a function or an object that supports <code>__call</code>.  <code>iterator</code> means a single-valued iterator sequence, <code>iterator2</code> is a double-valued sequence; <code>keyval_iter</code> is a special double-valued case where the first value is a key, the second the value (like <code>pairs</code>).
+<p>
+In general, the functions tend to take iterators, except where it makes more sense to pass tables directly. Harmonizing this aspect is still an ongoing process.  <code>filter</code> and <code>find_if_iter</code> are essentially the same operation, except the second returns a sequence. Perhaps <code>filter</code> should return a sequence, and one can use <code>collect</code> if one wants an array result.
+<p>
+<pre class="code">
+<span class="comment">--- string functions -----</span>
+
+
+
+<span class="keyword">function</span> split(s: <span class="library">string</span>, delim: <span class="library">string</span> = <span class="string">'%s+'</span>): array
+
+</pre>
+
+<p>
+<DL>
+<dt><dd>Comments: See <a href="../wiki/SplitJoin.html" >SplitJoin</a>.  split functions also often have a "limit" parameter <a href="http://en.wikipedia.org/wiki/Comparison_of_programming_languages_%28string_functions%29#split.html">[1]</a>.  Corner cases will need to be specified (e.g. how empty patterns behave) as done in the specifications in "Comparison to Other Languages" in <a href="../wiki/SplitJoin.html" >SplitJoin</a>.
+</DL>
+<p>
+<pre class="code">
+<span class="comment">-- escapes Lua string 'magic' characters</span>
+
+<span class="keyword">function</span> escape(s: <span class="library">string</span>): <span class="library">string</span>
+
+
+
+<span class="comment">--- extended table and sequence functions </span>
+
+
+
+<span class="comment">-- shallow copy either of a table</span>
+
+<span class="keyword">function</span> copy(t: <span class="library">table</span>): <span class="library">table</span>
+
+
+
+<span class="comment">-- collect a single-valued sequence as an array</span>
+
+<span class="comment">-- e.g. collect(lfs.dir '.')</span>
+
+<span class="keyword">function</span> collect(seq: iterator): array
+
+
+
+<span class="comment">-- collect a double-valued sequence as an array of pairs</span>
+
+<span class="comment">-- e.g. collect2(pairs{a=2,b=2}) =&gt; {{'a',2},{'b',2}}</span>
+
+<span class="keyword">function</span> collect2(seq: iterator2): array
+
+
+
+    <span class="comment">-- Suggestion: Instead of 2 values, define a function that allows</span>
+
+    <span class="comment">-- an arbitrary number of return values, improving generality.</span>
+
+    <span class="comment">-- AlexandreErwinIttner</span>
+
+    <span class="comment">-- e.g. collectn(myIterator) =&gt; {{'a',2,'foo'},{'b',2},{'bar'}}</span>
+
+    <span class="keyword">function</span> collectn(seq: iterator): array
+
+
+
+<span class="comment">-- construct a generator over all the values of the array;</span>
+
+<span class="comment">-- otherwise tries to use the __iter metamethod</span>
+
+<span class="comment">-- collect(iter(t)) is an identity function for an array t</span>
+
+<span class="keyword">function</span> iter(t: object): callable
+
+
+
+<span class="comment">-- convert a single valued sequence into a sequence of index,value</span>
+
+<span class="comment">-- enum(iter(t)) is equivalent to ipairs(t)</span>
+
+<span class="keyword">function</span> emum(t: iterator): keyval_iter
+
+
+
+<span class="comment">-- create an array over a range of numbers, arguments as</span>
+
+<span class="comment">-- in the numeric for statement</span>
+
+<span class="comment">-- e.g. range(1,5) =&gt; {1,2,3,4,5}</span>
+
+<span class="keyword">function</span> range(x1: number, x2:number, x3:number = <span class="keyword">nil</span>): array
+
+
+
+<span class="comment">-- recursive copy, preserving metatables</span>
+
+<span class="keyword">function</span> deepcopy(t: <span class="library">table</span>): <span class="library">table</span>
+
+
+
+<span class="comment">-- recursive compare, can ignore metatables</span>
+
+<span class="keyword">function</span> deepcompare(t1: value, t2: value, ignore_meta: boolean = <span class="keyword">false</span>): boolean
+
+
+
+<span class="comment">-- basic recursive table-to-string dump, intended for debug purposes.</span>
+
+<span class="comment">-- will handle cycles, not guaranteed to result in parseable Lua.</span>
+
+<span class="comment">-- An extra argument may be used to control the result, but the default should be sensible.</span>
+
+<span class="keyword">function</span> dump(t: <span class="library">table</span>, options: <span class="library">table</span> = <span class="keyword">nil</span>): <span class="library">string</span>
+
+
+
+<span class="keyword">function</span> values(t: hash): array
+
+
+
+<span class="keyword">function</span> keys(t: hash): array
+
+
+
+<span class="comment">-- construct a table which is the result of applying a function</span>
+
+<span class="comment">-- to a key-value iterator like pairs or ipairs</span>
+
+<span class="comment">-- e.g. map(tonumber,ipairs {'1','2'}) =&gt; {1,2}</span>
+
+<span class="comment">-- e.g. map(string.upper,pairs{a='one',a='two'}) =&gt; {a='ONE',b='TWO'}</span>
+
+<span class="keyword">function</span> map(f: callable, iter: keyval_iter): <span class="library">table</span>
+
+
+
+<span class="comment">-- construct an array with elements which are arrays chosen from the</span>
+
+<span class="comment">-- next element of each array.</span>
+
+<span class="comment">-- zip({1,2,3},{10,20,30}) -&gt; {{1,10},{2,20},{3,30}}</span>
+
+<span class="keyword">function</span> zip(t1: array, t2:array, ...): array
+
+
+
+<span class="comment">-- make a map from an array of pairs where the keys are the first value</span>
+
+<span class="comment">-- and the values are the second value</span>
+
+<span class="comment">-- keymap{{'a',1},{'b',2}} -&gt; {a = 1, b = 2}</span>
+
+<span class="comment">-- keymap(collect2(pairs(t))) is an identity function for hashes.</span>
+
+<span class="keyword">function</span> keymap(t: array): hash
+
+
+
+<span class="comment">-- take an array contain subarrays and generate a flattened array</span>
+
+<span class="comment">-- e.g. {1,{2,3}} -&gt; {1,2,3}</span>
+
+<span class="keyword">function</span> flatten(t: array): array
+
+
+
+<span class="comment">-- e.g. {1,2,2,3,3,3} -&gt; {1,2,3}</span>
+
+<span class="keyword">function</span> unique(t: array): array
+
+
+
+<span class="comment">-- apply a binary function to all elements of an array in pairs</span>
+
+<span class="comment">-- reduce(+,{1,2,3}) can be defined as 1 + reduce(+,{2,3}) etc</span>
+
+<span class="keyword">function</span> reduce(f: callable2, t: array): array
+
+
+
+<span class="comment">-- look for value in key/value sequence using simple value equality</span>
+
+<span class="comment">-- find(2,ipairs{10,4,2}) -&gt; 3</span>
+
+<span class="comment">-- find(2,pairs{a=1,b=2}) -&gt; 'b'</span>
+
+<span class="comment">-- find(2,ipairs_slice({2,2,3},2)) -&gt; 2</span>
+
+<span class="keyword">function</span> find(val: value, iter: keyval_iter): key
+
+
+
+<span class="comment">-- look for key in key/value sequence using predicate function</span>
+
+<span class="keyword">function</span> find_if(f: predicate, iter: keyval_iter): key,value
+
+
+
+<span class="comment">-- like find, but returns a keyval_iter</span>
+
+<span class="comment">-- e.g for i in find_iter(3,ipairs(t)) do ... end</span>
+
+<span class="keyword">function</span> find_iter(val: value, iter: keyval_iter): keyval_iter
+
+
+
+<span class="comment">-- like find_if, but returns a keyval_iter</span>
+
+<span class="keyword">function</span> find_if_iter(f: predicate, iter: keyval_iter): keyval_iter
+
+
+
+<span class="comment">-- in simplest form, transforms an array into a set: {'a','b'} =&gt; {a=true,b=true}</span>
+
+<span class="comment">-- generally, f will be called with each value and returns new value, new key</span>
+
+<span class="comment">-- I.e. a generalized map function from arrays to hashes.</span>
+
+<span class="keyword">function</span> makeset(t: array, f: callable = <span class="keyword">nil</span>): hash  
+
+
+
+<span class="comment">-- intersection of two hash-like tables; in its basic form, set intersection</span>
+
+<span class="comment">-- if choose is defined, will allow you to choose between two different</span>
+
+<span class="comment">-- values for the same key; will default to picking the value from the first table.</span>
+
+<span class="comment">-- e.g. intersect({a=1,b=2},{b=3,c=4}) =&gt; {a=1,b=2}</span>
+
+<span class="comment">-- e.g. intersect({a=1,b=2},{b=3,c=4},function(x,y) return x&gt;y end) =&gt; {a=1,b=3}</span>
+
+<span class="keyword">function</span> intersect(t1,t2: hash, choose: predicate2 = <span class="keyword">nil</span>): hash
+
+
+
+<span class="comment">-- union of two hash-like tables, set union.</span>
+
+<span class="comment">-- choose operates as in intersect above</span>
+
+<span class="keyword">function</span> union(t1,t2: hash, choose: predicate2 = <span class="keyword">nil</span>): hash
+
+
+
+<span class="comment">-- like string.sub</span>
+
+<span class="keyword">function</span> slice(t: array, i1: index, i2: index = -1): array  
+
+
+
+<span class="comment">-- like slice, but returns a key/value iterator like ipairs()</span>
+
+<span class="keyword">function</span> ipairs_slice(t: array, i1: index, i2: index = -1): iterator2
+
+
+
+<span class="comment">-- append the values from t2 to t1, returns t1</span>
+
+<span class="keyword">function</span> extend(t1: array, t2: array): array
+
+
+
+<span class="comment">-- concatenate two arrays to form a new array</span>
+
+<span class="keyword">function</span> tjoin(t1: array, t2: array): array
+
+
+
+<span class="comment">-- return a table with values matching a predicate function f</span>
+
+<span class="comment">-- filter(f,pairs(t)) and filter(f,ipairs(t)) are the common patterns.</span>
+
+<span class="keyword">function</span> filter(f: predicate, iter: keyval_iter): <span class="library">table</span>
+
+
+
+<span class="comment">-- like the old table.foreach, but passes value first, then key to f</span>
+
+<span class="comment">-- This simplifies the common case of just operating on the value.</span>
+
+<span class="comment">-- (The argument order is open to debate)</span>
+
+<span class="keyword">function</span> forall(f: callable, iter: keyval_iter)   
+
+
+
+<span class="comment">-- like table.concat, but uses tostring() and ipairs()</span>
+
+<span class="keyword">function</span> concat(t: array, delim: <span class="library">string</span>): <span class="library">string</span> 
+
+
+
+<span class="comment">-- update the first hash by adding the key/value pairs of the sequence.</span>
+
+<span class="comment">-- returns the first hash for convenience.</span>
+
+<span class="keyword">function</span> update(t1: hash, iter: keyval_iter): hash
+
+
+
+<span class="comment">--- Functional Support ----</span>
+
+
+
+<span class="comment">-- returns the function |...| f(g(...))</span>
+
+<span class="keyword">function</span> combine(f,g: callable): <span class="keyword">function</span>
+
+
+
+<span class="comment">-- returns the function |...| f(first_arg,...)</span>
+
+<span class="keyword">function</span> bind_first(f: callable, first_arg: value): <span class="keyword">function</span>
+
+
+
+<span class="comment">-- returns the function |x| f(x,...)</span>
+
+<span class="keyword">function</span> bind_rest(f: callable, ...): <span class="keyword">function</span>
+
+
+
+<span class="comment">--- Path functions ---</span>
+
+
+
+<span class="comment">-- joins up to three parts together using the appropriate path separator</span>
+
+<span class="keyword">function</span> join(p1: path, p2: path, p3: path = <span class="keyword">nil</span>)
+
+
+
+<span class="comment">-- will always provide suitable full path to temporary name, even on Windows</span>
+
+<span class="keyword">function</span> tmpname(): <span class="library">string</span>  
+
+
+
+<span class="comment">-- splits a filesystem path into a table with the directory, name and extension parts</span>
+
+<span class="comment">-- (e.g, splitpath(p).ext will get the extension)</span>
+
+<span class="keyword">function</span> splitpath(p: path): {dir=<span class="library">string</span>,name=<span class="library">string</span>,ext=<span class="library">string</span>}
+
+
+
+<span class="comment">-- turns a filesystem glob pattern into an equivalent Lua string pattern</span>
+
+<span class="comment">-- e.g. glob '*.lua' -&gt; '.+%.lua$'</span>
+
+<span class="keyword">function</span> glob(p: mask): pattern
+
+
+
+<span class="comment">-- the path where the given module will be found by Lua</span>
+
+<span class="comment">-- note 1: may be part of 5.2</span>
+
+<span class="comment">-- note 2: assumes standard path matching</span>
+
+<span class="keyword">function</span> packagepath(mod: <span class="library">string</span>): path
+
+
+
+<span class="comment">-- the full path of the current script, usually passed arg[0] (but uses this by default)</span>
+
+<span class="keyword">function</span> progpath(name: <span class="library">string</span> = <span class="keyword">nil</span>): path
+
+
+
+<span class="comment">-- adds the current progpath to package.path, so that subsequent require calls</span>
+
+<span class="comment">-- will look in this directory first.</span>
+
+<span class="keyword">function</span> require_here(path: <span class="library">string</span> = <span class="keyword">nil</span>)
+
+
+
+</pre>
+
+<p>
+Here are some useful functional features which are not necessarily part of the core.
+<p>
+<pre class="code">
+<span class="comment">-- usually, 'callable' means either a function or an object that defines __call.</span>
+
+<span class="comment">-- This allows you to handle the case where a callable argument is neither, </span>
+
+<span class="comment">-- e.g. is a string.</span>
+
+<span class="keyword">function</span> add_callable_handler(f: callable)
+
+
+
+<span class="comment">-- returns a standard Lua operation, optionally with the second value bound.</span>
+
+<span class="comment">-- e.g. filter(operator('&gt;',3),ipairs{1,4,2,6}) -&gt; {4,6}</span>
+
+<span class="comment">-- e.g  map(operator('[]',1),pairs{a={1,10},b={2,20}}) -&gt; {a=1,b=2}</span>
+
+<span class="keyword">function</span> operator(s: operator, arg: value = <span class="keyword">nil</span>): value
+
+</pre>
+
+<p>
+<a href="../wiki/SteveDonovan.html" >SteveDonovan</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CoreFunctionsProposal" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CoreFunctionsProposal" >history</a><br>Last edited December 24, 2009 6:07 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CoreFunctionsProposal" >(diff)</a>
+</body>
+</html>

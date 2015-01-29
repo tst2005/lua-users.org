@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Cryptography Stuff</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CryptographyStuff&amp;body=1" title="List pages referring to CryptographyStuff">Cryptography Stuff</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here's libraries and topics related to cryptography in Lua.
+<p>
+Libraries:
+<p>
+<UL>
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lmd5">[lmd5]</a> (5.0/5.1) - an MD2/MD4/MD5/SHA1/SHA2/RIPEMD160 digest library for Lua.  Binds to crypto part of <a href="http://en.wikipedia.org/wiki/OpenSSL.html">[OpenSSL]</a>.  (<a href="../wiki/LuizHenriqueDeFigueiredo.html" >LuizHenriqueDeFigueiredo</a>)
+<li> <a href="https://github.com/keplerproject/md5">[md5]</a> (<a href="http://www.keplerproject.org/md5/">[doc]</a>) (5.0/5.1/5.2) - a MD5 hash (digest) function, a crypt/decrypt pair based on MD5 and CFB, and a crypt/decrypt pair based on DES 56.  It uses its own MD5 and DES implementations in C. (Maintained by Kepler but based on <a href="http://www.inf.puc-rio.br/~roberto/md5/">[md5]</a> by <a href="../wiki/RobertoIerusalimschy.html" >RobertoIerusalimschy</a>.)
+<li> <a href="/files/wiki_insecure/users/tnodir/">[LuaMHash]</a> (5.0) -  <a href="http://mhash.sourceforge.net/">[mhash]</a> (LGPL) library binding.
+<li> <a href="http://luacrypto.luaforge.net/">[LuaCrypto]</a> (5.0/5.1) - a Lua frontend to the crypto part of <a href="http://en.wikipedia.org/wiki/OpenSSL.html">[OpenSSL]</a> library. Provides digests (MD5, SHA-1, HMAC, etc) and crypto-grade random number generators. <a href="https://github.com/mkottman/luacrypto">[This fork]</a> also provides encryption/decryption and signing/verification.
+<li> lua-openssl <a href="https://github.com/zhaozg/lua-openssl">[zhaozg/lua-openssl]</a> <a href="https://github.com/efelix/lua-openssl">[efelix/lua-openssl]</a> - a Lua frontend to <a href="http://en.wikipedia.org/wiki/OpenSSL.html">[OpenSSL]</a> (without TSL/SSL). <a href="https://github.com/zhaozg/lua-openssl/issues/4">[differences from luacrypto]</a>
+<li> <a href="http://github.com/davidm/lua-digest-crc32lua">[lua-digest-crc32lua]</a> (5.1) - crc32 implemented in Lua; used by <a href="../wiki/ModuleCompressDeflateLua.html" >ModuleCompressDeflateLua</a> (<a href="../wiki/DavidManura.html" >DavidManura</a>)
+<li> <a href="http://regex.info/blog/lua/sha1/">[SHA-1 and HMAC]</a> (5.1) - SHA1 and HMAC-SHA1 implementated in Lua.
+<li> <a href="../wiki/SecureHashAlgorithm.html" >SecureHashAlgorithm</a> (5.2) - SHA224/SHA256 implemented in Lua.
+<li> <a href="../wiki/SecureHashAlgorithmBw.html" >SecureHashAlgorithmBw</a> (5.3) - SHA224/SHA256 implemented in Lua 5.3, with bitwise operators.
+<li> <a href="http://code.google.com/p/sha2/">[sha2]</a> - Lua binding for the SHA-256/384/512 BSD-licensed C implementation by Aaron Gifford plus HMAC (<a href="../wiki/CosminApreutesei.html" >CosminApreutesei</a>)
+<li> <a href="http://luaforge.net/projects/lua-crypt/">[lua-crypt]</a> (5.0) - An one-function library that provides the POSIX crypt() function for Lua (<a href="../wiki/AlexandreErwinIttner.html" >AlexandreErwinIttner</a>)
+<li> <a href="https://github.com/brunoos/luasec/">[LuaSec]</a> (5.1) - a Lua frontend to the SSL part of <a href="http://en.wikipedia.org/wiki/OpenSSL.html">[OpenSSL]</a> library. Provides secure TLS/SSL communication; depends on Lua<code></code>Socket for TCP connection.
+<li> <a href="http://ratchet.icgood.net/">[ratchet]</a> - provides generic socket control mechanism for large numbers of sockets without using OS-level threads or losing the ease of synchronous socket programming.  Supports TLS sockets with <a href="http://en.wikipedia.org/wiki/OpenSSL.html">[OpenSSL]</a>. <a href="/lists/lua-l/2011-09/msg00761.html">[announce]</a>
+<li> <a href="../wiki/LuaApr.html" >LuaApr</a> (5.1) - Lua binding to the Apache Portable Runtime which provides MD5 and SHA1 digest functions (<a href="../wiki/PeterOdding.html" >PeterOdding</a>)
+<li> <a href="http://luaforge.net/projects/sln/">[slncrypto]</a> small C library and binding for SHA-1 and blowfish <a href="/lists/lua-l/2005-02/msg00744.html">LuaList:2005-02/msg00744.html</a> <a href="https://github.com/LuaDist/slncrypto">[LuaDist]</a>
+<li> <a href="https://github.com/tnodir/luapolarssl">[LuaPolarSSL]</a> (5.1) - <a href="http://polarssl.org">[PolarSSL]</a> interface to Lua.
+<li> <a href="http://www.codingrobots.org/p/lua-nacl/index">[lua-nacl]</a> - Pure Lua implementation of <a href="http://nacl.cace-project.eu/">[NaCl]</a>: Networking and Cryptography library.  Supports *salsa and poly1305.  Uses "bit" (Lua<code></code>Bit<code></code>Op) library.  "work in progress"
+<li> <a href="http://www.eder.us/projects/lcrypt/">[lcrypt]</a> C implementation binding to libTomCrypt and libTomMath.  Many hashes (MD2, MD4, MD5, RMD128, rmd160, RMD256, RMD320, SHA1, SHA224, SHA256, SHA384, SHA512, TIGER, WHIRLPOOL) and ciphers (AES, ANUBIS, BLOWFISH, CAST5, DES, DES3, KASUMI, KHAZAD, KSEED, NOEKEON, RC2, RC5, RC6, SAFERP, SKIPJACK, TWOFISH, XTEA) plus other capabilities (e.g. zlib, base64, and bigint).   Includes <a href="http://www.eder.us/projects/lcrypt/lcrypt/rsa.lua">[rsa.lua]</a> (RSA) using this library.  "It was written to provide the basis for ssh capabilities for Lua."
+<li> <a href="https://github.com/leetreveil/lmd5">[leetreveil/lmd5]</a> MD5 with bindings to openssl, Win32 <code>Wincrypt.h</code>, and OSX <code>CommonCrypto/CommonDigest.h</code>.
+<li> <a href="http://code.google.com/p/luaxyssl/">[luaxyssl]</a> - Lua binding to <a href="http://www.ohloh.net/p/xyssl">[xyssl]</a> (cryptographic library for embedded systems) (replaced by <a href="http://polarssl.org/">[polarssl]</a>).  Includes digests (md5, sh, sh1, sh2, sha256, hmac), crypto (aes, rc4, rsa, dh), SSL (using luasocket).
+<li> <a href="http://lua-users.org/lists/lua-l/2010-04/msg00614.html">[luahash]</a> - includes own C implementations of sha1/sha2/md5 (rjek)
+<li> <a href="https://github.com/moteus/lua-AesFileEncrypt">[AesFileEncrypt]</a>(5.1/5.2) - Lua binding to <a href="http://www.gladman.me.uk/cryptography_technology/fileencrypt">[FileEncrypt]</a>. Has no external dependences.
+<li> <a href="http://25thandClement.com/~william/projects/luaossl.html">[luaossl]</a>(5.1/5.2/5.3) - Comprehensive binding to OpenSSL, including X.509 certificate (with 1:1 ancillary bindings to sub-objects like names, chains, stores, extensions, etc), HMAC, digest, cipher, public-private key, PKCS12, and bignum APIs. Includes SSL and SSL_CONTEXT bindings, but doesn't do yet do SSL/TLS I/O (see cqueues project for asynchronous TLS I/O). Developed and maintained on Linux, OS X, Solaris, AIX, FreeBSD, NetBSD, and OpenBSD.
+</UL>
+<p>
+Sub-topics:
+<p>
+<UL>
+<li> <strong>SSL / OpenSSL SSL/TLS sockets</strong>
+<UL>
+<li> Lua<code></code>Sec (synchronous) (OpenSSL)
+<li> ratchet (coroutine asynchronous).  (OpenSSL)
+<li> luaxyssl (xyssl)
+<li> luaossl (bindings to manipulate SSL and SSL_CONTEXT objects, but not yet SSL_read or SSL_write)
+<li> <a href="https://github.com/sbernard31/luadtls">[luadtls]</a> (binding to <a href="http://tinydtls.sourceforge.net/">[tinydtls]</a> a lightweight implementation of DTLS)
+</UL>
+<li> <strong>OpenSSL crypto</strong>
+<UL>
+<li> Lua<code></code>Crypto (crypto binding)
+<li> lua-openssl (without TLS/SSL)
+<li> lmd5 (small MDx/SHAx digest binding)
+<li> luaossl
+</UL>
+<li> <strong>MD5</strong>
+<UL>
+<li> lmd5 (small OpenSSL MDx/SHAx digest binding)
+<li> md5 (C reimplementation; digest, encryption, decryption)
+<li> LuaMHash (mhash LGPL binding; large number of hash algorithms)
+<li> Lua<code></code>Crypto (OpenSSL crypto binding)
+<li> lua-openssl (OpenSSL binding without TLS/SSL)
+<li> Lua/APR <a href="http://peterodding.com/code/lua/apr/docs/#cryptography_routines">[1]</a>
+<li> lcrypt binding to libTomCrypt and libTomMath
+<li> leetreveil/lmd5 - bindings to openssl, Win32 Wincrypt.h, and OSX CommonCrypto<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CommonCrypto" >?</a>/CommonDigest<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CommonDigest" >?</a>.h.
+<li> luaxyssl (xyssl)
+<li> luahash (C re-implementation)
+</UL>
+<li> <strong>SHA</strong>
+<UL>
+<li> lmd5 (small OpenSSL MDx/SHAx digest binding)
+<li> LuaMHash (mhash LGPL binding; large number of hash algorithms)
+<li> Lua<code></code>Crypto (OpenSSL crypto binding)
+<li> lua-openssl (OpenSSL binding without TLS/SSL)
+<li> <a href="../wiki/SecureHashAlgorithm.html" >SecureHashAlgorithm</a> (SHA224/SHA256 Lua implementation)
+<li> SHA-1 and HMAC (SHA1 and HMAC-SHA1 Lua implementation)
+<li> sha2 (Lua binding to SHA-256/384/512 BSD-licensed C plus HMAC)
+<li> Lua/APR <a href="http://peterodding.com/code/lua/apr/docs/#cryptography_routines">[1]</a>
+<li> slncrypto (small C impl)
+<li> lcrypt binding to libTomCrypt and libTomMath
+<li> luaxyssl (xyssl)
+<li> luahash (C re-implementation)
+</UL>
+<li> <strong>CRC</strong>
+<UL>
+<li> LuaMHash (mhash LGPL binding; large number of hash algorithms)
+<li> lua-digest-crc32lua (Lua implementation)
+<li> [Do other OpenSSL bindings support CRC calculations too?]
+</UL>
+<li> <strong>DES</strong>
+<UL>
+<li> md5 (C reimplementation; encryption, decryption)
+<li> lcrypt binding to libTomCrypt and libTomMath
+</UL>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CryptographyStuff" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CryptographyStuff" >history</a><br>Last edited August 18, 2014 2:03 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CryptographyStuff" >(diff)</a>
+</body>
+</html>

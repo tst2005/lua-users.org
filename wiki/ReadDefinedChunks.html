@@ -1,0 +1,378 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Read Defined Chunks</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ReadDefinedChunks&amp;body=1" title="List pages referring to ReadDefinedChunks">Read Defined Chunks</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+With this function you can read defined chunks (until a given delimiter is found) from an file or from <code>io.stdin</code>.
+It's a complete rewrite of a prior version: now its fast, doesn't concatenate strings unnecessary, needs less memory and is flexible.
+The purpose is to process a) files with tons of megabaytes b) mixed formated input e.g. MIME multipart messages are a mix of lines \r\n and binary data
+Please note a simple non Lua standard enhancement: I use the number variable <code>lua.maxread</code> to set the chunksizes used for io.reads(chunk of bytes) at a central point. Replace this variable by your preferred chunksize e.g. 2^13 for 8KB.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- a simple example without using all the specials</span>
+
+<span class="keyword">local</span> Handle=<span class="library">io.open</span>(<span class="string">'File'</span>,<span class="string">'r'</span>)
+
+<span class="keyword">local</span> ReadUntil=<span class="library">io.readuntil</span>(Handle)
+
+<span class="keyword">repeat</span>
+
+   Line=<span class="library">coroutine.resume</span>(ReadUntil,<span class="string">'\n'</span>,<span class="keyword">true</span>)
+
+   <span class="keyword">if</span> Line <span class="keyword">then</span>
+
+
+
+   <span class="keyword">end</span>
+
+<span class="keyword">until</span> Line==<span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- another example</span>
+
+<span class="keyword">local</span> Handle = <span class="library">io.open</span>(<span class="string">'File'</span>, <span class="string">'r'</span>)
+
+<span class="keyword">local</span> ReadUntil = <span class="library">io.readuntil</span>(Handle)
+
+<span class="keyword">local</span> Chunk, Found
+
+<span class="keyword">repeat</span>
+
+   _,Chunk, Found = <span class="library">coroutine.resume</span>(ReadUntil,
+
+                   <span class="string">'search this string in a huge file'</span>,<span class="keyword">false</span>)
+
+   <span class="keyword">if</span> Found <span class="keyword">then</span>
+
+      _,Chunk, Found = <span class="library">coroutine.resume</span>(ReadUntil,
+
+                      <span class="string">'search another string in the same file'</span>,<span class="keyword">true</span>)
+
+      <span class="keyword">if</span> Found <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+<span class="keyword">until</span> Chunk == <span class="keyword">nil</span>
+
+
+
+<span class="comment">-- Now if chunk ~= nil, then chunk is the stuff between</span>
+
+<span class="comment">-- 'search this string in a huge file' and 'search another</span>
+
+<span class="comment">-- string in the same file'. Yes, it's possible to do the same</span>
+
+<span class="comment">-- very simply, but the advantage here is that the large file</span>
+
+<span class="comment">-- isn't loaded at once into memory.</span>
+
+</pre>
+
+</DL>
+<p>
+Code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> <span class="library">io.readuntil</span>(Filehandle, Delimiter, Collect, Limit)
+
+
+
+<span class="comment">-- Filehandle (userdata)</span>
+
+<span class="comment">-- Delimiter (string, optional); max. length is lua.maxread;</span>
+
+<span class="comment">--   optional because coroutine.resume() also accepts &lt;delimiter&gt;</span>
+
+<span class="comment">-- Collect (boolean, optional) = true (default); read until</span>
+
+<span class="comment">--   &lt;delimiter&gt; is found or end of file or &lt;limit&gt; is reached</span>
+
+<span class="comment">--   and return string at once = false; return string also before</span>
+
+<span class="comment">--   &lt;delimiter&gt; is found or end of file or &lt;limit&gt; is reached</span>
+
+<span class="comment">-- Limit (number, optional); number of bytes to read from</span>
+
+<span class="comment">--   &lt;filehandle&gt;; default is unlimited</span>
+
+
+
+<span class="comment">-- &lt;function&gt; = cooroutine.resume(Function, Delimiter, Collect)</span>
+
+
+
+<span class="comment">-- Function (thread); returned from io.readuntil()</span>
+
+<span class="comment">-- Delimiter (string, optional); see io.readuntil()</span>
+
+<span class="comment">-- Collect (boolean, optional); see io.readuntil()</span>
+
+
+
+<span class="comment">-- return (boolean); = true; no error</span>
+
+<span class="comment">--                   = false; an error occured and the second</span>
+
+<span class="comment">--                            argument returned is the errormessage</span>
+
+<span class="comment">--        (string or nil) = nil; end of file</span>
+
+<span class="comment">--        (boolean) = true; delimiter found</span>
+
+<span class="comment">--                  = false; delimiter not found</span>
+
+
+
+<span class="comment">-- note: if the coroutine returns true,&lt;string&gt;,false then</span>
+
+<span class="comment">--          if &lt;collect&gt; = false it does not have to be the end of file</span>
+
+<span class="comment">--                       = true  the end of file is reached and the next</span>
+
+<span class="comment">--                               coroutine.resume returns true,nil(,nil)</span>
+
+
+
+   <span class="keyword">if</span> <span class="library">type</span>(Delimiter) == <span class="string">'boolean'</span> <span class="keyword">then</span>
+
+      Collect,Delimiter = Delimiter,Collect
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">if</span> <span class="library">type</span>(Delimiter) == <span class="string">'number'</span> <span class="keyword">then</span>
+
+      Limit,Delimiter = Delimiter,<span class="keyword">nil</span>
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">if</span> <span class="library">type</span>(Collect) == <span class="string">'number'</span> <span class="keyword">then</span>
+
+      Limit,Collect = Collect,<span class="keyword">nil</span>
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">return</span> <span class="library">coroutine.create</span>(<span class="keyword">function</span>(NewDelimiter,NewCollect)
+
+
+
+      <span class="keyword">local</span> Next = <span class="keyword">function</span>(NewDelimiter,NewCollect)
+
+                      <span class="keyword">if</span> <span class="library">type</span>(NewDelimiter) == <span class="string">'boolean'</span> <span class="keyword">then</span>
+
+                          NewCollect,NewDelimiter = NewDelimiter,<span class="keyword">nil</span>
+
+                      <span class="keyword">end</span>
+
+                      <span class="keyword">return</span> NewDelimiter <span class="keyword">or</span> Delimiter,NewCollect <span class="keyword">or</span> Collect
+
+                   <span class="keyword">end</span>
+
+
+
+      Delimiter,Collect = Next(NewDelimiter,NewCollect)
+
+
+
+      <span class="keyword">local</span> Chunksize,Chunk,Length,First,Second,SearchFrom,
+
+            GetFrom,FoundFrom,FoundTo =
+
+            lua.maxread,{},0,1,2,1,1
+
+
+
+      <span class="keyword">if</span> Limit <span class="keyword">and</span> Length+Chunksize&gt;Limit <span class="keyword">then</span>
+
+         Chunk[First] = Limit-Length&gt;0 <span class="keyword">and</span> Filehandle:read(Limit-Length)
+
+      <span class="keyword">else</span>
+
+         Chunk[First] = Filehandle:read(Chunksize)
+
+      <span class="keyword">end</span>
+
+
+
+      <span class="keyword">if</span> Chunk[First] <span class="keyword">then</span>
+
+         Length = Length + <span class="library">string.len</span>(Chunk[First])
+
+
+
+         <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+            <span class="keyword">if</span> <span class="library">string.len</span>(Delimiter)&gt;Chunksize <span class="keyword">then</span>
+
+               <span class="library">error</span>(<span class="string">'io.readuntil: delimiter to long'</span>)
+
+            <span class="keyword">end</span>
+
+
+
+            FoundFrom,FoundTo = <span class="library">string.find</span>(
+
+                      Chunk[First],Delimiter,SearchFrom,<span class="keyword">true</span>)
+
+            <span class="keyword">if</span> FoundFrom <span class="keyword">then</span>
+
+               <span class="comment">-- delimiter found in first chunk</span>
+
+               Delimiter,Collect = Next(<span class="library">coroutine.yield</span>(
+
+                    <span class="library">string.sub</span>(Chunk[First],GetFrom,FoundFrom-1),<span class="keyword">true</span>))
+
+               SearchFrom,GetFrom = FoundTo+1,FoundTo+1
+
+            <span class="keyword">else</span>
+
+               <span class="keyword">if</span> Limit <span class="keyword">and</span> Length+Chunksize &gt; Limit <span class="keyword">then</span>
+
+                  Chunk[Second] = Limit-Length&gt;0 <span class="keyword">and</span> Filehandle:read(Limit-Length)
+
+               <span class="keyword">else</span>
+
+                  Chunk[Second] = Filehandle:read(Chunksize)
+
+               <span class="keyword">end</span>
+
+
+
+               <span class="keyword">if</span> Chunk[Second] <span class="keyword">then</span>
+
+                  Length = Length + <span class="library">string.len</span>(Chunk[Second])
+
+
+
+                  <span class="comment">-- concatenate end of first chunk with start of</span>
+
+                  <span class="comment">-- second chunk so that a possible splitted delimiter</span>
+
+                  <span class="comment">-- must be found</span>
+
+                  FoundFrom,FoundTo = <span class="library">string.find</span>(
+
+                    <span class="library">string.sub</span>(Chunk[First],
+
+                      <span class="library">string.len</span>(Chunk[First])-<span class="library">string.len</span>(Delimiter)+2) ..
+
+                      <span class="library">string.sub</span>(Chunk[Second],1,<span class="library">string.len</span>(Delimiter)-1),
+
+                    Delimiter,1,<span class="keyword">true</span>)
+
+                  <span class="keyword">if</span> FoundFrom <span class="keyword">then</span>
+
+                     <span class="comment">-- delimiter is splitted between first and second chunk</span>
+
+                     Delimiter,Collect = Next(<span class="library">coroutine.yield</span>(
+
+                       <span class="library">string.sub</span>(Chunk[First],GetFrom,<span class="library">string.len</span>(Chunk[First])-
+
+                         <span class="library">string.len</span>(Delimiter)+FoundFrom), <span class="keyword">true</span>
+
+                     ))
+
+                     First,Second = Second,First
+
+                     SearchFrom,GetFrom = FoundFrom+1,FoundFrom+1
+
+                  <span class="keyword">else</span>
+
+                     <span class="comment">-- delimiter isn't splitted between first and second chunk</span>
+
+                     <span class="keyword">if</span> Collect <span class="keyword">then</span>
+
+                        SearchFrom = <span class="library">string.len</span>(Chunk[First])+1
+
+                        Chunk[First] = Chunk[First]..Chunk[Second]
+
+                     <span class="keyword">else</span>
+
+                        <span class="keyword">if</span> <span class="library">string.len</span>(Chunk[First]) &gt;= GetFrom <span class="keyword">then</span>
+
+                           Delimiter,Collect = Next(<span class="library">coroutine.yield</span>(
+
+                              <span class="library">string.sub</span>(Chunk[First],GetFrom),<span class="keyword">false</span>))
+
+                        <span class="keyword">end</span>
+
+                        First,Second = Second,First
+
+                        SearchFrom,GetFrom = 1,1
+
+                     <span class="keyword">end</span>
+
+                  <span class="keyword">end</span>
+
+               <span class="keyword">else</span>
+
+                  <span class="comment">-- no delimiter found and no further input</span>
+
+                  <span class="keyword">break</span>
+
+               <span class="keyword">end</span>
+
+            <span class="keyword">end</span>
+
+         <span class="keyword">end</span>
+
+
+
+         <span class="keyword">if</span> <span class="library">string.len</span>(Chunk[First]) &gt;= GetFrom <span class="keyword">then</span>
+
+            <span class="comment">-- return rest of first chunk</span>
+
+            <span class="library">coroutine.yield</span>(<span class="library">string.sub</span>(Chunk[First],GetFrom),<span class="keyword">false</span>)
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>)
+
+   <span class="comment">-- return (thread); a coroutine</span>
+
+   <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+-- <a href="../wiki/MarkusHuber.html" >MarkusHuber</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ReadDefinedChunks" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ReadDefinedChunks" >history</a><br>Last edited May 28, 2007 10:01 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ReadDefinedChunks" >(diff)</a>
+</body>
+</html>

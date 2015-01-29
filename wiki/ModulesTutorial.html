@@ -1,0 +1,497 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Modules Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ModulesTutorial&amp;body=1" title="List pages referring to ModulesTutorial">Modules Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Creating and using Modules</H2>
+<p>
+There are actually two ways to make modules, the old (and deprecated) way for 5.0 and early 5.1, and the new way for 5.1 and 5.2. We will mainly explain the new way, but also the old because a lot of programs that you might come across still use it.
+<p>
+Create an example file <code>mymodule.lua</code> with the following content:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> mymodule = {}
+
+
+
+<span class="keyword">function</span> mymodule.foo()
+
+    <span class="library">print</span>(<span class="string">"Hello World!"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> mymodule
+
+</pre>
+
+</DL>
+<p>
+Now to use this new module in the interactive interpreter, just do:
+<DL>
+<dt><dd><pre class="code">
+&gt; mymodule = <span class="library">require</span> <span class="string">"mymodule"</span>
+
+&gt; mymodule.foo()
+
+Hello World!
+
+</pre>
+
+</DL>
+<p>
+In an actual script file, it would be recommended to make the <code>mymodule</code> variable local:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> mymodule = <span class="library">require</span> <span class="string">"mymodule"</span>
+
+mymodule.foo()
+
+</pre>
+
+</DL>
+<p>
+But since we're in the interactive interpreter, that would make it out of scope on the next line, so we have to put it in a global variable.
+<p>
+So that you can require the same module in different files without re-running the module code, Lua caches modules in the <code>package.loaded</code> table. To demonstrate this, say we changed <code>foo</code> in <code>mymodule.lua</code> to now print <code>"Hello Module!"</code> instead. If we just continued in the same session as above the following would happen:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; mymodule = <span class="library">require</span> <span class="string">"mymodule"</span>
+
+&gt; mymodule.foo()
+
+Hello World!
+
+</pre>
+
+</DL>
+<p>
+To actually reload the module, we need to remove it from the cache first:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">package.loaded</span>.mymodule = <span class="keyword">nil</span>
+
+&gt; mymodule = <span class="library">require</span> <span class="string">"mymodule"</span>
+
+&gt; mymodule.foo()
+
+Hello Module!
+
+</pre>
+
+</DL>
+<p>
+Another nice thing is that since they're ordinary tables stored in a variable, modules can be named arbitrarily. Say we think that <code>"mymodule"</code> is too long to type every time we want to use a function from it:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; m = <span class="library">require</span> <span class="string">"mymodule"</span>
+
+&gt; m.foo()
+
+Hello Module!
+
+</pre>
+
+</DL>
+<p>
+<H2>Other ways to create a module table</H2>
+<p>
+There are different ways of putting together a module table, that you can choose depending on your situation and personal preference:
+<p>
+Create a table at the top and add your functions to it:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> mymodule = {}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> private()
+
+    <span class="library">print</span>(<span class="string">"in private function"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> mymodule.foo()
+
+    <span class="library">print</span>(<span class="string">"Hello World!"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> mymodule.bar()
+
+    private()
+
+    mymodule.foo() <span class="comment">-- need to prefix function call with module</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> mymodule
+
+</pre>
+
+</DL>
+<p>
+Make all functions local and put them in a table at the end:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> private()
+
+    <span class="library">print</span>(<span class="string">"in private function"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> foo()
+
+    <span class="library">print</span>(<span class="string">"Hello World!"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> bar()
+
+    private()
+
+    foo() <span class="comment">-- do not prefix function call with module</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> {
+
+  foo = foo,
+
+  bar = bar,
+
+}
+
+</pre>
+
+</DL>
+<p>
+A combination of the two examples above:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> mymodule = {}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> private()
+
+    <span class="library">print</span>(<span class="string">"in private function"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> foo()
+
+    <span class="library">print</span>(<span class="string">"Hello World!"</span>)
+
+<span class="keyword">end</span>
+
+mymodule.foo = foo
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> bar()
+
+    private()
+
+    foo()
+
+<span class="keyword">end</span>
+
+mymodule.bar = bar
+
+
+
+<span class="keyword">return</span> mymodule
+
+</pre>
+
+</DL>
+<p>
+You can even change the chunk's environment to store any global variables you create into the module:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="library">print</span> = <span class="library">print</span> <span class="comment">-- the new env will prevent you from seeing global variables</span>
+
+
+
+<span class="keyword">local</span> M = {}
+
+<span class="keyword">if</span> <span class="library">setfenv</span> <span class="keyword">then</span>
+
+	<span class="library">setfenv</span>(1, M) <span class="comment">-- for 5.1</span>
+
+<span class="keyword">else</span>
+
+	_ENV = M <span class="comment">-- for 5.2</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> private()
+
+    <span class="library">print</span>(<span class="string">"in private function"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> foo()
+
+    <span class="library">print</span>(<span class="string">"Hello World!"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> bar()
+
+    private()
+
+    foo()
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+Or if you don't want to have to save all the globals you need into locals:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> M = {}
+
+<span class="keyword">do</span>
+
+	<span class="keyword">local</span> globaltbl = <span class="library">_G</span>
+
+	<span class="keyword">local</span> newenv = <span class="library">setmetatable</span>({}, {
+
+		__index = <span class="keyword">function</span> (t, k)
+
+			<span class="keyword">local</span> v = t[k]
+
+			<span class="keyword">if</span> v == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> globaltbl[k] <span class="keyword">end</span>
+
+			<span class="keyword">return</span> v
+
+		<span class="keyword">end</span>,
+
+		__newindex = M,
+
+	})
+
+	<span class="keyword">if</span> <span class="library">setfenv</span> <span class="keyword">then</span>
+
+		<span class="library">setfenv</span>(1, newenv) <span class="comment">-- for 5.1</span>
+
+	<span class="keyword">else</span>
+
+		_ENV = newenv <span class="comment">-- for 5.2</span>
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> private()
+
+    <span class="library">print</span>(<span class="string">"in private function"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> foo()
+
+    <span class="library">print</span>(<span class="string">"Hello World!"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> bar()
+
+    private()
+
+    foo()
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+Note that it might make access to global and module variables a bit slower, since it uses an <code>__index</code> function. And the reason an empty "proxy" table is used instead of giving the module an <code>__index</code> metamethod pointing to <code>_G</code> is because this would happen:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">require</span> <span class="string">"mymodule"</span>
+
+&gt; mymodule.foo()
+
+Hello World!
+
+&gt; mymodule.print(<span class="string">"example"</span>) <span class="comment">-- unwanted __index metamethod</span>
+
+example
+
+</pre>
+
+</DL>
+<p>
+<H2>The old way of creating modules</H2>
+<p>
+Lua 5.0 and 5.1 have a <code>module</code> function that's used like this:
+<p>
+<code>mymodule.lua</code>:
+<DL>
+<dt><dd><pre class="code">
+<span class="library">module</span>(<span class="string">"mymodule"</span>, <span class="library">package.seeall</span>)
+
+
+
+<span class="keyword">function</span> foo() <span class="comment">-- create it as if it's a global function</span>
+
+    <span class="library">print</span>(<span class="string">"Hello World!"</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+And it would be used like this:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">require</span> <span class="string">"mymodule"</span>
+
+&gt; mymodule.foo()
+
+Hello World!
+
+</pre>
+
+</DL>
+<p>
+The way it works is it creates a new table for the module, stores it in the global named by the first argument to <code>module</code>, and sets it as the environment for the chunk, so if you create a global variable, it gets stored in the module table.
+<p>
+This would make it so the module can't see global variables (like <code>print</code>). One solution would be so store all needed standard functions in locals before calling module, but that can be tedious, so the solution was <code>module</code>'s second parameter, which should be a function that's called with the module table as the parameter. <code>package.seeall</code> gives the module a metatable with an <code>__index</code> that points to the global table, so the module can now use global variables. The problem with this is that the user of the module can now see global variables through the module:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">require</span> <span class="string">"mymodule"</span>
+
+&gt; mymodule.foo()
+
+Hello World!
+
+&gt; mymodule.print(<span class="string">"example"</span>)
+
+example
+
+</pre>
+
+</DL>
+<p>
+This is strange and unexpected at best, and could be a security hole at worst (if you give the module to a sandboxed script).
+<p>
+The reason <code>module</code> is deprecated, apart from the above issue, is the fact that it forces a global name onto the user of the module, and the fact that in 5.2 a function can't change the environment of its caller (at least not without the debug library), making <code>module</code> impossible to implement.
+<p>
+Modules for 5.0 and older ones for 5.1 use this, but 5.2 and new 5.1 modules should use the new way (returning a table).
+<p>
+<H2>The package table</H2>
+<p>
+As already mentioned above Lua uses the <code>package</code> library to manage modules.
+<p>
+<code>package.path</code> (for modules written in Lua) and <code>package.cpath</code> (for modules written in C) are the places where Lua looks for modules. They are semicolon-separated lists, and each entry can have a <code>?</code> in it that's replaced with the module name. This is an example of what they look like:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; =package.path
+
+./?.lua;/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;/usr/local/lib/lua/5.1/?.lua;/usr/local/lib/lua/5.1/?/init.lua;/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua
+
+&gt; =package.cpath
+
+./?.so;/usr/local/lib/lua/5.1/?.so;/usr/lib/x86_64-linux-gnu/lua/5.1/?.so;/usr/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/loadall.so
+
+</pre>
+</DL>
+<p>
+<code>package.loaded</code> is a table, where the already loaded modules are stored by name. As mentioned before, this acts as a cache so that modules aren't loaded twice, instead <code>require</code> first tries getting the module from this table, and if it's nil, then it tries loading.
+<p>
+<code>package.preload</code> is a table of functions associated with module names. Before searching the filesystem, <code>require</code> checks if <code>package.preload</code> has a matching key. If so, the function is called and its result used as the return value of <code>require</code>.
+<p>
+The other fields aren't really important for general use of Lua modules, but if you are interested in how the module system works they are described in detail in the manual: <a href="http://www.lua.org/manual/5.2/manual.html#6.3">[1]</a>
+<p>
+<H3>See Also</H3>
+<p>
+<UL>
+<li> For more and in-depth information see the sample chapter of Programming in Lua, 2nd Edition <a href="http://www.inf.puc-rio.br/~roberto/pil2/">[2]</a> and <a href="../wiki/LuaModuleFunctionCritiqued.html" >LuaModuleFunctionCritiqued</a>.
+<li> <a href="../wiki/TheEssenceOfLoadingCode.html" >TheEssenceOfLoadingCode</a> - explains the relationship between the various ways of loading external code in Lua
+<li> <a href="../wiki/ModuleDefinition.html" >ModuleDefinition</a> - various ways to define modules
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ModulesTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ModulesTutorial" >history</a><br>Last edited October 28, 2013 2:15 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ModulesTutorial" >(diff)</a>
+</body>
+</html>

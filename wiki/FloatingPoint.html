@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Floating Point</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FloatingPoint&amp;body=1" title="List pages referring to FloatingPoint">Floating Point</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Intro</H2>
+Now and then, someone on the Lua mailing list asks roughly, "Is it OK to use floating point arithmetic for integer applications?"  This discussion intends to allay such fears, without misrepresenting the problems that do exist. 
+<p>
+The main problem in floating point numbers being the only numeric type in Lua is that <strong>most programmers do not understand floating point</strong>.  Floating point numbers are A LOT more complicated than integers (fixed point numbers).  Most programmers' mental model of floating point is that the result of an operation sometimes has a very slight error.  As a consequence, people get jittery. But this mental model is wrong; modeling floating point arithmetic as "correct answer + noise" is wrong, particularly when dealing with the most common type of floating point, IEEE-754.
+<p>
+The solution to this whole problem is education. The essential integer-backwards-compatible behavior of double floating point should be emphasized more in the documentation, the website, the FAQ, the wiki, etc.
+<p>
+Before going further, it should be noted that although floating point numbers are often used as the numeric type in Lua, Lua does not depend on floating point but can be compiled with any numeric type, such as single precision floating point, integer, or even some very unfamiliar numerical representations[*5].  Of course, the semantics of division, for example, changes significantly if you compile Lua with an integer numeric type, but on an embedded processor that would probably not come as a surprise.[*1]  ARM, Coldfire, and various flavors of embeded MIPS have no FPU, yet these are _very_ widely used.[*2]
+<p>
+<H2>Accuracy</H2>
+If you have a normal, modern (2000 AD) desktop computer, then you have IEEE 754 double precision floating point.[*4]
+<p>
+Here are some points about (IEEE 754) 64-bit double-precision floating point numbers ("doubles") v.s. 32-bit integers: 
+<p>
+<UL>
+<li> Double can represent many more integers exactly.
+<li> In fact, everything integer can represent, double can represent exactly.
+<li> Every result that integer arithmetic can compute correctly and exactly, double arithmetic can compute correctly and exactly.
+<li> Largest power of ten: a 64-bit double can represent all integers exactly, up to about 1,000,000,000,000,000 (actually - 2^52 ... 2^52 - 1). [*3]
+<li> Largest power of ten: a 32-bit int can represent all integers exactly, up to about +/-2,000,000,000 (actually - 2^31 ... 2^31 - 1).
+</UL>
+<p>
+Summary: 64bit precision floating point arithmetic is better than 32bit integer arithmetic, from the point of view of accuracy, range, and 'backwards-compatibility'.  See the caveats section though.
+<p>
+<H3>Arithmetic operations</H3>
+<p>
+IEEE 754 defines the basic mathematical operations, + - * (multiplication) / (division), to produce results that are as close as possible to the exact mathematical answer.  In particular, if the answer is exactly representable as a double-precision floating point then that will be the answer; otherwise, there are two double-precision floating point numbers that are nearest the exact answer (one just above and one just below), and one of those two is selected according to the <em>rounding mode</em>.
+<p>
+For operations involving integers, most of the operations are exact.  If I compute 2+5, then because the exact mathematical answer is 7, that is the also IEEE 754 answer.
+<p>
+<p>
+<H2>Performance</H2>
+<H3>Big CPUs</H3>
+Regarding performance, most serious modern desktop CPUs these days can process double floating point as fast as or faster than integer.  This includes modern MIPS R5000 and modern PPC 700 and better. Common FPU operations are one clock throughput. Add subtract compare multiply. (Better, a multiply-add instruction may well achieve one clock throughput in FPU only, making it faster than integer multiply-add in the ALU. Multiscalar architectures and SIMD can improve floating point even further. This is probably not relevant to Lua though.)  Often, floating point multiply is faster than integer multiply (because floating point multiply is used more often, the CPU designers spend more effort optimising that path).  Floating point divide may well be slow (often more than 10 cycles), but so is integer divide.
+<p>
+Admittedly Intel's Pentium design comes a poor third (because it has too few FP registers). But Intel is catching up.
+<p>
+The only remaining performance concern is floating point to integer conversion.  Like it or not, memory load instructions operate with an address and byte offset (i.e. two integer values).  Therefore, any performance savings of using floating point instead of integers is for naught if the CPU's float-to-int conversion performance is poor.  Some claims state that float to int conversion can have a devastating effect on performance <a href="http://mega-nerd.com/FPcast/">[1]</a>.  (For gcc-3.4 and a circa 2006 AMD processor, the problem is gone, but test it for yourself.  It is easy to compile the benchmark from that link.)
+<p>
+<H3>Memory</H3>
+<p>
+For users of these serious modern desktop CPUs the only major remaining potential issues are memory bandwidth and memory usage. Presumably, because of the cell (union structure) size in Lua for these objects, these considerations are actually irrelevant. 
+<p>
+Hard data about this would be good here, such as the <code>sizeof()</code> the appropriate union with single and double precision floating point configed under various (or one) architecture(s).
+<p>
+-- <em>In the world of 8-byte structure alignment, they don't really take any more space, though if the object structure ever gets over 64 bits due to the size of a FP number, the size issue is "durn tootin" relevant.  FP numbers also take more room in CPU caches -- it's not just registers that suffer.</em> -- <a href="../wiki/ChuckAdams.html" >ChuckAdams</a>
+<p>
+<p>
+<H3>Small CPUs</H3>
+There are users of older or smaller or embedded CPUs who have no floating point, no 64-bit floating point, CPU emulated floating point, or slow hardware floating point. These include 80386, 68040, ARM, etc. Hopefully the luaconfig.h feature fills their needs.
+<p>
+Summary: Circa 2001 your average entry level $10 CPU chip is capable of computing with 64b double as fast and as accurately as integer arithmetic (or more so). Users of these CPUs should not pay any costs by virtue of using double floating point only in lua, and may reap benefits. Users of smaller chips may well be obliged to use integer arithmetic only in lua.
+<p>
+<em>-- as also noted below, most ARM chips, one of the most widely used embedded CPUs, have no hardware floating point support.  This means every conversion between int and float, and every arithmetic operation, is a function call (usually inlined).  Doubles are even worse.  When you consider the checks for NaN and denormalized numbers, the overhead vs. integers is quite significant (and yes, I have profiled). --BenStJohn<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BenStJohn" >?</a></em>
+<p>
+<H2>Caveats</H2>
+Your mileage may vary. Example causes:
+<UL>
+<li> If your C code passes huge numbers of integers to Lua, that may be slow on your architecture. Or it may create predictability problems on your architecture.
+<li> You might really need integer arithmetic divide, for example. A few (very few) algorithms really do. Additionally you might find that the proper floating point truncate is slower than integer, and that this algorithm is time critical for your application.
+<li> Some vendors' <code>printf</code> implementations may not be able to handle printing floating point numbers accurately.  Believe it or not, some may incorrectly print integers (that are floating point numbers).  This can manifest itself as incorrectly printing some numbers in Lua.  QNX has this problem <a href="/lists/lua-l/2001-02/msg00261.html">[2]</a>.  The only sensible fix is to complain to your vendor and/or replace <code>printf</code> with one that works.
+<li> If what you really need is 64-bit signed or unsigned integers, then a 64-bit floating point (ie, double) may be an issue.  For example, if you're interfacing with the C-API and C-code actually needs a 64-bit signed/unsigned int (ie, long long) such as for a random number or key or serial number or to go to/from a network packet.  To do that you're better off having the C-code use a Lua userdata to hold the value, and provide methods/metamethods for manipulating the 64-bit value.
+</UL>
+<p>
+<p>
+<H2>References</H2>
+<p>
+These are not in any particularly relevant order:
+<p>
+<UL>
+<li> <a href="http://citeseer.ist.psu.edu/goldberg91what.html">http://citeseer.ist.psu.edu/goldberg91what.html</a> . "What Every Computer Scientist Should Know About Floating-Point Arithmetic" (1991) David Goldberg (every computer scientist should read this)
+<li> <a href="http://www.validlab.com/goldberg/addendum.html">http://www.validlab.com/goldberg/addendum.html</a> .  'extracts from an expansion upon David Goldberg's "What Every Computer Scientist Should Know About Floating-Point Arithmetic"' (really lazy ones could just read this)
+<li> "Floating Point Arithmetic: Issues and Limitations" from Python docs. <a href="http://docs.python.org/tut/node16.html">http://docs.python.org/tut/node16.html</a>
+<li> <em>'Musings on Lua Integer and Enum Support". <a href="http://kotisivu.dnainternet.net/askok/articles/articles/article5.html">http://kotisivu.dnainternet.net/askok/articles/articles/article5.html</a> may be worth reading for some people.  It has a slightly different opinion on the essentiality of double-precision FP as this text. Also, tries to find middle ground for those non-FPU CPU's.</em> -- <a href="../wiki/AskoKauppi.html" >AskoKauppi</a>
+<li> <a href="http://floating-point-gui.de/">http://floating-point-gui.de/</a> . "What Every Programmer Should Know About Floating-Point Arithmetic or Why dont my numbers add up?"
+</UL>
+<p>
+<p>
+-- <a href="../wiki/MartinHollis.html" >MartinHollis</a> (original author)
+<p>
+<H2>Footnotes / Comments</H2>
+<p>
+<UL>
+<li> [*1] <a href="../wiki/RiciLake.html" >RiciLake</a>
+<li> [*2] DanHollis<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DanHollis" >?</a>. 
+<li> [*3] Corrected by OlegSesov<a href="/cgi-bin/wiki.pl?action=edit&amp;id=OlegSesov" >?</a>. 
+<li> [*4] IEEE 754 is currently being <a href="http://www.rustyspigot.com/Programming/IEEE%20754%20Floating%20Point%20Standard.htm#revision">[revised]</a>--chris
+<li> [*5] The ubiquity of the IEEE standards for floating point seems to have hypnotized people into thinking that it is the only alternative format to integers. There are many other formats, each appropriate for different purposes. The IEEE format does not give strict associativity of arithmetic operations, for example.  There are formats that do -- lazy streams of rational intervals, for example. Then there is modular arithmetic modulo large primes. The IEEE format may be most convenient because it is the only format to have been picked up commercially, but there are lots of others. -- <a href="../wiki/GavinWraith.html" >GavinWraith</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FloatingPoint" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FloatingPoint" >history</a><br>Last edited April 1, 2013 12:00 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FloatingPoint" >(diff)</a>
+</body>
+</html>

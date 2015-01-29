@@ -1,0 +1,431 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Functions Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FunctionsTutorial&amp;body=1" title="List pages referring to FunctionsTutorial">Functions Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Functions let you store a piece of code in a value, are useful to be able to run the same piece of code from multiple places, without having to duplicate it. Also they let you change the behavior of your program at runtime by giving different functions to different parts of your code.
+<p>
+<H2>Defining functions</H2>
+<p>
+Functions are created with the <code>function</code> keyword as follows:
+<p>
+<DL>
+<dt><dd><strong><code>function</code></strong> <strong><code>(</code></strong> <em>args</em> <strong><code>)</code></strong> <em>body</em> <strong><code>end</code></strong>
+</DL>
+<p>
+The following example shows a simple function that receives a single argument and returns twice its value:
+<DL>
+<dt><dd><pre class="code">
+&gt; foo = <span class="keyword">function</span> (n) <span class="keyword">return</span> n*2 <span class="keyword">end</span>
+
+&gt; = foo(7)
+
+14
+
+</pre>
+
+</DL>
+<p>
+The <em>arguments</em> (also known as <em>parameters</em>) are specified inside the <code>( )</code> part, and values are returned from the function using the <code>return</code> keyword. Without the <code>return</code>, the function would return no values.
+<p>
+<H2>Functions are values</H2>
+<p>
+Notice that in the above example, we didn't actually "name" the function, we just assigned it to a variable. This is because in Lua functions are regular values (like numbers, strings, tables, etc.), and you can do anything with them that you can do with any other value. This is very different from many other languages that you might know (like C), where functions have permanent names fixed at compile-time, and can't be manipulated like values.
+<p>
+The <code>function</code> block is an expression (in the same sense that "1 + 2" is an expression) that evaluates to a new function value. A function value can be called by using the <code>( )</code> operator, which runs the code in the function. The <code>( )</code> pair goes after the function expression, and optionally contains a comma-separated list of arguments.
+<p>
+This means that Lua functions are considered <em>anonymous</em> (no pre-set name), and <em>first-class</em> (not treated differently from other values).
+<p>
+Another thing to remember is that like tables, functions are passed by reference. For example, when you assign a variable containing a function to another variable, you just create a new "handle" to the same function.
+<p>
+<H2>Function arguments</H2>
+<p>
+Functions can take 0 or more arguments. These are values given to the function when it's called, that the code stored in the function can use. Inside the function, the parameters look like variables, except they only exist inside the function.
+<p>
+An example to demonstrate how arguments work and how to pass them to a function:
+<DL>
+<dt><dd><pre class="code">
+&gt; f = <span class="keyword">function</span> (op, a, b)
+
+&gt;&gt;  <span class="keyword">if</span> op == <span class="string">'add'</span> <span class="keyword">then</span>
+
+&gt;&gt;   <span class="keyword">return</span> a + b
+
+&gt;&gt;  <span class="keyword">elseif</span> op == <span class="string">'sub'</span> <span class="keyword">then</span>
+
+&gt;&gt;   <span class="keyword">return</span> a - b
+
+&gt;&gt;  <span class="keyword">end</span>
+
+&gt;&gt;  <span class="library">error</span>(<span class="string">"invalid operation"</span>)
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt; g = <span class="keyword">function</span> (value)
+
+&gt;&gt;  <span class="library">print</span>(value)
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt; = f(<span class="string">'add'</span>, 1, 2) <span class="comment">-- args are given inside (), separated by commas.</span>
+
+3
+
+&gt; = f(<span class="string">'add'</span>, 1, 2, 123) <span class="comment">-- extra args are ignored</span>
+
+3
+
+&gt; = f(<span class="string">'add'</span>, 1) <span class="comment">-- missing args aren't an error, instead they will be filled with nil, which might cause an error in the function's code</span>
+
+stdin:1: attempt to perform arithmetic on <span class="keyword">local</span> <span class="string">'b'</span> (a <span class="keyword">nil</span> value)
+
+&gt; = g() <span class="comment">-- to call a function with no args, use ()</span>
+
+<span class="keyword">nil</span>
+
+&gt; = g <span class="string">"example"</span> <span class="comment">-- the () can be omitted if you have one quoted string arg</span>
+
+example
+
+&gt; = g {} <span class="comment">-- same with one table constructor</span>
+
+<span class="library">table</span>: 0x820ee0
+
+</pre>
+
+</DL>
+<p>
+<H2>Function return values</H2>
+<p>
+Functions can also return values back to the code that called them using the return keyword. That value will become the value of the function call expression. A unique feature of Lua is the fact that functions can return any amount of values. In most languages, functions always return one value. To use this, put comma-separated values after the <code>return</code> keyword:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; f = <span class="keyword">function</span> ()
+
+&gt;&gt;  <span class="keyword">return</span> <span class="string">"x"</span>, <span class="string">"y"</span>, <span class="string">"z"</span> <span class="comment">-- return 3 values</span>
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt; a, b, c, d = f() <span class="comment">-- assign the 3 values to 4 variables. the 4th variable will be filled with nil</span>
+
+&gt; = a, b, c, d
+
+x y z <span class="keyword">nil</span>
+
+&gt; a, b = (f()) <span class="comment">-- wrapping a function call in () discards multiple return values</span>
+
+&gt; = a, b
+
+x, <span class="keyword">nil</span>
+
+&gt; = <span class="string">"w"</span>..f() <span class="comment">-- using a function call as a sub-expression discards multiple returns</span>
+
+wx
+
+&gt; <span class="library">print</span>(f(), <span class="string">"w"</span>) <span class="comment">-- same when used as the arg for another function call...</span>
+
+x w
+
+&gt; <span class="library">print</span>(<span class="string">"w"</span>, f()) <span class="comment">-- ...except when it's the last arg</span>
+
+w x y z
+
+&gt; <span class="library">print</span>(<span class="string">"w"</span>, (f())) <span class="comment">-- wrapping in () also works here like it does with =</span>
+
+w x
+
+&gt; t = {f()} <span class="comment">-- multiple returns can be stored in a table</span>
+
+&gt; = t[1], t[2], t[3]
+
+x y z
+
+</pre>
+
+</DL>
+<p>
+One thing to remember about the last example (<code> {f()} </code>) is that if the function returns nils, since <code>nil</code> in tables is considered "no value", , the <code>#</code> operator can't be reliably used to get the number of values because it's undefined if an array has "holes".
+<p>
+If you're used to a language (like Python) that returns multiple values by storing them in a "tuple" type, that's not how Lua works. Lua functions actually return separate values, instead of a single container.
+<p>
+<H2>Using functions as parameters and returns</H2>
+<p>
+Taking functions as parameters or using them as return values is a useful feature, because it lets you plug in your own behavior into existing code. One good example is <code>table.sort</code>, which can optionally take a custom "less than" function:
+<DL>
+<dt><dd><pre class="code">
+&gt; list = {{3}, {5}, {2}, {-1}}
+
+&gt; <span class="library">table.sort</span>(list)
+
+attempt to compare two <span class="library">table</span> values
+
+stack traceback:
+
+        [C]: <span class="keyword">in</span> <span class="keyword">function</span> <span class="string">'sort'</span>
+
+        stdin:1: <span class="keyword">in</span> main chunk
+
+        [C]: <span class="keyword">in</span> ?
+
+&gt; <span class="library">table.sort</span>(list, <span class="keyword">function</span> (a, b) <span class="keyword">return</span> a[1] &lt; b[1] <span class="keyword">end</span>)
+
+&gt; <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(list) <span class="keyword">do</span> <span class="library">print</span>(v[1]) <span class="keyword">end</span>
+
+-1
+
+2
+
+3
+
+5
+
+</pre>
+
+</DL>
+<p>
+<H2>Variable number of arguments</H2>
+<p>
+A function can have <code>...</code> at the end of its argument list this will capture any remaining args passed after the named ones. Then you can use <code>...</code> inside the body of the function, and it will evaluate to the multiple values (with the same rules as functions calls with multiple returns).
+<p>
+For example, a function that passes its extra args unchanged to another function:
+<DL>
+<dt><dd><pre class="code">
+&gt; f = <span class="keyword">function</span> (x, ...)
+
+&gt;&gt;  x(...)
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt; f(<span class="library">print</span>, <span class="string">"1 2 3"</span>)
+
+1 2 3
+
+</pre>
+
+</DL>
+<p>
+This is also an example of a function taking another function as an arg.
+<p>
+To get a specific item from <code>...</code>, use the <code>select</code> function, which takes a number and a variable number of args, and returns the args starting from that index. It can also take <code>"#"</code> as the index and return the amount of args:
+<DL>
+<dt><dd><pre class="code">
+&gt; f=<span class="keyword">function</span>(...) <span class="library">print</span>(<span class="library">select</span>(<span class="string">"#"</span>, ...)) <span class="library">print</span>(<span class="library">select</span>(3, ...)) <span class="keyword">end</span>
+
+&gt; f(1, 2, 3, 4, 5)
+
+5
+
+3 4 5
+
+</pre>
+
+</DL>
+<p>
+<code>...</code> can also be packed into a table:
+<DL>
+<dt><dd><pre class="code">
+&gt; f=<span class="keyword">function</span>(...) tbl={...} <span class="library">print</span>(tbl[2]) <span class="keyword">end</span>
+
+&gt; f(<span class="string">"a"</span>, <span class="string">"b"</span>, <span class="string">"c"</span>)
+
+b
+
+</pre>
+
+</DL>
+<p>
+A table with array items can also be "unpacked" to an arg list:
+<DL>
+<dt><dd><pre class="code">
+&gt; f=<span class="keyword">function</span>(...) tbl={...} <span class="library">print</span>(<span class="library">table.unpack</span>(tbl)) <span class="keyword">end</span> <span class="comment">-- it's just "unpack" (without the table.) in 5.1</span>
+
+&gt; f(<span class="string">"a"</span>, <span class="string">"b"</span>, <span class="string">"c"</span>)
+
+a b c
+
+&gt; f(<span class="string">"a"</span>, <span class="keyword">nil</span>, <span class="string">"c"</span>) <span class="comment">-- undefined result, may or may not be what you expect</span>
+
+</pre>
+
+</DL>
+But in the second example we see a problem: tables can't store nil, which means that the <code>#</code> operator (which <code>table.unpack</code> uses internally) can't be used, since it's undefined if the array has nil "holes". Even looping over the table to find the item with the biggest key won't get the real length if nil was the last arg to the function.
+<p>
+Lua 5.2 added a <code>table.pack</code> function to help solve this, which works like <code> {...} </code> except it also adds an "n" field containing the number of items:
+<DL>
+<dt><dd><pre class="code">
+&gt; f=<span class="keyword">function</span>(...) tbl=<span class="library">table.pack</span>(...) <span class="library">print</span>(tbl.n, <span class="library">table.unpack</span>(tbl, 1, tbl.n)) <span class="keyword">end</span>
+
+&gt; f(<span class="string">"a"</span>, <span class="string">"b"</span>, <span class="string">"c"</span>)
+
+3 a b c
+
+&gt; f(<span class="string">"a"</span>, <span class="keyword">nil</span>, <span class="string">"c"</span>)
+
+3 a <span class="keyword">nil</span> c
+
+</pre>
+
+</DL>
+Here we also used <code>table.unpack</code>'s start and end index parameters, which it uses instead of starting at 1 and ending at <code>#tbl</code> if given.
+<p>
+<H2>Syntax shortcut for "named" functions</H2>
+<p>
+Although Lua lets us use functions freely like any other value, we will usually just want to give them a name (by storing them in a variable) and use them by that name. Lua has some syntax sugar to make storing a function in a variable look nicer:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> f(...)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- is equivalent to:</span>
+
+
+
+f = <span class="keyword">function</span> (...)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+This syntax could have been used in the examples in this tutorial, but the = makes it clearer that functions are values. Generally it is recommended to use the shortcut syntax in real scripts, unless there's no reason to give your function a name.
+<p>
+Also there is a similar syntax for storing functions in tables:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> a.b.f(...)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- is equivalent to:</span>
+
+
+
+a.b.f = <span class="keyword">function</span> (...)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Recursion and tail calls</H2>
+<p>
+A recursive function is a function that calls itself. For example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> factorial(x)
+
+  <span class="keyword">if</span> x == 1 <span class="keyword">then</span>
+
+    <span class="keyword">return</span> 1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> x * factorial(x-1)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+There can also be <em>mutually recursive</em> functions, where for example <code>a</code> calls <code>b</code> which calls <code>a</code> again, over and over.
+<p>
+The problem with these kinds of functions is that every time a function is called, Lua needs to remember where it was called from so it knows where to return to. This information is stored in a data structure called the <em>call stack</em>, and it grows each time a function is called, and shrinks when a function returns. So when you write a function that can call itself thousands of times deep, it can cause the stack to grow really large.
+<p>
+A solution to this is <em>tail calls</em>: if a function returns the exact, unmodified results of another function call, Lua knows that it doesn't have to return back to your function, it can re-use the current stack slot, and have the function you called return directly to the function that called your current function.
+<p>
+If the above is confusing, another way to think of it is that a tail call is just a jump, not an actual function call.
+<p>
+Here is a tail-recursive example of the above function:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> factorial_helper(i, acc)
+
+  <span class="keyword">if</span> i == 0 <span class="keyword">then</span>
+
+    <span class="keyword">return</span> acc
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> factorial_helper(i-1, acc*i)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> factorial(x)
+
+  <span class="keyword">return</span> factorial_helper(x, 1)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Some examples of what is and what isn't a tail call:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">return</span> f(arg) <span class="comment">-- tail call</span>
+
+<span class="keyword">return</span> t.f(a+b, t.x) <span class="comment">-- tail call</span>
+
+<span class="keyword">return</span> 1, f() <span class="comment">-- not a tail call, the function's results are not the only thing returned</span>
+
+<span class="keyword">return</span> f(), 1 <span class="comment">-- not a tail call, the function's results are not the only thing returned</span>
+
+<span class="keyword">return</span> (f()) <span class="comment">-- not a tail call, the function's possible multiple return values need to be cut down to 1 after it returns</span>
+
+<span class="keyword">return</span> f() + 5 <span class="comment">-- not a tail call, the function's return value needs to be added to 5 after it returns</span>
+
+<span class="keyword">return</span> f().x <span class="comment">-- not a tail call, the function's return value needs to be used in a table index expression after it returns</span>
+
+</pre>
+
+</DL>
+<p>
+Not all non-tail called recursive functions are bad, it's often the most natural solution and the calls won't get very deep. But if you are expecting hundreds of iterations or more, you should probably consider using tail recursion or just a loop.
+<p>
+Finally, the only reason tail calls were introduced with recursion is because that's when they're most often useful. But it does not mean that tail calls only work when calling the same function, it still works the same way when you call a different function.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FunctionsTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FunctionsTutorial" >history</a><br>Last edited August 16, 2014 3:22 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FunctionsTutorial" >(diff)</a>
+</body>
+</html>

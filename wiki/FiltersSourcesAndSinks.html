@@ -1,0 +1,1021 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Filters Sources And Sinks</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FiltersSourcesAndSinks&amp;body=1" title="List pages referring to FiltersSourcesAndSinks">Filters Sources And Sinks</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Filters, sources and sinks: design, motivation and examples</H2>
+<p>
+<H3>or Functional programming for the rest of us</H3>
+<p>
+by <a href="../wiki/DiegoNehab.html" >DiegoNehab</a>
+<p>
+<H2>Abstract</H2>
+<p>
+Certain operations can be implemented in the form of filters. A filter is a function that processes data received in consecutive function calls, returning partial results chunk by chunk.  Examples of operations that can be implemented as filters include the end-of-line normalization for text, Base64 and Quoted-Printable transfer content encodings, the breaking of text into lines, SMTP byte stuffing, and there are many others.  Filters become even more powerful when we allow them to be chained together to create composite filters. Filters can be seen as middle nodes in a chain of data transformations. Sources and sinks are the corresponding end points of these chains. A source is a function that produces data, chunk by chunk, and a sink is a function that takes data, chunk by chunk. In this technical note, we define an elegant interface for filters, sources, sinks and chaining. We evolve our interface progressively, until we reach a high degree of generality. We discuss difficulties that arise during the implementation of this interface and we provide solutions and examples. 
+<p>
+<H2>Introduction</H2>
+<p>
+Applications sometimes have too much information to process to fit in memory and are thus forced to process data in smaller parts.  Even when there is enough memory, processing all the data atomically may take long enough to frustrate a user that wants to interact with the application.  Furthermore, complex transformations can often be defined as a series of simpler operations. Several different complex transformations might share the same simpler operations, so that an uniform interface to combine them is desirable. The following concepts constitute our solution to these problems. 
+<p>
+<em>Filters</em> are functions that accept successive chunks of input, and produce successive chunks of output. Furthermore, the result of concatenating all the output data is the same as the result of applying the filter over the concatenation of the input data. As a consequence, boundaries are irrelevant: filters have to handle input data split arbitrarily by the user. 
+<p>
+A <em>chain</em> is a function that combines the effect of two (or more) other functions, but whose interface is indistinguishable from the interface of one of its components.  Thus, a chained filter can be used wherever an atomic filter can be used.  However, its effect on data is the combined effect of its component filters. Note that, as a consequence, chains can be chained themselves to create arbitrarily complex operations that can be used just like atomic operations.
+<p>
+Filters can be seen as internal nodes in a network through which data flows, potentially being transformed along its way.  Chains connect these nodes together. To complete the picture, we need <em>sources</em> and <em>sinks</em> as initial and final nodes of the network, respectively.  Less abstractly, a source is a function that produces new data every time it is called.  On the other hand, sinks are functions that give a final destination to the data they receive.  Naturally, sources and sinks can be chained with filters.
+<p>
+Finally, filters, chains, sources, and sinks are all passive entities: they need to be repeatedly called in order for something to happen.  <em>Pumps</em> provide the driving force that pushes data through the network, from a source to a sink.
+<p>
+Hopefully, these concepts will become clear with examples. In the following sections, we start with simplified interfaces, which we improve several times until we can find no obvious shortcomings. The evolution we present is not contrived: it follows the steps we followed ourselves as we consolidated our understanding of these concepts. 
+<p>
+<H3>A concrete example</H3>
+<p>
+Some data transformations are easier to implement as filters than others.  Examples of operations that can be implemented as filters include the end-of-line normalization for text, the Base64 and Quoted-Printable transfer content encodings, the breaking of text into lines, SMTP byte stuffing, and many others. Let's use the end-of-line normalization as an example to define our initial filter interface. We later discuss why the implementation might not be trivial.
+<p>
+Assume we are given text in an unknown end-of-line convention (including possibly mixed conventions) out of the commonly found Unix (LF), Mac OS (CR), and DOS (CRLF) conventions. We would like to be able to write code like the following:
+<p>
+<DL>
+<dt><dd><pre class="code">
+input = source.chain(source.file(<span class="library">io.stdin</span>), normalize(<span class="string">"\r\n"</span>))
+
+output = sink.file(<span class="library">io.stdout</span>)
+
+pump(input, output)
+
+</pre>
+
+</DL>
+<p>
+This program should read data from the standard input stream and normalize the end-of-line markers to the canonic CRLF marker defined by the MIME standard, finally sending the results to the standard output stream.  For that, we use a <em>file source</em> to produce data from standard input, and chain it with a filter that normalizes the data. The pump then repeatedly gets data from the source, and moves it to the <em>file sink</em> that sends it to standard output.
+<p>
+To make the discussion even more concrete, we start by discussing the implementation of the normalization filter. The <code>normalize</code> <em>factory</em> is a function that creates such a filter. Our initial filter interface is as follows: the filter receives a chunk of input data, and returns a chunk of processed data. When there is no more input data, the user notifies the filter by invoking it with a <code>nil</code> chunk. The filter then returns the final chunk of processed data.
+<p>
+Although the interface is extremely simple, the implementation doesn't seem so obvious. Any filter respecting this interface needs to keep some kind of context between calls. This is because chunks can be broken between the CR and LF characters marking the end of a line.  This need for context storage is what motivates the use of factories: each time the factory is called, it returns a filter with its own context so that we can have several independent filters being used at the same time.  For the normalization filter, we know that the obvious solution (i.e.  concatenating all the input into the context before producing any output) is not good enough, so we will have to find another way.
+<p>
+We will break the implementation in two parts: a low-level filter, and a factory of high-level filters. The low-level filter will be implemented in C and will not carry any context between function calls. The high-level filter factory, implemented in Lua, will create and return a high-level filter that keeps whatever context the low-level filter needs, but isolates the user from its internal details. That way, we take advantage of C's efficiency to perform the dirty work, and take advantage of Lua's simplicity for the bookkeeping.
+<p>
+<H3>The Lua part of the implementation</H3>
+<p>
+Below is the implementation of the factory of high-level end-of-line normalization filters:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> filter.cycle(low, ctx, extra)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(chunk)
+
+    <span class="keyword">local</span> ret
+
+    ret, ctx = low(ctx, chunk, extra)
+
+    <span class="keyword">return</span> ret
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> normalize(marker)
+
+  <span class="keyword">return</span> cycle(eol, 0, marker)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The <code>normalize</code> factory simply calls a more generic factory, the <code>cycle</code> factory. This factory receives a low-level filter, an initial context and some extra value and returns the corresponding high-level filter. Each time the high level filer is called with a new chunk, it calls the low-level filter passing the previous context, the new chunk and the extra argument. The low-level filter produces the chunk of processed data and a new context. Finally, the high-level filter updates its internal context and returns the processed chunk of data to the user.  It is the low-level filter that does all the work.  Notice that this implementation takes advantage of the Lua 5.0 lexical scoping rules to store the context locally, between function calls.  
+<p>
+Moving to the low-level filter, we notice there is no perfect solution to the end-of-line marker normalization problem itself. The difficulty comes from an inherent ambiguity on the definition of empty lines within mixed input. However, the following solution works well for any consistent input, as well as for non-empty lines in mixed input. It also does a reasonable job with empty lines and serves as a good example of how to implement a low-level filter.
+<p>
+Here is what we do: CR and LF are considered candidates for line break.  We issue <em>one</em> end-of-line line marker if one of the candidates is seen alone, or followed by a <em>different</em> candidate.  That is, CR&nbsp;CR and LF&nbsp;LF issue two end of line markers each, but CR&nbsp;LF and LF&nbsp;CR issue only one marker.  This idea takes care of Mac OS, Mac OS X, VMS and Unix, DOS and MIME, as well as probably other more obscure conventions.
+<p>
+<H3>The C part of the implementation</H3>
+<p>
+The low-level filter is divided into two simple functions. The inner function actually does the conversion. It takes each input character in turn, deciding what to output and how to modify the context. The context tells if the last character seen was a candidate and, if so, which candidate it was.
+<p>
+<DL>
+<dt><dd><pre>
+
+#define candidate(c) (c == CR || c == LF)
+
+static int process(int c, int last, const char *marker, luaL_Buffer *buffer) {
+
+    if (candidate(c)) {
+
+        if (candidate(last)) {
+
+            if (c == last) luaL_addstring(buffer, marker);
+
+            return 0;
+
+        } else {
+
+            luaL_addstring(buffer, marker);
+
+            return c;
+
+        }
+
+    } else {
+
+        luaL_putchar(buffer, c);
+
+        return 0;
+
+    }
+
+}
+
+</pre>
+</DL>
+<p>
+The inner function makes use of Lua's auxiliary library's buffer interface for its efficiency and ease of use. The outer function simply interfaces with Lua.  It receives the context and the input chunk (as well as an optional end-of-line marker), and returns the transformed output and the new context.
+<p>
+<DL>
+<dt><dd><pre>
+
+static int eol(lua_State *L) {
+
+    int ctx = luaL_checkint(L, 1);
+
+    size_t isize = 0;
+
+    const char *input = luaL_optlstring(L, 2, NULL, &amp;isize);
+
+    const char *last = input + isize;
+
+    const char *marker = luaL_optstring(L, 3, CRLF);
+
+    luaL_Buffer buffer;
+
+    luaL_buffinit(L, &amp;buffer);
+
+    if (!input) {
+
+       lua_pushnil(L);
+
+       lua_pushnumber(L, 0);
+
+       return 2;
+
+    }
+
+    while (input &lt; last)
+
+        ctx = process(*input++, ctx, marker, &amp;buffer);
+
+    luaL_pushresult(&amp;buffer);
+
+    lua_pushnumber(L, ctx);
+
+    return 2;
+
+}
+
+</pre>
+</DL>
+<p>
+Notice that if the input chunk is <code>nil</code>, the operation is considered to be finished. In that case, the loop will not execute a single time and the context is reset to the initial state.  This allows the filter to be reused indefinitely. It is a good idea to write filters like this, when possible. 
+<p>
+Besides the end-of-line normalization filter shown above, many other filters can be implemented with the same ideas. Examples include Base64 and Quoted-Printable transfer content encodings, the breaking of text into lines, SMTP byte stuffing etc. The challenging part is to decide what will be the context. For line breaking, for instance, it could be the number of bytes left in the current line.  For Base64 encoding, it could be the bytes that remain in the division of the input into 3-byte atoms. 
+<p>
+<H2>Chaining</H2>
+<p>
+Filters become more powerful when the concept of chaining is introduced. Suppose you have a filter for Quoted-Printable encoding and you want to encode some text. According to the standard, the text has to be normalized into its canonic form prior to encoding.  A nice interface that simplifies this task is a factory that creates a composite filter that passes data through multiple filters, but that can be used wherever a primitive filter is used.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> chain2(f1, f2)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(chunk)
+
+    <span class="keyword">local</span> ret = f2(f1(chunk))
+
+    <span class="keyword">if</span> chunk <span class="keyword">then</span> <span class="keyword">return</span> ret
+
+    <span class="keyword">else</span> <span class="keyword">return</span> ret .. f2() <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> filter.chain(...)
+
+  <span class="keyword">local</span> f = arg[1]
+
+  <span class="keyword">for</span> i = 2, <span class="library">table.getn</span>(arg) <span class="keyword">do</span>
+
+    f = chain2(f, arg[i])
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> f
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> chain = filter.chain(normalize(<span class="string">"\r\n"</span>), encode(<span class="string">"quoted-printable"</span>))
+
+<span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+  <span class="keyword">local</span> chunk = <span class="library">io.read</span>(2048)
+
+  <span class="library">io.write</span>(chain(chunk))
+
+  <span class="keyword">if</span> <span class="keyword">not</span> chunk <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The chaining factory is very simple. All it does is return a function that passes data through all filters and returns the result to the user.  It uses the simpler auxiliary function that knows how to chain two filters together. In the auxiliary function, special care must be taken if the chunk is final. This is because the final chunk notification has to be pushed through both filters in turn. Thanks to the chain factory, it is easy to perform the Quoted-Printable conversion, as the above example shows.
+<p>
+<H2>Sources, sinks, and pumps</H2>
+<p>
+As we noted in the introduction, the filters we introduced so far act as the internal nodes in a network of transformations. Information flows from node to node (or rather from one filter to the next) and is transformed on its way out. Chaining filters together is the way we found to connect nodes in the network. But what about the end nodes?  In the beginning of the network, we need a node that provides the data, a source. In the end of the network, we need a node that takes in the data, a sink.
+<p>
+<H3>Sources</H3>
+<p>
+We start with two simple sources. The first is the <code>empty</code> source: It simply returns no data, possibly returning an error message. The second is the <code>file</code> source, which produces the contents of a file in a chunk by chunk fashion, closing the file handle when done.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> source.empty(err)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>()
+
+    <span class="keyword">return</span> <span class="keyword">nil</span>, err
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> source.file(handle, io_err)
+
+  <span class="keyword">if</span> handle <span class="keyword">then</span> 
+
+     <span class="keyword">return</span> <span class="keyword">function</span>()
+
+       <span class="keyword">local</span> chunk = handle:read(2048)
+
+       <span class="keyword">if</span> <span class="keyword">not</span> chunk <span class="keyword">then</span> handle:close() <span class="keyword">end</span>
+
+       <span class="keyword">return</span> chunk
+
+     <span class="keyword">end</span>
+
+  <span class="keyword">else</span> <span class="keyword">return</span> source.empty(io_err <span class="keyword">or</span> <span class="string">"unable to open file"</span>) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+A source returns the next chunk of data each time it is called. When there is no more data, it just returns <code>nil</code>.  If there is an error, the source can inform the caller by returning <code>nil</code> followed by an error message. Adrian Sietsma noticed that, although not on purpose, the interface for sources is compatible with the idea of iterators in Lua 5.0. That is, a data source can be nicely used in conjunction with <code>for</code> loops.  Using our file source as an iterator, we can rewrite our first example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> process = normalize(<span class="string">"\r\n"</span>)
+
+<span class="keyword">for</span> chunk <span class="keyword">in</span> source.file(<span class="library">io.stdin</span>) <span class="keyword">do</span>
+
+  <span class="library">io.write</span>(process(chunk))
+
+<span class="keyword">end</span>
+
+<span class="library">io.write</span>(process(<span class="keyword">nil</span>))
+
+</pre>
+
+</DL>
+<p>
+Notice that the last call to the filter obtains the last chunk of processed data. The loop terminates when the source returns <code>nil</code> and therefore we need that final call outside of the loop.
+<p>
+<H3>Maintaining state between calls</H3>
+<p>
+It is often the case that a source needs to change its behavior after some event. One simple example would be a file source that wants to make sure it returns <code>nil</code> regardless of how many times it is called after the end of file, avoiding attempts to read past the end of the file.  Another example would be a source that returns the contents of several files, as if they were concatenated, moving from one file to the next until the end of the last file is reached.
+<p>
+One way to implement this kind of source is to have the factory declare extra state variables that the source can use via lexical scoping. Our file source could set the file handle itself to <code>nil</code> when it detects the end-of-file.  Then, every time the source is called, it could check if the handle is still valid and act accordingly:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> source.file(handle, io_err)
+
+  <span class="keyword">if</span> handle <span class="keyword">then</span> 
+
+    <span class="keyword">return</span> <span class="keyword">function</span>()
+
+      <span class="keyword">if</span> <span class="keyword">not</span> handle <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span> <span class="keyword">end</span>
+
+      <span class="keyword">local</span> chunk = handle:read(2048)
+
+      <span class="keyword">if</span> <span class="keyword">not</span> chunk <span class="keyword">then</span> 
+
+        handle:close() 
+
+        handle = <span class="keyword">nil</span>
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> chunk
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">return</span> source.empty(io_err <span class="keyword">or</span> <span class="string">"unable to open file"</span>)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Another way to implement this behavior involves a change in the source interface to make it more flexible. Let's allow a source to return a second value, besides the next chunk of data.  If the returned chunk is <code>nil</code>, the extra return value tells us what happened. A second <code>nil</code> means that there is just no more data and the source is empty.  Any other value is considered to be an error message.  On the other hand, if the chunk was <em>not</em> <code>nil</code>, the second return value tells us whether the source wants to be replaced. If it is <code>nil</code>, we should proceed using the same source.  Otherwise it has to be another source, which we have to use from then on, to get the remaining data. 
+<p>
+This extra freedom is good for someone writing a source function, but it is a pain for those that have to use it.  Fortunately, given one of these <em>fancy</em> sources, we can transform it into a simple source that never needs to be replaced, using the following factory.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> source.simplify(src)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>()
+
+    <span class="keyword">local</span> chunk, err_or_new = src()
+
+    src = err_or_new <span class="keyword">or</span> src
+
+    <span class="keyword">if</span> <span class="keyword">not</span> chunk <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span>, err_or_new
+
+    <span class="keyword">else</span> <span class="keyword">return</span> chunk <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The simplification factory allows us to write fancy sources and use them as if they were simple. Therefore, our next functions will only produce simple sources, and functions that take sources will assume they are simple.
+<p>
+Going back to our file source, the extended interface allows for a more elegant implementation. The new source just asks to be replaced by an empty source as soon as there is no more data. There is no repeated checking of the handle. To make things simpler to the user, the factory itself simplifies the the fancy file source before returning it to the user:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> source.file(handle, io_err)
+
+  <span class="keyword">if</span> handle <span class="keyword">then</span> 
+
+    <span class="keyword">return</span> source.simplify(<span class="keyword">function</span>()
+
+      <span class="keyword">local</span> chunk = handle:read(2048)
+
+      <span class="keyword">if</span> <span class="keyword">not</span> chunk <span class="keyword">then</span> 
+
+        handle:close()
+
+        <span class="keyword">return</span> <span class="string">""</span>, source.empty() 
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> chunk
+
+    <span class="keyword">end</span>)
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">return</span> source.empty(io_err <span class="keyword">or</span> <span class="string">"unable to open file"</span>)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+We can make these ideas even more powerful if we use a new feature of Lua 5.0: coroutines.  Coroutines suffer from a great lack of advertisement, and I am going to play my part here.  Just like lexical scoping, coroutines taste odd at first, but once you get used with the concept, it can save your day. I have to admit that using coroutines to implement our file source would be overkill, so let's implement a concatenated source factory instead.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> source.cat(...)
+
+  <span class="keyword">local</span> co = <span class="library">coroutine.create</span>(<span class="keyword">function</span>()
+
+    <span class="keyword">local</span> i = 1
+
+    <span class="keyword">while</span> i &lt;= <span class="library">table.getn</span>(arg) <span class="keyword">do</span>
+
+      <span class="keyword">local</span> chunk, err = arg[i]()
+
+      <span class="keyword">if</span> chunk <span class="keyword">then</span> <span class="library">coroutine.yield</span>(chunk)
+
+      <span class="keyword">elseif</span> err <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span>, err 
+
+      <span class="keyword">else</span> i = i + 1 <span class="keyword">end</span> 
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>()
+
+    <span class="keyword">return</span> shift(<span class="library">coroutine.resume</span>(co))
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The factory creates two functions. The first is an auxiliary that does all the work, in the form of a coroutine. It reads a chunk from one of the sources. If the chunk is <code>nil</code>, it moves to the next source, otherwise it just yields returning the chunk. When it is resumed, it continues from where it stopped and tries to read the next chunk.  The second function is the source itself, and just resumes the execution of the auxiliary coroutine, returning to the user whatever chunks it returns (skipping the first result that tells us if the coroutine terminated). Imagine writing the same function without coroutines and you will notice the simplicity of this implementation. We will use coroutines again when we make the filter interface more powerful. 
+<p>
+<H3>Chaining Sources</H3>
+<p>
+What does it mean to chain a source with a filter?  The most useful interpretation is that the combined source-filter is a new source that produces data and passes it through the filter before returning it. Here is a factory that does it:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> source.chain(src, f)
+
+  <span class="keyword">return</span> source.simplify(<span class="keyword">function</span>()
+
+    <span class="keyword">local</span> chunk, err = src()
+
+    <span class="keyword">if</span> <span class="keyword">not</span> chunk <span class="keyword">then</span> <span class="keyword">return</span> f(<span class="keyword">nil</span>), source.empty(err)
+
+    <span class="keyword">else</span> <span class="keyword">return</span> f(chunk) <span class="keyword">end</span>
+
+  <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Our motivating example in the introduction chains a source with a filter. The idea of chaining a source with a filter is useful when one thinks about functions that might get their input data from a source. By chaining a simple source with one or more filters, the same function can be provided with filtered data even though it is unaware of the filtering that is happening behind its back.
+<p>
+<H3>Sinks</H3>
+<p>
+Just as we defined an interface for an initial source of data, we can also define an interface for a final destination of data. We call any function respecting that interface a <em>sink</em>. Below are two simple factories that return sinks. The table factory creates a sink that stores all obtained data into a table. The data can later be efficiently concatenated into a single string with the <code>table.concat</code> library function. As another example, we introduce the <code>null</code> sink: A sink that simply discards the data it receives.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> sink.table(t)
+
+  t = t <span class="keyword">or</span> {}
+
+  <span class="keyword">local</span> f = <span class="keyword">function</span>(chunk, err)
+
+    <span class="keyword">if</span> chunk <span class="keyword">then</span> <span class="library">table.insert</span>(t, chunk) <span class="keyword">end</span>
+
+    <span class="keyword">return</span> 1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> f, t
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> null()
+
+  <span class="keyword">return</span> 1
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> sink.null()
+
+  <span class="keyword">return</span> null
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Sinks receive consecutive chunks of data, until the end of data is notified with a <code>nil</code> chunk. An error is notified by an extra argument giving an error message after the <code>nil</code> chunk.  If a sink detects an error itself and wishes not to be called again, it should return <code>nil</code>, optionally followed by an error message. A return value that is not <code>nil</code> means the source will accept more data. Finally, just as sources can choose to be replaced, so can sinks, following the same interface. Once again, it is easy to implement a <code>sink.simplify</code> factory that transforms a fancy sink into a simple sink.
+<p>
+As an example, let's create a source that reads from the standard input, then chain it with a filter that normalizes the end-of-line convention and let's use a sink to place all data into a table, printing the result in the end.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="library">load</span> = source.chain(source.file(<span class="library">io.stdin</span>), normalize(<span class="string">"\r\n"</span>))
+
+<span class="keyword">local</span> store, t = sink.table()
+
+<span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+  <span class="keyword">local</span> chunk = <span class="library">load</span>()
+
+
+
+  store(chunk)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> chunk <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>(<span class="library">table.concat</span>(t))
+
+</pre>
+
+</DL>
+<p>
+Again, just as we created a factory that produces a chained source-filter from a source and a filter, it is easy to create a factory that produces a new sink given a sink and a filter.  The new sink passes all data it receives through the filter before handing it in to the original sink. Here is the implementation: 
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> sink.chain(f, snk)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(chunk, err)
+
+    <span class="keyword">local</span> r, e = snk(f(chunk))
+
+    <span class="keyword">if</span> <span class="keyword">not</span> r <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span>, e <span class="keyword">end</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> chunk <span class="keyword">then</span> <span class="keyword">return</span> snk(<span class="keyword">nil</span>, err) <span class="keyword">end</span>
+
+    <span class="keyword">return</span> 1
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Pumps</H3>
+<p>
+There is a while loop that has been around for too long in our examples.  It's always there because everything that we designed so far is passive.  Sources, sinks, filters: None of them will do anything on their own. The operation of pumping all data a source can provide into a sink is so common that we will provide a couple helper functions to do that for us.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> pump.step(src, snk)
+
+  <span class="keyword">local</span> chunk, src_err = src()
+
+  <span class="keyword">local</span> ret, snk_err = snk(chunk, src_err)
+
+  <span class="keyword">return</span> chunk <span class="keyword">and</span> ret <span class="keyword">and</span> <span class="keyword">not</span> src_err <span class="keyword">and</span> <span class="keyword">not</span> snk_err, src_err <span class="keyword">or</span> snk_err
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> pump.all(src, snk, step)
+
+  step = step <span class="keyword">or</span> pump.step
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    <span class="keyword">local</span> ret, err = step(src, snk)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> ret <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">not</span> err, err <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The <code>pump.step</code> function moves one chunk of data from the source to the sink. The <code>pump.all</code> function takes an optional <code>step</code> function and uses it to pump all the data from the source to the sink. We can now use everything we have to write a program that reads a binary file from disk and stores it in another file, after encoding it to the Base64 transfer content encoding:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="library">load</span> = source.chain(
+
+  source.file(<span class="library">io.open</span>(<span class="string">"input.bin"</span>, <span class="string">"rb"</span>)), 
+
+  encode(<span class="string">"base64"</span>)
+
+)
+
+<span class="keyword">local</span> store = sink.chain(
+
+  wrap(76),
+
+  sink.file(<span class="library">io.open</span>(<span class="string">"output.b64"</span>, <span class="string">"w"</span>)), 
+
+)
+
+pump.all(<span class="library">load</span>, store)
+
+</pre>
+
+</DL>
+<p>
+The way we split the filters here is not intuitive, on purpose.  Alternatively, we could have chained the Base64 encode filter and the line-wrap filter together, and then chain the resulting filter with either the file source or the file sink. It doesn't really matter.
+<p>
+<H2>One last important change</H2>
+<p>
+Turns out we still have a problem. When David Burgess was writing his gzip filter, he noticed that the decompression filter can explode a small input chunk into a huge amount of data. Although we wished we could ignore this problem, we soon agreed we couldn't. The only solution is to allow filters to return partial results, and that is what we chose to do.  After invoking the filter to pass input data, the user now has to loop invoking the filter to find out if it has more output data to return.  Note that these extra calls can't pass more data to the filter. 
+<p>
+More specifically, after passing a chunk of input data to a filter and collecting the first chunk of output data, the user invokes the filter repeatedly, passing the empty string, to get extra output chunks. When the filter itself returns an empty string, the user knows there is no more output data, and can proceed to pass the next input chunk. In the end, after the user passes a <code>nil</code> notifying the filter that there is no more input data, the filter might still have produced too much output data to return in a single chunk. The user has to loop again, this time passing <code>nil</code> each time, until the filter itself returns <code>nil</code> to notify the user it is finally done.
+<p>
+Most filters won't need this extra freedom. Fortunately, the new filter interface is easy to implement. In fact, the end-of-line translation filter we created in the introduction already conforms to it. On the other hand, the chaining function becomes much more complicated. If it wasn't for coroutines, I wouldn't be happy to implement it. Let me know if you can find a simpler implementation that does not use coroutines!
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> chain2(f1, f2)
+
+  <span class="keyword">local</span> co = <span class="library">coroutine.create</span>(<span class="keyword">function</span>(chunk)
+
+    <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+      <span class="keyword">local</span> filtered1 = f1(chunk)
+
+      <span class="keyword">local</span> filtered2 = f2(filtered1)
+
+      <span class="keyword">local</span> done2 = filtered1 <span class="keyword">and</span> <span class="string">""</span>
+
+      <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+        <span class="keyword">if</span> filtered2 == <span class="string">""</span> <span class="keyword">or</span> filtered2 == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+        <span class="library">coroutine.yield</span>(filtered2)
+
+        filtered2 = f2(done2)
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> filtered1 == <span class="string">""</span> <span class="keyword">then</span> chunk = <span class="library">coroutine.yield</span>(filtered1)
+
+      <span class="keyword">elseif</span> filtered1 == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span>
+
+      <span class="keyword">else</span> chunk = chunk <span class="keyword">and</span> <span class="string">""</span> <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(chunk)
+
+    <span class="keyword">local</span> _, res = <span class="library">coroutine.resume</span>(co, chunk)
+
+    <span class="keyword">return</span> res
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Chaining sources also becomes more complicated, but a similar solution is possible with coroutines. Chaining sinks is just as simple as it has always been. Interestingly, these modifications do not have a measurable negative impact in the the performance of filters that didn't need the added flexibility. They do severely improve the efficiency of filters like the gzip filter, though, and that is why we are keeping them.
+<p>
+<H2>Final considerations</H2>
+<p>
+These ideas were created during the development of <code>LuaSocket</code><a href="http://www.tecgraf.puc-rio.br/luasocket">[1]</a> 2.0, and are available as the LTN12 module.  As a result, <code>LuaSocket</code><a href="http://www.tecgraf.puc-rio.br/luasocket">[1]</a> implementation was greatly simplified and became much more powerful.  The MIME module is especially integrated to LTN12 and provides many other filters. We felt these concepts deserved to be made public even to those that don't care about <code>LuaSocket</code><a href="http://www.tecgraf.puc-rio.br/luasocket">[1]</a>, hence the LTN. 
+<p>
+One extra application that deserves mentioning makes use of an identity filter.  Suppose you want to provide some feedback to the user while a file is being downloaded into a sink. Chaining the sink with an identity filter (a filter that simply returns the received data unaltered), you can update a progress counter on the fly. The original sink doesn't have to be modified.  Another interesting idea is that of a T sink: A sink that sends data to two other sinks. In summary, there appears to be enough room for many other interesting ideas.
+<p>
+In this technical note we introduced filters, sources, sinks, and pumps.  These are useful tools for data processing in general. Sources provide a simple abstraction for data acquisition. Sinks provide an abstraction for final data destinations. Filters define an interface for data transformations.  The chaining of filters, sources and sinks provides an elegant way to create arbitrarily complex data transformation from simpler transformations. Pumps just put the machinery to work.  
+<p>
+<H2>Beginner's note</H2>
+<p>
+While working with the above utilities from Diego, I found the following concise summary of the various functions prototypes useful.
+<p>
+<H3>Simple sources</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> source()
+
+  <span class="comment">-- we have data</span>
+
+  <span class="keyword">return</span> chunk
+
+
+
+  <span class="comment">-- we have an error</span>
+
+  <span class="keyword">return</span> <span class="keyword">nil</span>, err
+
+
+
+  <span class="comment">-- no more data</span>
+
+  <span class="keyword">return</span> <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Simple sinks</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span>(chunk, src_err)
+
+  <span class="keyword">if</span> chunk == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+    <span class="comment">-- no more data to process, we won't receive more chunks</span>
+
+    <span class="keyword">if</span> src_err <span class="keyword">then</span>
+
+      <span class="comment">-- source reports an error, TBD what to do with chunk received up to now</span>
+
+    <span class="keyword">else</span>
+
+      <span class="comment">-- do something with concatenation of chunks, all went well</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="keyword">true</span> <span class="comment">-- or anything that evaluates to true</span>
+
+  <span class="keyword">elseif</span> chunk == <span class="string">""</span> <span class="keyword">then</span>
+
+     <span class="comment">-- this is assumed to be without effect on the sink, but may</span>
+
+     <span class="comment">--   not be if something different than raw text is processed</span>
+
+
+
+     <span class="comment">-- do nothing and return true to keep filters happy</span>
+
+     <span class="keyword">return</span> <span class="keyword">true</span> <span class="comment">-- or anything that evaluates to true</span>
+
+  <span class="keyword">else</span> 
+
+     <span class="comment">-- chunk has data, process/store it as appropriate</span>
+
+     <span class="keyword">return</span> <span class="keyword">true</span> <span class="comment">-- or anything that evaluates to true</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- in case of error</span>
+
+  <span class="keyword">return</span> <span class="keyword">nil</span>, err
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Pumps</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+ret, err = pump.step(source, sink)
+
+
+
+<span class="keyword">if</span> ret == 1 <span class="keyword">then</span>
+
+  <span class="comment">-- all ok, continue pumping</span>
+
+<span class="keyword">elseif</span> err <span class="keyword">then</span>
+
+  <span class="comment">-- an error occured in the sink or source. If in both, the sink</span>
+
+  <span class="comment">-- error is lost.</span>
+
+<span class="keyword">else</span> <span class="comment">-- ret == nil and err == nil</span>
+
+  <span class="comment">-- done, nothing left to pump</span>
+
+<span class="keyword">end</span>
+
+
+
+ret, err = pump.all(source, sink)
+
+
+
+<span class="keyword">if</span> ret == 1 <span class="keyword">then</span>
+
+  <span class="comment">-- all OK, done</span>
+
+<span class="keyword">elseif</span> err <span class="keyword">then</span>
+
+  <span class="comment">-- an error occured</span>
+
+<span class="keyword">else</span>
+
+  <span class="comment">-- impossible</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<H3>Filters not expanding data</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> filter(chunk)
+
+  <span class="comment">-- first two cases are to maintain chaining logic that</span>
+
+  <span class="comment">-- support expanding filters (see below)</span>
+
+  <span class="keyword">if</span> chunk == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">nil</span>
+
+  <span class="keyword">elseif</span> chunk == <span class="string">""</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="string">""</span>
+
+  <span class="keyword">else</span>
+
+    <span class="comment">-- process chunk and return filtered data</span>
+
+    <span class="keyword">return</span> data
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Fancy sources</H3>
+<p>
+The idea of fancy sources is to enable a source to indicate which other source contains the data from now on.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> source()
+
+  <span class="comment">-- we have data</span>
+
+  <span class="keyword">return</span> chunk
+
+
+
+  <span class="comment">-- we have an error</span>
+
+  <span class="keyword">return</span> <span class="keyword">nil</span>, err
+
+
+
+  <span class="comment">-- no more data</span>
+
+  <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="keyword">nil</span>
+
+
+
+  <span class="comment">-- no more data in current source, but use sourceB from now on</span>
+
+  <span class="comment">-- ("" could be real data, but should not be nil or false)</span>
+
+  <span class="keyword">return</span> <span class="string">""</span>, sourceB
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+Transforming a fancy source in a simple one:
+<p>
+<DL>
+<dt><dd><pre class="code">
+simple = source.simplify(fancy)
+
+</pre>
+
+</DL>
+<p>
+<H3>Fancy sinks</H3>
+<p>
+The idea of fancy sinks is to enable a sink to indicate which other sink processes the data from now on.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span>(chunk, src_err)
+
+    <span class="comment">-- same as above (simple sink), except next sinkK sink</span>
+
+    <span class="comment">-- to use indicated after true</span>
+
+
+
+    <span class="keyword">return</span> <span class="keyword">true</span>, sinkK
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Transforming a fancy sink in a simple one:
+<p>
+<DL>
+<dt><dd><pre class="code">
+simple = sink.simplify(fancy)
+
+</pre>
+
+</DL>
+<p>
+<H3>Filters expanding data</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> filter(chunk)
+
+  <span class="keyword">if</span> chunk == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+    <span class="comment">-- end of data. If some expanded data is still to be returned</span>
+
+    <span class="keyword">return</span> partial_data
+
+
+
+    <span class="comment">-- the chains will keep on calling the filter to get all of</span>
+
+    <span class="comment">-- the partial data until the filter return nil</span>
+
+    <span class="keyword">return</span> <span class="keyword">nil</span>
+
+  <span class="keyword">elseif</span> chunk == <span class="string">""</span> <span class="keyword">then</span>
+
+    <span class="comment">-- a previous filter may have finished returning expanded</span>
+
+    <span class="comment">-- data, now it's our turn to expand the data and return it</span>
+
+    <span class="keyword">return</span> partial_data
+
+
+
+    <span class="comment">-- the chains will keep on calling the filter to get all of</span>
+
+    <span class="comment">-- the partial data until the filter return ""</span>
+
+    <span class="keyword">return</span> <span class="string">""</span>
+
+  <span class="keyword">else</span>
+
+    <span class="comment">-- process chunk and return filtered data, potentially partial.</span>
+
+    <span class="comment">-- In all cases, the filter is called again with "" (see above)</span>
+
+    <span class="keyword">return</span> partial_data
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FiltersSourcesAndSinks" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FiltersSourcesAndSinks" >history</a><br>Last edited February 12, 2009 8:16 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FiltersSourcesAndSinks" >(diff)</a>
+</body>
+</html>

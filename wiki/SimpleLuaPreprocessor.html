@@ -1,0 +1,183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Simple Lua Preprocessor</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SimpleLuaPreprocessor&amp;body=1" title="List pages referring to SimpleLuaPreprocessor">Simple Lua Preprocessor</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Simple though this is, it is surprisingly powerful. A slightly more complex version, with a couple of extra features, can be found at the <a href="../wiki/SlightlyLessSimpleLuaPreprocessor.html" >SlightlyLessSimpleLuaPreprocessor</a>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> prep(file)
+
+  <span class="keyword">local</span> chunk = {n=0}
+
+  <span class="keyword">for</span> line <span class="keyword">in</span> file:lines() <span class="keyword">do</span>
+
+     <span class="keyword">if</span> <span class="library">string.find</span>(line, <span class="string">"^#"</span>) <span class="keyword">then</span>
+
+      <span class="library">table.insert</span>(chunk, <span class="library">string.sub</span>(line, 2) .. <span class="string">"\n"</span>)
+
+     <span class="keyword">else</span>
+
+      <span class="keyword">local</span> last = 1
+
+      <span class="keyword">for</span> text, expr, index <span class="keyword">in</span> <span class="library">string.gmatch</span>(line, <span class="string">"(.-)$(%b())()"</span>) <span class="keyword">do</span> 
+
+        last = index
+
+        <span class="keyword">if</span> text ~= <span class="string">""</span> <span class="keyword">then</span>
+
+          <span class="library">table.insert</span>(chunk, <span class="library">string.format</span>(<span class="string">'io.write %q '</span>, text))
+
+        <span class="keyword">end</span>
+
+        <span class="library">table.insert</span>(chunk, <span class="library">string.format</span>(<span class="string">'io.write%s '</span>, expr))
+
+      <span class="keyword">end</span>
+
+      <span class="library">table.insert</span>(chunk, <span class="library">string.format</span>(<span class="string">'io.write %q\n'</span>,
+
+                                         <span class="library">string.sub</span>(line, last)..<span class="string">"\n"</span>))
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">loadstring</span>(<span class="library">table.concat</span>(chunk))()
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Lines starting with # are executed as Lua. Other lines are sent through as is, except that $(...) appearing anywhere in them is executed. (No parsing is done, so you have to be careful with your $('s)
+<p>
+Sample input:
+<p>
+<DL>
+<dt><dd><pre>
+
+#if DEBUG then
+
+  function log(fmt, ...) print(string.format(fmt, unpack(arg))) end
+
+#else
+
+  function log() end
+
+#end
+
+
+
+#for i = 0, 10 do
+
+  var$(i) = $(math.sin(math.pi * i / 10))
+
+#end
+
+</pre>
+</DL>
+<p>
+Sample output:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; prep(assert(io.open"sample.luap"))
+
+  function log() end
+
+
+
+  var0 = 0
+
+  var1 = 0.30901699437495
+
+  var2 = 0.58778525229247
+
+  var3 = 0.80901699437495
+
+  var4 = 0.95105651629515
+
+  var5 = 1
+
+  var6 = 0.95105651629515
+
+  var7 = 0.80901699437495
+
+  var8 = 0.58778525229247
+
+  var9 = 0.30901699437495
+
+  var10 = 1.2246467991474e-16
+
+
+
+
+
+
+
+&gt; DEBUG = true
+
+&gt; prep(assert(io.open"sample.luap"))
+
+  function log(fmt, ...) print(string.format(fmt, unpack(arg))) end
+
+
+
+  var0 = 0
+
+  var1 = 0.30901699437495
+
+  var2 = 0.58778525229247
+
+  var3 = 0.80901699437495
+
+  var4 = 0.95105651629515
+
+  var5 = 1
+
+  var6 = 0.95105651629515
+
+  var7 = 0.80901699437495
+
+  var8 = 0.58778525229247
+
+  var9 = 0.30901699437495
+
+  var10 = 1.2246467991474e-16
+
+
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SimpleLuaPreprocessor" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SimpleLuaPreprocessor" >history</a><br>Last edited July 3, 2013 7:02 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SimpleLuaPreprocessor" >(diff)</a>
+</body>
+</html>

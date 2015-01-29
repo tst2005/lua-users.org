@@ -1,0 +1,1240 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Python Lists</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PythonLists&amp;body=1" title="List pages referring to PythonLists">Python Lists</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Python</H3>
+<p>
+<a href="http://www.python.org">[Python]</a> is a popular language that contains lists and dictionaries. Lua's table is a multipurpose container that is somewhere in between but in itself lacks functionality as a list. The functions <code>table.insert</code>, <code>table.remove</code> and <code>table.getn</code> from the Lua standard library give tables list functionality (or more specifically termed <em>arrays</em> in Lua). The listing below emulates Python's list type. Section 5.1 <a href="http://www.python.org/doc/current/tut/tut.html">[1]</a> of the Python Tutorial documents Python's list functionality.
+<p>
+<H3>Implementation</H3>
+<p>
+We create a class table, <code>List</code>, containing methods. We use Lua's index metamethod to call the <code>List</code> methods (for background info see <a href="../wiki/ClassesAndMethods.html" >ClassesAndMethods</a>).
+<p>
+This version has been rewritten for Lua 5.1 (although the original has been kept) with overloads added for the concatenation and equality operators. For slices, the start and finish are now an <strong>inclusive</strong> range, which is more Lua-ish. There is also a <code>slice_assign</code> method for the Python construct <code>s[i1:i2] = seq</code>.
+<p>
+-- <a href="../wiki/SteveDonovan.html" >SteveDonovan</a>
+<p>
+<H3>Examples</H3>
+<p>
+The code below allows you do things like:
+<DL>
+<dt><dd><pre class="code">
+lst = List:new()  <span class="comment">-- create an empty List</span>
+
+lst2 = List:new{1,2,<span class="string">"blah"</span>,lst}  <span class="comment">-- create a list with some items in</span>
+
+lst3 = List {10,20,30}  <span class="comment">-- List acts like a 'constructor'</span>
+
+<span class="comment">-- Our new methods</span>
+
+lst:append(<span class="string">"hello"</span>)
+
+lst:extend{<span class="string">"world"</span>, 35, 77, <span class="string">"?"</span>}
+
+lst:insert(3,<span class="string">"how?"</span>)
+
+lst:remove(35)
+
+q = lst:pop()
+
+<span class="library">print</span>( lst:index(<span class="string">"world"</span>) )
+
+<span class="library">print</span>( lst:count(<span class="string">"?"</span>) )
+
+lst:sort()
+
+lst:reverse()
+
+<span class="library">print</span>( lst[-2] )
+
+a = lst:slice(3)
+
+b = lst:slice(-4,-2)
+
+lst:clear()
+
+lst:range(77)
+
+
+
+<span class="comment">-- We can mix them with Lua's library calls</span>
+
+<span class="library">table.insert</span>(lst,<span class="string">"boo"</span>)
+
+<span class="library">print</span>(#lst)
+
+</pre>
+
+</DL>
+<p>
+This interactive session demonstrates some of the operations. Note that these list
+objects can be called as if they were functions, which is a shortcut for the 
+<code>slice</code> method.
+<p>
+<DL>
+<dt><dd><pre>
+
+C:\lang\lua\projects\libs&gt;lua
+
+Lua 5.1.2  Copyright (C) 1994-2007 Lua.org, PUC-Rio
+
+&gt; require 'pylist'
+
+&gt; a = List {10,20,30}
+
+&gt; b = List {1,2,3}
+
+&gt; = a..b
+
+{10,20,30,1,2,3}
+
+&gt; = a:slice(2,3)
+
+{20,30}
+
+&gt; = a[-1]
+
+30
+
+&gt; = a:index(30)
+
+3
+
+&gt; a:append(40)
+
+&gt; = a
+
+{10,20,30,40}
+
+&gt; = List {1,2} == List{1,2}
+
+true
+
+&gt; = List {1,2} == List{1,4}
+
+false
+
+&gt; = a(2,-1)
+
+{20}
+
+&gt; = a(-2)
+
+{20,30}
+
+</pre>
+</DL>
+<p>
+<hr><DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Emulation of Python lists</span>
+
+<span class="comment">-- Nick Trout</span>
+
+<span class="comment">-- See http://www.python.org/doc/current/tut/tut.html, section 5.1</span>
+
+<span class="comment">-- Note:The comments before some of the functions are from the Python docs</span>
+
+<span class="comment">-- and contain Python code.</span>
+
+<span class="comment">-- Written for Lua version 4.0</span>
+
+<span class="comment">-- Redone for Lua 5.1, Steve Donovan.</span>
+
+
+
+<span class="keyword">local</span> tinsert = <span class="library">table.insert</span>
+
+<span class="keyword">local</span> tremove = <span class="library">table.remove</span>
+
+<span class="keyword">local</span> tsort = <span class="library">table.sort</span>
+
+<span class="keyword">local</span> write = <span class="library">io.write</span>
+
+
+
+<span class="comment">-- metatable for our list objects</span>
+
+List = {}
+
+List.__index = List
+
+<span class="comment">-- we give the metatable its own metatable so that we can call it like a function!</span>
+
+_ListMT = {}
+
+<span class="library">setmetatable</span>(List,_ListMT)
+
+<span class="keyword">function</span> _ListMT.__call(tbl,arg)
+
+  <span class="keyword">return</span> List:new(arg)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Handle the index event</span>
+
+<span class="comment">-- note: this is called if something is _not_ present in the table. These are either </span>
+
+<span class="comment">-- negative indices, method names, or bad indices.</span>
+
+<span class="keyword">function</span> List:__index(i)
+
+  <span class="keyword">local</span> typ = <span class="library">type</span>(i)
+
+  <span class="keyword">if</span> typ==<span class="string">"string"</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> fn = List[i]
+
+    <span class="keyword">if</span> <span class="keyword">not</span> fn <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"Bad List function: "</span>..i) <span class="keyword">end</span>
+
+    <span class="keyword">return</span> fn
+
+  <span class="keyword">elseif</span> typ==<span class="string">"number"</span> <span class="keyword">then</span>
+
+    <span class="keyword">if</span> i&lt;0 <span class="keyword">then</span>
+
+      <span class="keyword">local</span> sz = #self
+
+      <span class="keyword">if</span> i&lt;-sz <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"List index out of range: "</span>..i) <span class="keyword">end</span>
+
+      <span class="keyword">return</span> self[sz+i+1]
+
+    <span class="keyword">else</span>
+
+      <span class="library">error</span>(<span class="string">"Bad list index: "</span>..i)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- The newindex event handles list[i] = val, if i is not present in </span>
+
+<span class="comment">-- the list - used for negative indices!</span>
+
+<span class="keyword">function</span> List:__newindex(i,val)
+
+  <span class="keyword">if</span> <span class="library">type</span>(i)==<span class="string">"number"</span> <span class="keyword">then</span>
+
+    <span class="keyword">if</span> i&lt;0 <span class="keyword">then</span>
+
+      <span class="keyword">local</span> sz = #self
+
+      <span class="keyword">if</span> i&lt;-sz <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"List index out of range: "</span>..i) <span class="keyword">end</span>
+
+      self[sz+i+1] = val
+
+    <span class="keyword">else</span>
+
+      <span class="library">error</span>(<span class="string">"Bad list index: "</span>..i)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> simple_table(t)
+
+  <span class="keyword">return</span> <span class="library">type</span>(t) == <span class="string">'table'</span> <span class="keyword">and</span> <span class="library">getmetatable</span>(t) ~= List
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Create a new list. Can optionally pass a list eg. x=List:new{1,2,3}</span>
+
+<span class="comment">-- passing another instance of List will cause a _copy_ to be created</span>
+
+<span class="comment">-- we pass anything which isn't a simple table to iter() to work out</span>
+
+<span class="comment">-- an appropriate iterator</span>
+
+<span class="keyword">function</span> List:new(t)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> t <span class="keyword">then</span> t={} 
+
+  <span class="keyword">elseif</span>  <span class="keyword">not</span> simple_table(t) <span class="keyword">then</span>
+
+    <span class="keyword">local</span> tbl = t
+
+    t = {}
+
+    <span class="keyword">for</span> i,v <span class="keyword">in</span> iter(tbl) <span class="keyword">do</span>
+
+      tinsert(t,v)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="library">setmetatable</span>(t,List)
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--Add an item to the end of the list; equivalent to a[len(a):] = [x].</span>
+
+<span class="keyword">function</span> List:append(i)
+
+  tinsert(self,i)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Extend the list by appending all the items in the given list;</span>
+
+<span class="comment">-- equivalent to a[len(a):] = L.</span>
+
+<span class="keyword">function</span> List:extend(L)
+
+  <span class="library">assert</span>(<span class="library">type</span>(L)==<span class="string">"table"</span>,<span class="string">"List:extend expecting a table"</span>)
+
+  <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(L) <span class="keyword">do</span> tinsert(self,v) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Insert an item at a given position. The first argument is the index of the</span>
+
+<span class="comment">-- element before which to insert, so a.insert(0, x) inserts at the front of</span>
+
+<span class="comment">-- the list, and a.insert(len(a), x) is equivalent to a.append(x).</span>
+
+<span class="keyword">function</span> List:insert(i, x)
+
+  tinsert(self,i,x)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- equivalent of Python's del s[i]</span>
+
+List.delete = tremove
+
+
+
+<span class="comment">-- Remove the first item from the list whose value is x.</span>
+
+<span class="comment">-- It is an error if there is no such item.</span>
+
+<span class="keyword">function</span> List:remove(x)
+
+  <span class="keyword">for</span> i=1,#self <span class="keyword">do</span>
+
+    <span class="keyword">if</span> self[i]==x <span class="keyword">then</span> tremove(self,i) <span class="keyword">return</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="library">error</span>(<span class="string">"List:remove failed, item not found"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Remove the item at the given position in the list, and return it.</span>
+
+<span class="comment">-- If no index is specified, a.pop() returns the last item in the list.</span>
+
+<span class="comment">-- The item is also removed from the list.</span>
+
+<span class="keyword">function</span> List:pop(i)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> i <span class="keyword">then</span> i = #self <span class="keyword">end</span>
+
+  <span class="keyword">return</span> tremove(self,i)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Return the index in the list of the first item whose value is x.</span>
+
+<span class="comment">-- It is an error if there is no such item.</span>
+
+<span class="keyword">function</span> List:index(x)
+
+  <span class="keyword">for</span> i=1,#self <span class="keyword">do</span>
+
+    <span class="keyword">if</span> self[i]==x <span class="keyword">then</span> <span class="keyword">return</span> i <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="library">error</span>(<span class="string">"List:index failed, item not found"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Return the number of times x appears in the list.</span>
+
+<span class="keyword">function</span> List:count(x)
+
+  <span class="keyword">local</span> cnt=0
+
+  <span class="keyword">for</span> i=1,#self <span class="keyword">do</span>
+
+    <span class="keyword">if</span> self[i]==x <span class="keyword">then</span> cnt=cnt+1 <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> cnt
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Sort the items of the list, in place.</span>
+
+<span class="keyword">function</span> List:sort()
+
+  tsort(self)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Reverse the elements of the list, in place.</span>
+
+<span class="keyword">function</span> List:reverse()
+
+  <span class="keyword">local</span> t,n={},#self
+
+  <span class="keyword">for</span> i=1,n <span class="keyword">do</span> t[i]=self[n-i+1] <span class="keyword">end</span> <span class="comment">-- reverse</span>
+
+  <span class="keyword">for</span> i=1,n <span class="keyword">do</span> self[i]=t[i] <span class="keyword">end</span> <span class="comment">-- copy back</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> normalize_slice(self,first,last)
+
+  <span class="keyword">local</span> sz = #self
+
+  <span class="keyword">if</span> <span class="keyword">not</span> first <span class="keyword">then</span> first=1 <span class="keyword">end</span>
+
+  <span class="keyword">if</span> first&lt;0 <span class="keyword">then</span> first=sz+first+1 <span class="keyword">end</span>
+
+  <span class="comment">-- make the range _inclusive_!</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> last <span class="keyword">then</span> last=sz <span class="keyword">end</span> 
+
+  <span class="keyword">if</span> last &lt; 0 <span class="keyword">then</span> last=sz+last <span class="keyword">end</span>
+
+  <span class="keyword">return</span> first,last
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Emulate the list slice eg. python_list[first:last]</span>
+
+<span class="comment">-- If first or last are negative then they are relative to the end of the list</span>
+
+<span class="comment">-- eg. slice(-2) gives last 2 entries in a list,</span>
+
+<span class="comment">-- eg. slice(-4,-2) gives from -4th to -2nd</span>
+
+<span class="keyword">function</span> List:slice(first,last)
+
+  first,last = normalize_slice(self,first,last)
+
+  <span class="keyword">local</span> t=self:new()
+
+  <span class="keyword">for</span> i=first,last <span class="keyword">do</span> tinsert(t,self[i]) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- empty the list</span>
+
+<span class="keyword">function</span> List:clear()
+
+  <span class="keyword">for</span> i=1,#self <span class="keyword">do</span> tremove(self,i) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Emulate Python's range(x) function which gives you a sequence of 0..x-1</span>
+
+<span class="comment">-- Include it in List table for tidyness</span>
+
+<span class="keyword">function</span> List:range(x)
+
+  <span class="keyword">local</span> t=self
+
+  <span class="keyword">if</span> <span class="library">type</span>(t) == <span class="string">'number'</span> <span class="keyword">then</span> <span class="comment">-- we did not get a self argument - it was a number!</span>
+
+    x = t
+
+    t=List:new()    
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">for</span> i=0,x-1 <span class="keyword">do</span> tinsert(t,i) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Python len(list) is the same as #list</span>
+
+<span class="keyword">function</span> List:len()
+
+  <span class="keyword">return</span> #self
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Extended operations --</span>
+
+
+
+<span class="comment">-- equivalent to del s[i1:i2]</span>
+
+<span class="keyword">function</span> List:chop(i1,i2)
+
+    i1,i2 = normalize_slice(self,i1,i2)
+
+    <span class="keyword">for</span> i = i1,i2 <span class="keyword">do</span>
+
+        tremove(self,i1)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- equivalent to s[idx:idx] = seq</span>
+
+<span class="keyword">function</span> List:splice(idx,seq)
+
+    idx = idx - 1
+
+    <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(seq) <span class="keyword">do</span>
+
+        tinsert(self,i+idx,v)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- general slice assignment s[i1:i2] = seq</span>
+
+<span class="keyword">function</span> List:slice_assign(i1,i2,seq)
+
+    i1,i2 = normalize_slice(self,i1,i2)
+
+    <span class="keyword">if</span> i2 &gt;= i1 <span class="keyword">then</span> self:chop(i1,i2) <span class="keyword">end</span>
+
+    self:splice(i1,seq)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- concatenation operator ..</span>
+
+<span class="keyword">function</span> List:__concat(L)
+
+  <span class="keyword">local</span> ls = self:slice(1,-1)  <span class="comment">-- making a copy!</span>
+
+  ls:extend(L)
+
+  <span class="keyword">return</span> ls
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- equality operator ==</span>
+
+<span class="keyword">function</span> List:__eq(L)
+
+<span class="comment">--~   print(#self,#L)</span>
+
+  <span class="keyword">if</span> #self ~= #L <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+  <span class="keyword">for</span> i = 1,#self <span class="keyword">do</span>
+
+<span class="comment">--~     print(self[i],L[i])</span>
+
+    <span class="keyword">if</span> self[i] ~= L[i] <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">true</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- how our list should be rendered as a string</span>
+
+<span class="comment">-- note: really can't handle list items which are not strings or numbers</span>
+
+<span class="keyword">function</span> List:__tostring()
+
+  <span class="keyword">return</span> <span class="string">'{'</span>..<span class="library">table.concat</span>(self,<span class="string">','</span>)..<span class="string">'}'</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- can use the call notation to extract slices!</span>
+
+<span class="keyword">function</span> List:__call(first,last)
+
+  <span class="keyword">return</span> self:slice(first,last)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> List:foreach(fun)
+
+  <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(self) <span class="keyword">do</span>
+
+    fun(v)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- capturing the Python concept of 'sequence'. </span>
+
+<span class="comment">-- In particular, this makes strings and file objects to be iterable sequences.</span>
+
+<span class="keyword">function</span> iter(seq)
+
+    <span class="keyword">if</span> <span class="library">type</span>(seq) == <span class="string">'string'</span> <span class="keyword">then</span>
+
+        <span class="keyword">local</span> idx = 0
+
+        <span class="keyword">local</span> n = #seq
+
+        <span class="keyword">local</span> sub = <span class="library">string.sub</span>
+
+        <span class="keyword">return</span> <span class="keyword">function</span> ()
+
+            idx = idx + 1
+
+            <span class="keyword">if</span> idx &gt; n <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span>
+
+            <span class="keyword">else</span>
+
+                <span class="keyword">return</span> idx,sub(seq,idx,idx)
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">elseif</span> <span class="library">type</span>(seq) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+        <span class="keyword">return</span> <span class="library">ipairs</span>(seq)
+
+    <span class="keyword">elseif</span> <span class="library">type</span>(seq) == <span class="string">'function'</span> <span class="keyword">then</span>
+
+        <span class="keyword">return</span> seq()
+
+    <span class="keyword">elseif</span> <span class="library">type</span>(seq) == <span class="string">'userdata'</span> <span class="keyword">and</span> <span class="library">io.type</span>(seq) == <span class="string">'file'</span> <span class="keyword">then</span>
+
+        <span class="keyword">local</span> lines = seq:lines()
+
+        <span class="keyword">local</span> k = 0
+
+        <span class="keyword">return</span> <span class="keyword">function</span> ()
+
+            <span class="keyword">local</span> line = lines()
+
+            <span class="keyword">if</span> <span class="keyword">not</span> line <span class="keyword">then</span>
+
+              <span class="keyword">return</span> <span class="keyword">nil</span> 
+
+            <span class="keyword">else</span>
+
+                k = k + 1
+
+                <span class="keyword">return</span> k,line
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>			
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- test using: lua pylist.lua</span>
+
+<span class="keyword">if</span> arg <span class="keyword">and</span> arg[0]==<span class="string">"pylist.lua"</span> <span class="keyword">then</span>
+
+  <span class="keyword">local</span> pr = <span class="keyword">function</span>(l)
+
+    <span class="keyword">for</span> i=1,#l <span class="keyword">do</span> <span class="library">io.write</span>(l[i],<span class="string">' '</span>) <span class="keyword">end</span>
+
+    <span class="library">print</span>()
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> lst = List:new()
+
+  lst:append(10)
+
+  lst:extend{20,30,40,50}
+
+  <span class="library">assert</span> (lst == List{10,20,30,40,50})
+
+  lst:insert(3,11)  
+
+  lst:remove(40)
+
+  <span class="library">assert</span> (lst == List{10,20,11,30,50})
+
+  <span class="keyword">local</span> q=lst:pop()
+
+  <span class="library">assert</span>( lst:index(30)==4 )
+
+  <span class="library">assert</span>( lst:count(10)==1 )
+
+  lst:sort()
+
+  lst:reverse()
+
+  <span class="library">assert</span> (lst == List{30,20,11,10})
+
+  <span class="library">assert</span> (lst[-1] == 10)
+
+  <span class="library">assert</span> (lst[-3] == 20)
+
+  lst = List {10,20,30,40,50}
+
+  <span class="library">assert</span> (lst:slice(2) == List{20,30,40,50})
+
+  <span class="library">assert</span> (lst:slice(-2) == List{40,50})
+
+  <span class="library">assert</span> (lst:slice(<span class="keyword">nil</span>,3) == List{10,20,30})
+
+  <span class="library">assert</span> (lst:slice(2,4) == List{20,30,40})
+
+  <span class="library">assert</span> (lst:slice(-4,-2) == List{20,30})
+
+  lst = List.range(10)
+
+  seq = List{0,1,2,3,4,5,6,7,8,9}
+
+  <span class="library">assert</span>(lst == seq)
+
+  <span class="library">assert</span> (List(<span class="string">'abcd'</span>) == List{<span class="string">'a'</span>,<span class="string">'b'</span>,<span class="string">'c'</span>,<span class="string">'d'</span>})
+
+  ls = List{10,20,30,40}
+
+  ls:slice_assign(2,3,{21,31})
+
+  <span class="library">assert</span> (ls == List{10,21,31,40})
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Older Example for Lua 4.0</H3>
+<p>
+The code below allows you do things like:
+<DL>
+<dt><dd><pre class="code">
+lst = List:new()  <span class="comment">-- create an empty List</span>
+
+lst2 = List:new{1,2,<span class="string">"blah"</span>,lst}  <span class="comment">-- create a list with some items in</span>
+
+
+
+<span class="comment">-- Our new methods</span>
+
+lst:append(<span class="string">"hello"</span>)
+
+lst:extend{<span class="string">"world"</span>, 35, 77, <span class="string">"?"</span>}
+
+lst:insert(3,<span class="string">"how?"</span>)
+
+lst:remove(35)
+
+q = lst:pop()
+
+<span class="library">print</span>( lst:index(<span class="string">"world"</span>) )
+
+<span class="library">print</span>( lst:count(<span class="string">"?"</span>) )
+
+lst:sort()
+
+lst:reverse()
+
+<span class="library">print</span>( lst[-2] )
+
+a = lst:slice(3)
+
+b = lst:slice(-4,-2)
+
+lst:clear()
+
+lst:range(77)
+
+
+
+<span class="comment">-- We can mix them with Luas syntax</span>
+
+tinsert(lst,<span class="string">"boo"</span>)
+
+<span class="library">print</span>(getn(lst))
+
+</pre>
+
+</DL>
+<p>
+<hr><DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Emulation of Python lists</span>
+
+<span class="comment">-- Nick Trout</span>
+
+<span class="comment">-- See http://www.python.org/doc/current/tut/tut.html, section 5.1</span>
+
+<span class="comment">-- Note:The comments before some of the functions are from the Python docs</span>
+
+<span class="comment">-- and contain Python code.</span>
+
+<span class="comment">-- Written for Lua version 4.0</span>
+
+
+
+List = settag({},newtag())
+
+
+
+<span class="comment">-- Handle the tagmethod "index"</span>
+
+<span class="keyword">function</span> List:_index(i)
+
+  <span class="keyword">local</span> typ = <span class="library">type</span>(i)
+
+  <span class="keyword">if</span> typ==<span class="string">"string"</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> fn = List[i]
+
+    <span class="keyword">if</span> <span class="keyword">not</span> fn <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"Bad List function: "</span>..i) <span class="keyword">end</span>
+
+    <span class="keyword">return</span> fn
+
+  <span class="keyword">elseif</span> typ==<span class="string">"number"</span> <span class="keyword">then</span>
+
+    <span class="keyword">if</span> i&lt;0 <span class="keyword">then</span>
+
+      <span class="keyword">local</span> sz = getn(self)
+
+      <span class="keyword">if</span> i&lt;-sz <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"List index out of range: "</span>..i) <span class="keyword">end</span>
+
+      <span class="keyword">return</span> self[sz+i+1]
+
+    <span class="keyword">else</span>
+
+      <span class="library">error</span>(<span class="string">"Bad list index: "</span>..i)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+settagmethod(tag(List), <span class="string">"index"</span>, List._index)
+
+
+
+<span class="comment">-- Create a new list. Can optionally pass a list eg. x=List:new{1,2,3}</span>
+
+<span class="keyword">function</span> List:new(t)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> t <span class="keyword">then</span> t={} <span class="keyword">end</span>
+
+  settag(t,tag(List))
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--Add an item to the end of the list; equivalent to a[len(a):] = [x].</span>
+
+<span class="keyword">function</span> List:append(i)
+
+  tinsert(self,i)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Extend the list by appending all the items in the given list;</span>
+
+<span class="comment">-- equivalent to a[len(a):] = L.</span>
+
+<span class="keyword">function</span> List:extend(L)
+
+  <span class="library">assert</span>(<span class="library">type</span>(L)==<span class="string">"table"</span>,<span class="string">"List:extend expecting a table"</span>)
+
+  <span class="keyword">for</span> i=1,getn(L) <span class="keyword">do</span> tinsert(self,L[i]) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Insert an item at a given position. The first argument is the index of the</span>
+
+<span class="comment">-- element before which to insert, so a.insert(0, x) inserts at the front of</span>
+
+<span class="comment">-- the list, and a.insert(len(a), x) is equivalent to a.append(x).</span>
+
+<span class="keyword">function</span> List:insert(i, x)
+
+  tinsert(self,i,x)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Remove the first item from the list whose value is x.</span>
+
+<span class="comment">-- It is an error if there is no such item.</span>
+
+<span class="keyword">function</span> List:remove(x)
+
+  <span class="keyword">for</span> i=1,getn(self) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> self[i]==x <span class="keyword">then</span> tremove(self,i) <span class="keyword">return</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="library">error</span>(<span class="string">"List:remove failed, item not found"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Remove the item at the given position in the list, and return it.</span>
+
+<span class="comment">-- If no index is specified, a.pop() returns the last item in the list.</span>
+
+<span class="comment">-- The item is also removed from the list.</span>
+
+<span class="keyword">function</span> List:pop(i)
+
+  <span class="keyword">local</span> item=i
+
+  <span class="keyword">if</span> <span class="keyword">not</span> item <span class="keyword">then</span> item=getn(self) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> tremove(self)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Return the index in the list of the first item whose value is x.</span>
+
+<span class="comment">-- It is an error if there is no such item.</span>
+
+<span class="keyword">function</span> List:index(x)
+
+  <span class="keyword">for</span> i=1,getn(self) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> self[i]==x <span class="keyword">then</span> <span class="keyword">return</span> i <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="library">error</span>(<span class="string">"List:index failed, item not found"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Return the number of times x appears in the list.</span>
+
+<span class="keyword">function</span> List:count(x)
+
+  <span class="keyword">local</span> cnt=0
+
+  <span class="keyword">for</span> i=1,getn(self) <span class="keyword">do</span> <span class="keyword">if</span> self[i]==x <span class="keyword">then</span> cnt=cnt+1 <span class="keyword">end</span> <span class="keyword">end</span>
+
+  <span class="keyword">return</span> cnt
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Sort the items of the list, in place.</span>
+
+<span class="keyword">function</span> List:sort()
+
+  sort(self)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Reverse the elements of the list, in place.</span>
+
+<span class="keyword">function</span> List:reverse()
+
+  <span class="keyword">local</span> t,n={},getn(self)
+
+  <span class="keyword">for</span> i=1,n <span class="keyword">do</span> t[i]=self[n-i+1] <span class="keyword">end</span> <span class="comment">-- reverse</span>
+
+  <span class="keyword">for</span> i=1,n <span class="keyword">do</span> self[i]=t[i] <span class="keyword">end</span> <span class="comment">-- copy back</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Emulate the list slice eg. python_list[first:last]</span>
+
+<span class="comment">-- If first or last are negative then they are relative to the end of the list</span>
+
+<span class="comment">-- eg. slice(-2) gives last 2 entries in a list,</span>
+
+<span class="comment">-- eg. slice(-4,-2) gives from -4th to -2nd</span>
+
+<span class="keyword">function</span> List:slice(first,last)
+
+  <span class="keyword">local</span> sz = getn(self)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> first <span class="keyword">then</span> first=1 <span class="keyword">end</span>
+
+  <span class="keyword">if</span> first&lt;0 <span class="keyword">then</span> first=sz+first+1 <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> last <span class="keyword">then</span> last=sz <span class="keyword">else</span> last=last-1 <span class="keyword">end</span>
+
+  <span class="keyword">if</span> last&lt;0 <span class="keyword">then</span> last=sz+last+1 <span class="keyword">end</span>
+
+  <span class="keyword">local</span> t=self:new()
+
+  <span class="keyword">for</span> i=first,last <span class="keyword">do</span> tinsert(t,self[i]) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- empty the list</span>
+
+<span class="keyword">function</span> List:clear()
+
+  <span class="keyword">for</span> i=1,getn(self) <span class="keyword">do</span> tremove(self,i) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Emulate Pythons range(x) function which gives you a sequence of 0..x-1</span>
+
+<span class="comment">-- Include it in List table for tidyness</span>
+
+<span class="keyword">function</span> List:range(x)
+
+  <span class="keyword">local</span> t=self
+
+  <span class="keyword">if</span> <span class="keyword">not</span> t <span class="keyword">then</span> t=List:new() <span class="keyword">end</span>
+
+  <span class="keyword">for</span> i=0,x-1 <span class="keyword">do</span> tinsert(t,i) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Python len(list) is the same as getn</span>
+
+List.len = getn
+
+
+
+<span class="comment">-- test using: lua -f pylist.lua -test</span>
+
+<span class="keyword">if</span> arg <span class="keyword">and</span> arg[1]==<span class="string">"-test"</span> <span class="keyword">then</span>
+
+  <span class="keyword">local</span> pr = <span class="keyword">function</span>(l) <span class="keyword">for</span> i=1,getn(l) <span class="keyword">do</span> write(l[i]) <span class="keyword">end</span> <span class="library">print</span>() <span class="keyword">end</span>
+
+  <span class="keyword">local</span> lst = List:new()
+
+  lst:append(<span class="string">"hello "</span>) pr(lst)
+
+  lst:extend{<span class="string">"world "</span>,<span class="string">"are "</span>,<span class="string">"you "</span>,<span class="string">"diddling "</span>,<span class="string">"?"</span>} pr(lst)
+
+  lst:insert(3,<span class="string">"how "</span>) pr(lst)
+
+  lst:remove(<span class="string">"diddling "</span>) pr(lst)
+
+  <span class="keyword">local</span> q=lst:pop() pr(lst)
+
+  <span class="library">assert</span>( lst:index(<span class="string">"are "</span>)==4 )
+
+  <span class="library">assert</span>( lst:count(<span class="string">"are "</span>)==1 )
+
+  lst:sort() pr(lst)
+
+  lst:reverse() pr(lst)
+
+  tinsert(lst,<span class="string">"boo"</span>) pr(lst)
+
+  <span class="library">print</span>( getn(lst), lst:len(), List.len(lst) )
+
+  <span class="library">print</span>( lst[1],lst[-1],lst[-3] )
+
+  <span class="comment">--print( lst[0] )  -- test errors</span>
+
+  <span class="comment">--print( lst[100] )</span>
+
+  <span class="comment">--print( lst[-100] )</span>
+
+  write(<span class="string">"list: "</span>) pr(lst)
+
+  write(<span class="string">"[2:] : "</span>)  pr( lst:slice(2) )
+
+  write(<span class="string">"[-2:] : "</span>)  pr( lst:slice(-2) )
+
+  write(<span class="string">"[:3] : "</span>)  pr( lst:slice(<span class="keyword">nil</span>,3) )
+
+  write(<span class="string">"[:-2] : "</span>) pr( lst:slice(<span class="keyword">nil</span>,-2) )
+
+  write(<span class="string">"[2:4] : "</span>) pr( lst:slice(2,4) )
+
+  write(<span class="string">"[-4:-2] : "</span>) pr( lst:slice(-4,-2) )
+
+  lst:clear() pr(lst)
+
+  pr( List:range(10) )
+
+  lst:range(20) pr(lst)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd>--<a href="../wiki/NickTrout.html" >NickTrout</a>
+</DL>
+<p>
+<p>
+<H2>Lists by comprehension in <a href="../wiki/MetaLua.html" >MetaLua</a></H2>
+<p>
+Another handy feature of python lists, which can also be found in Haskell<a href="http://www.haskell.org">[2]</a>, is the specification of lists by comprehension: generating lists through cartesian products and filtering is made easier and more readable. Metalua comes with a sketchy implementation of this features, plus a couple of others idioms such as list sampling:
+<p>
+<pre class="code">
+-{extension <span class="string">"clist"</span>}
+
+<span class="comment">-- integers from 2 to 50, by steps of 2:</span>
+
+x = { i <span class="keyword">for</span> i = 2, 50, 2 }
+
+
+
+<span class="comment">-- the same, obtained by filtering over all integers &lt;= 50:</span>
+
+y = { i <span class="keyword">for</span> i = 1, 50 <span class="keyword">if</span> i%2==0 }
+
+
+
+<span class="comment">-- prime numbers, implemented in an inefficient way:</span>
+
+<span class="keyword">local</span> sieve, n = { i <span class="keyword">for</span> i=2, 100 }, 1
+
+<span class="keyword">while</span> n &lt; #sieve <span class="keyword">do</span>
+
+   sieve = { 
+
+      i <span class="keyword">for</span> i <span class="keyword">in</span> values(sieve[1 ... n]);
+
+      i <span class="keyword">for</span> i <span class="keyword">in</span> values(sieve[n+1 ... #sieve]) <span class="keyword">if</span> i%sieve[n] ~= 0 }
+
+   n += 1
+
+<span class="keyword">end</span>
+
+<span class="library">table.print</span>(sieve)
+
+</pre>
+
+<p>
+-- <a href="../wiki/FabienFleutot.html" >FabienFleutot</a>
+<p>
+An alternative implementation of this syntax (without the filter clause) can be found in <a href="../wiki/LuaMacros.html" >LuaMacros</a>
+-- <a href="../wiki/SteveDonovan.html" >SteveDonovan</a>
+<p>
+<H2>A question of Lua Style</H2>
+<p>
+There are several functions like <code>List.index</code> which throw an error, rather than returning false. This is appropriate Python style, but more awkward in Lua because the built-in exception handling mechanism is more clumsy. So should these methods return a boolean, rather? We can depend on <code>nil</code> not being a valid value, unlike in Python.
+<p>
+-- <a href="../wiki/SteveDonovan.html" >SteveDonovan</a>
+<hr>See also: <a href="../wiki/ClassesAndMethods.html" >ClassesAndMethods</a> , <a href="../wiki/SampleCode.html" >SampleCode</a> , <a href="../wiki/PythonDictionaries.html" >PythonDictionaries</a> 
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PythonLists" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PythonLists" >history</a><br>Last edited November 27, 2007 1:49 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PythonLists" >(diff)</a>
+</body>
+</html>

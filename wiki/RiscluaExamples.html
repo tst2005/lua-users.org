@@ -1,0 +1,78 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Risclua Examples</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=RiscluaExamples&amp;body=1" title="List pages referring to RiscluaExamples">Risclua Examples</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here, for comparison, is a <a href="../wiki/RiscLua.html" >RiscLua</a> version of Base64 encoding/decoding.<p>
+<pre>#! lua
+local char in string
+local concat in table
+local pairs = pairs
+
+module "base64" -- exports encode,decode
+
+  local f = \ (self, z) self[1 + #self] = z end
+  local stk = \ ( ) =&gt; { push = f } end
+
+  local C = { } -- encryption table
+  for i = 0, 25 do
+   C[i], C[26+i]  = char (65+i), char (97+i)  -- upper/lower case letters
+  end
+  for i = 52, 61 do C[i] = char (i-4) end -- digits
+  C[62], C[63] = '-','_' -- 2 extra  +,/ for standard
+
+  encode = \ (data)
+     local bb, x, r = { }, stk ( ), nil
+     for s = 0, #data - 1, 3 do
+       for b = 1, 3 do bb[b] = (data:sub (s + b)):byte ( ) or 0 end
+       r = #data - s
+       x:push (C[bb[1] &gt;&gt; 2])
+       x:push (C[((bb[1] % 4) &lt;&lt; 4) | (bb[2] &gt;&gt; 4)] or "=")
+       x:push (r&gt;1 and C[((bb[2] % 16) &lt;&lt; 2) | (bb[3] &gt;&gt; 6)] or "=")
+       x:push (r&gt;2 and C[bb[3] % 64] or "=")
+      end -- for
+      =&gt; concat (x) end -- function
+
+  local B = { } -- decryption table
+  for key, value in pairs (C) do B[value] = key end -- invert C
+
+  decode = \ (data)
+     local cc, y, n, j = { }, stk ( ), 256, nil
+     for d = 0, #data - 1, 4 do
+      for c = 1, 4 do j = d + c; cc[c] = B[data:sub (j,j) or "="] end
+      y:push (char (((cc[1] &lt;&lt; 2) % n) | (cc[2] &gt;&gt; 4)))
+      y:push (cc[3] and char (((cc[2] &lt;&lt; 4) % n) | (cc[3] &gt;&gt; 2)) or "")
+      y:push (cc[4] and char ((((cc[3] &lt;&lt; 6) % n) % 192) | cc[4]) or "")
+     end -- for
+     =&gt; concat (y) end -- function
+
+-- end module
+</pre><hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=RiscluaExamples" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=RiscluaExamples" >history</a><br>Last edited March 30, 2014 12:26 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=RiscluaExamples" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,578 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Goto Statement</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=GotoStatement&amp;body=1" title="List pages referring to GotoStatement">Goto Statement</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+A <code>goto</code> statement was added in Lua 5.2.0-beta-rc1 <a href="/lists/lua-l/2011-06/msg00515.html">[6]</a> <a href="http://www.lua.org/work/doc/manual.html#3.3.4">[1]</a> and refined in 5.2.0-beta-rc2 <a href="/lists/lua-l/2011-06/msg00943.html">[7]</a>.  This is a restrictive form of <code>goto</code> in that
+<p>
+<UL>
+<li> A label is visible in the entire block where it is defined (including nested blocks, but not nested functions). 
+<li> A goto may jump to any visible label as long as it does not enter into the scope of a local variable. <a href="http://www.lua.org/work/doc/manual.html#3.3.4">[1]</a>
+</UL>
+<p>
+This rest of this page explores some usages of this new construct.
+<p>
+<H3>Nested break</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- 5.2.0-beta-rc2</span>
+
+<span class="keyword">for</span> z=1,10 <span class="keyword">do</span>
+
+<span class="keyword">for</span> y=1,10 <span class="keyword">do</span>
+
+<span class="keyword">for</span> x=1,10 <span class="keyword">do</span>
+
+  <span class="keyword">if</span> x^2 + y^2 == z^2 <span class="keyword">then</span>
+
+    <span class="library">print</span>(<span class="string">'found a Pythagorean triple:'</span>, x, y, z)
+
+    goto done
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span> <span class="keyword">end</span> <span class="keyword">end</span>
+
+::done::
+
+</pre>
+
+</DL>
+<p>
+<H3>Continue or nested continue</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- 5.2.0-beta-rc2</span>
+
+<span class="keyword">for</span> z=1,10 <span class="keyword">do</span>
+
+<span class="keyword">for</span> y=1,10 <span class="keyword">do</span>
+
+<span class="keyword">for</span> x=1,10 <span class="keyword">do</span>
+
+  <span class="keyword">if</span> x^2 + y^2 == z^2 <span class="keyword">then</span>
+
+    <span class="library">print</span>(<span class="string">'found a Pythagorean triple:'</span>, x, y, z)
+
+    <span class="library">print</span>(<span class="string">'now trying next z...'</span>)
+
+    goto zcontinue
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span> <span class="keyword">end</span> ::zcontinue:: <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+See also <a href="../wiki/ContinueProposal.html" >ContinueProposal</a>.
+<p>
+<H3>Perl style redo <a href="http://perldoc.perl.org/functions/redo.html">[2]</a></H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Lua 5.2.0-beta-rc2</span>
+
+<span class="keyword">for</span> x=1,5 <span class="keyword">do</span> ::redo::
+
+  <span class="library">print</span>(x .. <span class="string">' + 1 = ?'</span>)
+
+  <span class="keyword">local</span> y = <span class="library">tonumber</span>(<span class="library">io.read</span><span class="string">'*l'</span>)
+
+  <span class="keyword">if</span> y ~= x + 1 <span class="keyword">then</span> goto redo <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Pythonic for-else <a href="http://psung.blogspot.com/2007/12/for-else-in-python.html">[3]</a></H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Lua 5.2.0-beta-rc2</span>
+
+<span class="keyword">for</span> _, x <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span>
+
+  <span class="keyword">if</span> x % 2 == 0 <span class="keyword">then</span>
+
+    <span class="library">print</span> <span class="string">'list has even number'</span>
+
+    goto has
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="library">print</span> <span class="string">'list lacks even number'</span>
+
+::has::
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Lua 5.1 equivalent</span>
+
+<span class="keyword">local</span> has
+
+<span class="keyword">for</span> _, x <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span>
+
+  <span class="keyword">if</span> x % 2 == 0 <span class="keyword">then</span>
+
+    has = <span class="keyword">true</span>
+
+    <span class="keyword">break</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">if</span> has <span class="keyword">then</span>
+
+  <span class="library">print</span> <span class="string">'list has even number'</span>
+
+<span class="keyword">else</span>
+
+  <span class="library">print</span> <span class="string">'list lacks even number'</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>State machine or Markov chain</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- 5.2.0-beta-rc1</span>
+
+::a::
+
+  <span class="library">print</span> <span class="string">'A'</span>
+
+  <span class="keyword">if</span> <span class="library">math.random</span>() &lt; 0.3 <span class="keyword">then</span> goto c <span class="keyword">end</span>
+
+::b::
+
+  <span class="library">print</span> <span class="string">'B'</span>
+
+  <span class="keyword">if</span> <span class="library">math.random</span>() &lt; 0.5 <span class="keyword">then</span> goto a <span class="keyword">end</span>
+
+::c::
+
+  <span class="library">print</span> <span class="string">'C'</span>
+
+  <span class="keyword">if</span> <span class="library">math.random</span>() &lt; 0.1 <span class="keyword">then</span> goto a <span class="keyword">else</span> goto b <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+See also code generation discussions <a href="/lists/lua-l/2008-07/msg00596.html">[8]</a>.
+<p>
+<H3>Simulated tail call</H3>
+<p>
+Lua already has <a href="../wiki/ProperTailRecursion.html" >ProperTailRecursion</a>, but in the hypothetical case it did not, we could simulate tail calls with <code>goto</code> (as some of the C source code of Lua does):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- 5.2.0-beta-rc2 - factorial with tail recursion simulated with goto's</span>
+
+<span class="comment">-- (warning: there's no need to do this)</span>
+
+<span class="keyword">function</span> fact_(n, ans)
+
+  ::call::
+
+  <span class="keyword">if</span> n == 0 <span class="keyword">then</span>
+
+    <span class="keyword">return</span> ans
+
+  <span class="keyword">else</span>
+
+    n, ans = n - 1, ans * n
+
+    goto call
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>(fact_(5, 1)) <span class="comment">--&gt; 120</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Error handling and cleanup</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- 5.2.0-beta-rc2</span>
+
+<span class="keyword">function</span> f()
+
+  <span class="keyword">if</span> <span class="keyword">not</span> g() <span class="keyword">then</span> goto fail <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> h() <span class="keyword">then</span> goto cleanup_g <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> i() <span class="keyword">then</span> goto cleanup_h <span class="keyword">end</span>
+
+  <span class="keyword">do</span> <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>    <span class="comment">-- need do/end?</span>
+
+
+
+  ::cleanup_h::
+
+  undo_h()
+
+  ::cleanup_g::
+
+  undo_g()
+
+  ::fail::
+
+  <span class="keyword">return</span> <span class="keyword">false</span>
+
+</pre>
+
+</DL>
+(from <a href="/lists/lua-l/2007-08/msg00399.html">[9]</a>)
+<p>
+<H3>Switch statement</H3>
+<p>
+Not possible without computed <code>goto</code> <a href="http://en.wikipedia.org/wiki/Goto#Computed_GOTO.html">[4]</a>.  See also <a href="../wiki/SwitchStatement.html" >SwitchStatement</a>.
+<p>
+<H3>Conventions for Labels</H3>
+<p>
+It may help readability for label names to indicate the direction (up or down)
+that they jump. <a href="/lists/lua-l/2011-06/msg00810.html">[10]</a>  In the example below, it
+may be conventionally understood that the names <code>continue</code> and <code>skip</code> will jump down and the
+name <code>redo</code> will jump up.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- 5.2.0-beta-rc2</span>
+
+::redo:: <span class="keyword">for</span> x=1,10 <span class="keyword">do</span> <span class="keyword">for</span> y=1,10 <span class="keyword">do</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> f(x,y) <span class="keyword">then</span> goto continue <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> g(x,y) <span class="keyword">then</span> goto skip <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> h(x,y) <span class="keyword">then</span> goto redo <span class="keyword">end</span>
+
+  ::continue::
+
+<span class="keyword">end</span> <span class="keyword">end</span> ::skip::
+
+</pre>
+
+</DL>
+<p>
+If you use two such chunks of code in the same scope, you will need to disambiguate the label names (e.g. <code>@redo1:</code> and <code>@redo2:</code>) or wrap each in a <code>do/end</code> block.
+<p>
+<H3>Scoping</H3>
+<p>
+Here's some examples of the scoping rules for <code>goto</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+::a::
+
+goto b  <span class="comment">-- valid (forward jump)</span>
+
+goto a  <span class="comment">-- valid (backward jump)</span>
+
+::b::
+
+goto c  <span class="comment">-- invalid (jump into nested block prohibited because nested label not even visible here)</span>
+
+goto d  <span class="comment">-- invalid (jump into nested function prohibited because nested label not even visible here)</span>
+
+<span class="keyword">do</span>
+
+  ::c::
+
+  goto a  <span class="comment">-- valid (backward jump out of nested block)</span>
+
+  goto e  <span class="comment">-- valid (forward jump out of nested block)</span>
+
+<span class="keyword">end</span>
+
+(<span class="keyword">function</span>()
+
+  ::d::
+
+  goto a  <span class="comment">-- invalid (jump out of nested function)</span>
+
+<span class="keyword">end</span>)()
+
+<span class="keyword">do</span> ::e:: <span class="keyword">end</span>  <span class="comment">-- valid, but not visible outside the block; above "goto e" sees only next line</span>
+
+::e::  <span class="comment">-- valid</span>
+
+goto f  <span class="comment">-- invalid (forward jump into scope of local definition)</span>
+
+<span class="keyword">local</span> x
+
+::f::
+
+goto e  <span class="comment">-- valid (backward jump across local definition)</span>
+
+<span class="comment">--::e::  -- this would be invalid (duplicate label in same scope)</span>
+
+</pre>
+
+</DL>
+<p>
+Note that you can think of
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  &lt;...&gt;
+
+  <span class="comment">--::a::</span>
+
+  goto a  <span class="comment">-- invalid (forward jump into scope of local definition)</span>
+
+  goto b  <span class="comment">-- valid (jump out of block)</span>
+
+  &lt;...&gt;
+
+  <span class="keyword">local</span> x
+
+  &lt;...&gt;
+
+  ::a::
+
+  &lt;...&gt;
+
+  <span class="comment">--goto a</span>
+
+  ::b::
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+as equivalent to
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  &lt;...&gt;
+
+  <span class="comment">--::a::</span>
+
+  goto a  <span class="comment">-- invalid (jump into nested block prohibited because nested label not even visible here)</span>
+
+  goto b  <span class="comment">-- valid (jump out of block)</span>
+
+  &lt;...&gt;
+
+  <span class="keyword">do</span>
+
+    <span class="keyword">local</span> x
+
+    &lt;...&gt;
+
+    ::a::
+
+    &lt;...&gt;
+
+    <span class="comment">--goto a</span>
+
+  <span class="keyword">end</span>
+
+  ::b::
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+so, in a way, the rule against "jump into scope of local definition" is implied by the rule against "jump into nested block" (but not vice-versa).  However, 5.2.0-beta-rc1 doesn't treat scoping between these two forms exactly analogously: if you add another <code>::a::</code> before the <code>goto a</code>, the former form will generate an error about duplicate label, whereas the latter will not (though it does in rc2) because the nested <code>::a::</code> is never seen by a <code>goto</code> outside the nested block (and any <code>goto</code> inside the nested block will only see the nested <code>::a::</code>).
+<p>
+The particular treatment of labels at the end of the block (<code>::b::</code>) is what allows a loop continue construct to be implemented (example above) even when the loop block contains locals following the continue.
+<p>
+<H3>Efficiency</H3>
+<p>
+<code>goto</code>'s can sometimes generate the exact same bytecodes and debuginfo as control structures, except for <code>for</code> loops:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- compare.lua</span>
+
+<span class="comment">-- tested 5.2.0rc1</span>
+
+
+
+<span class="keyword">local</span> FS = <span class="library">require</span> <span class="string">'file_slurp'</span>
+
+  <span class="comment">-- https://raw.github.com/gist/1325400/0de9b965af138f2fb3d76fc81d97a863f6f409b3/file_slurp.lua</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> compile(code)
+
+  FS.writefile(<span class="string">'luac -o luac.out -'</span>, code, <span class="string">'p'</span>)
+
+  <span class="keyword">local</span> binary = FS.readfile(<span class="string">'luac.out'</span>)
+
+  <span class="keyword">local</span> text = FS.readfile(<span class="string">'./src/luac -p -l luac.out'</span>, <span class="string">'p'</span>):gsub(<span class="string">'0x[0-9a-fA-F]+'</span>, <span class="string">'(address)'</span>)
+
+  <span class="keyword">return</span> binary, text
+
+<span class="keyword">end</span>
+
+  
+
+<span class="keyword">local</span> a, at = compile <span class="string">[[
+
+  local x = 1
+
+  while not(x &gt; 1e8) do
+
+    x = x + 1
+
+  end
+
+]]</span>
+
+<span class="keyword">local</span> b, bt = compile <span class="string">[[
+
+  local x = 1
+
+  ::a:: if x &gt; 1e8 then goto e end
+
+  x = x + 1
+
+  goto a; ::e::
+
+]]</span>
+
+<span class="library">assert</span>(a == b)
+
+<span class="library">assert</span>(at == bt)
+
+
+
+<span class="keyword">local</span> a, at = compile <span class="string">[[
+
+  if x then
+
+    f()
+
+  else
+
+    g()
+
+  end
+
+]]</span>
+
+<span class="keyword">local</span> b, bt = compile <span class="string">[[
+
+  if not x then goto a end
+
+    f()
+
+  goto b; ::a::
+
+    g()
+
+  ::b::
+
+]]</span>
+
+<span class="library">assert</span>(a == b)
+
+<span class="library">assert</span>(at == bt)
+
+
+
+<span class="keyword">local</span> a, at = compile <span class="string">[[
+
+local sum = 0
+
+for i=1,1E8 do
+
+  sum = sum + i
+
+end
+
+]]</span>
+
+<span class="keyword">local</span> b, bt = compile <span class="string">[[
+
+local sum = 0
+
+local i=1; ::a:: if i &gt; 1E8 then goto b end
+
+sum = sum + i; i=i+1
+
+goto a; ::b::
+
+]]</span>
+
+<span class="library">assert</span>(a ~= b) <span class="comment">-- these differ significantly and the latter is about twice as slow.</span>
+
+<span class="library">assert</span>(at ~= bt)
+
+
+
+<span class="library">print</span> <span class="string">'DONE'</span>
+
+</pre>
+
+</DL>
+<p>
+(In the earlier 5.2.0beta, when a single goto exists inside a conditional block, some of the JMP's were superfluous <a href="http://article.gmane.org/gmane.comp.lang.lua.general/79746">[5]</a>).
+<p>
+<H3>Changes</H3>
+<p>
+In 5.2.0-beta-rc1, labels used the syntax <code>@name:</code> (optionally with spaces, e.g. <code>@ name :</code>).  Restrictions on duplicate label names were different.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=GotoStatement" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=GotoStatement" >history</a><br>Last edited February 2, 2014 8:27 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=GotoStatement" >(diff)</a>
+</body>
+</html>

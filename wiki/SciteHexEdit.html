@@ -1,0 +1,213 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Hex Edit</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteHexEdit&amp;body=1" title="List pages referring to SciteHexEdit">Scite Hex Edit</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+SciTEHexEdit is a basic hex viewer and editor written as a Lua extension for the SciTE editor.
+<p>
+<strong>Description:</strong> This is a basic hex viewer and editor for SciTE, using only the Lua scripting extension and nothing else. Browsing, editing and saving operations can be performed. There is a hex pane and an ASCII pane. The hex editor automatically opens in monospace mode, is in colour, and changes are highlighted. A console window allows complex commands to be entered. There is also a help screen.
+<p>
+<strong>Download:</strong> <a href="http://sl-hexedit.luaforge.net/">http://sl-hexedit.luaforge.net/</a>
+<p>
+<strong>Project page:</strong> <a href="http://luaforge.net/projects/sl-hexedit/">http://luaforge.net/projects/sl-hexedit/</a>
+<p>
+<H3>Sample buffer display</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+. SciTE Hex Editor . ver 0.10 . 20061011 .
+
++---------+--------+---------+--------+--------+--------+---------+------+
+
+| Refresh | Revert | FirstPg | PrevPg | NextPg | LastPg | Console | Help |
+
++---------+--------+---------+--------+--------+--------+---------+------+
+
++--------+-------------------------------------------------+----------------+
+
+| Offset | 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F |   ASCII view   |
+
++--------+-------------------------------------------------+----------------+
+
+|00000000| 23 20 47 6C 6F 62 61 6C 20 69 6E 69 74 69 61 6C |# Global initial|
+
+|00000010| 69 73 61 74 69 6F 6E 20 66 69 6C 65 20 66 6F 72 |isation file for|
+
+|00000020| 20 53 63 69 54 45 0A 23 20 46 6F 72 20 4C 69 6E | SciTE # For Lin|
+
+|00000030| 75 78 2C 20 70 6C 61 63 65 20 69 6E 20 24 70 72 |ux, place in $pr|
+
+|00000040| 65 66 69 78 2F 73 68 61 72 65 2F 73 63 69 74 65 |efix/share/scite|
+
+|00000050| 0A 23 20 46 6F 72 20 57 69 6E 64 6F 77 73 2C 20 | # For Windows, |
+
+|00000060| 70 6C 61 63 65 20 69 6E 20 73 61 6D 65 20 64 69 |place in same di|
+
+|00000070| 72 65 63 74 6F 72 79 20 61 73 20 53 63 69 54 45 |rectory as SciTE|
+
+|00000080| 2E 45 58 45 20 28 6F 72 20 53 63 31 2E 45 58 45 |.EXE (or Sc1.EXE|
+
+|00000090| 29 0A 23 20 44 6F 63 75 6D 65 6E 74 61 74 69 6F |) # Documentatio|
+
+|000000A0| 6E 20 61 74 20 68 74 74 70 3A 2F 2F 77 77 77 2E |n at http://www.|
+
+|000000B0| 73 63 69 6E 74 69 6C 6C 61 2E 6F 72 67 2F 53 63 |scintilla.org/Sc|
+
+|000000C0| 69 54 45 44 6F 63 2E 68 74 6D 6C 0A 0A 23 20 47 |iTEDoc.html  # G|
+
+|000000D0| 6C 6F 62 61 6C 73 0A 0A 23 20 57 69 6E 64 6F 77 |lobals  # Window|
+
+|000000E0| 20 73 69 7A 65 73 20 61 6E 64 20 76 69 73 69 62 | sizes and visib|
+
+|000000F0| 69 6C 69 74 79 0A 69 66 20 50 4C 41 54 5F 57 49 |ility if PLAT_WI|
+
++--------+-------------------------------------------------+----------------+
+
++---------------------------------------------------------------------------+
+
+| d:\bin\wscite\SciTEGlobal.properties                          (unchanged) |
+
++---------------------------------------------------------------------------+
+
+|    / (FirstPg) [ (Prev1K) - (PrevPg) + (NextPg) ] (Next1K) * (LastPg)     |
+
+|    . or ` (Console Mode) N (Find Next) H (Help Screen)                    |
+
++---------------------------------------------------------------------------+
+
+</pre>
+</DL>
+<p>
+<H3>Help Screen</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+--- Edit Window Help ---
+
+
+
+Keypress navigation is recommended. Double-click "buttons" or press
+
+[Space] with the caret on the desired button. Use the console window,
+
+accessed using a period (.) or a backtick (`), for other commands. See
+
+the bottom of the edit window for keypress commands. Also, [Enter]
+
+moves one line down in the edit columns, and [Space] moves the caret
+
+to the next byte in the hex data column.
+
+
+
+SciTEHexEdit starts by: (1) loading the file in the current buffer,
+
+ignoring unsaved changes, or (2) using the contents of the untitled
+
+and unsaved buffer. The edit view is automatically positioned where
+
+the caret was in the current buffer.
+
+
+
+- Offset column:
+
+Pressing a valid digit changes the address of the page in view, and
+
+the editor will jump to the block in question.
+
+
+
+- Hex data column:
+
+Pressing a valid digit changes data in the file. To make the changes
+
+permanent, save the file. Use "revert" to undo.
+
+
+
+- ASCII data column:
+
+Pressing a character changes data in the file. Changes can then be
+
+saved or dropped. Not all characters can be entered, because some
+
+keypresses are handled only by SciTE itself.
+
+
+
+Data is colour-coded. Unsaved changes are highlighted in yellow. To
+
+customize SciTEHexEdit further, please modify the Lua script itself.
+
+
+
+@ Press H again to return to the previous screen...
+
+</pre>
+</DL>
+<p>
+<H3>Console Window</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+--- SciTE Hex Editor Console ---
+
+
+
+Enter single commands at prompt line only. Most commands closes the
+
+console window on successful execution. Adding a "-" as a suffix will
+
+stop the console window from closing, e.g. "save-". Commands (which
+
+are case insensitive) are:
+
+
+
+  cls                           goto &lt;dec|hex&gt;
+
+  info                          load &lt;filename&gt;
+
+  revert                        save|saveas [&lt;filename&gt;]
+
+  float &lt;float|hex&gt;             number &lt;dec|hex|"string"&gt;
+
+  strings                       search &lt;hex|'string'|"regexp"&gt;
+
+  exit|close                    help help|about|console|edit|&lt;cmd&gt;
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteHexEdit" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteHexEdit" >history</a><br>Last edited October 31, 2009 6:29 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteHexEdit" >(diff)</a>
+</body>
+</html>

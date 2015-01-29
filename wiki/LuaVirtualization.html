@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Virtualization</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaVirtualization&amp;body=1" title="List pages referring to LuaVirtualization">Lua Virtualization</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+In the Lua language, values are only partly "virtualizable".  Here, virtualizable means that any object with a metatable (table or userdata) can act as if it were a value of any other type, including the built-in types.
+<p>
+Following is a summary of how close Lua (5.1) is to being virtualizable:
+<p>
+<pre>
+
+   Operation           Example             Works?     Metamethods/comments
+
+   ---------           -------             ------     --------------------
+
+Numbers
+
+   Arithmetic          a + b               Yes        __add, __sub, __mul, __div, __pow, __unm
+
+   Equality            a == b              Limited[*] __eq
+
+   Ordering            a &lt; b               Limited[*] __lt, __le
+
+
+
+Booleans
+
+   Truth value         if a then           No         Would add overhead to the idiom 'if table[key] then'
+
+   Boolean Logic       not a, a and b      No
+
+
+
+Strings
+
+   Concatenation       a .. b              Yes        __concat  (see below)
+
+   Get length          string.len(a)       No[!]
+
+   Other utility       string.find, etc.   No[!]
+
+
+
+Tables
+
+   Indexing            a[b]                Yes        __index
+
+   Write to index      a[b] = c            Yes        __newindex
+
+   Length              #a                  Mostly     __len (but requires userdata before 5.2)
+
+   Iterating           for x in pairs(a)   No         Fix is trivial [#]
+
+   raw operations      rawget(a,k)         No
+
+   array functions     table.insert(a,b)   No
+
+
+
+Functions
+
+   Invoking            a(x, y)             Yes        __call [+]
+
+   
+
+Threads
+
+   Resuming            coroutine.resume(a) No[!]
+
+
+
+File handles           io.type(a), ...     No[!]      See also I/O library abstraction [@]
+
+
+
+Misc
+
+   String repr.        tostring(a)         Limited    __tostring (not honored by C lua_tostring)
+
+   type function       type(a)             No
+
+</pre>
+<p>
+[*] Lua defines an equality or inequality among different types to always yield false.  The __eq metamethod also always returns true for values that are raw equal, but this doesn't support the behavior of the value NaN=0/0, where typically NaN ~= NaN.
+<p>
+[+] There are a couple of places in Lua where the __call metamethod is not checked. One of these is the __index metamethod itself (this affects <a href="../wiki/FuncTables.html" >FuncTables</a>).
+<p>
+[!] Native types can have metatables, allowing you to using <code>:</code> notation (eg. <code>aString:find(aPattern)</code>), which is virtualizable.  Only some types like strings have the metatable defined by default, but it can be added via debug.setmetatable.
+<p>
+[#] See <a href="../wiki/GeneralizedPairsAndIpairs.html" >GeneralizedPairsAndIpairs</a> for virtualizing pairs/ipairs/next.  Also see <a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a>.
+<p>
+[@] <a href="/lists/lua-l/2008-07/msg00345.html">LuaList:2008-07/msg00345.html</a>, <a href="/lists/lua-l/2005-05/msg00178.html">LuaList:2005-05/msg00178.html</a>
+<p>
+Advantages of virtualization:
+<p>
+<UL>
+<li> Attach ancillary data to value (<em>e.g.</em>, numeric precision, text encoding, metadata, lvalue info)
+<li> Transparent proxying (transparent remote invocation, orthogonal persistance)
+</UL>
+<p>
+Disadvantages:
+<p>
+<UL>
+<li> 'if table[x] then' idiom to test presence of a key has uncertain status
+</UL>
+<p>
+<a href="../wiki/RiciLake.html" >RiciLake</a> adds:
+<p>
+<DL>
+<dt><dd>Note: In the case of <code>a .. b</code> where one of <code>a</code> and <code>b</code> is a <code>number</code> and the other one is an object with a <code>__concat</code> metamethod, the <code>number</code> will be converted to a <code>string</code> before the metamethod is called. Also, <code>..</code> is right-associative, but <code>a</code> has priority if both <code>a</code> and <code>b</code> have <code>__concat</code> metamethods. So presented with <code>a .. b .. c</code>, where all three have metamethods, the sequence will be: <code>ameta.__concat(a, bmeta.__concat(b, c))</code>. Furthermore, in the case of <code>a .. 34 .. 56</code> the result will be <code>ameta.__concat(a, "3456")</code>. Some of these might be surprising.
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaVirtualization" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaVirtualization" >history</a><br>Last edited September 25, 2010 3:10 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaVirtualization" >(diff)</a>
+</body>
+</html>

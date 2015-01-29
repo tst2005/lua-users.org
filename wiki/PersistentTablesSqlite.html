@@ -1,0 +1,844 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Persistent Tables Sqlite</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PersistentTablesSqlite&amp;body=1" title="List pages referring to PersistentTablesSqlite">Persistent Tables Sqlite</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here is some code I used to test some SQLite bindings.  Since, there is an interest in database-based persistent tables (e.g. <a href="../wiki/PersistentTables.html" >PersistentTables</a>), I am sharing this code <em>as is</em>. -- <a href="../wiki/DougCurrie.html" >DougCurrie</a>
+<p>
+Code follows:
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--[[ luapersist3.lua  2004-Aug-31 e
+
+
+
+  The author disclaims copyright to this source code.  In place of
+
+  a legal notice, here is a blessing:
+
+      May you be healthy and well.
+
+      May you be free of all suffering.
+
+      May you be happy, giving more than you take.
+
+   
+
+  Lua Persistent Tables
+
+  loosely based on the wiki page http://lua-users.org/wiki/PersistentTables
+
+  uses Lua SQLite 3 (see http://luaforge.net/projects/luasqlite/)
+
+  handles circular structures
+
+  
+
+  DB Schema
+
+  the Lua tables are stored in a single SQL table with five columns
+
+  TID : Table ID that identifies the Lua table -- string
+
+  Key : index in the Lua Table -- TID, string, number, or boolean
+
+  Kyp : the data type of Key
+
+  Val : value in the Lua Table at index -- TID, string, number, or boolean
+
+  Vyp : the data type of Val
+
+  
+
+  A row is created for each Lua Persistent Table to reserve its TID.
+
+  The Key, Kyp, Val, and Vyp columns are all set to "_".
+
+  
+
+  Both Kyp and Vyp use the following encoding:
+
+  "b" -- boolean (Key/Val = "t" or "f")
+
+  "n" -- number
+
+  "t" -- TID
+
+  "s" -- string
+
+  "e" -- encoded string (the raw string has embedded NULs)
+
+   "_" -- null
+
+ 
+
+  Caveats
+
+  1. Strings used for Key and Val may contain embedded '\0' NUL characters; 
+
+     they are stored using sqlite blobs.
+
+     Strings used for TIDs must not have embedded NULs.
+
+  2. A table may not be used as a key unless the table is already persistent;
+
+      tables may always be used as vals.
+
+  3. Functions, threads, and userdata are not supported as keys or vals.
+
+  4. Lua Persistent Tables may not have user metatables (they will not be
+
+     persisted, and they may conflict with Lua Persistent Table events).  
+
+  
+
+  Implementation
+
+  
+
+  Lua Persistent Tables are represented by an empty Lua Table and a
+
+  corresponding metatable. 
+
+  
+
+  Lua Persistent Table Metatable events:
+
+  "lpt_TID" -- the TID for this table
+
+  "index" -- handler for unmarshalling Key/Val from the DB
+
+  "newindex" -- handler for marshalling Key/Val to the DB
+
+  "lpt_cache" -- a Lua Table that caches Key/Val pairs
+
+  "lpt_db" -- the Lua Persistent Table database descriptor for this table's db
+
+  
+
+  LuaPersist maintains one global weak table, map, that is used to find
+
+  Lua Persistent Tables that are already open. This insures that there
+
+  is at most one version of each Lua Persistent Table in memory.
+
+]]</span>
+
+
+
+<span class="library">require</span> <span class="string">"sqlite3"</span>
+
+
+
+persist = {}
+
+
+
+<span class="keyword">local</span> _persist_make_TID = <span class="keyword">function</span> (lp,tbl)
+
+  <span class="comment">-- return "TID"..math.random() -- fix me: confirm it's unique</span>
+
+  <span class="keyword">local</span> TID
+
+  <span class="keyword">repeat</span>
+
+    lp.seq = lp.seq + 1
+
+    TID = <span class="library">string.format</span>(<span class="string">'tid%d'</span>,lp.seq)
+
+  <span class="keyword">until</span>(<span class="keyword">not</span> lp:exists(TID))
+
+  <span class="keyword">return</span> TID
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> _persist_val_vyp = <span class="keyword">function</span> (lp,k)
+
+  <span class="keyword">local</span> ty = <span class="library">type</span>(k)
+
+  <span class="keyword">if</span>(ty==<span class="string">"string"</span>) <span class="keyword">then</span>
+
+    <span class="keyword">if</span>(<span class="library">string.find</span>(k,<span class="string">"%z"</span>)) <span class="keyword">then</span>
+
+      <span class="keyword">return</span> k,<span class="string">"e"</span>
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">return</span> k,<span class="string">"s"</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span>(ty==<span class="string">"number"</span>) <span class="keyword">then</span> <span class="keyword">return</span> <span class="library">tostring</span>(k),<span class="string">"n"</span> <span class="keyword">end</span>
+
+  <span class="keyword">if</span>(ty==<span class="string">"boolean"</span>) <span class="keyword">then</span> <span class="keyword">if</span> k <span class="keyword">then</span> v=<span class="string">"t"</span> <span class="keyword">else</span> v=<span class="string">"f"</span> <span class="keyword">end</span> <span class="keyword">return</span> v,<span class="string">"b"</span> <span class="keyword">end</span>
+
+  <span class="keyword">if</span>(ty==<span class="string">"table"</span>) <span class="keyword">then</span>
+
+    <span class="keyword">local</span> mt = <span class="library">getmetatable</span>(k)
+
+    <span class="keyword">local</span> TID
+
+    <span class="keyword">if</span>(mt~=<span class="keyword">nil</span>) <span class="keyword">then</span> TID = mt.__lpt_TID <span class="keyword">end</span>
+
+    <span class="keyword">if</span>(mt==<span class="keyword">nil</span> <span class="keyword">or</span> TID==<span class="keyword">nil</span>) <span class="keyword">then</span>
+
+      TID = _persist_make_TID(lp,k)
+
+      <span class="keyword">local</span> t = persist.new_table(lp,TID)
+
+      persist.set_table(lp,TID,k)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> TID,<span class="string">"t"</span>
+
+  <span class="keyword">end</span>
+
+  <span class="library">assert</span>(<span class="keyword">nil</span>,<span class="string">"non-persistent type: "</span>..ty..<span class="string">"!?"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> _persist_key_kyp = <span class="keyword">function</span> (lp,k)
+
+  <span class="keyword">if</span>(<span class="library">type</span>(k)==<span class="string">"table"</span>) <span class="keyword">then</span>
+
+    <span class="keyword">local</span> mt = <span class="library">getmetatable</span>(k)
+
+    <span class="keyword">local</span> TID
+
+    <span class="keyword">if</span>(mt~=<span class="keyword">nil</span>) <span class="keyword">then</span> TID = mt.__lpt_TID <span class="keyword">end</span>
+
+    <span class="keyword">if</span>(mt==<span class="keyword">nil</span> <span class="keyword">or</span> TID==<span class="keyword">nil</span>) <span class="keyword">then</span>
+
+      <span class="library">error</span>(<span class="string">"use of non-persistent table as key not supported"</span>)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> TID,<span class="string">"t"</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> _persist_val_vyp(lp,k)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> _persist_raw_to_val = <span class="keyword">function</span> (lp,ty,raw)
+
+  <span class="keyword">if</span>(ty==<span class="string">"s"</span>) <span class="keyword">then</span> <span class="keyword">return</span> raw <span class="keyword">end</span>
+
+  <span class="keyword">if</span>(ty==<span class="string">"n"</span>) <span class="keyword">then</span> <span class="keyword">return</span> raw+0 <span class="keyword">end</span>
+
+  <span class="keyword">if</span>(ty==<span class="string">"b"</span>) <span class="keyword">then</span> <span class="keyword">return</span> raw==<span class="string">"t"</span> <span class="keyword">end</span>
+
+  <span class="keyword">if</span>(ty==<span class="string">"t"</span>) <span class="keyword">then</span> <span class="keyword">return</span> lp:get_table(raw) <span class="keyword">end</span>
+
+  <span class="keyword">if</span>(ty==<span class="string">"e"</span>) <span class="keyword">then</span> <span class="keyword">return</span> raw <span class="keyword">end</span>
+
+  <span class="library">assert</span>(<span class="keyword">nil</span>,<span class="string">"fix me -- what type is: "</span>..ty..<span class="string">"?"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> _persist_vm_setup = <span class="keyword">function</span> (lp,vm,TID,k)
+
+  <span class="keyword">local</span> key,kyp = _persist_key_kyp(lp,k) <span class="comment">-- this must come before vm:reset since it might use vm</span>
+
+  <span class="library">assert</span>(vm:reset()==sqlite3.OK,<span class="string">"db reset error"</span>)
+
+  <span class="library">assert</span>(vm:bind(1,TID)==sqlite3.OK,<span class="string">"db TID bind error"</span>)
+
+  <span class="keyword">if</span> kyp==<span class="string">"e"</span>
+
+  <span class="keyword">then</span>
+
+    <span class="library">assert</span>(vm:bind_blob(2,key)==sqlite3.OK,<span class="string">"db Key bind error"</span>)
+
+  <span class="keyword">else</span>
+
+    <span class="library">assert</span>(vm:bind(2,key)==sqlite3.OK,<span class="string">"db Key bind error"</span>)
+
+  <span class="keyword">end</span>
+
+  <span class="library">assert</span>(vm:bind(3,kyp)==sqlite3.OK,<span class="string">"db Kyp bind error"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> _persist_index = <span class="keyword">function</span> (t,k)
+
+  <span class="library">assert</span>(k,<span class="string">"key of nil not permitted"</span>)
+
+  <span class="keyword">local</span> ca = <span class="library">assert</span>(<span class="library">getmetatable</span>(t).__lpt_cache,<span class="string">"there is no __lpt_cache for this persistent table"</span>)
+
+  <span class="keyword">local</span> v = <span class="library">rawget</span>(ca,k)
+
+  <span class="keyword">if</span>(v~=<span class="keyword">nil</span>) <span class="keyword">then</span> <span class="keyword">return</span> v <span class="keyword">end</span>
+
+  <span class="keyword">local</span> lp = <span class="library">assert</span>(<span class="library">getmetatable</span>(t).__lpt_db,<span class="string">"there is no __lpt_db for this persistent table"</span>)
+
+  <span class="keyword">local</span> TID = <span class="library">assert</span>(<span class="library">getmetatable</span>(t).__lpt_TID,<span class="string">"there is no __lpt_TID for this persistent table"</span>)
+
+  _persist_vm_setup(lp,lp.vm_get,TID,k)
+
+  <span class="keyword">local</span> rc = lp.vm_get:step()
+
+  <span class="keyword">if</span>(rc==sqlite3.ROW) <span class="keyword">then</span>
+
+    <span class="keyword">local</span> da
+
+    da = lp.vm_get:get_values()
+
+    lp.vm_get:reset() <span class="comment">-- releases locks afer step</span>
+
+    <span class="library">assert</span>(da,<span class="string">"db lp.vm_get:data error"</span>)
+
+    v = _persist_raw_to_val(lp, da[2], da[1])
+
+    <span class="library">rawset</span>(ca,k,v)
+
+  <span class="keyword">else</span>
+
+    lp.vm_get:reset() <span class="comment">-- releases locks afer step</span>
+
+    v = <span class="keyword">nil</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> v
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> _persist_exists = <span class="keyword">function</span> (lp,TID)
+
+  _persist_vm_setup(lp,lp.vm_get,TID,<span class="string">"_"</span>)
+
+  <span class="library">assert</span>(lp.vm_get:bind(3,<span class="string">"_"</span>)==sqlite3.OK,<span class="string">"db _ bind error"</span>)
+
+  <span class="keyword">local</span> rc = lp.vm_get:step()
+
+  lp.vm_get:reset() <span class="comment">-- releases locks afer step</span>
+
+  <span class="keyword">return</span>(rc==sqlite3.ROW)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> _persist_newindex = <span class="keyword">function</span> (t,k,v)
+
+  <span class="library">assert</span>(k,<span class="string">"key of nil not permitted"</span>)
+
+  <span class="keyword">local</span> ca = <span class="library">assert</span>(<span class="library">getmetatable</span>(t).__lpt_cache,<span class="string">"there is no __lpt_cache for this persistent table"</span>)
+
+  <span class="comment">-- local pv = rawget(ca,k)</span>
+
+  <span class="comment">-- if(pv~=nil) then end -- maybe remove tables -- but need gc since there may be circular refs!</span>
+
+  <span class="keyword">local</span> lp = <span class="library">assert</span>(<span class="library">getmetatable</span>(t).__lpt_db,<span class="string">"there is no __lpt_db for this persistent table"</span>)
+
+  <span class="keyword">local</span> TID = <span class="library">assert</span>(<span class="library">getmetatable</span>(t).__lpt_TID,<span class="string">"there is no __lpt_TID for this persistent table"</span>)
+
+  <span class="keyword">local</span> rc, vm
+
+  <span class="keyword">if</span>(v~=<span class="keyword">nil</span>) <span class="keyword">then</span>
+
+    <span class="keyword">local</span> val,vyp = _persist_val_vyp(lp,v) <span class="comment">-- this must come before vm_setup since it might use vm</span>
+
+    vm = lp.vm_new
+
+    _persist_vm_setup(lp,vm,TID,k)
+
+    <span class="keyword">if</span> vyp==<span class="string">"e"</span>
+
+    <span class="keyword">then</span>
+
+        <span class="library">assert</span>(lp.vm_new:bind_blob(4,val)==sqlite3.OK,<span class="string">"db Key bind error:"</span>..val)
+
+    <span class="keyword">else</span>
+
+        <span class="library">assert</span>(lp.vm_new:bind(4,val)==sqlite3.OK,<span class="string">"db Key bind error:"</span>..val)
+
+    <span class="keyword">end</span>
+
+    <span class="library">assert</span>(lp.vm_new:bind(5,vyp)==sqlite3.OK,<span class="string">"db Kyp bind error:"</span>..vyp)
+
+    rc = lp.vm_new:step()
+
+  <span class="keyword">else</span>
+
+    vm = lp.vm_del
+
+    _persist_vm_setup(lp,vm,TID,k)
+
+    rc = lp.vm_del:step()
+
+  <span class="keyword">end</span>
+
+  vm:reset() <span class="comment">-- releases locks afer step</span>
+
+  <span class="keyword">if</span>(rc==sqlite3.DONE) <span class="keyword">then</span>
+
+    <span class="library">rawset</span>(ca,k,v)
+
+  <span class="keyword">else</span>
+
+    <span class="library">error</span>(<span class="string">"bad result code: "</span>..rc..<span class="string">""</span>)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> _persist_pairs = <span class="keyword">function</span> (t)
+
+  <span class="library">assert</span>(<span class="library">type</span>(t)==<span class="string">'table'</span>,<span class="string">"arg is not a table"</span>)
+
+  <span class="keyword">local</span> ca = <span class="library">assert</span>(<span class="library">getmetatable</span>(t).__lpt_cache,<span class="string">"arg is not a persistent table"</span>)
+
+  <span class="keyword">return</span> <span class="library">pairs</span>(ca)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> _persist_check = <span class="keyword">function</span> (lp)
+
+  <span class="library">assert</span>(lp.LPT,<span class="string">"the db must be opened first with persist.open"</span>)
+
+  <span class="library">assert</span>(lp.db,<span class="string">"the db must be opened first with persist.open"</span>)
+
+<span class="keyword">end</span>
+
+
+
+persist.close = <span class="keyword">function</span> (lp)
+
+  _persist_check(lp)
+
+  lp.db:close()
+
+  lp.db=<span class="keyword">nil</span>;
+
+  <span class="comment">-- nice for GC?</span>
+
+  lp.vm_new = <span class="keyword">nil</span>
+
+  lp.vm_del = <span class="keyword">nil</span>
+
+  lp.vm_get = <span class="keyword">nil</span>
+
+  lp.vm_set = <span class="keyword">nil</span>
+
+  lp.vm_delt = <span class="keyword">nil</span>
+
+  lp.map = <span class="keyword">nil</span>  
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> _persist_new_table = <span class="keyword">function</span> (lp,TID)
+
+  <span class="keyword">local</span> t = {}  
+
+  <span class="library">setmetatable</span>(t,{[<span class="string">"__lpt_db"</span>] = lp,
+
+                  [<span class="string">"__lpt_TID"</span>] = TID,
+
+                  [<span class="string">"__lpt_cache"</span>] = {},
+
+                  [<span class="string">"__index"</span>] = _persist_index,
+
+                  [<span class="string">"__newindex"</span>] = _persist_newindex,
+
+                  [<span class="string">"__unm"</span>] = _persist_pairs})
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+persist.exists = _persist_exists
+
+
+
+persist.new_table = <span class="keyword">function</span> (lp,TID)
+
+  _persist_check(lp)
+
+  <span class="library">assert</span>(lp.map[TID]==<span class="keyword">nil</span>,<span class="string">"the table is already created and open"</span>)
+
+  <span class="library">assert</span>(<span class="keyword">not</span> lp:exists(TID),<span class="string">"a persistent table with TID "</span>..TID..<span class="string">" already exists"</span>)
+
+  <span class="keyword">local</span> t = _persist_new_table(lp,TID)
+
+  <span class="library">assert</span>(lp.vm_new:reset()==sqlite3.OK,<span class="string">"reset error"</span>)
+
+  <span class="library">assert</span>(lp.vm_new:bind(1,TID)==sqlite3.OK,<span class="string">"bind 1 error"</span>)
+
+  <span class="library">assert</span>(lp.vm_new:bind(2,<span class="string">"_"</span>)==sqlite3.OK,<span class="string">"bind 2 error"</span>)
+
+  <span class="library">assert</span>(lp.vm_new:bind(3,<span class="string">"_"</span>)==sqlite3.OK,<span class="string">"bind 3 error"</span>)
+
+  <span class="library">assert</span>(lp.vm_new:bind(4,<span class="string">"_"</span>)==sqlite3.OK,<span class="string">"bind 4 error"</span>)
+
+  <span class="library">assert</span>(lp.vm_new:bind(5,<span class="string">"_"</span>)==sqlite3.OK,<span class="string">"bind 5 error"</span>)
+
+  <span class="keyword">local</span> rc = lp.vm_new:step()
+
+  lp.vm_new:reset() <span class="comment">-- release locks</span>
+
+  <span class="keyword">if</span>(rc==sqlite3.DONE) <span class="keyword">then</span>
+
+    lp.map[TID] = t
+
+  <span class="keyword">else</span>
+
+    <span class="library">error</span>(<span class="string">"step error"</span>)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+persist.cache = <span class="keyword">function</span> (lp,TID)
+
+  _persist_check(lp)
+
+  <span class="keyword">local</span> t = lp.map[TID]
+
+  <span class="library">assert</span>(t~=<span class="keyword">nil</span>,<span class="string">"the table does not exist"</span>)
+
+  <span class="keyword">local</span> ca = <span class="library">assert</span>(<span class="library">getmetatable</span>(t).__lpt_cache,<span class="string">"there is no __lpt_cache for this persistent table"</span>)
+
+  <span class="comment">-- whack the vm</span>
+
+  fn,vm,rc = lp.db:urows(<span class="string">"SELECT Key,Kyp,Val,Vyp FROM luat where TID=?"</span>)
+
+  <span class="library">assert</span>(vm,<span class="string">"lp.db:rows failed"</span>)
+
+  vm:bind(1,TID)
+
+  <span class="keyword">for</span> Key,Kyp,Val,Vyp <span class="keyword">in</span> fn,vm,rc <span class="keyword">do</span>  
+
+    <span class="keyword">if</span>( Key ~= <span class="string">"_"</span> ) <span class="keyword">then</span>
+
+      <span class="library">rawset</span>(ca, _persist_raw_to_val(lp,Kyp,Key), _persist_raw_to_val(lp,Vyp,Val))
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+persist.get_table = <span class="keyword">function</span> (lp,TID)
+
+  _persist_check(lp)
+
+  <span class="keyword">local</span> t = lp.map[TID]
+
+  <span class="keyword">if</span>(t~=<span class="keyword">nil</span>) <span class="keyword">then</span> <span class="keyword">return</span> t <span class="keyword">end</span>
+
+  <span class="library">assert</span>(lp:exists(TID),<span class="string">"no persistent table has the TID "</span>..TID)
+
+  t = _persist_new_table(lp,TID)
+
+  lp.map[TID] = t
+
+  <span class="comment">-- this needn't cache the whole table! we can make it lazy</span>
+
+  <span class="comment">-- persist.cache(lp,TID)</span>
+
+  <span class="keyword">return</span> t  
+
+<span class="keyword">end</span>
+
+
+
+persist.set_table = <span class="keyword">function</span> (lp,TID,s)
+
+  _persist_check(lp)
+
+  <span class="keyword">local</span> t = lp.map[TID]
+
+  <span class="library">assert</span>(t~=<span class="keyword">nil</span>,<span class="string">"the table does not exist"</span>)
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(s) <span class="keyword">do</span>
+
+    t[k]=v
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+persist.delete_table = <span class="keyword">function</span> (lp,TID)
+
+  _persist_check(lp)
+
+  <span class="keyword">local</span> t = lp.map[TID]
+
+  <span class="keyword">if</span>(t~=<span class="keyword">nil</span>) <span class="keyword">then</span> lp.map[TID] = <span class="keyword">nil</span> <span class="keyword">end</span>
+
+  <span class="comment">--assert(lp:exists(TID),"no persistent table has the TID "..TID)</span>
+
+  <span class="library">assert</span>(lp.vm_delt:reset()==sqlite3.OK,<span class="string">"db reset error"</span>)
+
+  <span class="library">assert</span>(lp.vm_delt:bind(1,TID)==sqlite3.OK,<span class="string">"db TID bind error"</span>)
+
+  <span class="keyword">local</span> rc = lp.vm_delt:step()
+
+  lp.vm_delt:reset() <span class="comment">-- releases locks afer step</span>
+
+  <span class="keyword">return</span>(rc)
+
+  <span class="comment">-- to do: what is rc supposed to be? 101</span>
+
+  <span class="comment">--return t  </span>
+
+<span class="keyword">end</span>
+
+
+
+persist.open = <span class="keyword">function</span> (dbname)
+
+  <span class="keyword">local</span> lp = {}
+
+  lp.LPT = <span class="keyword">true</span> <span class="comment">-- a tag</span>
+
+  lp.seq = 0 <span class="comment">-- tid generator -- would be nice to select max (TID) where TID like 'tid%'</span>
+
+  lp.db = <span class="library">assert</span>(sqlite3.open(dbname))
+
+  <span class="comment">-- initialize the db; ignore error from CREATE as it may already have been done</span>
+
+  <span class="keyword">local</span> err,str = lp.db:exec(<span class="string">"create table luat (TID,Key,Kyp,Val,Vyp, primary key (TID,Key,Kyp) on conflict replace)"</span>)
+
+  <span class="keyword">if</span> (err==26) <span class="keyword">then</span>
+
+    lp.db:close() <span class="comment">-- bad database format</span>
+
+    <span class="keyword">return</span> <span class="keyword">nil</span>,str
+
+  <span class="keyword">end</span>
+
+  lp.vm_new = <span class="library">assert</span>(lp.db:compile(<span class="string">"insert into luat values (?,?,?,?,?)"</span>))
+
+  lp.vm_del = <span class="library">assert</span>(lp.db:compile(<span class="string">"delete from luat where TID=? and Key=? and Kyp=?"</span>))
+
+  lp.vm_get = <span class="library">assert</span>(lp.db:compile(<span class="string">"select Val,Vyp from luat where TID=? and Key=? and Kyp=?"</span>))
+
+  <span class="comment">--lp.vm_set = assert(lp.db:compile("update luat set Val=?,Vyp=? where TID=? and Key=? and Kyp=?"))</span>
+
+  lp.vm_delt = <span class="library">assert</span>(lp.db:compile(<span class="string">"delete from luat where TID=?"</span>))
+
+  <span class="comment">-- convenience oo functions</span>
+
+  lp.new_table = persist.new_table
+
+  lp.get_table = persist.get_table
+
+  lp.set_table = persist.set_table
+
+  lp.cache = persist.cache
+
+  lp.exists = persist.exists
+
+  lp.delete_table = persist.delete_table 
+
+  lp.close = persist.close
+
+  <span class="comment">-- initialize the in-memory map</span>
+
+  lp.map = {}
+
+  <span class="library">setmetatable</span>(lp.map,{[<span class="string">"__mode"</span>]=<span class="string">"v"</span>}) <span class="comment">-- weak on values</span>
+
+  <span class="keyword">return</span> lp
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Examples:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"luapersist3"</span>
+
+
+
+lp=<span class="library">assert</span>(persist.open<span class="string">"ptest.db"</span>) <span class="comment">-- or --</span>
+
+lp=<span class="library">assert</span>(persist.open<span class="string">":memory:"</span>)
+
+
+
+t=lp:new_table(<span class="string">"foo"</span>)
+
+
+
+<span class="library">assert</span>(t==lp.map.foo)
+
+
+
+t[<span class="string">"baz"</span>] = 7
+
+
+
+<span class="keyword">for</span> TID,Key,Kyp,Val,Vyp <span class="keyword">in</span> lp.db:urows(<span class="string">"SELECT * FROM luat"</span>) <span class="keyword">do</span>
+
+  <span class="library">print</span>(TID, Key, Kyp, Val, Vyp) <span class="keyword">end</span> 
+
+
+
+t[<span class="string">"baz"</span>] = 9
+
+t[<span class="string">"bar"</span>] = 9
+
+t[<span class="string">"baz"</span>] = 3
+
+
+
+t.tt = {[<span class="string">"a"</span>]=1,[<span class="string">"b"</span>]=2} 
+
+
+
+tt[{1,2,3}]=<span class="string">"t123"</span> <span class="comment">-- error</span>
+
+
+
+<span class="comment">-- close and open</span>
+
+
+
+t=lp:get_table(<span class="string">"foo"</span>)
+
+
+
+<span class="keyword">for</span> Key,Kyp,Val,Vyp
+
+ <span class="keyword">in</span> lp.db:urows(<span class="string">"SELECT Key,Kyp,Val,Vyp FROM luat where TID='foo'"</span>)
+
+ <span class="keyword">do</span> <span class="library">print</span>(Key, Kyp, Val, Vyp) <span class="keyword">end</span>
+
+
+
+lp:cache<span class="string">"foo"</span>
+
+
+
+ca = <span class="library">assert</span>(<span class="library">getmetatable</span>(t).__lpt_cache,<span class="string">"there is no __lpt_cache for this persistent table"</span>)
+
+
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(ca) <span class="keyword">do</span> <span class="library">print</span>(k,v) <span class="keyword">end</span>
+
+
+
+=t.tt.a
+
+
+
+t[<span class="string">"123\000567"</span>]=<span class="string">"abc\000efg"</span>
+
+
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(ca)
+
+ <span class="keyword">do</span> <span class="keyword">local</span> x = 0
+
+    <span class="keyword">if</span>(<span class="library">type</span>(v)==<span class="string">'string'</span>) <span class="keyword">then</span> x = <span class="library">string.len</span> (v) <span class="keyword">end</span>
+
+    <span class="library">print</span>(k,v,<span class="library">string.len</span>(k),x)
+
+ <span class="keyword">end</span>
+
+
+
+<span class="keyword">for</span> Key,Kyp,Val,Vyp
+
+ <span class="keyword">in</span> lp.db:urows(<span class="string">"SELECT Key,Kyp,Val,Vyp FROM luat where TID='tid1'"</span>)
+
+ <span class="keyword">do</span> <span class="library">print</span>(Key, Kyp, Val, Vyp) <span class="keyword">end</span>
+
+
+
+<span class="comment">-- debugging</span>
+
+
+
+<span class="keyword">for</span> r <span class="keyword">in</span> lp.db:nrows(<span class="string">"SELECT * FROM SQLITE_MASTER"</span>) <span class="keyword">do</span>  
+
+     <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(r) <span class="keyword">do</span> <span class="library">print</span>(k,v) <span class="keyword">end</span>  
+
+<span class="keyword">end</span> 
+
+
+
+<span class="comment">-- maintanance -- LOSES ALL DATA!</span>
+
+
+
+<span class="keyword">for</span> r <span class="keyword">in</span> lp.db:nrows(<span class="string">"DROP TABLE luat"</span>) <span class="keyword">do</span>  
+
+     <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(r) <span class="keyword">do</span> <span class="library">print</span>(k,v) <span class="keyword">end</span>  
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PersistentTablesSqlite" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PersistentTablesSqlite" >history</a><br>Last edited January 6, 2007 3:26 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PersistentTablesSqlite" >(diff)</a>
+</body>
+</html>

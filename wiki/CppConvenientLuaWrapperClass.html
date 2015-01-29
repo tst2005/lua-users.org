@@ -1,0 +1,440 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Cpp Convenient Lua Wrapper Class</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CppConvenientLuaWrapperClass&amp;body=1" title="List pages referring to CppConvenientLuaWrapperClass">Cpp Convenient Lua Wrapper Class</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The purpose for this wrapper is providing convenient mechanisms in C++ for exposing methods and calling script functions. All a C++ programmer needs is to inherit from a particular class, then services are provided for loading a Lua script, exposing methods with any signatur, and calling script functions.
+<p>
+Following example shows how a Lua script is embedded into a class. For more details contact Yag2002 group at <a href="http://yag2002.sourceforge.net">http://yag2002.sourceforge.net</a>
+<p>
+Have fun.
+<p>
+--boto
+<p>
+<p>
+<H3>Lua Script</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>( <span class="string">"in Lua: starting script"</span> )
+
+<span class="library">print</span>( <span class="string">"in Lua: calling exposed exposedMethods ..."</span> )
+
+
+
+<span class="comment">-- exposed method1: [ std::string, float ] exposedMethod1(int, float)</span>
+
+a, b = testScript.exposedMethod1(42, 0.42)
+
+
+
+<span class="library">print</span>(<span class="string">"in Lua:"</span>, a, b)
+
+
+
+<span class="comment">-- exposed method2: void exposedMethod2( int, std::string)</span>
+
+testScript.exposedMethod2( 65, <span class="string">"Hello"</span> )
+
+
+
+<span class="library">print</span>(<span class="string">"in Lua: exposed exposedMethods have been called"</span>)
+
+
+
+<span class="comment">-- callable script function ( from entity )</span>
+
+<span class="keyword">function</span> scriptFcn1(x)    
+
+    <span class="library">print</span>(<span class="string">"in Lua: scriptFcn1 has been called with argument: "</span>, x)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> scriptFcn2(x, y)    
+
+    <span class="library">print</span>(<span class="string">"in Lua: scriptFcn2 has been called with arguments: "</span>, x, <span class="string">", "</span>, y)
+
+    <span class="keyword">return</span> <span class="string">"result: "</span>, x * 2, y *2
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H3>C++ Code</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+
+
+#include "vrc_script.h"
+
+
+
+//! Class for embedding a test script
+
+class EnTestScript : public vrc::BaseScript&lt; EnTestScript &gt;
+
+{
+
+    public:
+
+
+
+                                                EnTestScript( const std::string&amp; scriptfile );
+
+
+
+        virtual                                 ~EnTestScript();
+
+
+
+        //! Start loading and executing the test script
+
+        void                                    start();
+
+
+
+        //! test for an exposed method
+
+        void                                    exposedMethod1( const Params&amp; arguments, Params&amp; returnvalues );
+
+
+
+        //! test for an exposed method
+
+        void                                    exposedMethod2( const Params&amp; arguments, Params&amp; returnvalues );
+
+
+
+    protected:
+
+
+
+        //! Script file
+
+        std::string                             _scriptFile;
+
+};
+
+
+
+EnTestScript::EnTestScript( const std::string&amp; scriptfile )
+
+ _scriptFile( scriptfile )
+
+{
+
+}
+
+
+
+EnTestScript::~EnTestScript()
+
+{
+
+}
+
+
+
+void EnTestScript::start()
+
+{
+
+    try
+
+    {
+
+        // load script file and scope all exposed methods with 'testScript'
+
+        loadScript( "testScript", _scriptFile );
+
+
+
+        // expose methods
+
+        
+
+        Params arguments;
+
+        Params returnsvalues;
+
+
+
+        //Note: for adding a parameter type into a Params container one can define an initial value ( which is normally ignored ).
+
+        //      it is important that the compiler can deduce the 'add' method by knowing the type which is added. 
+
+        //      currently int, float, double, and std::string types are supported.
+
+        //      take also care on the order you define the arguments or return values.
+
+
+
+        // expose method 1 having the pseudo-signatur: [ std::string, float ] method1( int, float )
+
+        {
+
+            arguments.add( 0 );       // here just pass an int variable or a constant int, we take 0
+
+            arguments.add( 0.0f );    // here just pass a float variable or a constant float, we take 0.0f
+
+            returnsvalues.add( std::string() );
+
+            returnsvalues.add( 0.0f );
+
+            exposeMethod( "exposedMethod1", &amp;EnTestScript::exposedMethod1, arguments, returnsvalues );
+
+        }
+
+
+
+        // some tests
+
+        {
+
+            size_t argumentcontainersize = arguments.size();
+
+            assert( argumentcontainersize == 2 );
+
+
+
+            size_t returnsvaluescontainersize = returnsvalues.size();
+
+            assert( returnsvaluescontainersize == 2 );
+
+
+
+            const type_info&amp; typeofelementatindexZero = arguments.getTypeInfo( 0 );
+
+            assert( typeofelementatindexZero == typeid( int ) );
+
+
+
+            const type_info&amp; typeofelementatindexOne  = arguments.getTypeInfo( 1 );
+
+            assert( typeofelementatindexOne == typeid( float ) );
+
+        }
+
+        
+
+        arguments.clear();
+
+        returnsvalues.clear();
+
+
+
+        // expose method 2 having the pseudo-signatur: void method1( int, std::string )
+
+        {
+
+            arguments.add( 0 );
+
+            arguments.add( std::string() );
+
+            exposeMethod( "exposedMethod2", &amp;EnTestScript::exposedMethod2, arguments );
+
+        }
+
+
+
+        // execute the script after exposing methods
+
+        execute();
+
+
+
+        // call script function scriptFcn1: void scriptFcn1( int )
+
+        {
+
+            Params args;
+
+            args.add( 100.42 );
+
+            
+
+            // the function has no return value
+
+            callScriptFunction( "scriptFcn1", &amp;args );
+
+        }
+
+
+
+        // call script function scriptFcn2: [ std::string, int, int ] scriptFcn2( int, int )
+
+        {
+
+            Params args;
+
+            args.add( 100 );
+
+            args.add( 150 );
+
+
+
+            Params rets;
+
+            rets.add( std::string() );
+
+            rets.add( 0 );
+
+            rets.add( 0 );
+
+            
+
+            callScriptFunction( "scriptFcn2", &amp;args, &amp;rets );
+
+
+
+            std::stringstream msg;
+
+            msg &lt;&lt; "in Entity: scriptFcn2 returned: " &lt;&lt; GET_SCRIPT_PARAMVALUE( rets, 0, std::string ) &lt;&lt; " "
+
+                &lt;&lt; GET_SCRIPT_PARAMVALUE( rets, 1, int ) &lt;&lt; " " &lt;&lt; GET_SCRIPT_PARAMVALUE( rets, 2, int );
+
+            log_debug &lt;&lt; msg.str() &lt;&lt; std::endl;           
+
+        }
+
+
+
+        // close the script and clean up its resources
+
+        closeScript();
+
+    }
+
+    catch( const ScriptingException&amp; e )
+
+    {
+
+        log_error &lt;&lt; "TestScript: error occured during script test: " &lt;&lt; e.what() &lt;&lt; std::endl;
+
+    }
+
+}
+
+
+
+void EnTestScript::exposedMethod1( const Params&amp; arguments, Params&amp; returnvalues )
+
+{
+
+    // get parameters
+
+    std::stringstream msg;
+
+    msg &lt;&lt; "in Entity: exposedMethod1( " &lt;&lt; GET_SCRIPT_PARAMVALUE( arguments, 0, int ) &lt;&lt; " " &lt;&lt; GET_SCRIPT_PARAMVALUE( arguments, 1, float ) &lt;&lt; " )";
+
+    log_debug &lt;&lt; msg.str() &lt;&lt; std::endl;
+
+
+
+    // set return values
+
+    SET_SCRIPT_PARAMVALUE( returnvalues, 0, std::string, "returnvalue is: " );
+
+    SET_SCRIPT_PARAMVALUE( returnvalues, 1, float, 0.12345f );
+
+}
+
+
+
+void EnTestScript::exposedMethod2( const Params&amp; arguments, Params&amp; returnvalues )
+
+{
+
+    std::stringstream msg;
+
+    msg &lt;&lt; "in Entity: exposedMethod2( " &lt;&lt; GET_SCRIPT_PARAMVALUE( arguments, 0, int ) &lt;&lt; ", " &lt;&lt; GET_SCRIPT_PARAMVALUE( arguments, 1, std::string ) &lt;&lt; " )";
+
+    log_debug &lt;&lt; msg.str() &lt;&lt; std::endl;
+
+}
+
+
+
+int main( int argc, char** argv )
+
+{
+
+    EnTestScript ts( "&lt;path&gt;/script.lua" );
+
+    ts.start();
+
+
+
+    return 0;
+
+}
+
+
+
+</pre>
+</DL>
+<p>
+<H3>Output</H3>
+<DL>
+<dt><dd><pre>
+
+in Lua: starting script
+
+in Lua: calling exposed exposedMethods ...
+
+in Entity: exposedMethod1( 42 0.42 )
+
+in Lua: returnvalue is:         0.12345000356436
+
+in Entity: exposedMethod2( 65, Hello )
+
+in Lua: exposed exposedMethods have been called
+
+in Lua: scriptFcn1 has been called with argument:       100.42
+
+in Lua: scriptFcn2 has been called with arguments:      100     ,       150
+
+in Entity: scriptFcn2 returned: result:  200 300
+
+</pre>
+</DL>
+<p>
+<H3>Wrapper Source Code</H3>
+<a href="/files/wiki_insecure/LuaWrapper(VRC).zip">Files:wiki_insecure/LuaWrapper(VRC).zip</a> C++ Wrapper code
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CppConvenientLuaWrapperClass" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CppConvenientLuaWrapperClass" >history</a><br>Last edited January 6, 2007 6:34 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CppConvenientLuaWrapperClass" >(diff)</a>
+</body>
+</html>

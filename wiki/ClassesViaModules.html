@@ -1,0 +1,684 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Classes Via Modules</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ClassesViaModules&amp;body=1" title="List pages referring to ClassesViaModules">Classes Via Modules</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This system allows you to (ab)use the require / module system to get inherited classes with no superfluous functions to be called or special class creators.  You need to put the following code in a seperate file which will be called by require() once.  After said file has been included, the require() function will no longer perform the original "include this file" functionality, but it overwritten with the system below (alternatively, you can change it so that it doesn't reset the package.loaders table, and instead simple adds the new function).
+<p>
+See the bottom of this page for an example on how to use.  Feel free to credit James Rhodes (jrhodes@roket-enterprises.com) if you want, but there's no requirement to do so.
+<p>
+<H2>Code</H2>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Overwrite our loading functionality.</span>
+
+<span class="library">package.loaders</span> = {}
+
+<span class="library">package.loaders</span>[1] = <span class="keyword">function</span>(<span class="library">module</span>, env)
+
+	<span class="comment">-- Declare our variables local so they don't</span>
+
+	<span class="comment">-- interfere with the main program.</span>
+
+	<span class="keyword">if</span> (env == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+		env = <span class="library">_G</span>
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="keyword">local</span> path, ext, found_path, e, fhandle
+
+	<span class="keyword">local</span> chunk, lmodule, _T, lfmodulepath
+
+	<span class="keyword">local</span> indent, l, n, ldotpos, classname
+
+	<span class="keyword">local</span> namespace, class_funcs, class, mt
+
+	<span class="keyword">local</span> __init, f, v, k, tdotpos, __base, i
+
+	<span class="keyword">local</span> class_inheritance = {}
+
+	<span class="keyword">local</span> inherit_classname, inherit_namespaces
+
+	<span class="keyword">local</span> inheritance_sandbox, i2
+
+	<span class="keyword">local</span> <span class="keyword">function</span> func_inherit(class)
+
+		<span class="keyword">if</span> (lmodule._T == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+			lmodule._T = {}
+
+		<span class="keyword">end</span>
+
+		
+
+		<span class="library">table.insert</span>(class_inheritance, class)
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">local</span> <span class="keyword">function</span> func_name(name)
+
+		<span class="keyword">local</span> ldotpos, tdotpos, classname, namespaces
+
+		<span class="keyword">local</span> z, x, c
+
+		ldotpos = <span class="library">string.len</span>(name)
+
+		tdotpos = <span class="library">string.len</span>(name)
+
+		classname = <span class="keyword">nil</span>
+
+		namespaces = {}
+
+		<span class="keyword">while</span> (ldotpos &gt; 0) <span class="keyword">do</span>
+
+			<span class="keyword">if</span> (<span class="library">string.sub</span>(name,ldotpos,ldotpos) == <span class="string">"."</span>) <span class="keyword">then</span>
+
+				<span class="keyword">if</span> (classname == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+					classname = <span class="library">string.sub</span>(name, ldotpos + 1, tdotpos)
+
+				<span class="keyword">else</span>
+
+					<span class="library">table.insert</span>(namespaces,1,<span class="library">string.sub</span>(name, ldotpos + 1, tdotpos))
+
+				<span class="keyword">end</span>
+
+				tdotpos = ldotpos - 1
+
+			<span class="keyword">end</span>
+
+			ldotpos = ldotpos - 1
+
+		<span class="keyword">end</span>
+
+		<span class="keyword">if</span> (tdotpos &gt; 0) <span class="keyword">then</span>
+
+			<span class="library">table.insert</span>(namespaces,1,<span class="library">string.sub</span>(name, ldotpos + 1, tdotpos))
+
+		<span class="keyword">end</span>
+
+		z = {}
+
+		<span class="keyword">for</span> c, x <span class="keyword">in</span> <span class="library">ipairs</span>(namespaces) <span class="keyword">do</span>
+
+			<span class="library">table.insert</span>(z,1,x)
+
+		<span class="keyword">end</span>
+
+		namespaces = z
+
+		
+
+		<span class="keyword">if</span> (lmodule._T == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+			lmodule._T = {}
+
+		<span class="keyword">end</span>
+
+		
+
+		lmodule._T[<span class="string">"NAME"</span>] = classname
+
+		<span class="keyword">if</span> (#namespaces &gt; 0) <span class="keyword">then</span>
+
+			lmodule._T[<span class="string">"NAMESPACE"</span>] = namespaces
+
+		<span class="keyword">else</span>
+
+			lmodule._T[<span class="string">"NAMESPACE"</span>] = <span class="keyword">nil</span>
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">local</span> <span class="keyword">function</span> func_description(desc)
+
+		<span class="keyword">if</span> (lmodule._T == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+			lmodule._T = {}
+
+		<span class="keyword">end</span>
+
+		
+
+		lmodule._T[<span class="string">"DESCRIPTION"</span>] = desc
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">local</span> <span class="keyword">function</span> func_author(author)
+
+		<span class="keyword">if</span> (lmodule._T == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+			lmodule._T = {}
+
+		<span class="keyword">end</span>
+
+		
+
+		lmodule._T[<span class="string">"AUTHOR"</span>] = author
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">local</span> <span class="keyword">function</span> func_lastmodified(date)
+
+		<span class="keyword">if</span> (lmodule._T == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+			lmodule._T = {}
+
+		<span class="keyword">end</span>
+
+		
+
+		lmodule._T[<span class="string">"LASTMODIFIED"</span>] = date
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="comment">-- Replace the "." in the requested module with</span>
+
+	<span class="comment">-- backslashes.</span>
+
+	path = <span class="library">string.gsub</span>(<span class="library">module</span>, <span class="string">"%."</span>, <span class="string">"/"</span>)
+
+	path = <span class="string">"./"</span> .. path
+
+	ext = {<span class="string">"rcs"</span>, <span class="string">"rs"</span>, <span class="string">"rks"</span>, <span class="string">"lua"</span>}
+
+	found_path = <span class="keyword">nil</span>
+
+	
+
+	<span class="keyword">for</span> k, e <span class="keyword">in</span> <span class="library">pairs</span>(ext) <span class="keyword">do</span>
+
+		fhandle = <span class="library">io.open</span>(path .. <span class="string">"."</span> .. e, <span class="string">"r"</span>)
+
+		<span class="keyword">if</span> (fhandle ~= <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+			fhandle:close()
+
+			found_path = path .. <span class="string">"."</span> .. e
+
+			<span class="keyword">break</span>
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="keyword">if</span> (found_path == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+		<span class="library">print</span>(<span class="string">"ERR : Unable to locate module at "</span> .. path .. <span class="string">".{rcs,rs,rks,lua}."</span>)
+
+		<span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">"Unable to locate module at "</span> .. path .. <span class="string">".{rcs,rs,rks,lua}."</span>
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="comment">-- Since the file exists, we're now going to load it.</span>
+
+	chunk = <span class="library">loadfile</span>(found_path)
+
+	<span class="keyword">if</span> (chunk == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+		<span class="library">print</span>(<span class="string">"ERR : Module "</span> .. <span class="library">module</span> .. <span class="string">" contains syntax errors and cannot be included in the program."</span>)
+
+		<span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">"Module "</span> .. <span class="library">module</span> .. <span class="string">" contains syntax errors and cannot be included in the program."</span>
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="comment">-- Isolate the class name from the namespace component</span>
+
+	ldotpos = <span class="library">string.len</span>(<span class="library">module</span>)
+
+	<span class="keyword">while</span> (ldotpos &gt; 0) <span class="keyword">do</span>
+
+		<span class="keyword">if</span> (<span class="library">string.sub</span>(<span class="library">module</span>,ldotpos,ldotpos) == <span class="string">"."</span>) <span class="keyword">then</span>
+
+			<span class="keyword">break</span>
+
+		<span class="keyword">end</span>
+
+		ldotpos = ldotpos - 1
+
+	<span class="keyword">end</span>
+
+	classname = <span class="library">string.sub</span>(<span class="library">module</span>, ldotpos + 1)
+
+	<span class="keyword">if</span> (ldotpos ~= 0) <span class="keyword">then</span>
+
+		namespace = <span class="library">string.sub</span>(<span class="library">module</span>, 1, ldotpos - 1)
+
+	<span class="keyword">else</span>
+
+		namespace = <span class="string">""</span>
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="comment">-- Run the chunk() function inside a sandbox, so we can inspect the module.</span>
+
+	lmodule = {}
+
+	lmodule[classname] = {}
+
+	lmodule[<span class="string">"inherits"</span>] = func_inherit
+
+	lmodule[<span class="string">"name"</span>] = func_name
+
+	lmodule[<span class="string">"description"</span>] = func_description
+
+	lmodule[<span class="string">"author"</span>] = func_author
+
+	lmodule[<span class="string">"lastmodified"</span>] = func_lastmodified
+
+	<span class="library">setfenv</span>(chunk, lmodule)
+
+	chunk()
+
+
+
+	<span class="comment">-- Check to see if _T exists, if it doesn't, show that the module can't be loaded.</span>
+
+	<span class="keyword">if</span> (lmodule[<span class="string">"_T"</span>] == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+		<span class="library">print</span>(<span class="string">"ERR : Module "</span> .. <span class="library">module</span> .. <span class="string">" does not specify module information."</span>)
+
+		<span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">"Module "</span> .. <span class="library">module</span> .. <span class="string">" does not specify module information."</span>
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="comment">-- Move the _T table from the code block, into a local variable.</span>
+
+	_T = lmodule[<span class="string">"_T"</span>]
+
+	lmodule[<span class="string">"_T"</span>] = <span class="keyword">nil</span>
+
+	
+
+	<span class="comment">-- Sanitize the _T variable we will use.</span>
+
+	_T[<span class="string">"NAME"</span>]			= <span class="library">tostring</span>(_T[<span class="string">"NAME"</span>])
+
+	<span class="keyword">if</span> (_T[<span class="string">"DESCRIPTION"</span>] ~= <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+		_T[<span class="string">"DESCRIPTION"</span>]	= <span class="library">tostring</span>(_T[<span class="string">"DESCRIPTION"</span>])
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">if</span> (_T[<span class="string">"AUTHOR"</span>] ~= <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+		_T[<span class="string">"AUTHOR"</span>]		= <span class="library">tostring</span>(_T[<span class="string">"AUTHOR"</span>])
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">if</span> (_T[<span class="string">"LASTMODIFIED"</span>] ~= <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+		_T[<span class="string">"LASTMODIFIED"</span>]	= <span class="library">tostring</span>(_T[<span class="string">"LASTMODIFIED"</span>])
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="comment">-- Verify that the module is located at the correct location (NAMESPACE "." NAME == module)</span>
+
+	<span class="keyword">if</span> (_T[<span class="string">"NAMESPACE"</span>] ~= <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+		lfmodulepath = <span class="library">table.concat</span>(_T[<span class="string">"NAMESPACE"</span>], <span class="string">"."</span>) .. <span class="string">"."</span> .. _T[<span class="string">"NAME"</span>]
+
+		<span class="keyword">if</span> (lfmodulepath ~= <span class="library">module</span>) <span class="keyword">then</span>
+
+			<span class="library">print</span>(<span class="string">"ERR : Module name mismatch.  Loaded from "</span> .. <span class="library">module</span> .. <span class="string">", but code specifies "</span> .. lfmodulepath .. <span class="string">"."</span>)
+
+			<span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">"Module name mismatch.  Loaded from "</span> .. <span class="library">module</span> .. <span class="string">", but code specifies "</span> .. lfmodulepath .. <span class="string">"."</span>
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">else</span>
+
+		lfmodulepath = _T[<span class="string">"NAME"</span>]
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="comment">-- Now create the namespace tables if required.</span>
+
+	l = env
+
+	<span class="keyword">if</span> (_T[<span class="string">"NAMESPACE"</span>] ~= <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+		<span class="keyword">for</span> k, n <span class="keyword">in</span> <span class="library">pairs</span>(_T[<span class="string">"NAMESPACE"</span>]) <span class="keyword">do</span>
+
+			l[n] = {}
+
+			l = l[n]
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="comment">-- Get the class functions.</span>
+
+	class_funcs = lmodule[classname]
+
+	lmodule[classname] = <span class="keyword">nil</span>
+
+	__init = <span class="keyword">nil</span>
+
+	__base = <span class="keyword">nil</span>
+
+	
+
+	<span class="comment">-- Build up the class.</span>
+
+	class = {}
+
+	<span class="keyword">if</span> (#class_inheritance &gt; 0) <span class="keyword">then</span>
+
+		<span class="comment">-- We need to evaluate all of the inherited class</span>
+
+		<span class="comment">-- in order, to build up.</span>
+
+		<span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">pairs</span>(class_inheritance) <span class="keyword">do</span>
+
+			<span class="comment">-- Isolate the class name from the namespace component</span>
+
+			<span class="library">print</span>(<span class="string">"INFO: Loading "</span> .. v .. <span class="string">" in required module.  Namespaces / classes should not leak."</span>)
+
+			ldotpos = <span class="library">string.len</span>(v)
+
+			tdotpos = <span class="library">string.len</span>(v)
+
+			inherit_classname = <span class="keyword">nil</span>
+
+			inherit_namespaces = {}
+
+			<span class="keyword">while</span> (ldotpos &gt; 0) <span class="keyword">do</span>
+
+				<span class="keyword">if</span> (<span class="library">string.sub</span>(v,ldotpos,ldotpos) == <span class="string">"."</span>) <span class="keyword">then</span>
+
+					<span class="keyword">if</span> (inherit_classname == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+						inherit_classname = <span class="library">string.sub</span>(v, ldotpos + 1, tdotpos)
+
+					<span class="keyword">else</span>
+
+						<span class="library">table.insert</span>(inherit_namespaces,1,<span class="library">string.sub</span>(v, ldotpos + 1, tdotpos))
+
+					<span class="keyword">end</span>
+
+					tdotpos = ldotpos - 1
+
+				<span class="keyword">end</span>
+
+				ldotpos = ldotpos - 1
+
+			<span class="keyword">end</span>
+
+			<span class="keyword">if</span> (tdotpos &gt; 0) <span class="keyword">then</span>
+
+				<span class="library">table.insert</span>(inherit_namespaces,1,<span class="library">string.sub</span>(v, ldotpos + 1, tdotpos))
+
+			<span class="keyword">end</span>
+
+			
+
+			inheritance_sandbox = {}
+
+			<span class="library">package.loaders</span>[1](v, inheritance_sandbox)
+
+			
+
+			<span class="comment">-- Load the class into i.</span>
+
+			i = inheritance_sandbox
+
+			<span class="keyword">for</span> i2, n <span class="keyword">in</span> <span class="library">pairs</span>(inherit_namespaces) <span class="keyword">do</span>
+
+				i = i[n]
+
+			<span class="keyword">end</span>
+
+			i = i[inherit_classname]
+
+			
+
+			<span class="comment">-- Now copy all of the inherited classes functions.</span>
+
+			<span class="keyword">for</span> n, f <span class="keyword">in</span> <span class="library">pairs</span>(i) <span class="keyword">do</span>
+
+				<span class="keyword">if</span> (n == <span class="string">"__init"</span>) <span class="keyword">then</span>
+
+					__base = f
+
+					<span class="library">setfenv</span>(__base, env)
+
+				<span class="keyword">elseif</span> (<span class="library">type</span>(f) == <span class="string">"function"</span>) <span class="keyword">then</span>
+
+					class[n] = f
+
+					<span class="library">setfenv</span>(class[n], env)
+
+				<span class="keyword">elseif</span> (<span class="library">type</span>(f) ~= <span class="string">"function"</span>) <span class="keyword">then</span>
+
+					class[n] = f
+
+				<span class="keyword">end</span>
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">for</span> n, f <span class="keyword">in</span> <span class="library">pairs</span>(class_funcs) <span class="keyword">do</span>
+
+		<span class="keyword">if</span> (n == <span class="string">"__init"</span>) <span class="keyword">then</span>
+
+			__init = f
+
+			<span class="library">setfenv</span>(__init, env)
+
+		<span class="keyword">else</span>
+
+			class[n] = f
+
+			<span class="library">setfenv</span>(class[n], env)
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">for</span> n, v <span class="keyword">in</span> <span class="library">pairs</span>(lmodule) <span class="keyword">do</span>
+
+		<span class="keyword">if</span> (n ~= <span class="string">"inherits"</span>
+
+			<span class="keyword">and</span> n ~= <span class="string">"name"</span>
+
+			<span class="keyword">and</span> n ~= <span class="string">"description"</span>
+
+			<span class="keyword">and</span> n ~= <span class="string">"author"</span>
+
+			<span class="keyword">and</span> n ~= <span class="string">"lastmodified"</span>) <span class="keyword">then</span>
+
+			<span class="keyword">if</span> (<span class="library">type</span>(v) == <span class="string">"function"</span>) <span class="keyword">then</span>
+
+				<span class="library">print</span>(<span class="string">"WARN: "</span> .. lfmodulepath .. <span class="string">":0: Function "</span> .. n .. <span class="string">" defined without class context.  It is not included in the class definition."</span>)
+
+			<span class="keyword">else</span>
+
+				<span class="comment">-- Make the specified variable a static variable.</span>
+
+				class[n] = v
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	mt = {}
+
+	mt.__call = <span class="keyword">function</span>(class_tbl, ...)
+
+		<span class="keyword">local</span> obj = {}
+
+		<span class="library">setmetatable</span>(obj, class)
+
+		<span class="keyword">if</span> (__init ~= <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+			__init(obj, ...)
+
+		<span class="keyword">elseif</span> (__base ~= <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+			__base(obj, ...)
+
+		<span class="keyword">end</span>
+
+		<span class="keyword">return</span> obj
+
+	<span class="keyword">end</span>
+
+	class.__index = class
+
+	class.__init = __init
+
+	class.__base = __base
+
+	<span class="library">setmetatable</span>(class, mt)
+
+	
+
+	<span class="comment">-- Now put the newly generated class in the namespace.</span>
+
+	l[classname] = class
+
+	
+
+	<span class="comment">-- Show module loaded message</span>
+
+	<span class="library">print</span>(<span class="string">"INFO: "</span> .. lfmodulepath .. <span class="string">":0: Loaded module "</span> .. _T[<span class="string">"NAME"</span>] .. <span class="string">"."</span>)
+
+	indent = <span class="library">string.rep</span>(<span class="string">" "</span>, <span class="library">string.len</span>(<span class="string">"INFO: "</span> .. lfmodulepath .. <span class="string">":0: "</span>))
+
+	<span class="keyword">if</span> (_T[<span class="string">"NAMESPACE"</span>] ~= <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+		<span class="library">print</span>(indent .. <span class="string">"    in namespace "</span> .. namespace)
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">if</span> (_T[<span class="string">"DESCRIPTION"</span>] ~= <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+		<span class="library">print</span>(indent .. <span class="string">"    Description: "</span> .. _T[<span class="string">"DESCRIPTION"</span>])
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">if</span> (_T[<span class="string">"AUTHOR"</span>] ~= <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+		<span class="library">print</span>(indent .. <span class="string">"    Author: "</span> .. _T[<span class="string">"AUTHOR"</span>])
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">if</span> (_T[<span class="string">"LASTMODIFIED"</span>] ~= <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+		<span class="library">print</span>(indent .. <span class="string">"    Last Modified: "</span> .. _T[<span class="string">"LASTMODIFIED"</span>])
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="keyword">return</span> <span class="keyword">function</span>()
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Usage</H2>
+Each class has it's own file, so for the file displayed below, you would place it in a directory called AnotherNamespace<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AnotherNamespace" >?</a>, and name the file ClassB.lua.  Notice it inherits from MainNamespace<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MainNamespace" >?</a>.ClassA, so you would also need to create that file as well (you can comment out the inherits if you want to just test the code).
+<p>
+It's important to note that to inherit multiple classes, you simply call inherits() multiple times.  The last call will have the most effect, so for example, if two classes referenced by inherits() defined an A() function, the last call would be the definition for A(), except if ClassB below override it itself.  Even though you can inherit multiple classes, self.__base() always points to the constructor of the last inherited class.
+<p>
+<DL>
+<dt><dd><pre class="code">
+name <span class="string">"AnotherNamespace.ClassB"</span>
+
+inherits <span class="string">"MainNamespace.ClassA"</span>
+
+description <span class="string">[[Provides advanced class functionality.]]</span>
+
+author <span class="string">"James Rhodes"</span>
+
+lastmodified <span class="string">"20th May, 2010"</span>
+
+
+
+myStaticVariable = 5
+
+
+
+<span class="keyword">function</span> ClassB:__init()
+
+	self.__base()
+
+	<span class="library">print</span> <span class="string">"ClassB constructor!"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> ClassB:Function()
+
+	<span class="library">print</span> <span class="string">"Called from MyClassFunction (ClassB)"</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ClassesViaModules" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ClassesViaModules" >history</a><br>Last edited May 20, 2010 3:24 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ClassesViaModules" >(diff)</a>
+</body>
+</html>

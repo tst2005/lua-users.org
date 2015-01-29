@@ -1,0 +1,331 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Curried Memoization</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CurriedMemoization&amp;body=1" title="List pages referring to CurriedMemoization">Curried Memoization</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Yet another function memoization implementation.  It handles the general case of M argument, N return value functions.  It also takes some care to preserve nils appearing in either the argument or result lists.
+<p>
+For example:
+<pre class="code">
+  <span class="keyword">local</span> mtest = weak_memoize_m_to_n( <span class="keyword">function</span>(...) <span class="library">print</span> <span class="string">'exec'</span> <span class="keyword">return</span> ... <span class="keyword">end</span> )
+
+
+
+  <span class="library">print</span>( mtest(<span class="keyword">nil</span>,2) )    <span class="comment">--&gt; "exec", "nil,2"</span>
+
+  <span class="library">print</span>( mtest(<span class="keyword">nil</span>,2) )    <span class="comment">--&gt; "nil,2"</span>
+
+  <span class="library">collectgarbage</span>()
+
+  <span class="library">print</span>( mtest ( <span class="keyword">nil</span>,2 ) ) <span class="comment">--&gt; "exec", "nil,2"</span>
+
+  <span class="library">print</span>( mtest ( ) )       <span class="comment">--&gt; "exec", ""</span>
+
+  <span class="library">print</span>( mtest ( <span class="keyword">nil</span> ) )   <span class="comment">--&gt; "exec", "nil"</span>
+
+</pre>
+
+<p>
+The design is equivalent to an argument tree technique like <a href="https://github.com/kikito/memoize.lua">[memoize.lua]</a>.  However, the tree is built implicitly, rather than explicitly, by recursively reducing M&gt;1 cases to M-1 cases.  
+<p>
+<p>
+<H2>Lua Code</H2>
+<pre class="code">
+  <span class="keyword">local</span> _ENV = <span class="library">setmetatable</span>({},{__index=<span class="library">_G</span>})
+
+
+
+  <span class="comment">-- this code can be made more memory and speed efficient by</span>
+
+  <span class="comment">-- defining catch() in C.  but, a table.unpack approach will also</span>
+
+  <span class="comment">-- work. </span>
+
+  <span class="keyword">function</span> catch(...)
+
+    <span class="keyword">local</span> rvals = {...}
+
+    <span class="keyword">local</span> n = <span class="library">select</span>(<span class="string">'#'</span>,...)
+
+    <span class="keyword">return</span> <span class="keyword">function</span>()
+
+      <span class="keyword">return</span> <span class="library">table.unpack</span>(rvals,1,n)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> weak_mt= {__mode=<span class="string">'kv'</span>}
+
+  <span class="keyword">local</span> <span class="keyword">function</span> weak_table() <span class="keyword">return</span> <span class="library">setmetatable</span>({},weak_mt) <span class="keyword">end</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> strong_table() <span class="keyword">return</span> {} <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> null = {}
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> arg2key(arg)
+
+    <span class="keyword">return</span> (arg == <span class="keyword">nil</span> <span class="keyword">and</span> null) <span class="keyword">or</span> arg
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- build a memoization function that can handle the 1-argument </span>
+
+  <span class="comment">-- to n rvals case.  </span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> new_memoizer_1_to_n(newtable)
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(fun)
+
+      <span class="keyword">local</span> lookup = newtable()
+
+
+
+      <span class="keyword">return</span> <span class="keyword">function</span> (arg)
+
+        <span class="keyword">local</span> k = arg2key(arg)
+
+        <span class="keyword">local</span> r=lookup[k]
+
+        <span class="keyword">if</span> r <span class="keyword">then</span>
+
+          <span class="keyword">return</span> r()
+
+        <span class="keyword">end</span>
+
+        r=catch( fun(arg) )
+
+        lookup[k] = r
+
+        <span class="keyword">return</span> r()
+
+      <span class="keyword">end</span>
+
+
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> new_memoizer_m_to_n( newtable, memoize_1_to_n )
+
+
+
+    <span class="comment">-- return a memoization of f that assumes m arguments.</span>
+
+    <span class="keyword">local</span> <span class="keyword">function</span> memoize_m_to_n(m,f)
+
+      <span class="comment">--  handle the m==0 case</span>
+
+      <span class="keyword">if</span> m==0 <span class="keyword">then</span>
+
+        <span class="keyword">local</span> memoized
+
+        <span class="keyword">return</span> <span class="keyword">function</span>()
+
+          <span class="keyword">if</span> memoized <span class="keyword">then</span>
+
+            <span class="keyword">return</span> memoized()
+
+          <span class="keyword">end</span>
+
+          memoized = catch(f())
+
+          <span class="keyword">return</span> memoized()
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+
+
+      <span class="keyword">if</span> m==1 <span class="keyword">then</span>
+
+        <span class="keyword">return</span> memoize_1_to_n(f)
+
+      <span class="keyword">end</span>
+
+
+
+      <span class="keyword">local</span> lookup = newtable()
+
+
+
+      <span class="comment">-- handle the general m-to-n case, for m&gt;=2. </span>
+
+      <span class="keyword">return</span> <span class="keyword">function</span>(arg, ...)
+
+
+
+        <span class="keyword">local</span> k = arg2key(arg)
+
+        <span class="keyword">local</span> r = lookup[k]
+
+
+
+        <span class="keyword">if</span> r <span class="keyword">then</span>
+
+          <span class="keyword">return</span> r(...)
+
+        <span class="keyword">end</span>
+
+    
+
+        <span class="comment">-- create a new (m-1) argument memoizer that will handle </span>
+
+        <span class="comment">-- this arg value in the future.  </span>
+
+        r = memoize_m_to_n(m-1, <span class="keyword">function</span>(...)
+
+          <span class="keyword">return</span> f(arg,...)
+
+        <span class="keyword">end</span>)
+
+
+
+        lookup[k]=r
+
+        <span class="keyword">return</span> r(...)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- return a memoizer that dispatches between the different m-argument cases.</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(f)
+
+      <span class="keyword">local</span> m_to_memoized = newtable()
+
+      <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+        <span class="keyword">local</span> m = <span class="library">select</span>(<span class="string">'#'</span>,...)
+
+        <span class="keyword">local</span> memoized = m_to_memoized[m]
+
+        <span class="keyword">if</span> memoized <span class="keyword">then</span>
+
+          <span class="keyword">return</span> memoized(...)
+
+        <span class="keyword">end</span>
+
+        memoized = memoize_m_to_n(m,f)
+
+        m_to_memoized[m]=memoized
+
+        <span class="keyword">return</span> memoized(...)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  weak_memoize_1_to_n =  new_memoizer_1_to_n(weak_table)
+
+  strong_memoize_1_to_n =  new_memoizer_1_to_n(strong_table)
+
+
+
+  weak_memoize_m_to_n = new_memoizer_m_to_n(weak_table,weak_memoize_1_to_n)
+
+  strong_memoize_m_to_n = new_memoizer_m_to_n(strong_table,strong_memoize_1_to_n)
+
+
+
+  <span class="keyword">return</span> _ENV
+
+</pre>
+
+<p>
+<H3>Implementing catch() in C</H3>
+<p>
+Memory use and performance can both be improved by implementing catch() inside the C-API.  While their storage capacity is limited to 255 values; C-closures are lighter, faster datastructures than Lua's generic tables. 
+<pre>
+
+  static int throw_upvalues(lua_State *L) {
+
+    int n1=lua_tointeger(L,lua_upvalueindex(1));
+
+    luaL_checkstack(L,n1-1,"too many upvalues");
+
+    for(int i=2; i&lt;=n1; i++) {
+
+      lua_pushvalue(L,lua_upvalueindex(i));
+
+    }
+
+    return n1-1;
+
+  }
+
+
+
+  static int catch_args(lua_State *L) {
+
+    int n1 = lua_gettop(L)+1;
+
+    if(n1&gt;MAXUPVAL) {
+
+      return luaL_error(L,"can't catch more than %d args. (catch() called with %d arguments).",MAXUPVAL-1, n1-1);
+
+    }
+
+    lua_pushinteger(L,n1);
+
+    lua_insert(L,1);
+
+    lua_pushcclosure(L,throw_upvalues,n1);
+
+    return 1;
+
+  }
+
+</pre>
+<p>
+<H2>See Also</H2>
+<p>
+Many other Lua memoization implementations are scattered around the web.  The <a href="../wiki/FuncTables.html" >FuncTables</a> page appears to be the de-facto wiki link hub.  But, the topic also comes up frequently on the lua users list; and there are a couple nice implementations of string-serialization based approaches posted in the archives <a href="/lists/lua-l/2013-06/msg00206.html">[1]</a>, <a href="/lists/lua-l/2013-12/msg00303.html">[2]</a>.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CurriedMemoization" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CurriedMemoization" >history</a><br>Last edited December 31, 2013 6:50 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CurriedMemoization" >(diff)</a>
+</body>
+</html>

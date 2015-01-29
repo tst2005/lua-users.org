@@ -1,0 +1,296 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Frontier Pattern</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FrontierPattern&amp;body=1" title="List pages referring to FrontierPattern">Frontier Pattern</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The "frontier" expression pattern <code>%f</code> is undocumented in the standard Lua references (for reasons why see <a href="/lists/lua-l/2006-12/msg00536.html">LuaList:2006-12/msg00536.html</a>).
+<p>
+I would like to present here the usefulness of it, in an attempt to show how it can be used, and why it should be retained.
+<p>
+Nb., the frontier pattern was retained in Lua v. 5.2 and is now documented in the Lua v. 5.2 Reference Manual section 6.4.1.  Patterns.
+<p>
+Let's consider a fairly straightforward task: to find all words in upper-case in a string.
+<p>
+<H3>First attempt: %u+</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">string.gsub</span> (<span class="string">"the QUICK brown fox"</span>, <span class="string">"%u+"</span>, <span class="library">print</span>)
+
+
+
+QUICK
+
+</pre>
+
+</DL>
+<p>
+That looks OK, found a word in all caps. But look at this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">string.gsub</span> (<span class="string">"the QUICK BROwn fox"</span>, <span class="string">"%u+"</span>, <span class="library">print</span>)
+
+
+
+QUICK
+
+BRO
+
+</pre>
+
+</DL>
+<p>
+We also found a word which was partially capitalised.
+<p>
+<hr><H3>Second attempt: %u+%A</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">string.gsub</span> (<span class="string">"the QUICK BROwn fox"</span>, <span class="string">"%u+%A"</span>, <span class="library">print</span>)
+
+
+
+QUICK
+
+</pre>
+
+</DL>
+<p>
+The detection of non-letters correctly excluded the partially capitalised word. But wait! How about this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">string.gsub</span> (<span class="string">"the QUICK brOWN fox"</span>, <span class="string">"%u+%A"</span>, <span class="library">print</span>)
+
+
+
+QUICK 
+
+OWN 
+
+</pre>
+
+</DL>
+<p>
+We also have a second problem:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">string.gsub</span> (<span class="string">"the QUICK. brown fox"</span>, <span class="string">"%u+%A"</span>, <span class="library">print</span>)
+
+
+
+QUICK.
+
+</pre>
+
+</DL>
+<p>
+The punctuation after the word is now part of the captured string, which is not wanted.
+<p>
+<H3>Third attempt: %A%u+%A</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">string.gsub</span> (<span class="string">"the QUICK brOWN FOx jumps"</span>, <span class="string">"%A%u+%A"</span>, <span class="library">print</span>)
+
+
+
+ QUICK
+
+</pre>
+
+</DL>
+<p>
+This correctly excludes the two partially capitalised words, but still leaves the punctuation in, like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">string.gsub</span> (<span class="string">"the (QUICK) brOWN FOx jumps"</span>, <span class="string">"%A%u+%A"</span>, <span class="library">print</span>)
+
+
+
+(QUICK)
+
+</pre>
+
+</DL>
+<p>
+Also, there is another problem, apart from capturing the non-letters at the sides. Look at this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">string.gsub</span> (<span class="string">"THE (QUICK) brOWN FOx JUMPS"</span>, <span class="string">"%A%u+%A"</span>, <span class="library">print</span>)
+
+
+
+(QUICK)
+
+</pre>
+
+</DL>
+<p>
+The correctly capitalised words at the start and end of the string are not detected.
+<p>
+<H3>The solution: The Frontier pattern: %f</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">string.gsub</span> (<span class="string">"THE (QUICK) brOWN FOx JUMPS"</span>, <span class="string">"%f[%a]%u+%f[%A]"</span>, <span class="library">print</span>)
+
+
+
+THE
+
+QUICK
+
+JUMPS
+
+</pre>
+
+</DL>
+<p>
+The frontier pattern %f followed by a set detects the transition from "not in set" to "in set". The source string boundary qualifies as "not in set" so it also matches the word at the very start of the string to be matched.
+<p>
+The second frontier pattern is also matched at the end of the string, so our final word is also captured.
+<p>
+<H3>Alternatives without the frontier pattern</H3>
+<p>
+Without the frontier pattern, one might resort to things like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+s = <span class="string">"THE (QUICK) brOWN FOx JUMPS"</span>
+
+s = <span class="string">"\0"</span> .. s:gsub(<span class="string">"(%A)(%u)"</span>, <span class="string">"%1\0%2"</span>)
+
+             :gsub(<span class="string">"(%u)(%A)"</span>, <span class="string">"%1\0%2"</span>) .. <span class="string">"\0"</span>
+
+s = s:gsub(<span class="string">"%z(%u+)%z"</span>, <span class="library">print</span>)
+
+</pre>
+
+</DL>
+<p>
+<hr>--<a href="../wiki/NickGammon.html" >NickGammon</a>
+<hr><em>One might better resort to this:</em>
+<DL>
+<dt><dd><pre class="code">
+(<span class="string">'_'</span>..s..<span class="string">'_'</span>):gsub(<span class="string">'%A(%u+)%A'</span>, <span class="library">print</span>)
+
+</pre>
+
+</DL>
+<em>--<a href="../wiki/DmitryGaivoronsky.html" >DmitryGaivoronsky</a></em>
+<p>
+<DL>
+<dt><dd>Not quite:
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><pre class="code">
+s = <span class="string">"THE QUICK brOWN FOx JUMPS"</span>
+
+(<span class="string">'_'</span>..s..<span class="string">'_'</span>):gsub(<span class="string">'%A(%u+)%A'</span>, <span class="library">print</span>)
+
+<span class="comment">--&gt; THE JUMPS</span>
+
+</pre>
+
+</DL>
+</DL>
+<p>
+<DL>
+<dt><dd>You can do this:
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><pre class="code">
+(<span class="string">' '</span>..s..<span class="string">' '</span>):gsub(<span class="string">'%A+'</span>, <span class="string">'  '</span>):gsub(<span class="string">' (%u+) '</span>, <span class="library">print</span>)
+
+<span class="comment">--&gt; THE QUICK JUMPS</span>
+
+</pre>
+
+</DL>
+</DL>
+<p>
+<DL>
+<dt><dd>or this:
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><pre class="code">
+s:gsub(<span class="string">'%a+'</span>, <span class="string">' %1 '</span>):gsub(<span class="string">' (%u+) '</span>, <span class="library">print</span>)
+
+<span class="comment">--&gt; THE QUICK JUMPS</span>
+
+</pre>
+
+</DL>
+</DL>
+<p>
+<DL>
+<dt><dd>The pattern can be extended to more general statements: "Find all words that are at least four characters and are either all lowercase or all uppercase"...
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><pre class="code">
+s = <span class="string">"THE QUICK brOWN FOx JUMPS over"</span>
+
+s:gsub(<span class="string">'%a+'</span>, <span class="string">' %1 '</span>)      <span class="comment">-- identify words with ' (%a+) '</span>
+
+                           <span class="comment">-- (all following patterns match a subset of this)</span>
+
+ :gsub(<span class="string">' %u+%l+%a* '</span>, <span class="string">''</span>)  <span class="comment">-- subtract mixed case words starting with upper</span>
+
+ :gsub(<span class="string">' %l+%u+%a* '</span>, <span class="string">''</span>)  <span class="comment">-- subtract mixed case words starting with lower</span>
+
+ :gsub(<span class="string">' %a%a?%a? '</span>, <span class="string">''</span>)   <span class="comment">-- subtract words with 1-3 characters</span>
+
+ :gsub(<span class="string">' (%a+) '</span>, <span class="library">print</span>)   <span class="comment">-- extract words</span>
+
+<span class="comment">--&gt; QUICK JUMPS over</span>
+
+</pre>
+
+</DL>
+</DL>
+<p>
+<DL>
+<dt><dd>--<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FrontierPattern" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FrontierPattern" >history</a><br>Last edited May 23, 2014 11:16 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FrontierPattern" >(diff)</a>
+</body>
+</html>

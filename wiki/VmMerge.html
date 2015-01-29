@@ -1,0 +1,165 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Vm Merge</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=VmMerge&amp;body=1" title="List pages referring to VmMerge">Vm Merge</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Overview</H3>
+This script is designed to take a Lua source file, run <code>luac</code> to generate the Lua VM code, and merge the two together.
+<p>
+eg. Using the following code :-
+<DL>
+<dt><dd><pre class="code">
+a = {}
+
+b = a.x
+
+<span class="library">print</span>(b)
+
+</pre>
+
+</DL>
+<code>luac</code> produces :-
+<DL>
+<dt><dd><pre>
+
+main &lt;0:@a.lua&gt; (9 instructions/36 bytes at 002F29E8)
+
+0 params, 2 stacks, 0 locals, 4 strings, 0 numbers, 0 functions, 5 lines
+
+     1	[2]	CREATETABLE	0
+
+     2	[2]	SETGLOBAL  	0	; a
+
+     3	[3]	GETGLOBAL  	0	; a
+
+     4	[3]	GETDOTTED  	2	; x
+
+     5	[3]	SETGLOBAL  	1	; b
+
+     6	[4]	GETGLOBAL  	3	; print
+
+     7	[4]	GETGLOBAL  	1	; b
+
+     8	[4]	CALL       	0 0
+
+     9	[4]	END        	
+
+</pre>
+</DL>
+The script will merge the source and VM code to produce :-
+<DL>
+<dt><dd><pre>
+
+ a = {}
+
+ 	CREATETABLE	0
+
+ 	SETGLOBAL  	0	; a
+
+ b = a.x
+
+ 	GETGLOBAL  	0	; a
+
+ 	GETDOTTED  	2	; x
+
+ 	SETGLOBAL  	1	; b
+
+ print(b)
+
+ 	GETGLOBAL  	3	; print
+
+ 	GETGLOBAL  	1	; b
+
+ 	CALL       	0 0
+
+ 	END        	
+
+</pre>
+</DL>
+It can also produce the above in HTML format to make it a bit easier on the eye (unfortunately no HTML preview facility is available on this site) :-
+<DL>
+<dt><dd><pre>
+
+&lt;html&gt;&lt;pre&gt;
+
+&lt;b&gt;a = {}&lt;/b&gt;
+
+        CREATETABLE	0
+
+        SETGLOBAL  	0	; a
+
+&lt;b&gt;b = a.x&lt;/b&gt;
+
+        GETGLOBAL  	0	; a
+
+        GETDOTTED  	2	; x
+
+        SETGLOBAL  	1	; b
+
+&lt;b&gt;print(b)&lt;/b&gt;
+
+        GETGLOBAL  	3	; print
+
+        GETGLOBAL  	1	; b
+
+        CALL       	0 0
+
+        END&lt;/pre&gt;&lt;/html&gt;
+
+</pre>
+</DL>
+<p>
+Note, the above example is without line numbers. You can find some more examples on <a href="../wiki/OptimisationTips.html" >OptimisationTips</a> page.
+<p>
+<H3>Command line</H3>
+<UL>
+<li> Get the script (below).
+<li> Run the script using: <code>lua -f vmmerge.lua ...options...</code>
+<li> Make sure you have the <code>lua</code> and <code>luac</code> executables in your path. <code>luac -p -l</code> is used to generated the VM code.
+<li> <code>--fmt merge|html</code> chooses output format (see above).
+<li> <code>--nol</code> removes line numbers
+<li> Pipe the output into a file to save it. eg. "<code>... &gt; file.txt</code>"
+<li> eg. <code>lua -f vmmerge.lua --file my.lua --fmt html &gt; my.html</code>
+</UL>
+<p>
+<H2>Download</H2>
+<p>
+<UL>
+<li> <a href="/files/wiki_insecure/users/theoddone33/vmmerge5.lua">[Lua 5.0 version by theoddone33]</a>
+<li> <a href="/files/wiki_insecure/users/ntrout/vmmerge.lua">[Original Lua 4 version]</a>
+</UL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/OptimisationTips.html" >OptimisationTips</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=VmMerge" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=VmMerge" >history</a><br>Last edited January 11, 2007 3:19 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=VmMerge" >(diff)</a>
+</body>
+</html>

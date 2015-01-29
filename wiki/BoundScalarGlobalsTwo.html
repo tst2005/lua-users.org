@@ -1,0 +1,269 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Bound Scalar Globals Two</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BoundScalarGlobalsTwo&amp;body=1" title="List pages referring to BoundScalarGlobalsTwo">Bound Scalar Globals Two</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The problem: how can one define a global variable such that accessing and setting its value actually calls a <code>C</code> function which manipulates an internal object. This is easy in Lua 4 but Lua 5 lacks most of the metamethods which would be used for a naive Lua 4 implementation. 
+<p>
+Here is one solution, which allows you to set a global variable to the result of a constructor function. See <a href="../wiki/BoundScalarGlobalsOne.html" >BoundScalarGlobalsOne</a> for a different implementation. 
+<p>
+Disclaimer: I take responsibility for writing this stuff, but I wouldn't use it in my own code, not because it is slow, but because it is too wierd. In the end, it is just as easy to use getter and setter functions. However, I put it here because I think that it is an interesting example of the possibilities of metamethods, and it demonstrates a useful way of working around the absence of <code>gettable</code> and <code>settable</code> metamethods. This <em>would</em> be useful in constructing a proxy for a <code>C</code> structure.
+<p>
+To pull this off, you need to at least associate a known metatable with each different type of <code>C</code> object. This metatable is effectively the "type" of the object. The metatable must have the keys <code>__get</code> and <code>__set</code> whose values are (possibly <code>C</code>) functions to get and set the values of the <code>C</code> scalars. If <code>__get</code> is the identity function, there would be nothing stopping you from populating the type/metamethod table other metamethods, such as arithmetic or comparators, or even <code>__call</code>, <code>__index</code>, or <code>__newindex</code>.
+<p>
+The constructor function needs to associate the <code>C</code> object with the metatable, and it is necessary to register the metatable with <code>register_type</code> (see below). (This mechanism is not very different from the mechanism in lauxlib, now that I look at it two years after writing it.)
+<p>
+It is not necessary to use <code>C</code> and userdatas; the example below uses Lua functions and tables but hopefully the <code>C</code> interface is reasonably obvious.  
+<p>
+Once the result of the constructor is assigned to a global, future sets and gets to that global are deferred to the <code>__get</code> and <code>__set</code> pseudometamethods so you can never get rid of the binding (well, there could be an unbind function but I didn't write that.)
+<p>
+In <a href="../wiki/BoundScalarGlobalsOne.html" >BoundScalarGlobalsOne</a>, I tried to deal with globals tables with existing metatables. This time I'm not -- although the same strategy would work in this case, it just makes the code harder to follow and it is hard enough to follow as it is :)
+<p>
+For efficiency, I assume that you are not going to want to redefine existing globals as C-values and that there will not be a lot of new non C-value globals after this procedure is executed. That means that system library functions will still be looked up without interference.
+<p>
+<pre>
+
+-- BoundScalar2
+
+-- Version 0.1
+
+-- RiciLake
+
+--
+
+do
+
+  local types = {} -- table of metatables we're going to deal with
+
+  local global_meta = {} -- metatable for globals
+
+  local sub_meta = {} -- metatable for new globals
+
+  local c_proxied = {} -- table of proxied values.
+
+  local new_globals = {} -- normal globals
+
+
+
+  -- use this function to register your metatables (types)
+
+  function register_type(meta)
+
+    types[meta] = true
+
+  end
+
+
+
+  -- __index metamethod for globals table
+
+  --
+
+  -- We know the key doesn't exist in the globals table,
+
+  -- which contains pre-existing globals. It
+
+  -- might be new global, or it might be a proxied c-value.
+
+  -- We defer the lookup to the new_globals
+
+  -- table which has its own __index metamethod
+
+
+
+  function global_meta.__index(t, k)
+
+    return new_globals[k]
+
+  end
+
+
+
+  -- __index metamethod for new_globals table
+
+  --
+
+  -- This gets invoked if the key wasn't found in the
+
+  -- new_globals table. So it is either a
+
+  -- proxied c-value or an undefined global
+
+
+
+  function sub_meta.__index(t, k)
+
+    local val = c_proxied[k]
+
+    if val then return getmetatable(val).__get(val) end
+
+  end
+
+
+
+  -- __newindex metamethod for globals table
+
+  --
+
+  -- With set, we need to follow a different strategy, because we need to
+
+  -- intercept every attempt to set a global (this doesn't happen
+
+  -- with pre-existing globals).
+
+
+
+  function global_meta.__newindex(t, k, v)
+
+    -- first we see if we're proxying this key, and if so we just pass on
+
+    -- the value. c_proxied does not have metamethods, so we don't need
+
+    -- rawget.
+
+    local cval = c_proxied[k]
+
+    if cval then
+
+        getmetatable(cval).__set(cval, v)
+
+      else
+
+        -- get the *value*'s type (well, metatable)
+
+        -- and see if it is one of ours.
+
+        local meta = getmetatable(v)
+
+        if meta and types[meta] then
+
+            -- It is a c_val, so we need to get rid of it from regular
+
+            -- globals, in case it exists, and put it into the proxied
+
+            -- table
+
+            new_globals[k] = nil
+
+            c_proxied[k] = v
+
+          else
+
+            -- it is neither an existing c_value nor a new one. So we just
+
+            -- stash it away
+
+            new_globals[k] = v
+
+        end
+
+    end
+
+  end
+
+
+
+  setmetatable(getfenv(), global_meta)
+
+  setmetatable(new_globals, sub_meta)
+
+end
+
+</pre>
+<p>
+Now we can define our bindable types. Here is a quick example. See sample output for how it works
+<p>
+<pre>
+
+do
+
+  local date_meta = {}
+
+  register_type(date_meta)
+
+
+
+  -- __get returns the date according to the object's format
+
+  function date_meta.__get(date_obj)
+
+    return os.date(date_obj.fmt)
+
+  end
+
+
+
+  -- __set changes the object's format
+
+  function date_meta.__set(date_obj, fmt)
+
+    date_obj.fmt = fmt
+
+  end
+
+
+
+  -- constructor
+
+  function Date(fmt)
+
+    return setmetatable({fmt = fmt or "%c"}, date_meta)
+
+  end
+
+end
+
+</pre>
+<p>
+Sample output
+<p>
+<pre>
+
+&gt; now = Date()
+
+&gt; print(now)
+
+Thu Jan 16 16:41:13 2003
+
+&gt; gmt = Date("!%c")
+
+&gt; print(gmt)
+
+Thu Jan 16 21:41:22 2003
+
+&gt; gmt = "!%F %R"
+
+&gt; print(gmt)
+
+2003-01-16 21:41
+
+</pre>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BoundScalarGlobalsTwo" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BoundScalarGlobalsTwo" >history</a><br>Last edited November 4, 2004 5:53 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BoundScalarGlobalsTwo" >(diff)</a>
+</body>
+</html>

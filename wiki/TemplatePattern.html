@@ -1,0 +1,498 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Template Pattern</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TemplatePattern&amp;body=1" title="List pages referring to TemplatePattern">Template Pattern</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+An implementation of Template Method Pattern (<a href="http://en.wikipedia.org/wiki/Template_method_pattern.html">http://en.wikipedia.org/wiki/Template_method_pattern</a>).
+Uses module as class.
+One file for each class.
+Based on Petite Abeille's module usage style.
+Using C++ example from <a href="http://login2win.blogspot.com/2008/06/c-template-pattern.html">http://login2win.blogspot.com/2008/06/c-template-pattern.html</a>.
+<p>
+<p>
+Abstract Base Class: Account
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="library">require</span>        = <span class="library">require</span>
+
+<span class="keyword">local</span> <span class="library">setmetatable</span>   = <span class="library">setmetatable</span>
+
+<span class="keyword">local</span> <span class="library">getmetatable</span>   = <span class="library">getmetatable</span>
+
+<span class="keyword">local</span> <span class="library">error</span>          = <span class="library">error</span>
+
+<span class="keyword">local</span> <span class="library">assert</span>         = <span class="library">assert</span>
+
+<span class="keyword">local</span> <span class="library">print</span>          = <span class="library">print</span>
+
+
+
+<span class="comment">-- module declaration</span>
+
+<span class="library">module</span>(...)
+
+_VERSION = <span class="string">"1.0"</span>
+
+
+
+<span class="keyword">local</span> class = <span class="library">setmetatable</span>( _M, {} )
+
+<span class="keyword">local</span> meta  = <span class="library">getmetatable</span>( class )
+
+
+
+<span class="keyword">function</span> meta:__tostring()
+
+    <span class="keyword">return</span> ( <span class="string">"%s/%s"</span> ):format( self._NAME, self._VERSION )
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> class:__tostring()
+
+    <span class="keyword">return</span> <span class="string">"Account"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Abstract Methods</span>
+
+<span class="keyword">function</span> Start(self)
+
+    <span class="library">error</span>(<span class="string">"abstract method: should be implemented by derived"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Allow(self)
+
+    <span class="library">error</span>(<span class="string">"abstract method: should be implemented by derived"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> End(self)
+
+    <span class="library">error</span>(<span class="string">"abstract method: should be implemented by derived"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> MaxLimit(self)
+
+    <span class="library">error</span>(<span class="string">"abstract method: should be implemented by derived"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Template Method</span>
+
+<span class="keyword">function</span> Withdraw(self, amount)
+
+    self:Start()
+
+    
+
+    <span class="keyword">local</span> limit = self:MaxLimit()
+
+    <span class="keyword">if</span> amount &lt; limit <span class="keyword">then</span>
+
+        self:Allow()
+
+    <span class="keyword">else</span>
+
+        <span class="library">print</span>(<span class="string">"Not allowed"</span>)
+
+    <span class="keyword">end</span>
+
+    
+
+    self:End()
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- constructor</span>
+
+<span class="keyword">function</span> meta:__call()
+
+    <span class="library">error</span>(<span class="string">"private ctor!"</span>)
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+<p>
+Derived Class: AccountNormal<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AccountNormal" >?</a>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="library">require</span>        = <span class="library">require</span>
+
+<span class="keyword">local</span> <span class="library">getmetatable</span>   = <span class="library">getmetatable</span>
+
+<span class="keyword">local</span> <span class="library">setmetatable</span>   = <span class="library">setmetatable</span>
+
+<span class="keyword">local</span> <span class="library">error</span>          = <span class="library">error</span>
+
+<span class="keyword">local</span> <span class="library">assert</span>         = <span class="library">assert</span>
+
+<span class="keyword">local</span> <span class="library">print</span>          = <span class="library">print</span>
+
+<span class="keyword">local</span> <span class="library">tostring</span>       = <span class="library">tostring</span>
+
+
+
+<span class="comment">-- module declaration</span>
+
+<span class="library">module</span>(...)
+
+_VERSION = <span class="string">"1.0"</span>
+
+
+
+<span class="keyword">local</span> Account  = <span class="library">require</span>(<span class="string">"account"</span>)
+
+<span class="keyword">local</span> class    = <span class="library">setmetatable</span>( _M, {__index = Account} )
+
+<span class="keyword">local</span> meta     = <span class="library">getmetatable</span>( class )
+
+
+
+<span class="keyword">function</span> meta:__tostring()
+
+    <span class="keyword">return</span> ( <span class="string">"%s/%s"</span> ):format( self._NAME, self._VERSION )
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> class:__tostring()
+
+    <span class="keyword">return</span> <span class="string">"AccountNormal"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> ometa = { __index = class, __tostring = <span class="keyword">function</span>() <span class="keyword">return</span> <span class="string">"AccountNormal"</span> <span class="keyword">end</span> }
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> InitInstance(self, name)
+
+    self.name = name <span class="keyword">or</span> <span class="string">"noname"</span>
+
+    <span class="comment">--...</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Implement Abstract Methods</span>
+
+<span class="keyword">function</span> Start(self)
+
+    <span class="library">print</span>(<span class="string">"["</span> .. self.name .. <span class="string">"] Start ..."</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Allow(self)
+
+    <span class="library">print</span>(<span class="string">"["</span> .. self.name .. <span class="string">"] Allow ..."</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> End(self)
+
+    <span class="library">print</span>(<span class="string">"["</span> .. self.name .. <span class="string">"] End ..."</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> MaxLimit(self)
+
+    <span class="keyword">return</span> 1000
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- constructor</span>
+
+<span class="keyword">function</span> meta:__call( name )
+
+    
+
+    <span class="keyword">local</span> c = <span class="library">setmetatable</span>( {}, ometa )
+
+    InitInstance(c, name)
+
+    
+
+    <span class="keyword">return</span> c
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+<p>
+Derived Class: AccountPower<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AccountPower" >?</a>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="library">require</span>        = <span class="library">require</span>
+
+<span class="keyword">local</span> <span class="library">getmetatable</span>   = <span class="library">getmetatable</span>
+
+<span class="keyword">local</span> <span class="library">setmetatable</span>   = <span class="library">setmetatable</span>
+
+<span class="keyword">local</span> <span class="library">error</span>          = <span class="library">error</span>
+
+<span class="keyword">local</span> <span class="library">assert</span>         = <span class="library">assert</span>
+
+<span class="keyword">local</span> <span class="library">print</span>          = <span class="library">print</span>
+
+<span class="keyword">local</span> <span class="library">tostring</span>       = <span class="library">tostring</span>
+
+
+
+<span class="comment">-- module declaration</span>
+
+<span class="library">module</span>(...)
+
+_VERSION = <span class="string">"1.0"</span>
+
+
+
+<span class="keyword">local</span> Account  = <span class="library">require</span>(<span class="string">"account"</span>)
+
+<span class="keyword">local</span> class    = <span class="library">setmetatable</span>( _M, {__index = Account} )
+
+<span class="keyword">local</span> meta     = <span class="library">getmetatable</span>( class )
+
+
+
+<span class="keyword">function</span> meta:__tostring()
+
+    <span class="keyword">return</span> ( <span class="string">"%s/%s"</span> ):format( self._NAME, self._VERSION )
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> class:__tostring()
+
+    <span class="keyword">return</span> <span class="string">"AccountPower"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> ometa = { __index = class, __tostring = <span class="keyword">function</span>() <span class="keyword">return</span> <span class="string">"AccountPower"</span> <span class="keyword">end</span> }
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> InitInstance(self, name)
+
+    self.name = name <span class="keyword">or</span> <span class="string">"noname"</span>
+
+    <span class="comment">--...</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Implement Abstract Methods</span>
+
+<span class="keyword">function</span> Start(self)
+
+    <span class="library">print</span>(<span class="string">"["</span> .. self.name .. <span class="string">"] Start ..."</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Allow(self)
+
+    <span class="library">print</span>(<span class="string">"["</span> .. self.name .. <span class="string">"] Allow ..."</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> End(self)
+
+    <span class="library">print</span>(<span class="string">"["</span> .. self.name .. <span class="string">"] End ..."</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> MaxLimit(self)
+
+    <span class="keyword">return</span> 5000
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- constructor</span>
+
+<span class="keyword">function</span> meta:__call( name )
+
+    
+
+    <span class="keyword">local</span> c = <span class="library">setmetatable</span>( {}, ometa )
+
+    InitInstance(c, name)
+
+    
+
+    <span class="keyword">return</span> c
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+<p>
+Test:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="library">require</span> = <span class="library">require</span>
+
+<span class="keyword">local</span> <span class="library">print</span>   = <span class="library">print</span>
+
+
+
+<span class="keyword">local</span> Account       = <span class="library">require</span>(<span class="string">"account"</span>)
+
+<span class="keyword">local</span> AccountNormal = <span class="library">require</span>(<span class="string">"accountnormal"</span>)
+
+<span class="keyword">local</span> AccountPower  = <span class="library">require</span>(<span class="string">"accountpower"</span>)
+
+
+
+<span class="comment">-- local ab = Account() -- error! can't create instance of base class</span>
+
+
+
+<span class="keyword">local</span> an0 = AccountNormal(<span class="string">"an0"</span>)
+
+an0:Withdraw(1500)
+
+
+
+<span class="keyword">local</span> an1 = AccountNormal(<span class="string">"an1"</span>)
+
+an1:Withdraw(1500)
+
+
+
+<span class="keyword">local</span> ap0 = AccountPower(<span class="string">"ap0"</span>)
+
+ap0:Withdraw(1500)
+
+
+
+<span class="keyword">local</span> ap1 = AccountPower(<span class="string">"ap1"</span>)
+
+ap1:Withdraw(1500)
+
+
+
+</pre>
+
+</DL>
+<p>
+Output:
+<pre>
+
+&gt;lua main.lua
+
+[an0] Start ...
+
+Not allowed
+
+[an0] End ...
+
+[an1] Start ...
+
+Not allowed
+
+[an1] End ...
+
+[ap0] Start ...
+
+[ap0] Allow ...
+
+[ap0] End ...
+
+[ap1] Start ...
+
+[ap1] Allow ...
+
+[ap1] End ...
+
+&gt;Exit code: 0
+
+
+
+</pre>
+<p>
+<p>
+Download(5.1): <a href="/files/wiki_insecure/template-design-pattern.zip">Files:wiki_insecure/template-design-pattern.zip</a>
+Download(5.2): <a href="/files/wiki_insecure/template-design-pattern-5.2.zip">Files:wiki_insecure/template-design-pattern-5.2.zip</a>
+<p>
+-- <a href="../wiki/HakkiDogusan.html" >HakkiDogusan</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TemplatePattern" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TemplatePattern" >history</a><br>Last edited December 23, 2011 4:24 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TemplatePattern" >(diff)</a>
+</body>
+</html>

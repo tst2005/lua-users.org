@@ -1,0 +1,187 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Ansi Terminal Colors</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=AnsiTerminalColors&amp;body=1" title="List pages referring to AnsiTerminalColors">Ansi Terminal Colors</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Someone on IRC asked how to do colors on a console this morning, so I decided to whip up a quick module for ANSI terminal color manipulation <a href="http://github.com/hoelzro/ansicolors">[1]</a>.
+<p>
+Here it is:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="library">pairs</span> = <span class="library">pairs</span>
+
+<span class="keyword">local</span> <span class="library">tostring</span> = <span class="library">tostring</span>
+
+<span class="keyword">local</span> <span class="library">setmetatable</span> = <span class="library">setmetatable</span>
+
+<span class="keyword">local</span> schar = <span class="library">string.char</span>
+
+
+
+<span class="library">module</span> <span class="string">'ansicolors'</span>
+
+
+
+<span class="keyword">local</span> colormt = {}
+
+
+
+<span class="keyword">function</span> colormt:__tostring()
+
+    <span class="keyword">return</span> self.value
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> colormt:__concat(other)
+
+    <span class="keyword">return</span> <span class="library">tostring</span>(self) .. <span class="library">tostring</span>(other)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> colormt:__call(s)
+
+    <span class="keyword">return</span> self .. s .. _M.reset
+
+<span class="keyword">end</span>
+
+
+
+colormt.__metatable = {}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> makecolor(value)
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>({ value = schar(27) .. <span class="string">'['</span> .. <span class="library">tostring</span>(value) .. <span class="string">'m'</span> }, colormt)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> colors = {
+
+    <span class="comment">-- attributes</span>
+
+    reset = 0,
+
+    clear = 0,
+
+    bright = 1,
+
+    dim = 2,
+
+    underscore = 4,
+
+    blink = 5,
+
+    reverse = 7,
+
+    hidden = 8,
+
+
+
+    <span class="comment">-- foreground</span>
+
+    black = 30,
+
+    red = 31,
+
+    green = 32,
+
+    yellow = 33,
+
+    blue = 34,
+
+    magenta = 35,
+
+    cyan = 36,
+
+    white = 37,
+
+
+
+    <span class="comment">-- background</span>
+
+    onblack = 40,
+
+    onred = 41,
+
+    ongreen = 42,
+
+    onyellow = 43,
+
+    onblue = 44,
+
+    onmagenta = 45,
+
+    oncyan = 46,
+
+    onwhite = 47,
+
+}
+
+
+
+<span class="keyword">for</span> c, v <span class="keyword">in</span> <span class="library">pairs</span>(colors) <span class="keyword">do</span>
+
+    _M[c] = makecolor(v)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+And here's some ways you can use it:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"ansicolors"</span>
+
+
+
+<span class="library">print</span>(ansicolors.red .. <span class="string">'hello from the Red world!'</span> .. ansicolors.reset)
+
+<span class="library">print</span>(ansicolors.blue .. <span class="string">'go blue!'</span> .. ansicolors.clear) <span class="comment">-- clear is a synonym for reset</span>
+
+<span class="library">print</span>(ansicolors.underscore .. colors.yellow .. colors.onblue .. <span class="string">'crazy stuff'</span> .. ansicolors.reset)
+
+<span class="library">print</span>(ansicolors.red <span class="string">'no need to worry about resetting here!'</span>) <span class="comment">-- functional interface</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AnsiTerminalColors" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=AnsiTerminalColors" >history</a><br>Last edited January 17, 2010 4:36 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=AnsiTerminalColors" >(diff)</a>
+</body>
+</html>

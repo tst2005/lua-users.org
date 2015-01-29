@@ -1,0 +1,111 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Proper Tail Recursion</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ProperTailRecursion&amp;body=1" title="List pages referring to ProperTailRecursion">Proper Tail Recursion</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua 5.0 implements <strong>proper tail recursion</strong> <a href="http://wombat.doc.ic.ac.uk/foldoc/foldoc.cgi?query=tail+recursion">[1]</a>. It means that for a special pattern of function calls, an optimization is done to save resources, namely the stack. This pattern is so that every time a function ends by returning the value of a function (including a recursive calls), the current stack frame is reused without need for consumption of stack resources. In pseudo code
+<p>
+<pre>
+
+function f(args)
+
+    ...
+
+    return g(args2)
+
+end
+
+</pre>
+<p>
+Sometimes recursive functions can rewritten so that they are made into tail recursive versions. For example, the usual definition of the factorial function would leads us to:
+<p>
+<pre>
+
+function fact(n) if (n==0) then return 1 else return n*fact(n-1) end end
+
+</pre>
+<p>
+which is not tail recursion, because the last computation to do is the product of <code>n</code> and <code>fact(n-1)</code>. But the following is
+<p>
+<pre>
+
+function factt(n) return fact_(n, 1) end
+
+
+
+function fact_(n, ans) if (n==0) then return ans else return fact_(n-1, n*ans) end end
+
+</pre>
+<p>
+The results of the two definitions are rigorously the same, given the same arguments. 
+<pre>
+
+&gt; = fact(5)
+
+120
+
+&gt; = factt(5)
+
+120
+
+</pre>
+But the situation is different behind the scenes. We can raise this difference if we use the functions the way they were not designed to be. The naive implementations above only work for positive integers. They are expected to stray into infinite recursion if given negative or fractional results.
+<p>
+If we do <code>fact(-1)</code> we end with a stack overflow message:
+<pre>
+
+&gt; = fact(-1)
+
+stdin:1: stack overflow
+
+stack traceback:
+
+        stdin:1: in function `fact'
+
+        stdin:1: in function `fact'
+
+        ...
+
+        stdin:1: in function `fact'
+
+        (tail call): ?
+
+        [C]: ?
+
+</pre>
+On the other hand, if we invoke <code>factt(-1)</code>, it never returns (which is more akin to the mathematical analysis of the function body).
+<p>
+Proper tail recursion is about economy, which is very important for the kind of applications Lua is intented to. As an optimization, debugging is made harder as reconstruction of call traces are impossible.
+<p>
+Every time a language specification says that proper tail recursion is implemented, it means a promise that the stack will not be wasted in the special case of tail function calls. It is a contract for quality that language designers offer for users. It is largely usual in the computer science world: languages like Scheme, Perl, Forth also do this. Complain if your favourite programming language does not.
+<p>
+<em>This is a starting text. It is meant to illustrate the feature as a Lua feature and may be mentioned in the function call tutorial.</em>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ProperTailRecursion" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ProperTailRecursion" >history</a><br>Last edited November 17, 2003 1:52 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ProperTailRecursion" >(diff)</a>
+</body>
+</html>

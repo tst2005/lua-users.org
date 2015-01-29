@@ -1,0 +1,736 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Cpp Binding With Lunar</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CppBindingWithLunar&amp;body=1" title="List pages referring to CppBindingWithLunar">Cpp Binding With Lunar</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Description</H3>
+<p>
+This is an improved version of Luna (see <a href="../wiki/SimplerCppBinding.html" >SimplerCppBinding</a>)
+that allows you to call Lua methods from your C++ application.
+<p>
+You may also create objects in either your Lua scripts or your C++ application.
+Objects created in Lua will be deleted by the userdata <em>gc</em> event.
+You may specify whether or not objects created in your C++ application will be
+deleted by the userdata <em>gc</em> event.
+<p>
+<code>lunar.h</code> has two extra public methods: <code>push</code> and <code>call</code>.
+<p>
+<code>push</code> receives a pointer to an object and pushes a unique 
+<a href="/lists/lua-l/2001-09/msg00121.html">[1]</a>
+userdata onto the stack, and returns the stack index of this userdata.
+An optional second parameter specifies whether or not to delete the object when
+the userdata <em>gc</em> event occurs.
+The default for this parameter is false which means the object won't be deleted.
+<p>
+<code>call</code> is just a wrapper around <code>lua_pcall</code>.
+Push the userdata and arguments on the stack prior to calling <code>call</code>.
+It will then retrieve the named method from the userdata and call this
+function with <code>lua_pcall</code>.
+<code>call</code> will return the number of results on the stack,
+or a negative number if there was an error.
+Any error message is left on top of the stack.
+<p>
+<a href="../wiki/CallingLuaFromCpp.html" >CallingLuaFromCpp</a> shows how to uses these extra features.
+<p>
+<H3>account.cc C++ code</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+extern "C" {
+
+#include "lua.h"
+
+#include "lauxlib.h"
+
+#include "lualib.h"
+
+}
+
+
+
+#include "lunar.h"
+
+
+
+class Account {
+
+  lua_Number m_balance;
+
+public:
+
+  static const char className[];
+
+  static Lunar&lt;Account&gt;::RegType methods[];
+
+
+
+  Account(lua_State *L)      { m_balance = luaL_checknumber(L, 1); }
+
+  int deposit (lua_State *L) { m_balance += luaL_checknumber(L, 1); return 0; }
+
+  int withdraw(lua_State *L) { m_balance -= luaL_checknumber(L, 1); return 0; }
+
+  int balance (lua_State *L) { lua_pushnumber(L, m_balance); return 1; }
+
+  ~Account() { printf("deleted Account (%p)\n", this); }
+
+};
+
+
+
+const char Account::className[] = "Account";
+
+
+
+Lunar&lt;Account&gt;::RegType Account::methods[] = {
+
+  LUNAR_DECLARE_METHOD(Account, deposit),
+
+  LUNAR_DECLARE_METHOD(Account, withdraw),
+
+  LUNAR_DECLARE_METHOD(Account, balance),
+
+  {0,0}
+
+};
+
+
+
+int main(int argc, char *argv[])
+
+{
+
+  lua_State *L = lua_open();
+
+
+
+  luaL_openlibs(L);
+
+
+
+  Lunar&lt;Account&gt;::Register(L);
+
+
+
+  if(argc&gt;1) luaL_dofile(L, argv[1]);
+
+
+
+  lua_gc(L, LUA_GCCOLLECT, 0);  // collected garbage
+
+  lua_close(L);
+
+  return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+<H3>lunar.h for Lua 5.0</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+extern "C" {
+
+#include "lua.h"
+
+#include "lauxlib.h"
+
+}
+
+
+
+template &lt;typename T&gt; class Lunar {
+
+  typedef struct { T *pT; } userdataType;
+
+public:
+
+  typedef int (T::*mfp)(lua_State *L);
+
+  typedef struct { const char *name; mfp mfunc; } RegType;
+
+
+
+  static void Register(lua_State *L) {
+
+    lua_newtable(L);
+
+    int methods = lua_gettop(L);
+
+
+
+    luaL_newmetatable(L, T::className);
+
+    int metatable = lua_gettop(L);
+
+
+
+    // store method table in globals so that
+
+    // scripts can add functions written in Lua.
+
+    lua_pushvalue(L, methods);
+
+    set(L, LUA_GLOBALSINDEX, T::className);
+
+
+
+    // hide metatable from Lua getmetatable()
+
+    lua_pushvalue(L, methods);
+
+    set(L, metatable, "__metatable");
+
+
+
+    lua_pushvalue(L, methods);
+
+    set(L, metatable, "__index");
+
+
+
+    lua_pushcfunction(L, tostring_T);
+
+    set(L, metatable, "__tostring");
+
+
+
+    lua_pushcfunction(L, gc_T);
+
+    set(L, metatable, "__gc");
+
+
+
+    lua_newtable(L);                // mt for method table
+
+    lua_pushcfunction(L, new_T);
+
+    lua_pushvalue(L, -1);           // dup new_T function
+
+    set(L, methods, "new");         // add new_T to method table
+
+    set(L, -3, "__call");           // mt.__call = new_T
+
+    lua_setmetatable(L, methods);
+
+
+
+    // fill method table with methods from class T
+
+    for (RegType *l = T::methods; l-&gt;name; l++) {
+
+      lua_pushstring(L, l-&gt;name);
+
+      lua_pushlightuserdata(L, (void*)l);
+
+      lua_pushcclosure(L, thunk, 1);
+
+      lua_settable(L, methods);
+
+    }
+
+
+
+    lua_pop(L, 2);  // drop metatable and method table
+
+  }
+
+
+
+  // call named lua method from userdata method table
+
+  static int call(lua_State *L, const char *method,
+
+                  int nargs=0, int nresults=LUA_MULTRET, int errfunc=0)
+
+  {
+
+    int base = lua_gettop(L) - nargs;  // userdata index
+
+    if (!luaL_checkudata(L, base, T::className)) {
+
+      lua_settop(L, base-1);           // drop userdata and args
+
+      lua_pushfstring(L, "not a valid %s userdata", T::className);
+
+      return -1;
+
+    }
+
+
+
+    lua_pushstring(L, method);         // method name
+
+    lua_gettable(L, base);             // get method from userdata
+
+    if (lua_isnil(L, -1)) {            // no method?
+
+      lua_settop(L, base-1);           // drop userdata and args
+
+      lua_pushfstring(L, "%s missing method '%s'", T::className, method);
+
+      return -1;
+
+    }
+
+    lua_insert(L, base);               // put method under userdata, args
+
+
+
+    int status = lua_pcall(L, 1+nargs, nresults, errfunc);  // call method
+
+    if (status) {
+
+      const char *msg = lua_tostring(L, -1);
+
+      if (msg == NULL) msg = "(error with no message)";
+
+      lua_pushfstring(L, "%s:%s status = %d\n%s",
+
+                      T::className, method, status, msg);
+
+      lua_remove(L, base);             // remove old message
+
+      return -1;
+
+    }
+
+    return lua_gettop(L) - base + 1;   // number of results
+
+  }
+
+
+
+  // push onto the Lua stack a userdata containing a pointer to T object
+
+  static int push(lua_State *L, T *obj, bool gc=false) {
+
+    if (!obj) { lua_pushnil(L); return 0; }
+
+    luaL_getmetatable(L, T::className);  // lookup metatable in Lua registry
+
+    if (lua_isnil(L, -1)) luaL_error(L, "%s missing metatable", T::className);
+
+    int mt = lua_gettop(L);
+
+    subtable(L, mt, "userdata", "v");
+
+    userdataType *ud =
+
+      static_cast&lt;userdataType*&gt;(pushuserdata(L, obj, sizeof(userdataType)));
+
+    if (ud) {
+
+      ud-&gt;pT = obj;  // store pointer to object in userdata
+
+      lua_pushvalue(L, mt);
+
+      lua_setmetatable(L, -2);
+
+      if (gc == false) {
+
+        lua_checkstack(L, 3);
+
+        subtable(L, mt, "do not trash", "k");
+
+        lua_pushvalue(L, -2);
+
+        lua_pushboolean(L, 1);
+
+        lua_settable(L, -3);
+
+        lua_pop(L, 1);
+
+      }
+
+    }
+
+    lua_replace(L, mt);
+
+    lua_settop(L, mt);
+
+    return mt;  // index of userdata containing pointer to T object
+
+  }
+
+
+
+  // get userdata from Lua stack and return pointer to T object
+
+  static T *check(lua_State *L, int narg) {
+
+    userdataType *ud =
+
+      static_cast&lt;userdataType*&gt;(luaL_checkudata(L, narg, T::className));
+
+    if(!ud) {
+
+        luaL_typerror(L, narg, T::className);
+
+        return NULL;
+
+    }
+
+    return ud-&gt;pT;  // pointer to T object
+
+  }
+
+
+
+private:
+
+  Lunar();  // hide default constructor
+
+
+
+  // member function dispatcher
+
+  static int thunk(lua_State *L) {
+
+    // stack has userdata, followed by method args
+
+    T *obj = check(L, 1);  // get 'self', or if you prefer, 'this'
+
+    lua_remove(L, 1);  // remove self so member function args start at index 1
+
+    // get member function from upvalue
+
+    RegType *l = static_cast&lt;RegType*&gt;(lua_touserdata(L, lua_upvalueindex(1)));
+
+    return (obj-&gt;*(l-&gt;mfunc))(L);  // call member function
+
+  }
+
+
+
+  // create a new T object and
+
+  // push onto the Lua stack a userdata containing a pointer to T object
+
+  static int new_T(lua_State *L) {
+
+    lua_remove(L, 1);   // use classname:new(), instead of classname.new()
+
+    T *obj = new T(L);  // call constructor for T objects
+
+    push(L, obj, true); // gc_T will delete this object
+
+    return 1;           // userdata containing pointer to T object
+
+  }
+
+
+
+  // garbage collection metamethod
+
+  static int gc_T(lua_State *L) {
+
+    if (luaL_getmetafield(L, 1, "do not trash")) {
+
+      lua_pushvalue(L, 1);  // dup userdata
+
+      lua_gettable(L, -2);
+
+      if (!lua_isnil(L, -1)) return 0;  // do not delete object
+
+    }
+
+    userdataType *ud = static_cast&lt;userdataType*&gt;(lua_touserdata(L, 1));
+
+    T *obj = ud-&gt;pT;
+
+    if (obj) delete obj;  // call destructor for T objects
+
+    return 0;
+
+  }
+
+
+
+  static int tostring_T (lua_State *L) {
+
+    char buff[32];
+
+    userdataType *ud = static_cast&lt;userdataType*&gt;(lua_touserdata(L, 1));
+
+    T *obj = ud-&gt;pT;
+
+    sprintf(buff, "%p", (void*)obj);
+
+    lua_pushfstring(L, "%s (%s)", T::className, buff);
+
+
+
+    return 1;
+
+  }
+
+
+
+  static void set(lua_State *L, int table_index, const char *key) {
+
+    lua_pushstring(L, key);
+
+    lua_insert(L, -2);  // swap value and key
+
+    lua_settable(L, table_index);
+
+  }
+
+
+
+  static void weaktable(lua_State *L, const char *mode) {
+
+    lua_newtable(L);
+
+    lua_pushvalue(L, -1);  // table is its own metatable
+
+    lua_setmetatable(L, -2);
+
+    lua_pushliteral(L, "__mode");
+
+    lua_pushstring(L, mode);
+
+    lua_settable(L, -3);   // metatable.__mode = mode
+
+  }
+
+
+
+  static void subtable(lua_State *L, int tindex, const char *name, const char *mode) {
+
+    lua_pushstring(L, name);
+
+    lua_gettable(L, tindex);
+
+    if (lua_isnil(L, -1)) {
+
+      lua_pop(L, 1);
+
+      lua_checkstack(L, 3);
+
+      weaktable(L, mode);
+
+      lua_pushstring(L, name);
+
+      lua_pushvalue(L, -2);
+
+      lua_settable(L, tindex);
+
+    }
+
+  }
+
+
+
+  static void *pushuserdata(lua_State *L, void *key, size_t sz) {
+
+    void *ud = 0;
+
+    lua_pushlightuserdata(L, key);
+
+    lua_gettable(L, -2);     // lookup[key]
+
+    if (lua_isnil(L, -1)) {
+
+      lua_pop(L, 1);         // drop nil
+
+      lua_checkstack(L, 3);
+
+      ud = lua_newuserdata(L, sz);  // create new userdata
+
+      lua_pushlightuserdata(L, key);
+
+      lua_pushvalue(L, -2);  // dup userdata
+
+      lua_settable(L, -4);   // lookup[key] = userdata
+
+    }
+
+    return ud;
+
+  }
+
+};
+
+
+
+#define LUNAR_DECLARE_METHOD(Class, Name) {#Name, &amp;Class::Name}
+
+</pre>
+</DL>
+<p>
+<H3>Compiling the Code</H3>
+<p>
+This code can be compiled for Lua 5.0 as follows:
+<p>
+<DL>
+<dt><dd><pre>
+
+g++ -o test  account.cc -L/usr/local/lib -llua -llualib
+
+</pre>
+</DL>
+<p>
+<H3>Lua Test Code</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+function printf(...) io.write(string.format(unpack(arg))) end
+
+
+
+function Account:show()
+
+  printf("Account balance = $%0.02f\n", self:balance())
+
+end
+
+
+
+a = Account(100)
+
+b = Account:new(30)
+
+
+
+print('a =', a)
+
+print('b =', b)
+
+print('metatable =', getmetatable(a))
+
+print('Account =', Account)
+
+table.foreach(Account, print)
+
+
+
+a:show() a:deposit(50.30) a:show() a:withdraw(25.10) a:show()
+
+
+
+parent = {}
+
+
+
+function parent:rob(amount)
+
+  amount = amount or self:balance()
+
+  self:withdraw(amount)
+
+  return amount
+
+end
+
+
+
+getmetatable(Account).__index = parent
+
+
+
+debug.debug()
+
+</pre>
+</DL>
+<p>
+<H3>Test Code Output</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+$ ./test account.lua
+
+a =     Account (0xa041d98)
+
+b =     Account (0xa045390)
+
+metatable =     table: 0xa044f28
+
+Account =       table: 0xa044f28
+
+show    function: 0xa046760
+
+balance function: 0xa0455f8
+
+withdraw        function: 0xa045300
+
+deposit function: 0xa045508
+
+new     function: 0xa044fe8
+
+Account balance = $100.00
+
+Account balance = $150.30
+
+Account balance = $125.20
+
+lua_debug&gt; a:show()
+
+Account balance = $125.20
+
+lua_debug&gt; b:show()
+
+Account balance = $30.00
+
+lua_debug&gt; print(a:rob(20))
+
+20
+
+lua_debug&gt; a:show()
+
+Account balance = $105.20
+
+lua_debug&gt; b:deposit(a:rob())
+
+lua_debug&gt; a:show()
+
+Account balance = $0.00
+
+lua_debug&gt; b:show()
+
+Account balance = $135.20
+
+lua_debug&gt; cont
+
+deleted Account (0xa045390)
+
+deleted Account (0xa041d98)
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CppBindingWithLunar" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CppBindingWithLunar" >history</a><br>Last edited June 22, 2009 9:18 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CppBindingWithLunar" >(diff)</a>
+</body>
+</html>

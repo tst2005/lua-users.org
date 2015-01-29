@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Creating Binary Extension Modules</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CreatingBinaryExtensionModules&amp;body=1" title="List pages referring to CreatingBinaryExtensionModules">Creating Binary Extension Modules</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Warning: This page is specific to building Lua 5.0 C extension libraries using the Borland compiler under Windows.  This page possibly should be merged into the more general page <a href="../wiki/BuildingModules.html" >BuildingModules</a> and updated to Lua 5.0.  <em><a href="../wiki/VersionNotice.html" >VersionNotice</a>: Part of this page is old (doesn't use Require).  5.1. renamed loadlib to package.loadlib.</em>
+<p>
+<H3>Description</H3>
+<p>
+Lua 5.0 introduces the 'loadlib' function, which allows Lua to load binary extensions at runtime (the implementation is platform specific). This document shows a simple example of an extension module, and shows how to build Lua for use with extension modules under Windows.
+<p>
+<H3>Example</H3>
+<p>
+Under Windows, 'loadlib' is implemented in terms of DLLs (dynamic link libraries). Here's complete source for an extension DLL that provides a Lua function called 'msgbox':
+<p>
+<H3>msgbox.c</H3>
+<p>
+<pre>
+
+  #include &lt;windows.h&gt;
+
+  #include "lauxlib.h"
+
+  
+
+  /* Pop-up a Windows message box with your choice of message and caption */
+
+  int lua_msgbox(lua_State* L)
+
+  {
+
+    const char* message = luaL_checkstring(L, 1);
+
+    const char* caption = luaL_optstring(L, 2, "");
+
+    int result = MessageBox(NULL, message, caption, MB_OK);
+
+    lua_pushnumber(L, result);
+
+    return 1;
+
+  }
+
+
+
+  int __declspec(dllexport) libinit (lua_State* L)
+
+  {
+
+   lua_register(L, "msgbox",  lua_msgbox);
+
+   return 0;
+
+  }
+
+</pre>
+<p>
+After this is built into a Windows DLL (msgbox.dll), you can use it in a Lua script like this (error checking omitted):
+<p>
+<pre>
+
+  libinit = loadlib("msgbox.dll", "_libinit")
+
+  libinit()
+
+  msgbox("Hey, it worked!", "Lua Message Box")
+
+</pre>
+<p>
+It makes is easy to add extensions to a Lua-5.0-enabled app <em>at runtime</em> -- no need to rebuild or even restart the application -- a very hand feature. However, I've glossed over an important detail.
+<p>
+When building our extension, the linker must resolve the addresses of Lua/Luax API functions like 'lua_pushnumber' or 'luaL_checkstring'. If those functions exist within host application ( like lua.exe), we cannot link our extension module. We must move the Lua API into a DLL, so that the host application and the extension DLL can share the same copy of the Lua API code.
+<p>
+[* Correction: under windows, functions can be exported from an exe as if it were a dll.  Therefore you could export functions from your lua.exe (using the instructions below) and use the resulting export library to link into the new DLL *]
+<p>
+[* How? The instructions below don't work. Using __declspec(dllexport) in prototypes doesn't result in those functions being exported from the executable. What do I do? *]
+<p>
+[* Under Windows, you don't export from exe files.  Although technically it's possible as they have the same format, you would never design a windows app that way.   Putting lua in a DLL, setting -DLUA_API=__declspec(dllexport), then linking the resulting lib into your exe and other DLLs like this page describes, is the correct way.   Btw you *can* use implib on exe files to get .lib files and then use them like a normal .lib file.  *]
+<p>
+<H3>Putting the Lua API into a DLL</H3>
+<p>
+These instructions are for Borland's excellent (and free) command line ANSI C|C++ compiler for Windows <a href="http://www.borland.com/products/downloads/download_cbuilder.html">[download here]</a>.
+<p>
+From the root of the lua distribution:
+<p>
+<pre>
+
+lua-5.0.2&gt; bcc32 -elua.dll -WD -Iinclude;C:\Program\borland\Include -LC:\Program\borland\lib -DLUA_API=__declspec(dllexport) src\*.c src\lib\*.c
+
+lua-5.0.2&gt; implib lua lua.dll
+
+</pre>
+<p>
+This gives us <code>lua.dll</code>, which contains the Lua API and standard libraries; and <code>lua.lib</code>, an <em>import library</em> that we can statically link to other applications to give them access to the Lua API via <code>lua.dll</code>.
+<p>
+Note: <code>__declspec(dllexport)</code> is Microsoft language extensions (supported by Borland) that simplifies the creation and usage of DLLs. It eliminates the need to provide a "module definition file" that explicitly enumerates every function exported by our DLL. The <code>LUA_API</code> macro gives us the opportunity to insert <code>__declspec(dllexport)</code> into the function prototype of every Lua API function, automatically exporting them from the resulting DLL.
+<p>
+<H3>Building a host application</H3>
+<p>
+For example, to build a version of <code>lua.exe</code> (in the Lua distribution) so that it will use <code>lua.dll</code>, we would say (from the root of the distribution):
+<p>
+<pre>bcc32 -elua.exe -Iinclude -DLUA_API=__declspec(dllimport) lua.lib src\lua\*.c</pre>
+<p>
+Note we changed <code>LUA_API</code> to '__declspec(<em>dllimport</em>)', and we linked in <code>lua.lib</code>. Now <code>lua.exe</code> will dynamically link in the Lua API code from <code>lua.dll</code> at runtime.
+<p>
+<H3>Building an extension DLL</H3>
+<p>
+Assuming the <code>msgbox.c</code> (above) is the root of the lua distribution:
+<p>
+<pre>bcc32 -w -tWD -Iinclude -DLUA_API=__declspec(dllimport) lua.lib msgbox.c</pre>
+<p>
+Again, we set <code>LUA_API</code> to '__declspec(dllimport)' and link in <code>lua.lib</code>. That's it. We now have <code>msgbox.dll</code>, a binary extension ready for use with 'loadlib'.
+<p>
+<H3>Summary</H3>
+<p>
+Building binary extensions and using them with loadlib is easy, but we must make sure that the Lua API is in it's own DLL where it can be shared by the host application and any extension modules.
+<p>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CreatingBinaryExtensionModules" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CreatingBinaryExtensionModules" >history</a><br>Last edited April 24, 2014 4:11 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CreatingBinaryExtensionModules" >(diff)</a>
+</body>
+</html>

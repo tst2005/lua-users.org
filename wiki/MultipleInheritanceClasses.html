@@ -1,0 +1,337 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Multiple Inheritance Classes</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MultipleInheritanceClasses&amp;body=1" title="List pages referring to MultipleInheritanceClasses">Multiple Inheritance Classes</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>A multiple-inheritance class library for Lua</H2>
+<p>
+<p>
+<p>
+This library is based on the general guidelines on OOP in Lua found in the <strong>PIL</strong> (<strong>Programming in Lua</strong> by Roberto Ierusalimschy) and it is also inspired by the class library in <a href="../wiki/SimpleLuaClasses.html" >SimpleLuaClasses</a>, which was taken as a starting point.
+<p>
+The idea is to implement a full-featured class system in C++ style, including multiple inheritance, shared (like C++ virtual) derivation and the correct handling of ambiguities and inherited attributes.
+<p>
+<p>
+<strong>Summary</strong>
+<p>
+Brief summary using global named classes (see manual).
+<p>
+<strong>Standard derivation</strong>
+<p>
+<DL>
+<dt><dd><pre>
+
+class.A(P, Q)
+
+class.B(P, Q)
+
+class.C(A, B)
+
+
+
+Cobj = C(constructor arguments ...)
+
+</pre>
+</DL>
+<p>
+<img src="/files/wiki_insecure/MIClasses/standard.jpg">
+<p>
+<strong>Shared derivation</strong>
+<p>
+<DL>
+<dt><dd><pre>
+
+class.X(P, shared(Q))
+
+class.Y(P, shared(Q))
+
+class.Z(X, Y)
+
+
+
+Zobj = Z(constructor arguments ...)
+
+</pre>
+</DL>
+<p>
+<img src="/files/wiki_insecure/MIClasses/shared.jpg">
+<p>
+<strong>Class usage</strong>
+<p>
+<DL>
+<dt><dd><pre>
+
+class.Account()
+
+function Account:__init(initial)  -- constructor
+
+	self.balance = initial or 0
+
+end
+
+function Account:deposit(amount)
+
+	self.balance = self.balance + amount
+
+end
+
+
+
+myAccount = Account(10.00)
+
+
+
+class.NamedAccount(Account)
+
+function NamedAccount:__init(name, initial)
+
+	self.Account:__init(initial)
+
+	self.name = name or 'anonymous'
+
+end
+
+
+
+myNamedAccount = NamedAccount('John', 10.00)
+
+</pre>
+</DL>
+<p>
+Object properties live in their respective objects. 
+<p>
+<DL>
+<dt><dd><pre>
+
+myNamedAccount.name		== 'John'
+
+myNamedAccount.balance		== nil 
+
+myNamedAccount.Account.balance	== 10.00
+
+</pre>
+</DL>
+<p>
+Unambiguous base attributes are inherited. These two are equivalent:
+<p>
+<DL>
+<dt><dd><pre>
+
+myNamedAccount.Account:deposit(2.00) 
+
+myNamedAccount:deposit(2.00)
+
+</pre>
+</DL>
+<p>
+Ambiguous attributes are not inherited:
+<p>
+<DL>
+<dt><dd><pre>
+
+class.SavingsAccount(Account)
+
+class.CurrentAccount(Account)
+
+class.CombinedAccount(SavingsAccount, CurrentAccount)
+
+
+
+myCombinedAccount = CombinedAccount()
+
+myCombinedAccount:deposit(2.00)  &#8592; Error, deposit is nil
+
+</pre>
+</DL>
+<p>
+Qualification solves ambiguity: 
+<p>
+<DL>
+<dt><dd><pre>
+
+myCombinedAccount.CurrentAccount:deposit(2.00)
+
+</pre>
+</DL>
+<p>
+There would exist a <code>CombinedAccount:deposit()</code> method if <code>SavingsAccount</code> and <code>CurrentAccount</code> derived from <code>shared(Account)</code>. But it does not make sense in this case, since we really need two separate balances.
+<p>
+<strong>Files</strong>
+<p>
+Complete Word documentation and source code can be found here: 
+<p>
+<DL>
+<dt><dd><a href="/files/wiki_insecure/MIClasses/classlib.doc">[Manual]</a>
+<dt><dd><a href="/files/wiki_insecure/MIClasses/classlib-summary.doc">[Brief summary - named classes]</a>
+<dt><dd><a href="/files/wiki_insecure/MIClasses/unclasslib-summary.doc">[Brief summary - unnamed classes]</a>
+<dt><dd><a href="/files/wiki_insecure/MIClasses/classlib.lua">[Source - named and unnamed classes]</a>
+<dt><dd><a href="/files/wiki_insecure/MIClasses/unclasslib.lua">[Source - only unnamed classes]</a>
+</DL>
+<p>
+These are some simple examples for single and multiple inheritance:
+<p>
+<DL>
+<dt><dd><a href="/files/wiki_insecure/MIClasses/single.lua">[Single inheritance, unnamed classes]</a>
+<dt><dd><a href="/files/wiki_insecure/MIClasses/multiple.lua">[Multiple inheritance, unnamed classes]</a> (1)
+<dt><dd><a href="/files/wiki_insecure/MIClasses/nsingle.lua">[Single inheritance, named classes]</a>
+<dt><dd><a href="/files/wiki_insecure/MIClasses/nmultiple.lua">[Multiple inheritance, named classes]</a> (1)
+<dt><dd><a href="/files/wiki_insecure/MIClasses/account.lua">[Multiple inheritance, named classes]</a>
+</DL>
+<p>
+(1) In these examples you may play with options <code>shared_meters</code> (which enables shared inheritance) and <code>keep_ambiguous</code> (the latter must be defined before <code>require</code>).
+<p>
+These two simple classes illustrate indexing and metamethods:
+<p>
+<DL>
+<dt><dd><a href="/files/wiki_insecure/MIClasses/tuple.lua">[A tuple class with indexing]</a>
+<dt><dd><a href="/files/wiki_insecure/MIClasses/set.lua">[A set class with metamethods]</a>
+</DL>
+<p>
+Everything together:
+<p>
+<DL>
+<dt><dd><a href="/files/wiki_insecure/MIClasses/classlib-2.04.zip">[Archive]</a>
+</DL>
+<p>
+Lua files were edited with 4-space tabs.
+<p>
+<strong>Authors</strong>
+<p>
+<DL>
+<dt><dd><pre>
+
+Hugo Etchegoyen
+
+hetchegoyen@hasar.com
+
+</pre>
+</DL>
+<p>
+Please add your data here if you modify this, thank you.
+<p>
+<strong>History</strong>
+<p>
+<DL>
+<dt><dd><pre>
+
+Version 2.04.04 - November 15, 2010
+
+Included patches and ideas from Peter Schaefer (peter.schaefer@gmail.com) 
+
+improving the efficiency of build(), __init() and other parts of the code.
+
+The former remove_ambiguous() function was removed, improving the efficiency 
+
+of both build() (instance creation) and mt:__call() (class creation). 
+
+Ambiguities are now processed using the ambiguous_keys tables introduced by Peter.
+
+Removed inheritance of class properties, which was inconsistent with
+
+the way instance properties are handled (see pages 4-5 of the manual).
+
+This was mostly harmless, but confusing. Now only methods are inherited.
+
+
+
+Version 2.03 - February 6, 2007
+
+Added support for indexing via __get() and __set() methods.
+
+Added a couple of examples illustrating indexing and metamethods.
+
+
+
+Version 2.02 - January 31, 2007
+
+Added unclasslib.lua, a more efficient version of classlib.lua restricted
+
+to unnamed classes.
+
+Added compatibility with versions of Lua compiled without old-style vararg
+
+support.
+
+
+
+Version 2.01 - January 30, 2007
+
+Added named classes and dot notation. Replaced the previous page
+
+which was too long by a summary, details to be found in the
+
+documentation, get it by clicking on the link above.
+
+This version is backwards compatible with unnamed classes and the
+
+square bracket notation, so it should run any previous code.
+
+
+
+Version 1.03 - January 26, 2007
+
+Changed the handling of constructors so that base objects not
+
+explicitly initialized by them still get initialized by default.
+
+Removed the source code from this page. Get it by clicking on 
+
+the link above.
+
+
+
+Version 1.02 - January 25, 2007
+
+Added the possibility of not deleting ambiguous values from
+
+classes and objects, useful for debugging.
+
+Added a couple of simple test examples.
+
+
+
+Version 1.01 - January 24, 2007
+
+Minor polishing - modified some for loops to use ipairs()
+
+
+
+Version 1.0 - January 24, 2007
+
+</pre>
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/ObjectOrientedProgramming.html" >ObjectOrientedProgramming</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MultipleInheritanceClasses" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MultipleInheritanceClasses" >history</a><br>Last edited November 18, 2010 4:20 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MultipleInheritanceClasses" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,623 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: User Data Example</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=UserDataExample&amp;body=1" title="List pages referring to UserDataExample">User Data Example</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Description</H3>
+<p>
+This Lua 5.0 example shows how to store a structure in a userdata.
+<p>
+Another approach is to store only a single pointer in the userdata.
+See <a href="../wiki/UserDataWithPointerExample.html" >UserDataWithPointerExample</a>.
+<p>
+The metatable for the userdata is put in the registry,
+and the <code>__index</code> field points to the table of methods so that
+the <code>object:method()</code> syntax will work.  The methods table is stored in the
+table of globals so that scripts can add methods written in Lua.
+<p>
+The Lua functions that use the stucture will need to either
+access a userdata on the stack, or push a new userdata onto the stack.
+<p>
+<code>checkFoo</code> ensures that a userdata on the stack is the correct type,
+and returns a pointer to the structure inside the userdata.
+<p>
+<code>pushFoo</code> leaves a new userdata on top of the stack, sets its metatable,
+and returns a pointer to the structure so that you can fill in the fields.
+<p>
+<H3>foo.c C code</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+#include "lua.h"
+
+#include "lauxlib.h"
+
+
+
+#define FOO "Foo"
+
+
+
+typedef struct Foo {
+
+  int x;
+
+  int y;
+
+} Foo;
+
+
+
+
+
+static Foo *toFoo (lua_State *L, int index)
+
+{
+
+  Foo *bar = (Foo *)lua_touserdata(L, index);
+
+  if (bar == NULL) luaL_typerror(L, index, FOO);
+
+  return bar;
+
+}
+
+
+
+static Foo *checkFoo (lua_State *L, int index)
+
+{
+
+  Foo *bar;
+
+  luaL_checktype(L, index, LUA_TUSERDATA);
+
+  bar = (Foo *)luaL_checkudata(L, index, FOO);
+
+  if (bar == NULL) luaL_typerror(L, index, FOO);
+
+  return bar;
+
+}
+
+
+
+static Foo *pushFoo (lua_State *L)
+
+{
+
+  Foo *bar = (Foo *)lua_newuserdata(L, sizeof(Foo));
+
+  luaL_getmetatable(L, FOO);
+
+  lua_setmetatable(L, -2);
+
+  return bar;
+
+}
+
+
+
+
+
+static int Foo_new (lua_State *L)
+
+{
+
+  int x = luaL_optint(L, 1, 0);
+
+  int y = luaL_optint(L, 2, 0);
+
+  Foo *bar = pushFoo(L);
+
+  bar-&gt;x = x;
+
+  bar-&gt;y = y;
+
+  return 1;
+
+}
+
+
+
+static int Foo_yourCfunction (lua_State *L)
+
+{
+
+  Foo *bar = checkFoo(L, 1);
+
+  printf("this is yourCfunction\t");
+
+  lua_pushnumber(L, bar-&gt;x);
+
+  lua_pushnumber(L, bar-&gt;y);
+
+  return 2;
+
+}
+
+
+
+static int Foo_setx (lua_State *L)
+
+{
+
+  Foo *bar = checkFoo(L, 1);
+
+  bar-&gt;x = luaL_checkint(L, 2);
+
+  lua_settop(L, 1);
+
+  return 1;
+
+}
+
+
+
+static int Foo_sety (lua_State *L)
+
+{
+
+  Foo *bar = checkFoo(L, 1);
+
+  bar-&gt;y = luaL_checkint(L, 2);
+
+  lua_settop(L, 1);
+
+  return 1;
+
+}
+
+
+
+static int Foo_add (lua_State *L)
+
+{
+
+  Foo *bar1 = checkFoo(L, 1);
+
+  Foo *bar2 = checkFoo(L, 2);
+
+  Foo *sum  = pushFoo(L);
+
+  sum-&gt;x = bar1-&gt;x + bar2-&gt;x;
+
+  sum-&gt;y = bar1-&gt;y + bar2-&gt;y;
+
+  return 1;
+
+}
+
+
+
+static int Foo_dot (lua_State *L)
+
+{
+
+  Foo *bar1 = checkFoo(L, 1);
+
+  Foo *bar2 = checkFoo(L, 2);
+
+  lua_pushnumber(L, bar1-&gt;x * bar2-&gt;x + bar1-&gt;y * bar2-&gt;y);
+
+  return 1;
+
+}
+
+
+
+static const luaL_reg Foo_methods[] = {
+
+  {"new",           Foo_new},
+
+  {"yourCfunction", Foo_yourCfunction},
+
+  {"setx",          Foo_setx},
+
+  {"sety",          Foo_sety},
+
+  {"add",           Foo_add},
+
+  {"dot",           Foo_dot},
+
+  {0, 0}
+
+};
+
+
+
+static int Foo_gc (lua_State *L)
+
+{
+
+  printf("bye, bye, bar = %p\n", toFoo(L, 1));
+
+  return 0;
+
+}
+
+
+
+static int Foo_tostring (lua_State *L)
+
+{
+
+  char buff[32];
+
+  sprintf(buff, "%p", toFoo(L, 1));
+
+  lua_pushfstring(L, "Foo (%s)", buff);
+
+  return 1;
+
+}
+
+
+
+static const luaL_reg Foo_meta[] = {
+
+  {"__gc",       Foo_gc},
+
+  {"__tostring", Foo_tostring},
+
+  {"__add",      Foo_add},
+
+  {0, 0}
+
+};
+
+
+
+int Foo_register (lua_State *L)
+
+{
+
+  luaL_openlib(L, FOO, Foo_methods, 0);  /* create methods table,
+
+                                            add it to the globals */
+
+  luaL_newmetatable(L, FOO);          /* create metatable for Foo,
+
+                                         and add it to the Lua registry */
+
+  luaL_openlib(L, 0, Foo_meta, 0);    /* fill metatable */
+
+  lua_pushliteral(L, "__index");
+
+  lua_pushvalue(L, -3);               /* dup methods table*/
+
+  lua_rawset(L, -3);                  /* metatable.__index = methods */
+
+  lua_pushliteral(L, "__metatable");
+
+  lua_pushvalue(L, -3);               /* dup methods table*/
+
+  lua_rawset(L, -3);                  /* hide metatable:
+
+                                         metatable.__metatable = methods */
+
+  lua_pop(L, 1);                      /* drop metatable */
+
+  return 1;                           /* return methods on the stack */
+
+}
+
+
+
+
+
+int main(int argc, char *argv[])
+
+{
+
+  lua_State *L = lua_open();
+
+
+
+  luaopen_base(L);
+
+  luaopen_table(L);
+
+  luaopen_io(L);
+
+  luaopen_string(L);
+
+  luaopen_math(L);
+
+  luaopen_debug(L);
+
+
+
+  Foo_register(L);
+
+  lua_pop(L, 1); //After foo register the methods are still on the stack, remove them.
+
+
+
+  if(argc&gt;1) lua_dofile(L, argv[1]);
+
+
+
+  lua_close(L);
+
+  return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+<H3>Compiling the Code</H3>
+<p>
+This code can be compiled for Lua 5.0 as follows:
+<p>
+<DL>
+<dt><dd><pre>
+
+gcc foo.c  -L/usr/local/lib -llua -llualib
+
+</pre>
+</DL>
+<p>
+<H3>Lua Test Code</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> n,v <span class="keyword">in</span> Foo <span class="keyword">do</span> <span class="library">print</span>(n,v) <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> a = Foo.new()
+
+<span class="keyword">local</span> b = Foo.new(99,100)
+
+
+
+MyFunction = Foo.yourCfunction
+
+
+
+<span class="library">print</span>(a, MyFunction(a))
+
+<span class="library">print</span>(b, MyFunction(b))
+
+
+
+
+
+<span class="keyword">function</span> Foo:show(msg)
+
+  <span class="library">print</span>(msg, self, self:yourCfunction())
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Foo:point(t)
+
+  <span class="library">assert</span>(<span class="library">type</span>(t) == <span class="string">'table'</span>)
+
+  self:setx(t.x <span class="keyword">or</span> t[1]):sety(t.y <span class="keyword">or</span> t[2])
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">setmetatable</span>(Foo, { __call = <span class="keyword">function</span>(self, x, y)
+
+                               <span class="keyword">local</span> bar = self.new(x,y)
+
+                               <span class="library">print</span>(<span class="string">'created'</span>, bar)
+
+                               <span class="keyword">return</span> bar
+
+                             <span class="keyword">end</span> } )
+
+
+
+<span class="keyword">local</span> p = Foo(1,2)
+
+p:show(<span class="string">'p is'</span>)
+
+p:setx(3):show<span class="string">'p is'</span>:sety(4):show<span class="string">'p is'</span>
+
+p:point{33,44}:show<span class="string">'p is'</span>
+
+p = <span class="keyword">nil</span>
+
+
+
+<span class="library">collectgarbage</span>()
+
+
+
+a:point{x=500, y=1000}
+
+a:show<span class="string">'a is'</span>
+
+
+
+r = Foo.add(a,b)
+
+r:show<span class="string">'r is'</span>
+
+
+
+a:show<span class="string">'a is'</span>
+
+b:show<span class="string">'b is'</span>
+
+s = a + b
+
+s:show<span class="string">'s is'</span>
+
+
+
+<span class="comment">--debug.debug()</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Test Code Output</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+$ ./a test.lua
+
+sety    function: 0xa045388
+
+dot     function: 0xa045328
+
+setx    function: 0xa044fb8
+
+yourCfunction   function: 0xa0452c8
+
+add     function: 0xa0452f8
+
+new     function: 0xa044f80
+
+this is yourCfunction   Foo (0xa046938) 0       0
+
+this is yourCfunction   Foo (0xa046760) 99      100
+
+created Foo (0xa045458)
+
+this is yourCfunction   p is    Foo (0xa045458) 1       2
+
+this is yourCfunction   p is    Foo (0xa045458) 3       2
+
+this is yourCfunction   p is    Foo (0xa045458) 3       4
+
+this is yourCfunction   p is    Foo (0xa045458) 33      44
+
+bye, bye, bar = 0xa045458
+
+this is yourCfunction   a is    Foo (0xa046938) 500     1000
+
+this is yourCfunction   r is    Foo (0xa045478) 599     1100
+
+this is yourCfunction   a is    Foo (0xa046938) 500     1000
+
+this is yourCfunction   b is    Foo (0xa046760) 99      100
+
+this is yourCfunction   s is    Foo (0xa046470) 599     1100
+
+bye, bye, bar = 0xa046470
+
+bye, bye, bar = 0xa045478
+
+bye, bye, bar = 0xa046760
+
+bye, bye, bar = 0xa046938
+
+</pre>
+</DL>
+<p>
+<H3>Modifications for use with Lua 5.1.1</H3>
+Replace the luaopen functions in main():
+<pre>
+
+  luaopen_base(L);
+
+  luaopen_table(L);
+
+  luaopen_io(L);
+
+  luaopen_string(L);
+
+  luaopen_math(L);
+
+  luaopen_debug(L);
+
+</pre>
+<p>
+with:
+<pre>
+
+  luaL_openlibs(L);
+
+</pre>
+<p>
+to avoid problems with luaopen_io(L). See <a href="http://lua-users.org/lists/lua-l/2006-11/msg00334.html">[this list message]</a> for details.
+<p>
+Replace (in main())
+<pre>
+
+if(argc&gt;1) lua_dofile(L, argv[1]);
+
+</pre>
+<p>
+with:
+<pre>
+
+if (argc &gt; 1) {
+
+   int s = luaL_loadfile(L, argv[1]);
+
+   if (s == 0) {
+
+      s = lua_pcall(L, 0, LUA_MULTRET, 0);
+
+   }
+
+}
+
+</pre>
+<p>
+To compile (5.1.4)
+<pre>
+
+gcc foo.c  -L/usr/local/lib -llua -ldl -lm
+
+</pre>
+<p>
+<p>
+<p>
+<p>
+<p>
+The first line of test.lua needs to be modified to use the pairs() function:
+<pre>
+
+for n,v in pairs(Foo) do print(n,v) end
+
+</pre>
+<p>
+<DL>
+<dt><dd><em>I think it would be better to just rewrite the page for 5.1.  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a></em>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=UserDataExample" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=UserDataExample" >history</a><br>Last edited October 7, 2010 7:12 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=UserDataExample" >(diff)</a>
+</body>
+</html>

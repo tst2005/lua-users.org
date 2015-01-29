@@ -1,0 +1,305 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Optimisation Coding Tips</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=OptimisationCodingTips&amp;body=1" title="List pages referring to OptimisationCodingTips">Optimisation Coding Tips</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Lua 5.1 Notes</H2>
+<p>
+<UL>
+<li> Locals are faster than globals. See <a href="../wiki/OptimisingUsingLocalVariables.html" >OptimisingUsingLocalVariables</a>.
+</UL>
+<p>
+<UL>
+<li> Memory allocation from the heap--e.g. repeatedly creating tables or closures--can slow things down.
+</UL>
+<p>
+<UL>
+<li> Short inline expressions can be faster than function calls.  <code>t[#t+1] = 0</code> is faster than <code>table.insert(t, 0)</code>.
+</UL>
+<p>
+<UL>
+<li> Constant folding: <code>x * (1/3)</code> is just as fast as <code>x * 0.33333333333333333</code> and is generally faster than <code>x/3</code> on most CPUs (see multiplication note below).  <code>1 + 2 + x</code>, which is the same as <code>(1+2) + x</code> should be just as fast as <code>3 + x</code> or <code>x + (1 + 2)</code> but faster than <code>x + 1 + 2</code>, which is the same as <code>(x + 1) + 2</code> as is not necessary equivalent to the former. Note that addition of numbers on computers is generally not associative when overflow occurs, and the compiler doesn't even know whether <code>x</code> is a number or some other type with a non-associative <code>__add</code> metamethod.  - <a href="/lists/lua-l/2006-03/msg00363.html">LuaList:2006-03/msg00363.html</a>  .  It's been reported that Roberto is seriously thinking about removing constant folding from Lua 5.2 since constant folding has been a source of bugs in Lua (though some of us really like constant folding -- <a href="../wiki/DavidManura.html" >DavidManura</a>).
+</UL>
+<p>
+<UL>
+<li> Multiplication <code>x*0.5</code> is faster than division <code>x/2</code>.
+</UL>
+<p>
+<UL>
+<li> <code>x*x</code> is faster than <code>x^2</code>
+</UL>
+<p>
+<UL>
+<li> Factoring expressions: <code>x*y+x*z+y*z</code> --&gt; <code>x*(y+z) + y*z</code>.  Lua will not do this for you, particularly since it can't assume distributive and other common algebraic properties hold during numerical overflow.
+</UL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+Note that Roberto Ierusalimschy's article Lua Performance Tips from the excellent <a href="http://www.lua.org/gems/">[Lua Programming Gems]</a> book is <a href="http://www.lua.org/gems/sample.pdf">[available online]</a>. 
+<p>
+<H2>Lua 4 Notes</H2>
+<p>
+The following information concerns optimization of Lua 4 and is kept here for historical reference.
+<p>
+<H3>General tips on coding</H3>
+<em>(Joshua Jensen)</em> These are some optimization strategies I use (off the top of my head):
+<p>
+<UL>
+<li> Local variables are very quick, since they are accessed by index.  If possible, make global variables local (weird, eh?).  Seriously, it works great and indexed access is always going to be faster than a hash lookup. If a variable, say <code>GameState</code>, needs global scope for access from C, make a secondary variable that looks like '<code>local GSLocal = GameState</code>' and use <code>GSLocal</code> within the module.  This technique can also be used for functions that are called repetitively, too. (see <a href="../wiki/OptimisingUsingLocalVariables.html" >OptimisingUsingLocalVariables</a>)
+<li> for loops are quite a bit faster than while loops, since they have specialized virtual machine instructions. 
+<li> In your C callback functions, use <code>lua_rawcall()</code> to call other functions. The overhead of a <code>setjmp()</code> call for exceptions (and a few other things) is avoided.  I would not recommend using <code>lua_rawcall()</code> outside of a callback in case something goes wrong during execution.  Without the setjmp() call, the error handler that exits the application is called.
+<li> If possible, in your C functions, try and use <code>lua_rawget()</code> and <code>lua_rawgeti()</code> for table access, since it avoids the tag method checks.  Be sure to use <code>lua_rawgeti()</code> for indexed access.  It's still a hash lookup, but it's probably the fastest way to get there by index.
+<li> In C, use <code>lua_ref()</code> wherever possible.  <code>lua_ref()</code> behaves similarly to a local variable in terms of speed.
+<li> Know that C strings passed into a Lua function (such as <code>lua_getglobal()</code>) from C are translated to a Lua string on entry.  If a string is to be reused across multiple frames of the game, do a <code>lua_ref()</code> operation on it, too.
+</UL>
+<p>
+<em>This information was written for Lua, pre v4.0 -- Nick Trout</em>
+<p>
+<p>
+<H3>Assertions</H3>
+Using the standard assert function with a non-trivial message expression will negatively impact script performance.  The reason is that the message expression is evaluated even when the assertion is true.  For example in
+<DL>
+<dt><dd><pre>
+
+assert(x &lt;= x_max, "exceeded maximum ("..x_max..")")
+
+</pre>
+</DL>
+regardless of the condition (which usually will be true), a float to string conversion and two concatenations will be performed.  The following replacement uses printf-style message formatting and does not generate the message unless it is used:
+<DL>
+<dt><dd><pre>
+
+function fast_assert(condition, ...)
+
+    if not condition then
+
+        if getn(arg) &gt; 0 then
+
+            assert(condition, call(format, arg))
+
+        else
+
+            assert(condition)
+
+        end
+
+    end
+
+end
+
+</pre>
+</DL>
+Now the example becomes:
+<DL>
+<dt><dd><pre>
+
+fast_assert(x &lt;= x_max, "exceeded maximum (%d)", x_max)
+
+</pre>
+</DL>
+<p>
+This is the VM code generated:
+<DL>
+<dt><dd><pre>
+
+assert(x &lt;= x_max, "exceeded maximum ("..x_max..")")
+
+        GETGLOBAL  	0	; assert
+
+        GETGLOBAL  	1	; x
+
+        GETGLOBAL  	2	; x_max
+
+        JMPLE      	1	; to 6
+
+        PUSHNILJMP 	
+
+        PUSHINT    	1
+
+        PUSHSTRING 	3	; "exceeded maximum ("
+
+        GETGLOBAL  	2	; x_max
+
+        PUSHSTRING 	4	; ")"
+
+        CONCAT     	3
+
+        CALL       	0 0
+
+fast_assert(x &lt;= x_max, "exceeded maximum (%d)", x_max)
+
+        GETGLOBAL  	5	; fast_assert
+
+        GETGLOBAL  	1	; x
+
+        GETGLOBAL  	2	; x_max
+
+        JMPLE      	1	; to 17
+
+        PUSHNILJMP 	
+
+        PUSHINT    	1
+
+        PUSHSTRING 	6	; "exceeded maximum (%d)"
+
+        GETGLOBAL  	2	; x_max
+
+        CALL       	0 0
+
+</pre>
+</DL>
+<p>
+<pre>Edit: April 23, 2012 By Sirmabus
+
+The code above will not actually work with 5.1
+
+Also added some enhancements like pointing back to the actual assert line number,
+
+and a fall through in case the assertion msg arguments are wrong (using a "pcall()").</pre>
+<p>
+<pre class="code">
+<span class="keyword">function</span> fast_assert(condition, ...)
+
+   <span class="keyword">if</span> <span class="keyword">not</span> condition <span class="keyword">then</span>
+
+      <span class="keyword">if</span> <span class="library">next</span>({...}) <span class="keyword">then</span>
+
+         <span class="keyword">local</span> s,r = <span class="library">pcall</span>(<span class="keyword">function</span> (...) <span class="keyword">return</span>(<span class="library">string.format</span>(...)) <span class="keyword">end</span>, ...)
+
+         <span class="keyword">if</span> s <span class="keyword">then</span>
+
+            <span class="library">error</span>(<span class="string">"assertion failed!: "</span> .. r, 2)
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+      <span class="library">error</span>(<span class="string">"assertion failed!"</span>, 2)
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<H3>Fast Unordered List Iteration</H3>
+Frequently in Lua we build a table of elements such as:
+<DL>
+<dt><dd><pre>table = { "harold", "victoria", "margaret", "guthrie" } </pre>
+</DL>
+<p>
+The "proper" way to iterate over this table is as follows:
+<DL>
+<dt><dd><pre>
+
+for i=1, getn(table) do
+
+    -- do something with table[i]
+
+end
+
+</pre>
+</DL>
+<p>
+However if we aren't concerned about element order, the above iteration is slow.  The first problem is that it calls getn(), which has order O(n) assuming as above that the "n" field has not been set.  The second problem is that bytecode must be executed and a table lookup performed to access each element (that is, "table[i]").
+<p>
+A solution is to use a table iterator instead:
+<DL>
+<dt><dd><pre>
+
+for x, element in pairs(table) do
+
+    -- do something with element
+
+end
+
+</pre>
+</DL>
+<p>
+The getn() call is eliminated as is the table lookup.  The "x" is a dummy variable as the element index is normally not used in this case.
+<p>
+There is a caveat with this solution.  If library functions tinsert() or tremove() are used on the table they will set the "n" field which would show up in our iteration.
+<p>
+<em>An alternative is to employ the list iteration patch listed in <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a>.</em>
+<p>
+<H3>Table Access</H3>
+<em>Question:</em> It's not the performance of creating the tables that I'm worried about, but rather all the accesses to the table contents.
+<p>
+<em>(lhf)</em> Tables are the central data structure in Lua. You shouldn't have to worry about table performance. A lot of effort is spent trying to make tables fast. For instance, there is a special opcode for <code>a.x</code>. See the difference between <code>a.x</code> and <code>a[x]</code> ... but, like you said, the difference here is essentially an extra <code>GETGLOBAL</code>.
+<p>
+<DL>
+<dt><dd><pre>
+
+a,c = {},"x"
+
+        CREATETABLE	0
+
+        PUSHSTRING 	2	; "x"
+
+        SETGLOBAL  	1	; c
+
+        SETGLOBAL  	0	; a
+
+b=a.x
+
+        GETGLOBAL  	0	; a
+
+        GETDOTTED  	2	; x
+
+        SETGLOBAL  	3	; b
+
+b=a["x"]
+
+        GETGLOBAL  	0	; a
+
+        GETDOTTED  	2	; x
+
+        SETGLOBAL  	3	; b
+
+b=a[c]
+
+        GETGLOBAL  	0	; a
+
+        GETGLOBAL  	1	; c
+
+        GETTABLE   	
+
+        SETGLOBAL  	3	; b
+
+        END
+
+</pre>
+</DL>
+<p>
+<hr>See also: <a href="../wiki/VmMerge.html" >VmMerge</a> (used to format the merged Lua source and VM code), <a href="../wiki/OptimisationTips.html" >OptimisationTips</a> , <a href="../wiki/OptimisingUsingLocalVariables.html" >OptimisingUsingLocalVariables</a>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=OptimisationCodingTips" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=OptimisationCodingTips" >history</a><br>Last edited April 24, 2012 6:42 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=OptimisationCodingTips" >(diff)</a>
+</body>
+</html>

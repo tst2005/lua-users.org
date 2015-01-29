@@ -1,0 +1,199 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Word Substitution</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteWordSubstitution&amp;body=1" title="List pages referring to SciteWordSubstitution">Scite Word Substitution</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is code for a simple replace-on-the-fly facility for SciTE; it's similar to Word's ability to automatically substitute 'the' for 'teh'.  Whatever you think about its usefulness (you may agree with Phillipe that makes people lazy) it shows how a SciTE Lua extension can access each word as it is typed.  We don't use the same word list for every file type ('fun' expands to 'function' for Lua and Pascal files, not for text!); this is done by watching when the active file changes, either by opening (use <code>OnOpen</code>) or by switching buffers (use <code>OnSwitchFile</code>)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- doing word substitutions on the fly!</span>
+
+
+
+<span class="keyword">local</span> txt_words = {
+
+ teh=<span class="string">'the'</span>, wd=<span class="string">'would'</span>,cd=<span class="string">'could'</span>   
+
+}
+
+
+
+<span class="keyword">local</span> pascal_words = {
+
+ fun=<span class="string">'function'</span>,lfun=<span class="string">'local function'</span>,
+
+ proc=<span class="string">'procedure'</span>,virt=<span class="string">'virtual'</span>,ctor=<span class="string">'constructor'</span>,
+
+ dtor=<span class="string">'destructor'</span>,prog=<span class="string">'program'</span>,
+
+ int=<span class="string">'integer'</span>,dbl=<span class="string">'double'</span>,str=<span class="string">'string'</span>
+
+}
+
+
+
+<span class="keyword">local</span> words
+
+
+
+<span class="keyword">function</span> switch_substitution_table()
+
+  <span class="keyword">local</span> ext = props[<span class="string">'FileExt'</span>]
+
+  <span class="keyword">if</span> ext == <span class="string">'pas'</span> <span class="keyword">or</span> ext == <span class="string">'lua'</span> <span class="keyword">then</span> 
+
+    words = pascal_words  
+
+  <span class="keyword">elseif</span> ext == <span class="string">'txt'</span> <span class="keyword">then</span>
+
+    words = txt_words
+
+  <span class="keyword">else</span>
+
+    words = <span class="keyword">nil</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> word_substitute(word)
+
+  <span class="keyword">return</span> words <span class="keyword">and</span> words[word] <span class="keyword">or</span> word
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> word_start,in_word,current_word
+
+<span class="keyword">local</span> find = <span class="library">string.find</span>
+
+
+
+<span class="keyword">function</span> OnChar(s)
+
+ <span class="keyword">if</span> <span class="keyword">not</span> in_word <span class="keyword">then</span>
+
+    <span class="keyword">if</span> find(s,<span class="string">'%w'</span>) <span class="keyword">then</span> 
+
+      <span class="comment">-- we have hit a word!</span>
+
+      word_start = editor.CurrentPos
+
+      in_word = <span class="keyword">true</span>
+
+      current_word = s
+
+    <span class="keyword">end</span>
+
+ <span class="keyword">else</span> <span class="comment">-- we're in a word</span>
+
+   <span class="comment">-- and it's another word character, so collect</span>
+
+   <span class="keyword">if</span> find(s,<span class="string">'%w'</span>) <span class="keyword">then</span>   
+
+      current_word = current_word..s
+
+   <span class="keyword">else</span>
+
+    <span class="comment">-- leaving a word; see if we have a substitution</span>
+
+      <span class="keyword">local</span> word_end = editor.CurrentPos
+
+      <span class="keyword">local</span> subst = word_substitute(current_word)
+
+      <span class="keyword">if</span> subst ~= current_word <span class="keyword">then</span>
+
+         editor:SetSel(word_start-1,word_end-1)
+
+         <span class="comment">-- this is somewhat ad-hoc logic, but</span>
+
+         <span class="comment">-- SciTE is handling space differently.</span>
+
+         <span class="keyword">local</span> was_whitespace = find(s,<span class="string">'%s'</span>)
+
+         <span class="keyword">if</span> was_whitespace <span class="keyword">then</span>
+
+            subst = subst..s
+
+         <span class="keyword">end</span>
+
+	 editor:ReplaceSel(subst)
+
+         word_end = editor.CurrentPos
+
+         <span class="keyword">if</span> <span class="keyword">not</span> was_whitespace <span class="keyword">then</span>
+
+            editor:GotoPos(word_end + 1)
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+      in_word = <span class="keyword">false</span>
+
+   <span class="keyword">end</span>   
+
+  <span class="keyword">end</span> 
+
+  <span class="comment">-- don't interfere with usual processing!</span>
+
+  <span class="keyword">return</span> <span class="keyword">false</span>
+
+<span class="keyword">end</span>  
+
+
+
+<span class="keyword">function</span> OnOpen(f)
+
+  switch_substitution_table()
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> OnSwitchFile(f)
+
+  switch_substitution_table()
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+<a href="../wiki/SteveDonovan.html" >SteveDonovan</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteWordSubstitution" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteWordSubstitution" >history</a><br>Last edited October 22, 2006 10:46 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteWordSubstitution" >(diff)</a>
+</body>
+</html>

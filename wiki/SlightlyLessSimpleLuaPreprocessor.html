@@ -1,0 +1,1865 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Slightly Less Simple Lua Preprocessor</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SlightlyLessSimpleLuaPreprocessor&amp;body=1" title="List pages referring to SlightlyLessSimpleLuaPreprocessor">Slightly Less Simple Lua Preprocessor</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+A slightly more complex implementation of the <a href="../wiki/SimpleLuaPreprocessor.html" >SimpleLuaPreprocessor</a>, which allows for multi-line $(...) expressions:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> parseDollarParen(pieces, chunk, s, e)
+
+  <span class="keyword">local</span> s = 1
+
+  <span class="keyword">for</span> term, executed, e <span class="keyword">in</span> <span class="library">string.gfind</span>(chunk, <span class="string">"()$(%b())()"</span>) <span class="keyword">do</span>
+
+      <span class="library">table.insert</span>(pieces, <span class="library">string.format</span>(<span class="string">"%q..(%s or '').."</span>,
+
+        <span class="library">string.sub</span>(chunk, s, term - 1), executed))
+
+      s = e
+
+  <span class="keyword">end</span>
+
+  <span class="library">table.insert</span>(pieces, <span class="library">string.format</span>(<span class="string">"%q"</span>, <span class="library">string.sub</span>(chunk, s)))
+
+<span class="keyword">end</span>
+
+<span class="comment">-------------------------------------------------------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> parseHashLines(chunk)
+
+  <span class="keyword">local</span> pieces, s, args = <span class="library">string.find</span>(chunk, <span class="string">"^\n*#ARGS%s*(%b())[ \t]*\n"</span>)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> args <span class="keyword">or</span> <span class="library">string.find</span>(args, <span class="string">"^%(%s*%)$"</span>) <span class="keyword">then</span>
+
+    pieces, s = {<span class="string">"return function(_put) "</span>, n = 1}, s <span class="keyword">or</span> 1
+
+   <span class="keyword">else</span>
+
+    pieces = {<span class="string">"return function(_put, "</span>, <span class="library">string.sub</span>(args, 2), n = 2}
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    <span class="keyword">local</span> ss, e, lua = <span class="library">string.find</span>(chunk, <span class="string">"^#+([^\n]*\n?)"</span>, s)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> e <span class="keyword">then</span>
+
+      ss, e, lua = <span class="library">string.find</span>(chunk, <span class="string">"\n#+([^\n]*\n?)"</span>, s)
+
+      <span class="library">table.insert</span>(pieces, <span class="string">"_put("</span>)
+
+      parseDollarParen(pieces, <span class="library">string.sub</span>(chunk, s, ss))
+
+      <span class="library">table.insert</span>(pieces, <span class="string">")"</span>)
+
+      <span class="keyword">if</span> <span class="keyword">not</span> e <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="library">table.insert</span>(pieces, lua)
+
+    s = e + 1
+
+  <span class="keyword">end</span>
+
+  <span class="library">table.insert</span>(pieces, <span class="string">" end"</span>)
+
+  <span class="keyword">return</span> <span class="library">table.concat</span>(pieces)
+
+<span class="keyword">end</span>
+
+<span class="comment">-------------------------------------------------------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> preprocess(chunk, name)
+
+  <span class="keyword">return</span> <span class="library">assert</span>(<span class="library">loadstring</span>(parseHashLines(chunk), name))()
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-------------------------------------------------------------------------------</span>
+
+<span class="comment">-- CGI Stuff                                              ---------------------</span>
+
+<span class="comment">-------------------------------------------------------------------------------</span>
+
+<span class="comment">-- perl.pm accepts %uxxxx but that is not in any standard that</span>
+
+<span class="comment">-- I can find; both the IRI proposal and RFC-2396 say you UTF-8</span>
+
+<span class="comment">-- encode and then %-encode byte by byte. So it is not here.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> unUrlEscape(field)
+
+  field = <span class="library">string.gsub</span>(field, <span class="string">'%+'</span>, <span class="string">' '</span>)
+
+  <span class="keyword">return</span> <span class="library">string.gsub</span>(field, <span class="string">'%%(%x%x)'</span>,
+
+     <span class="keyword">function</span>(xx) <span class="keyword">return</span> <span class="library">string.char</span>(<span class="library">tonumber</span>(xx, 16)) <span class="keyword">end</span>) 
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> parseQuery(q)
+
+  <span class="keyword">local</span> t = {}
+
+  q = <span class="library">string.gsub</span>(q, <span class="string">"([^&amp;=]+)=([^&amp;;]*)[&amp;;]?"</span>, 
+
+    <span class="keyword">function</span>(name, attr) t[unUrlEscape(name)] = unUrlEscape(attr) <span class="keyword">end</span>)
+
+  <span class="keyword">if</span> q ~= <span class="string">""</span> <span class="keyword">then</span>
+
+    <span class="library">table.setn</span>(t, 0)
+
+    <span class="library">string.gsub</span>(q, <span class="string">"[^+]*"</span>, <span class="keyword">function</span>(w) <span class="library">table.insert</span>(t, unUrlEscape(w)) <span class="keyword">end</span>)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-------------------------------------------------------------------------------</span>
+
+<span class="comment">-- Sample driver                                          ---------------------</span>
+
+<span class="comment">-------------------------------------------------------------------------------</span>
+
+<span class="comment">-- get settings from the command line</span>
+
+ARG = {}
+
+<span class="keyword">for</span> i = 1, #arg <span class="keyword">do</span>
+
+  <span class="keyword">local</span> _, _, k, v = <span class="library">string.find</span>(arg[i], <span class="string">"^(%a%w*)=(.*)"</span>)
+
+  <span class="keyword">if</span> k <span class="keyword">then</span> ARG[k] = v <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+CGI = {}
+
+
+
+<span class="comment">-- Variable lookup order: globals, parameters, environment, CGI request</span>
+
+<span class="library">setmetatable</span>(<span class="library">_G</span>, {__index = <span class="keyword">function</span>(t, k) <span class="keyword">return</span> ARG[k] <span class="keyword">or</span> <span class="library">os.getenv</span>(k) <span class="keyword">or</span> CGI[k] <span class="keyword">end</span>})
+
+
+
+<span class="comment">-- decode CGI query if present</span>
+
+<span class="comment">-- perl.pm also checks for REDIRECT_QUERY_STRING</span>
+
+<span class="keyword">if</span> QUERY_STRING <span class="keyword">and</span> QUERY_STRING ~= <span class="string">""</span> <span class="keyword">then</span>
+
+  CGI = parseQuery(QUERY_STRING)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- preprocess from stdin to stdout</span>
+
+preprocess(<span class="library">io.read</span><span class="string">"*a"</span>, <span class="string">"example"</span>)(<span class="library">io.write</span>)
+
+</pre>
+
+</DL>
+<p>
+Lines starting with # are executed as Lua. Other lines are sent through as is, except that $(...) appearing anywhere in them is executed. (No parsing is done, so you have to be careful with your $()'s; there is precious little error-checking in general, but hey, what do you want for 30 lines?
+<p>
+Sample input:
+<p>
+<DL>
+<dt><dd><pre>
+
+-- These are expanded at preprocess time, not compile time.
+
+print "$(USER) created this file on $(os.date())" 
+
+
+
+#if DEBUG then
+
+  function log(fmt, ...)
+
+    print(string.format(fmt, unpack(arg)))
+
+  end
+
+#else
+
+  function log() end
+
+#end
+
+
+
+#for i = 0, 10 do
+
+  var$(i) = $(math.sin(math.pi * i / 10))
+
+#end
+
+</pre>
+</DL>
+<p>
+Sample output:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ ./lua preprocess.lua &lt; sample.luap
+
+-- These are expanded at preprocess time, not compile time.
+
+print "rici created this file on Sat Feb 21 00:27:49 2004" 
+
+
+
+  function log() end
+
+
+
+  var0 = 0
+
+  var1 = 0.30901699437495
+
+  var2 = 0.58778525229247
+
+  var3 = 0.80901699437495
+
+  var4 = 0.95105651629515
+
+  var5 = 1
+
+  var6 = 0.95105651629515
+
+  var7 = 0.80901699437495
+
+  var8 = 0.58778525229247
+
+  var9 = 0.30901699437495
+
+  var10 = 1.2246467991474e-16
+
+</pre>
+</DL>
+<p>
+And with some command line changes
+<p>
+<DL>
+<dt><dd><pre>
+
+$ ./lua preprocess.lua USER=lpp DEBUG=yes &lt; sample.luap
+
+-- These are expanded at preprocess time, not compile time.
+
+print "lpp created this file on Sat Feb 21 00:29:27 2004" 
+
+
+
+  function log(fmt, ...)
+
+    print(string.format(fmt, unpack(arg)))
+
+  end
+
+
+
+  var0 = 0
+
+  var1 = 0.30901699437495
+
+  var2 = 0.58778525229247
+
+  var3 = 0.80901699437495
+
+  var4 = 0.95105651629515
+
+  var5 = 1
+
+  var6 = 0.95105651629515
+
+  var7 = 0.80901699437495
+
+  var8 = 0.58778525229247
+
+  var9 = 0.30901699437495
+
+  var10 = 1.2246467991474e-16
+
+</pre>
+</DL>
+<p>
+The preprocessor is agnostic about language. You could, for example, use it to generate HTML. Sample input:
+<p>
+<DL>
+<dt><dd><pre>
+
+#start, finish, inc = start or 0, finish or 90, inc or 5
+
+&lt;html&gt;&lt;head&gt;&lt;title&gt;Sin and Cosine Table&lt;/title&gt;&lt;/head&gt;
+
+&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td&gt;theta&lt;/td&gt;&lt;td&gt;sin theta&lt;/td&gt;&lt;td&gt;cos theta&lt;/td&gt;&lt;/tr&gt;
+
+#for x = start, finish, inc do
+
+&lt;tr&gt;&lt;td&gt;$(x)&lt;/td&gt;
+
+    &lt;td&gt;$(math.sin(math.rad(x)))&lt;/td&gt;
+
+    &lt;td&gt;$(math.cos(math.rad(x)))&lt;/td&gt;
+
+&lt;/tr&gt;
+
+#end
+
+&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;
+
+</pre>
+</DL>
+<p>
+produces (with very boring formatting):
+<p>
+<DL>
+<dt><dd><pre>
+
+&lt;html&gt;&lt;head&gt;&lt;title&gt;Sin and Cosine Table&lt;/title&gt;&lt;/head&gt;
+
+&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td&gt;theta&lt;/td&gt;&lt;td&gt;sin theta&lt;/td&gt;&lt;td&gt;cos theta&lt;/td&gt;&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;0&lt;/td&gt;
+
+    &lt;td&gt;0&lt;/td&gt;
+
+    &lt;td&gt;1&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;5&lt;/td&gt;
+
+    &lt;td&gt;0.087155742747658&lt;/td&gt;
+
+    &lt;td&gt;0.99619469809175&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;10&lt;/td&gt;
+
+    &lt;td&gt;0.17364817766693&lt;/td&gt;
+
+    &lt;td&gt;0.98480775301221&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;15&lt;/td&gt;
+
+    &lt;td&gt;0.25881904510252&lt;/td&gt;
+
+    &lt;td&gt;0.96592582628907&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;20&lt;/td&gt;
+
+    &lt;td&gt;0.34202014332567&lt;/td&gt;
+
+    &lt;td&gt;0.93969262078591&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;25&lt;/td&gt;
+
+    &lt;td&gt;0.4226182617407&lt;/td&gt;
+
+    &lt;td&gt;0.90630778703665&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;30&lt;/td&gt;
+
+    &lt;td&gt;0.5&lt;/td&gt;
+
+    &lt;td&gt;0.86602540378444&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;35&lt;/td&gt;
+
+    &lt;td&gt;0.57357643635105&lt;/td&gt;
+
+    &lt;td&gt;0.81915204428899&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;40&lt;/td&gt;
+
+    &lt;td&gt;0.64278760968654&lt;/td&gt;
+
+    &lt;td&gt;0.76604444311898&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;45&lt;/td&gt;
+
+    &lt;td&gt;0.70710678118655&lt;/td&gt;
+
+    &lt;td&gt;0.70710678118655&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;50&lt;/td&gt;
+
+    &lt;td&gt;0.76604444311898&lt;/td&gt;
+
+    &lt;td&gt;0.64278760968654&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;55&lt;/td&gt;
+
+    &lt;td&gt;0.81915204428899&lt;/td&gt;
+
+    &lt;td&gt;0.57357643635105&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;60&lt;/td&gt;
+
+    &lt;td&gt;0.86602540378444&lt;/td&gt;
+
+    &lt;td&gt;0.5&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;65&lt;/td&gt;
+
+    &lt;td&gt;0.90630778703665&lt;/td&gt;
+
+    &lt;td&gt;0.4226182617407&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;70&lt;/td&gt;
+
+    &lt;td&gt;0.93969262078591&lt;/td&gt;
+
+    &lt;td&gt;0.34202014332567&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;75&lt;/td&gt;
+
+    &lt;td&gt;0.96592582628907&lt;/td&gt;
+
+    &lt;td&gt;0.25881904510252&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;80&lt;/td&gt;
+
+    &lt;td&gt;0.98480775301221&lt;/td&gt;
+
+    &lt;td&gt;0.17364817766693&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;85&lt;/td&gt;
+
+    &lt;td&gt;0.99619469809175&lt;/td&gt;
+
+    &lt;td&gt;0.087155742747658&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;&lt;td&gt;90&lt;/td&gt;
+
+    &lt;td&gt;1&lt;/td&gt;
+
+    &lt;td&gt;6.1232339957368e-17&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;
+
+</pre>
+</DL>
+<p>
+--<a href="../wiki/RiciLake.html" >RiciLake</a>
+<p>
+<H3>CGI Version</H3>
+<p>
+<em>If you'd like to use <a href="../wiki/SlightlyLessSimpleLuaPreprocessor.html" >SlightlyLessSimpleLuaPreprocessor</a> syntax in your CGILua programs, you can install the following file into your Kepler installation, modifying config.lua appropriately: -<a href="../wiki/MarkEdgar.html" >MarkEdgar</a></em>
+<UL>
+<li> <a href="/files/wiki_insecure/users/MarkEdgar/slslpp.lua">Files:wiki_insecure/users/MarkEdgar/slslpp.lua</a>  a version of <a href="../wiki/SlightlyLessSimpleLuaPreprocessor.html" >SlightlyLessSimpleLuaPreprocessor</a> for use with <a href="http://www.keplerproject.org/cgilua/">[CGILua]</a>
+<li> <a href="/files/wiki_insecure/users/MarkEdgar/config.lua">Files:wiki_insecure/users/MarkEdgar/config.lua</a>  my cgilua/config.lua file containing a loader for "slslpp pages"
+</UL>
+<p>
+<H3>Enhanced Version</H3>
+<p>
+This version has some improvements and is a bit more general and robust. --<a href="../wiki/DavidManura.html" >DavidManura</a>, 2007-09
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- luapp.lua</span>
+
+
+
+<span class="keyword">local</span> M = {}
+
+
+
+M.VERSION = <span class="string">'0.3.1'</span>
+
+
+
+<span class="comment">-- Lua 5.1 and 5.2 compat</span>
+
+<span class="keyword">local</span> <span class="library">load</span> = <span class="library">pcall</span>(<span class="library">load</span>, <span class="string">''</span>) <span class="keyword">and</span> <span class="library">load</span> <span class="keyword">or</span> <span class="keyword">function</span>(ld, source, mode_, env)
+
+  <span class="keyword">local</span> f, err = <span class="library">loadstring</span>(ld, source)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> f <span class="keyword">then</span> <span class="keyword">return</span> f, err <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">setfenv</span>(f, env <span class="keyword">or</span> <span class="library">_G</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Count number of chars c in string s.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> countchar(s, c)
+
+  <span class="keyword">local</span> count = 0
+
+  <span class="keyword">local</span> i = 1
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    i = <span class="library">string.find</span>(s, c, i)
+
+    <span class="keyword">if</span> i <span class="keyword">then</span> count = count + 1; i = i + 1 <span class="keyword">else</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> count
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- In error message string, translate line numbers from</span>
+
+<span class="comment">-- processed file to source file.</span>
+
+<span class="comment">-- linenums is translation array (processed line number -&gt;</span>
+
+<span class="comment">-- source line number) or source line number.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> fix_linenums(message, linenums)
+
+  message = message:gsub(<span class="string">"(%b[]:)(%d+)"</span>, <span class="keyword">function</span>(a,n)
+
+    n = <span class="library">tonumber</span>(n)
+
+    <span class="keyword">local</span> source_linenum =
+
+      <span class="library">type</span>(linenums) == <span class="string">"table"</span> <span class="keyword">and</span> (linenums[n] <span class="keyword">or</span> <span class="string">'?'</span>) <span class="keyword">or</span>
+
+      <span class="library">type</span>(linenums) == <span class="string">"number"</span> <span class="keyword">and</span> linenums + n - 1 <span class="keyword">or</span>
+
+      <span class="string">'?'</span>
+
+    <span class="keyword">return</span> a .. source_linenum
+
+  <span class="keyword">end</span>)
+
+  <span class="keyword">return</span> message
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Expands $(...) syntax.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> parse_dollar_paren(pieces, chunk, name, linenum)
+
+  <span class="keyword">local</span> is = 1
+
+  <span class="keyword">for</span> ibegin, iend <span class="keyword">in</span> chunk:gmatch(<span class="string">"()$%b()()"</span>) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> text = chunk:sub(is, ibegin - 1)
+
+    <span class="keyword">local</span> executed = chunk:sub(ibegin+2, iend-2) <span class="comment">-- remove parens</span>
+
+
+
+    <span class="keyword">local</span> name2 = name .. <span class="string">":"</span> .. executed
+
+    linenum = linenum + countchar(text, <span class="string">'\n'</span>)
+
+    <span class="keyword">local</span> may_have_comment = executed:find(<span class="string">"%-%-"</span>)
+
+    <span class="keyword">local</span> nl = may_have_comment <span class="keyword">and</span> <span class="string">"\n"</span> <span class="keyword">or</span> <span class="string">""</span>
+
+
+
+    pieces[#pieces+1] = (<span class="string">"_put(%q)"</span>):format(text)
+
+    <span class="keyword">if</span> <span class="library">load</span>(<span class="string">"return "</span> .. executed, name2) <span class="keyword">then</span> <span class="comment">-- is expression list</span>
+
+      pieces[#pieces+1] = <span class="string">"_put("</span> .. executed .. nl .. <span class="string">")"</span>
+
+    <span class="keyword">else</span> <span class="comment">-- assume chunk</span>
+
+      <span class="keyword">local</span> status, message = <span class="library">load</span>(executed, name2)
+
+      <span class="keyword">if</span> <span class="keyword">not</span> status <span class="keyword">then</span> <span class="comment">-- unrecognized</span>
+
+        <span class="keyword">if</span> message <span class="keyword">then</span>
+
+          message = fix_linenums(message, linenum)
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> status, message
+
+      <span class="keyword">end</span>
+
+      pieces[#pieces+1] = <span class="string">" "</span> .. executed .. nl .. <span class="string">" "</span>
+
+      linenum = linenum + countchar(executed, <span class="string">'\n'</span>)
+
+    <span class="keyword">end</span>
+
+    is = iend
+
+  <span class="keyword">end</span>
+
+  pieces[#pieces+1] = (<span class="string">"_put(%q)"</span>):format(chunk:sub(is))
+
+  <span class="keyword">return</span> <span class="keyword">true</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Expands #... syntax.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> parse_hash_lines(chunk, name, env)
+
+  <span class="keyword">local</span> pieces = {}
+
+
+
+  <span class="keyword">local</span> luas = {} <span class="comment">-- for improved error reporting</span>
+
+  <span class="keyword">local</span> linenums = {}
+
+  <span class="keyword">local</span> linenum = 1
+
+
+
+  pieces[#pieces+1] = <span class="string">"local _put = ... "</span>
+
+
+
+  <span class="keyword">local</span> is = 1
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    <span class="keyword">local</span> _, ie, lua = chunk:find(<span class="string">"^#+([^\n]*\n?)"</span>, is)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> ie <span class="keyword">then</span>
+
+      <span class="keyword">local</span> iss; iss, ie, lua = chunk:find(<span class="string">"\n#+([^\n]*\n?)"</span>, is)
+
+      <span class="keyword">local</span> text = chunk:sub(is, iss)
+
+      <span class="keyword">local</span> status, message = parse_dollar_paren(pieces, text, name, linenum)
+
+      <span class="keyword">if</span> <span class="keyword">not</span> status <span class="keyword">then</span> <span class="keyword">return</span> status, message <span class="keyword">end</span>
+
+      <span class="keyword">if</span> <span class="keyword">not</span> ie <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+      linenum = linenum + countchar(text, <span class="string">'\n'</span>)
+
+    <span class="keyword">end</span>
+
+
+
+    luas[#luas+1] = lua
+
+    linenums[#linenums+1] = linenum
+
+    linenum = linenum + 1
+
+
+
+    pieces[#pieces+1] = <span class="string">' '</span> .. lua .. <span class="string">' '</span>
+
+
+
+    is = ie + 1
+
+  <span class="keyword">end</span>
+
+ 
+
+  <span class="keyword">local</span> code = <span class="library">table.concat</span>(pieces, <span class="string">' '</span>)
+
+
+
+  <span class="comment">-- Attempt to compile.</span>
+
+  <span class="keyword">local</span> f, message = <span class="library">load</span>(code, name, <span class="string">'t'</span>, env)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> f <span class="keyword">then</span>
+
+    <span class="comment">-- Attempt to compile only user-written Lua</span>
+
+    <span class="comment">-- (for cleaner error message)</span>
+
+    <span class="keyword">local</span> lua = <span class="library">table.concat</span>(luas)
+
+    <span class="keyword">local</span> f2, message2 = <span class="library">load</span>(lua, name, <span class="string">'t'</span>, env)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> f2 <span class="keyword">then</span>
+
+      message = fix_linenums(message2, linenums)
+
+    <span class="keyword">else</span> <span class="comment">-- unexpected</span>
+
+      message = fix_linenums(message, <span class="keyword">nil</span>)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> f, message
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Abstraction of string output stream.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> string_writer()
+
+  <span class="keyword">local</span> t = {}
+
+  <span class="keyword">local</span> <span class="keyword">function</span> write(...)
+
+    <span class="keyword">local</span> n = <span class="library">select</span>(<span class="string">'#'</span>, ...)
+
+    <span class="keyword">if</span> n &gt; 0 <span class="keyword">then</span>
+
+      t[#t+1] = <span class="library">tostring</span>((...))
+
+      write(<span class="library">select</span>(2, ...))
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> close()
+
+    <span class="keyword">return</span> <span class="library">table.concat</span>(t)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> {write=write, close=close}
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Abstraction of file output stream.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> file_writer(fh, is_close)
+
+  <span class="keyword">local</span> <span class="keyword">function</span> write(...)
+
+    <span class="keyword">local</span> n = <span class="library">select</span>(<span class="string">'#'</span>, ...)
+
+    <span class="keyword">if</span> n &gt; 0 <span class="keyword">then</span>
+
+      fh:write(<span class="library">tostring</span>((...)))
+
+      write(<span class="library">select</span>(2, ...))
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> close()
+
+    <span class="keyword">if</span> is_close <span class="keyword">then</span> fh:close() <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> {write=write, close=close}
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Convert output specification to output stream.</span>
+
+<span class="comment">-- A helper function for C&lt;preprocess&gt;.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> make_output(output)
+
+  <span class="keyword">if</span> <span class="library">type</span>(output) == <span class="string">'string'</span> <span class="keyword">then</span>
+
+    output = string_writer()
+
+  <span class="keyword">elseif</span> <span class="library">type</span>(output) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+    <span class="library">assert</span>(#output == 1, <span class="string">'table size must be 1'</span>)
+
+    <span class="keyword">local</span> filename = output[1]
+
+    <span class="keyword">local</span> fh, message = <span class="library">io.open</span>(filename, <span class="string">'w'</span>)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> fh <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span>, message <span class="keyword">end</span>
+
+    output = file_writer(fh, <span class="keyword">true</span>)
+
+  <span class="keyword">elseif</span> <span class="library">io.type</span>(output) == <span class="string">'file'</span> <span class="keyword">then</span>
+
+    output = file_writer(output, <span class="keyword">false</span>)
+
+  <span class="keyword">else</span>
+
+    <span class="library">error</span>(<span class="string">'unrecognized'</span>, 2)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> output
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Convert input specification to input stream.</span>
+
+<span class="comment">-- A helper function for C&lt;preprocess&gt;.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> make_input(input)
+
+  <span class="keyword">if</span> <span class="library">type</span>(input) == <span class="string">'string'</span> <span class="keyword">then</span>
+
+    input = {text = input, name = <span class="string">'source'</span>}
+
+  <span class="keyword">elseif</span> <span class="library">type</span>(input) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+    <span class="library">assert</span>(#input == 1, <span class="string">'table size must be 1'</span>)
+
+    <span class="keyword">local</span> filename = input[1]
+
+    <span class="keyword">local</span> fh, message = <span class="library">io.open</span>(filename)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> fh <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span>, message <span class="keyword">end</span>
+
+    input = {text = fh:read<span class="string">'*a'</span>, name = filename}
+
+    fh:close()
+
+  <span class="keyword">elseif</span> <span class="library">io.type</span>(input) == <span class="string">'file'</span> <span class="keyword">then</span>
+
+    input = {text = input:read<span class="string">'*a'</span>, name = <span class="keyword">nil</span>}
+
+  <span class="keyword">else</span>
+
+    <span class="library">error</span>(<span class="string">'unrecognized'</span>, 2)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> input
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> M.preprocess(t)
+
+  <span class="keyword">if</span> <span class="library">type</span>(t) == <span class="string">'string'</span> <span class="keyword">then</span> t = {input = t} <span class="keyword">end</span>
+
+  <span class="keyword">local</span> input = t.input <span class="keyword">or</span> <span class="library">io.stdin</span>
+
+  <span class="keyword">local</span> output = t.output <span class="keyword">or</span>
+
+             (<span class="library">type</span>(input) == <span class="string">'string'</span> <span class="keyword">and</span> <span class="string">'string'</span>) <span class="keyword">or</span> <span class="library">io.stdout</span>
+
+  <span class="keyword">local</span> lookup = t.lookup <span class="keyword">or</span> <span class="library">_G</span>
+
+  <span class="keyword">local</span> strict = t.strict; <span class="keyword">if</span> strict == <span class="keyword">nil</span> <span class="keyword">then</span> strict = <span class="keyword">true</span> <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> err; input, err = make_input(input)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> input <span class="keyword">then</span> <span class="library">error</span>(err, 2) <span class="keyword">end</span>
+
+  
+
+  <span class="keyword">local</span> name = input.name <span class="keyword">or</span> <span class="string">"&lt;source&gt;"</span>
+
+
+
+  <span class="keyword">local</span> mt = {}
+
+  <span class="keyword">if</span> strict <span class="keyword">then</span>
+
+    <span class="keyword">function</span> mt.__index(t,k)
+
+      <span class="keyword">local</span> v = lookup[k]
+
+      <span class="keyword">if</span> v == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+        <span class="library">error</span>(<span class="string">"Undefined global variable "</span> .. <span class="library">tostring</span>(k), 2)
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> v
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    mt.__index = lookup
+
+  <span class="keyword">end</span>
+
+  
+
+  <span class="keyword">local</span> env = {}
+
+  <span class="library">setmetatable</span>(env, mt)
+
+  
+
+  <span class="keyword">local</span> f, message = parse_hash_lines(input.text, name, env)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> f <span class="keyword">then</span> <span class="keyword">return</span> f, message <span class="keyword">end</span>
+
+
+
+  output = make_output(output)
+
+
+
+  <span class="keyword">local</span> status, message = <span class="library">pcall</span>(f, output.write)
+
+
+
+  <span class="keyword">local</span> result = output.close()
+
+  <span class="keyword">if</span> <span class="keyword">not</span> result <span class="keyword">then</span> result = <span class="keyword">true</span> <span class="keyword">end</span>
+
+
+
+  <span class="keyword">if</span> <span class="keyword">not</span> status <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">false</span>, message
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">return</span> result
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> command(...)
+
+  <span class="keyword">local</span> t = {...}
+
+
+
+  <span class="keyword">if</span> t[1] == <span class="string">'-t'</span> <span class="keyword">then</span>
+
+    <span class="library">os.exit</span>(M.testsuite() <span class="keyword">and</span> 0 <span class="keyword">or</span> 1)
+
+  <span class="keyword">elseif</span> t[1] == <span class="string">'-d'</span> <span class="keyword">then</span>
+
+    <span class="library">print</span>(M.DOC)
+
+    <span class="keyword">return</span>
+
+  <span class="keyword">elseif</span> t[1] == <span class="string">'-v'</span> <span class="keyword">then</span>
+
+    <span class="library">print</span>(M.VERSION)
+
+    <span class="keyword">return</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> input, output
+
+  <span class="keyword">local</span> i=1; <span class="keyword">while</span> i &lt;= #t <span class="keyword">do</span>
+
+    <span class="keyword">if</span> t[i] == <span class="string">'-e'</span> <span class="keyword">then</span>
+
+      i = i + 1
+
+      input = <span class="library">assert</span>(t[i])
+
+    <span class="keyword">elseif</span> t[i] == <span class="string">'-'</span> <span class="keyword">and</span> <span class="keyword">not</span> input <span class="keyword">then</span>
+
+      input = <span class="library">io.stdin</span>
+
+    <span class="keyword">elseif</span> t[i] == <span class="string">'-'</span> <span class="keyword">and</span> <span class="keyword">not</span> output <span class="keyword">then</span>
+
+      output = <span class="library">io.stdout</span>
+
+    <span class="keyword">elseif</span> <span class="keyword">not</span> input <span class="keyword">then</span>
+
+      input = {t[i]}
+
+    <span class="keyword">elseif</span> <span class="keyword">not</span> output <span class="keyword">then</span>
+
+      output = {t[i]}
+
+    <span class="keyword">else</span>
+
+      <span class="library">error</span>(<span class="string">"unrecognized command-line arg "</span> .. <span class="library">tostring</span>(t[i]))
+
+    <span class="keyword">end</span>
+
+    i = i + 1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> input <span class="keyword">then</span>
+
+    <span class="library">io.stderr</span>:write(
+
+      <span class="string">"usage: luapp [options] [input] [output]\n\n"</span> ..
+
+      <span class="string">"  -e string  input as command-line expression\n"</span> ..
+
+      <span class="string">"  -c command special command ('test' or 'doc')\n"</span> ..
+
+      <span class="string">"  -d         print full documentation\n"</span> ..
+
+      <span class="string">"  -t         run test suite\n"</span> ..
+
+      <span class="string">"  -v         print version\n"</span>)
+
+    <span class="library">os.exit</span>(1)
+
+  <span class="keyword">end</span>
+
+  output = output <span class="keyword">or</span> <span class="library">io.stdout</span>
+
+  <span class="keyword">local</span> status, message = M.preprocess{input=input, output=output, lookup=<span class="library">_G</span>}
+
+  <span class="keyword">if</span> <span class="keyword">not</span> status <span class="keyword">then</span>
+
+    <span class="library">io.stderr</span>:write(message .. <span class="string">"\n"</span>)
+
+    <span class="library">os.exit</span>(1)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- TEST SUITE</span>
+
+<span class="keyword">function</span> M.testsuite()
+
+  
+
+  <span class="keyword">local</span> preprocess = (M <span class="keyword">or</span> <span class="library">require</span> <span class="string">"luapp"</span>).preprocess
+
+  
+
+  <span class="keyword">local</span> check = {}
+
+  check[<span class="string">'='</span>] = <span class="keyword">function</span>(a, b, message)
+
+    message = message <span class="keyword">or</span> <span class="string">''</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span>(a == b) <span class="keyword">then</span>
+
+      <span class="library">error</span>(<span class="library">string.format</span>(<span class="string">'FAIL: [%s] == [%s] %s'</span>,
+
+        <span class="library">tostring</span>(a), <span class="library">tostring</span>(b), message), 2)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> check.fail(f)
+
+    <span class="keyword">if</span> <span class="library">pcall</span>(f) <span class="keyword">then</span>
+
+      <span class="library">error</span>(<span class="library">string.format</span>(<span class="string">'FAIL: did not raise'</span>), 2)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> check.pass(f)
+
+    <span class="keyword">local</span> status, message = <span class="library">pcall</span>(f)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> status <span class="keyword">then</span>
+
+      <span class="library">error</span>(<span class="library">string.format</span>(<span class="string">'FAIL: raised '</span> .. message), 2)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  
+
+  check[<span class="string">'='</span>](preprocess<span class="string">''</span>, <span class="string">''</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$'</span>, <span class="string">'$'</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$("$")'</span>, <span class="string">'$'</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$("$")('</span>, <span class="string">'$('</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">' $ $ $ '</span>, <span class="string">' $ $ $ '</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$()'</span>, <span class="string">''</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$(\n)'</span>, <span class="string">''</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$(false)'</span>, <span class="string">'false'</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$(nil)'</span>, <span class="string">'nil'</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$(1,2)'</span>, <span class="string">'12'</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$(_put(1,2))'</span>, <span class="string">'12'</span>)
+
+  <span class="comment">--check.fail(function() preprocess'$(' end)</span>
+
+  <span class="comment">--check.fail(function() preprocess'$(()' end)</span>
+
+  
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$(1+2)'</span>, <span class="string">'3'</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$((1+2)*2)'</span>, <span class="string">'6'</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'a$(1)$(2)b$(3)c'</span>, <span class="string">'a12b3c'</span>)
+
+  
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$(local x=2)$(x)$(local x=3)$(x)'</span>, <span class="string">'23'</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$(for n=1,3 do _put(n) end)'</span>, <span class="string">'123'</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$(local function test(x) return x+1 end)$(test(2))'</span>, <span class="string">'3'</span>)
+
+  
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$("$")'</span>, <span class="string">'$'</span>)
+
+  
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'#'</span>, <span class="string">''</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'#_put(2)'</span>, <span class="string">'2'</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'#x=2\n$(x)'</span>, <span class="string">'2'</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'#for x=1,2 do\n$(x)\n#end'</span>, <span class="string">'1\n2\n'</span>)
+
+  check[<span class="string">'='</span>](preprocess<span class="string">'$("#")'</span>, <span class="string">'#'</span>)
+
+  
+
+  <span class="keyword">local</span> t = {a=5}
+
+  check[<span class="string">'='</span>](<span class="string">'5'</span>, preprocess {input=<span class="string">'$(a)'</span>, lookup=t})
+
+  check[<span class="string">'='</span>](<span class="string">'nil'</span>, preprocess {input=<span class="string">'$(b)'</span>, lookup=t, strict=<span class="keyword">false</span>})
+
+  check.fail(<span class="keyword">function</span>() <span class="library">assert</span>(preprocess {input=<span class="string">'$(b)'</span>, lookup=t}) <span class="keyword">end</span>)
+
+  
+
+  
+
+  
+
+  <span class="comment">-- preprocess {input = {'input.txt'}, output = io.stdout, lookup = _G}</span>
+
+  
+
+  check[<span class="string">'='</span>](preprocess<span class="string">[[$(local x=5)$("$(x)")]]</span>, <span class="string">'$(x)'</span>)
+
+  
+
+  check[<span class="string">'='</span>](<span class="string">[[
+
+testfalsenil16
+
+  1
+
+  2
+
+  3
+
+123
+
+10
+
+nil4
+
+k=1
+
+k=2
+
+6
+
+]]</span>,preprocess<span class="string">[[
+
+test$(false)$(nil)$(1)$(local y=6)$(y)
+
+#for n=1,3 do
+
+  $(n)
+
+#end
+
+$(for n=1,3 do _put(n) end)
+
+#function make(n)
+
+#  for k=1,n do
+
+k=$(k)
+
+#  end
+
+#end
+
+#local function inc(n) return n+1 end
+
+#local x
+
+#do local x=10
+
+$(x)
+
+#end
+
+$(x)$(local x = 4)$(x)
+
+$(make(2))$(inc(5))
+
+]]</span>)
+
+
+
+  <span class="comment">-- docs</span>
+
+  check[<span class="string">'='</span>](<span class="string">[[
+
+x is now 1
+
+y is now 1
+
+y is now 2
+
+x is now 2
+
+y is now 1
+
+y is now 2
+
+x and y are now nil and nil
+
+]]</span>, preprocess<span class="string">[[
+
+#local x,y
+
+#for x=1,2 do
+
+x is now $(x)
+
+#  for y=1,2 do
+
+y is now $(y)
+
+#  end
+
+#end
+
+x and y are now $(x) and $(y)
+
+]]</span>)
+
+
+
+  check[<span class="string">'='</span>](
+
+  <span class="string">[[ASDF]]</span>,
+
+  preprocess{input=<span class="string">[[$(
+
+    local function ucase(s) return (s:gsub("%l", string.upper)) end
+
+  )$(ucase("aSdF"))]]</span>, lookup=<span class="library">_G</span>}
+
+  )
+
+
+
+  <span class="comment">-- check line numbers in error messages</span>
+
+  <span class="keyword">local</span> _,message = preprocess<span class="string">"$(x=1)$(x = =)"</span>
+
+  <span class="library">assert</span>(message:find(<span class="string">":1:"</span>))
+
+  <span class="keyword">local</span> _,message = preprocess<span class="string">"$(x=1 --)$(x = =)"</span>
+
+  <span class="library">assert</span>(message:find(<span class="string">":1:"</span>))
+
+  <span class="keyword">local</span> _,message = preprocess<span class="string">"$(x=1 --)\n$(x = =)"</span>
+
+  <span class="library">assert</span>(message:find(<span class="string">":2:"</span>))
+
+  <span class="keyword">local</span> _,message = preprocess<span class="string">"$(x=1 --)\n#x=2\n$(x = =)"</span>
+
+  <span class="library">assert</span>(message:find(<span class="string">":3:"</span>))
+
+  <span class="keyword">local</span> _,message = preprocess<span class="string">"$(x=1 --)$(\nx = =)"</span>
+
+  <span class="library">assert</span>(message:find(<span class="string">":2:"</span>))
+
+  <span class="keyword">local</span> _,message = preprocess<span class="string">"$(x=1 --)$(\nx = 3)\n#x= ="</span>
+
+  <span class="library">assert</span>(message:find(<span class="string">":3:"</span>))
+
+  
+
+  <span class="comment">-- test of input/output methods</span>
+
+  <span class="comment">-- should output "1+2=3" twice</span>
+
+  preprocess {input=<span class="string">'1+2=$(1+2)\n'</span>, output=<span class="library">io.stdout</span>}
+
+  preprocess {input=<span class="string">'1+2=$("$")(1+2)\n'</span>, output={<span class="string">'tmp.txt'</span>}}
+
+  preprocess {input={<span class="string">'tmp.txt'</span>}, output=<span class="library">io.stdout</span>}
+
+  
+
+  <span class="library">print</span> <span class="string">'done'</span>
+
+
+
+  <span class="keyword">return</span> <span class="keyword">true</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- DOCUMENTATION</span>
+
+M.DOC = <span class="string">[=[
+
+
+
+=NAME
+
+
+
+Luapp - A preprocessor based on Lua.
+
+
+
+=DESCRIPTION
+
+
+
+This module is a simple macro preprocessor[1] implemented in Lua.
+
+
+
+=DESIGN QUALITIES
+
+
+
+This module has the following characteristics:
+
+
+
+* This module is intended to be robust and fully tested.
+
+* It is implemented entirely in Lua.
+
+* For any string C&lt;x&gt; there exist at least one C&lt;y&gt; such that
+
+  C&lt;preprocess(y) == x&gt;.
+
+* The syntax is quite simple and unambiguous.
+
+  There are two syntaxes available for embedding Lua preprocessor
+
+  code in your text: $(...) or "#...".  The former resembles the "Makefile",
+
+  M4, or Perl style.  The latter resembles the C preprocessor style.
+
+
+
+    $(for x=1,3 do _put(x) end)
+
+
+
+    #for x=1,3 do   -- not identical due to spacing differences
+
+      $(x)
+
+    #end
+
+
+
+* The C&lt;"#..."&gt; style allows text to be nested (lexically) in Lua code
+
+  to be nested to text to be nested in Lua code, etc.  For example:
+
+
+
+    #for x=1,2 do
+
+    x is now $(x)
+
+    #  for y=1,2 do
+
+    y is now $(y)
+
+    #  end
+
+    #end
+
+    x and y are now $(x) and $(y)
+
+
+
+  Outputs:
+
+
+
+    x is now 1
+
+    y is now 1
+
+    y is now 2
+
+    x is now 2
+
+    y is now 1
+
+    y is now 2
+
+    x and y are now nil and nil
+
+
+
+* The module will try to report an meangingful error if syntax is bad:
+
+  C&lt;$(if x then then)&gt;.  However, there are probaby cases where it
+
+  fails in this.
+
+* It is possible to run the preprocessor on untrusted source.  Just set
+
+  the lookup table to C&lt;nil&gt; or to a custom table.
+
+* Currently, the processor loads the entire source into memory.  For
+
+  very large files that exceed available RAM, this might not be
+
+  suitable.
+
+* Speed should be reasonably good, though probabily not optimal due to
+
+  checks (it has not been performance tested).  There may be room for
+
+  some optimization.
+
+
+
+=SYNTAX
+
+
+
+* C&lt;$(chunk)&gt; where I&lt;chunk&gt; is a chunk of Lua code will evalute the
+
+  chunk output nothing.  I&lt;chunk&gt; must NOT call C&lt;return&gt; (not
+
+  supported--should it be?)
+
+* C&lt;$(explist)&gt; where I&lt;explist&gt; is a Lua expression list will
+
+  evaluate the expression list and output each element of the
+
+  expression list as a string (via C&lt;tostring&gt;). Note: if I&lt;x&gt; in
+
+  C&lt;$(x)&gt; can be interpreted as both a chunk and an expression list,
+
+  it is interpreted as an expression list.  This allows function
+
+  calls: C&lt;$(f())&gt;.
+
+* C&lt;$('$')&gt; allows a C&lt;$&gt; to be outputted literally. Example:
+
+  C&lt;$('$')(1+2)&gt; outputs C&lt;$(1+2)&gt;. C&lt;$('#')&gt; allows a C&lt;#&gt; the be
+
+  outputted literally in the first column. Example: C&lt;$('#')if&gt;
+
+  outputs C&lt;#if&gt;.
+
+* C&lt;$(chunk)&gt; may contain calls to the function C&lt;_put&gt;, which
+
+  stringifies all its arguments and outputs them.  For example,
+
+  C&lt;$(_put(explist))&gt; is the same as C&lt;$(explist)&gt;.  This can be
+
+  useful for things like C&lt;$(for n=1,10 do _put(n, ' ') end)&gt;.
+
+* C&lt;$(x)&gt; where I&lt;x&gt; is not a valid Lua expression or statement
+
+  generates an error.
+
+* Any line having C&lt;'#'&gt; in the first column is treated as Lua code.
+
+
+
+  #if DEBUG
+
+    Debug $(x).
+
+  #else
+
+    Release $(x).
+
+  #end
+
+
+
+=INTERFACE
+
+
+
+==IMPORT
+
+
+
+  local preprocess = require "luapp" . preprocess
+
+
+
+==FUNCTION preprocess
+
+
+
+  result, message = preprocess(t)
+
+  where t = {input=input, output=output, lookup=lookup,
+
+             strict=strict} or input
+
+
+
+Preprocesses text.
+
+
+
+* C&lt;input&gt; - input source.  This can be the text itself (as a string),
+
+    a readable file handle, or a filename (an array with first element
+
+    being the file name).  If omitted, this will be C&lt;io.stdin&gt;.
+
+* C&lt;output&gt; - output destination.  This can be 'string' (the processed
+
+    text is returned as a string in result), a writable file handle,
+
+    or a filename (an array with the first element being the file
+
+    name). If omitted, this will be 'string' (if input is a string) or
+
+    io.stdout.
+
+* C&lt;lookup&gt; - a lookup table used for retrieving the
+
+    values of global variables referenced by the preprocessed file.
+
+    Global writes in the preprocessed file are not written to this
+
+    table.  If omitted, all global accesses will have the value
+
+    C&lt;nil&gt;.  Often, this value is set to C&lt;_G&gt; (the global table).
+
+* C&lt;strict&gt; - enable strict-like mode on global variables.
+
+    Accessing global variables with value C&lt;nil&gt; triggers
+
+    an error.  C&lt;true&gt; or C&lt;false&gt;.  Default C&lt;true&gt;.
+
+* C&lt;result&gt; - the result.  The is normally the processed text (if
+
+    output is set to 'string') or true.  On failure, this is set to
+
+    false and message is set.
+
+* C&lt;message&gt; - the error message string.  This is set only if result
+
+    is C&lt;false&gt;.
+
+
+
+==FIELD VERSION
+
+
+
+  version = luapp.VERSION
+
+
+
+==Command Line Usage
+
+
+
+  lua luapp.lua [option] [input] [output]
+
+
+
+Examples:
+
+
+
+  cat in.txt | luapp.lua - &gt; out.txt
+
+
+
+  luapp.lua in.txt out.txt
+
+
+
+  luapp.lua -e '$(1+2)'
+
+
+
+Version number
+
+
+
+=EXAMPLES
+
+
+
+  $(local function ucase(s) return s:gsub("^%l", string.upper) end)
+
+  $(ucase("aSdF"))       ($-- outputs "ASDF")
+
+
+
+=HISTORY
+
+
+
+0.3.1 - 2011-11-30
+
+  Lua 5.2 compatibility
+
+
+
+0.3 - 2007-09-04
+
+  preprocess - default lookup to _G
+
+  preprocess - new "strict" argument.
+
+  preprocess - remove undocumented #ARGS(...)
+
+  preprocess - improved error reporting
+
+  merged into single file.
+
+
+
+0.1 - 2007-08-30
+
+  initial version adapted from rici's code
+
+
+
+=AUTHOR NOTES
+
+
+
+This documentation is formatted in a loose POD[2] style.
+
+
+
+=REFERENCES
+
+
+
+[1] http://en.wikipedia.org/wiki/Preprocessor
+
+[2] http://en.wikipedia.org/wiki/Plain_Old_Documentation
+
+
+
+=COPYRIGHT/LICENSE
+
+
+
+Licensed under the same terms as Lua itself--That is, the MIT license:
+
+
+
+(c) 2007-2011 David Manura.  Derived from previous
+
+http://lua-users.org/wiki/SlightlyLessSimpleLuaPreprocessor (SLSLPP)
+
+code by RiciLake, which in turn was loosely based on
+
+http://lua-users.org/wiki/SimpleLuaPreprocessor .
+
+
+
+Permission is hereby granted, free of charge, to any person
+
+obtaining a copy of this software and associated documentation
+
+files (the "Software"), to deal in the Software without
+
+restriction, including without limitation the rights to use,
+
+copy, modify, merge, publish, distribute, sublicense, and/or sell
+
+copies of the Software, and to permit persons to whom the
+
+Software is furnished to do so, subject to the following
+
+conditions:
+
+
+
+The above copyright notice and this permission notice shall be
+
+included in all copies or substantial portions of the Software.
+
+
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+
+OTHER DEALINGS IN THE SOFTWARE.
+
+
+
+]=]</span>
+
+
+
+<span class="comment">-- this hack detects whether the module is run from the command-line.</span>
+
+<span class="comment">-- also see http://lua-users.org/lists/lua-l/2007-02/msg00125.html</span>
+
+<span class="keyword">local</span> is_run = arg <span class="keyword">and</span> arg[0]:match<span class="string">'luapp'</span>
+
+<span class="keyword">if</span> is_run <span class="keyword">then</span> command(...) <span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+Question : How hard will be to add functionality similar to the one found in <a href="http://temgen.berlios.de/">http://temgen.berlios.de/</a> ?
+<p>
+Mainly @emit, @embed, @push, @pop.
+<p>
+I think they will be a nice improvement to luapp.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/TextTemplate.html" >TextTemplate</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SlightlyLessSimpleLuaPreprocessor" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SlightlyLessSimpleLuaPreprocessor" >history</a><br>Last edited November 30, 2011 6:03 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SlightlyLessSimpleLuaPreprocessor" >(diff)</a>
+</body>
+</html>

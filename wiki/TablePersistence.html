@@ -1,0 +1,434 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Table Persistence</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TablePersistence&amp;body=1" title="List pages referring to TablePersistence">Table Persistence</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<a href="../wiki/TablePersistence.html" >TablePersistence</a> is a small code snippet that allows storing and loading of lua variables containing primitive types. It is licensed under the MIT license, use it how ever is needed. A more detailed description and complete source can be downloaded on <a href="http://the-color-black.net/blog/article/LuaTablePersistence">http://the-color-black.net/blog/article/LuaTablePersistence</a>.  A fork has been created on github that included lunatest unit tests: <a href="https://github.com/hipe/lua-table-persistence">https://github.com/hipe/lua-table-persistence</a>
+<p>
+Shortcomings/Limitations:
+<UL>
+<li> Does not export udata
+<li> Does not export threads
+<li> Only exports a small subset of functions (pure lua without upvalue)
+</UL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> write, writeIndent, writers, refCount;
+
+
+
+persistence =
+
+{
+
+	store = <span class="keyword">function</span> (path, ...)
+
+		<span class="keyword">local</span> file, e = <span class="library">io.open</span>(path, <span class="string">"w"</span>);
+
+		<span class="keyword">if</span> <span class="keyword">not</span> file <span class="keyword">then</span>
+
+			<span class="keyword">return</span> <span class="library">error</span>(e);
+
+		<span class="keyword">end</span>
+
+		<span class="keyword">local</span> n = <span class="library">select</span>(<span class="string">"#"</span>, ...);
+
+		<span class="comment">-- Count references</span>
+
+		<span class="keyword">local</span> objRefCount = {}; <span class="comment">-- Stores reference that will be exported</span>
+
+		<span class="keyword">for</span> i = 1, n <span class="keyword">do</span>
+
+			refCount(objRefCount, (<span class="library">select</span>(i,...)));
+
+		<span class="keyword">end</span>;
+
+		<span class="comment">-- Export Objects with more than one ref and assign name</span>
+
+		<span class="comment">-- First, create empty tables for each</span>
+
+		<span class="keyword">local</span> objRefNames = {};
+
+		<span class="keyword">local</span> objRefIdx = 0;
+
+		file:write(<span class="string">"-- Persistent Data\n"</span>);
+
+		file:write(<span class="string">"local multiRefObjects = {\n"</span>);
+
+		<span class="keyword">for</span> obj, count <span class="keyword">in</span> <span class="library">pairs</span>(objRefCount) <span class="keyword">do</span>
+
+			<span class="keyword">if</span> count &gt; 1 <span class="keyword">then</span>
+
+				objRefIdx = objRefIdx + 1;
+
+				objRefNames[obj] = objRefIdx;
+
+				file:write(<span class="string">"{};"</span>); <span class="comment">-- table objRefIdx</span>
+
+			<span class="keyword">end</span>;
+
+		<span class="keyword">end</span>;
+
+		file:write(<span class="string">"\n} -- multiRefObjects\n"</span>);
+
+		<span class="comment">-- Then fill them (this requires all empty multiRefObjects to exist)</span>
+
+		<span class="keyword">for</span> obj, idx <span class="keyword">in</span> <span class="library">pairs</span>(objRefNames) <span class="keyword">do</span>
+
+			<span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">pairs</span>(obj) <span class="keyword">do</span>
+
+				file:write(<span class="string">"multiRefObjects["</span>..idx..<span class="string">"]["</span>);
+
+				write(file, k, 0, objRefNames);
+
+				file:write(<span class="string">"] = "</span>);
+
+				write(file, v, 0, objRefNames);
+
+				file:write(<span class="string">";\n"</span>);
+
+			<span class="keyword">end</span>;
+
+		<span class="keyword">end</span>;
+
+		<span class="comment">-- Create the remaining objects</span>
+
+		<span class="keyword">for</span> i = 1, n <span class="keyword">do</span>
+
+			file:write(<span class="string">"local "</span>..<span class="string">"obj"</span>..i..<span class="string">" = "</span>);
+
+			write(file, (<span class="library">select</span>(i,...)), 0, objRefNames);
+
+			file:write(<span class="string">"\n"</span>);
+
+		<span class="keyword">end</span>
+
+		<span class="comment">-- Return them</span>
+
+		<span class="keyword">if</span> n &gt; 0 <span class="keyword">then</span>
+
+			file:write(<span class="string">"return obj1"</span>);
+
+			<span class="keyword">for</span> i = 2, n <span class="keyword">do</span>
+
+				file:write(<span class="string">" ,obj"</span>..i);
+
+			<span class="keyword">end</span>;
+
+			file:write(<span class="string">"\n"</span>);
+
+		<span class="keyword">else</span>
+
+			file:write(<span class="string">"return\n"</span>);
+
+		<span class="keyword">end</span>;
+
+		<span class="keyword">if</span> <span class="library">type</span>(path) == <span class="string">"string"</span> <span class="keyword">then</span>
+
+			file:close();
+
+		<span class="keyword">end</span>;
+
+	<span class="keyword">end</span>;
+
+
+
+	<span class="library">load</span> = <span class="keyword">function</span> (path)
+
+		<span class="keyword">if</span> <span class="library">type</span>(path) == <span class="string">"string"</span> <span class="keyword">then</span>
+
+			<span class="keyword">local</span> f, e = <span class="library">loadfile</span>(path);
+
+		<span class="keyword">else</span>
+
+			<span class="keyword">local</span> f, e = path:read(<span class="string">'*a'</span>)
+
+		<span class="keyword">end</span>
+
+		<span class="keyword">if</span> f <span class="keyword">then</span>
+
+			<span class="keyword">return</span> f();
+
+		<span class="keyword">else</span>
+
+			<span class="keyword">return</span> <span class="keyword">nil</span>, e;
+
+		<span class="keyword">end</span>;
+
+	<span class="keyword">end</span>;
+
+}
+
+
+
+<span class="comment">-- Private methods</span>
+
+
+
+<span class="comment">-- write thing (dispatcher)</span>
+
+write = <span class="keyword">function</span> (file, item, level, objRefNames)
+
+	writers[<span class="library">type</span>(item)](file, item, level, objRefNames);
+
+<span class="keyword">end</span>;
+
+
+
+<span class="comment">-- write indent</span>
+
+writeIndent = <span class="keyword">function</span> (file, level)
+
+	<span class="keyword">for</span> i = 1, level <span class="keyword">do</span>
+
+		file:write(<span class="string">"\t"</span>);
+
+	<span class="keyword">end</span>;
+
+<span class="keyword">end</span>;
+
+
+
+<span class="comment">-- recursively count references</span>
+
+refCount = <span class="keyword">function</span> (objRefCount, item)
+
+	<span class="comment">-- only count reference types (tables)</span>
+
+	<span class="keyword">if</span> <span class="library">type</span>(item) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+		<span class="comment">-- Increase ref count</span>
+
+		<span class="keyword">if</span> objRefCount[item] <span class="keyword">then</span>
+
+			objRefCount[item] = objRefCount[item] + 1;
+
+		<span class="keyword">else</span>
+
+			objRefCount[item] = 1;
+
+			<span class="comment">-- If first encounter, traverse</span>
+
+			<span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">pairs</span>(item) <span class="keyword">do</span>
+
+				refCount(objRefCount, k);
+
+				refCount(objRefCount, v);
+
+			<span class="keyword">end</span>;
+
+		<span class="keyword">end</span>;
+
+	<span class="keyword">end</span>;
+
+<span class="keyword">end</span>;
+
+
+
+<span class="comment">-- Format items for the purpose of restoring</span>
+
+writers = {
+
+	[<span class="string">"nil"</span>] = <span class="keyword">function</span> (file, item)
+
+			file:write(<span class="string">"nil"</span>);
+
+		<span class="keyword">end</span>;
+
+	[<span class="string">"number"</span>] = <span class="keyword">function</span> (file, item)
+
+			file:write(<span class="library">tostring</span>(item));
+
+		<span class="keyword">end</span>;
+
+	[<span class="string">"string"</span>] = <span class="keyword">function</span> (file, item)
+
+			file:write(<span class="library">string.format</span>(<span class="string">"%q"</span>, item));
+
+		<span class="keyword">end</span>;
+
+	[<span class="string">"boolean"</span>] = <span class="keyword">function</span> (file, item)
+
+			<span class="keyword">if</span> item <span class="keyword">then</span>
+
+				file:write(<span class="string">"true"</span>);
+
+			<span class="keyword">else</span>
+
+				file:write(<span class="string">"false"</span>);
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>;
+
+	[<span class="string">"table"</span>] = <span class="keyword">function</span> (file, item, level, objRefNames)
+
+			<span class="keyword">local</span> refIdx = objRefNames[item];
+
+			<span class="keyword">if</span> refIdx <span class="keyword">then</span>
+
+				<span class="comment">-- Table with multiple references</span>
+
+				file:write(<span class="string">"multiRefObjects["</span>..refIdx..<span class="string">"]"</span>);
+
+			<span class="keyword">else</span>
+
+				<span class="comment">-- Single use table</span>
+
+				file:write(<span class="string">"{\n"</span>);
+
+				<span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">pairs</span>(item) <span class="keyword">do</span>
+
+					writeIndent(file, level+1);
+
+					file:write(<span class="string">"["</span>);
+
+					write(file, k, level+1, objRefNames);
+
+					file:write(<span class="string">"] = "</span>);
+
+					write(file, v, level+1, objRefNames);
+
+					file:write(<span class="string">";\n"</span>);
+
+				<span class="keyword">end</span>
+
+				writeIndent(file, level);
+
+				file:write(<span class="string">"}"</span>);
+
+			<span class="keyword">end</span>;
+
+		<span class="keyword">end</span>;
+
+	[<span class="string">"function"</span>] = <span class="keyword">function</span> (file, item)
+
+			<span class="comment">-- Does only work for "normal" functions, not those</span>
+
+			<span class="comment">-- with upvalues or c functions</span>
+
+			<span class="keyword">local</span> dInfo = <span class="library">debug.getinfo</span>(item, <span class="string">"uS"</span>);
+
+			<span class="keyword">if</span> dInfo.nups &gt; 0 <span class="keyword">then</span>
+
+				file:write(<span class="string">"nil --[[functions with upvalue not supported]]"</span>);
+
+			<span class="keyword">elseif</span> dInfo.what ~= <span class="string">"Lua"</span> <span class="keyword">then</span>
+
+				file:write(<span class="string">"nil --[[non-lua function not supported]]"</span>);
+
+			<span class="keyword">else</span>
+
+				<span class="keyword">local</span> r, s = <span class="library">pcall</span>(<span class="library">string.dump</span>,item);
+
+				<span class="keyword">if</span> r <span class="keyword">then</span>
+
+					file:write(<span class="library">string.format</span>(<span class="string">"loadstring(%q)"</span>, s));
+
+				<span class="keyword">else</span>
+
+					file:write(<span class="string">"nil --[[function could not be dumped]]"</span>);
+
+				<span class="keyword">end</span>
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>;
+
+	[<span class="string">"thread"</span>] = <span class="keyword">function</span> (file, item)
+
+			file:write(<span class="string">"nil --[[thread]]\n"</span>);
+
+		<span class="keyword">end</span>;
+
+	[<span class="string">"userdata"</span>] = <span class="keyword">function</span> (file, item)
+
+			file:write(<span class="string">"nil --[[userdata]]\n"</span>);
+
+		<span class="keyword">end</span>;
+
+}
+
+</pre>
+
+</DL>
+<p>
+It is used like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+t_original = {1, 2, [<span class="string">"a"</span>] = <span class="string">"string"</span>, b = <span class="string">"test"</span>, {<span class="string">"subtable"</span>, [4] = 2}};
+
+persistence.store(<span class="string">"storage.lua"</span>, t_original);
+
+t_restored = persistence.load(<span class="string">"storage.lua"</span>);
+
+</pre>
+
+</DL>
+<p>
+Example output (storage.lua):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Persistent Data</span>
+
+<span class="keyword">return</span> {
+
+	[1] = 1;
+
+	[2] = 2;
+
+	[3] = {
+
+		[1] = <span class="string">"subtable"</span>;
+
+		[4] = 2;
+
+	};
+
+	[<span class="string">"a"</span>] = <span class="string">"string"</span>;
+
+	[<span class="string">"b"</span>] = <span class="string">"test"</span>;
+
+}
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/TableSerialization.html" >TableSerialization</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TablePersistence" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TablePersistence" >history</a><br>Last edited May 11, 2014 10:00 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TablePersistence" >(diff)</a>
+</body>
+</html>

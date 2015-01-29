@@ -1,0 +1,577 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: String Trim</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=StringTrim&amp;body=1" title="List pages referring to StringTrim">String Trim</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+There are many ways to implement the "trim" function <a href="http://en.wikipedia.org/wiki/Trim_%28programming%29.html">[1]</a> in Lua:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- trim implementations</span>
+
+
+
+<span class="keyword">function</span> trim1(s)
+
+  <span class="keyword">return</span> (s:gsub(<span class="string">"^%s*(.-)%s*$"</span>, <span class="string">"%1"</span>))
+
+<span class="keyword">end</span>
+
+<span class="comment">-- from PiL2 20.4</span>
+
+
+
+<span class="keyword">function</span> trim2(s)
+
+  <span class="keyword">return</span> s:match <span class="string">"^%s*(.-)%s*$"</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- variant of trim1 (match)</span>
+
+
+
+<span class="keyword">function</span> trim3(s)
+
+  <span class="keyword">return</span> s:gsub(<span class="string">"^%s+"</span>, <span class="string">""</span>):gsub(<span class="string">"%s+$"</span>, <span class="string">""</span>)
+
+<span class="keyword">end</span>
+
+<span class="comment">-- two gsub's</span>
+
+
+
+<span class="keyword">function</span> trim4(s)
+
+  <span class="keyword">return</span> s:match<span class="string">"^%s*(.*)"</span>:match<span class="string">"(.-)%s*$"</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- variant of trim3 (match)</span>
+
+
+
+<span class="keyword">function</span> trim5(s)
+
+  <span class="keyword">return</span> s:match<span class="string">'^%s*(.*%S)'</span> <span class="keyword">or</span> <span class="string">''</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- warning: has bad performance when s:match'^%s*$' and #s is large</span>
+
+
+
+<span class="keyword">function</span> trim6(s)
+
+  <span class="keyword">return</span> s:match<span class="string">'^()%s*$'</span> <span class="keyword">and</span> <span class="string">''</span> <span class="keyword">or</span> s:match<span class="string">'^%s*(.*%S)'</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- fixes performance problem in trim5.</span>
+
+<span class="comment">-- note: the '()' avoids the overhead of default string capture.</span>
+
+<span class="comment">-- This overhead is small, ~ 10% for successful whitespace match call</span>
+
+<span class="comment">-- alone, and may not be noticeable in the overall benchmarks here,</span>
+
+<span class="comment">-- but there's little harm either.  Instead replacing the first `match`</span>
+
+<span class="comment">-- with a `find` has a similar effect, but that requires localizing</span>
+
+<span class="comment">-- two functions in the trim7 variant below.</span>
+
+
+
+<span class="keyword">local</span> match = <span class="library">string.match</span>
+
+<span class="keyword">function</span> trim7(s)
+
+  <span class="keyword">return</span> match(s,<span class="string">'^()%s*$'</span>) <span class="keyword">and</span> <span class="string">''</span> <span class="keyword">or</span> match(s,<span class="string">'^%s*(.*%S)'</span>)
+
+<span class="keyword">end</span>
+
+<span class="comment">-- variant of trim6 (localize functions)</span>
+
+
+
+<span class="keyword">local</span> find = <span class="library">string.find</span>
+
+<span class="keyword">local</span> sub = <span class="library">string.sub</span>
+
+<span class="keyword">function</span> trim8(s)
+
+  <span class="keyword">local</span> i1,i2 = find(s,<span class="string">'^%s*'</span>)
+
+  <span class="keyword">if</span> i2 &gt;= i1 <span class="keyword">then</span> s = sub(s,i2+1) <span class="keyword">end</span>
+
+  <span class="keyword">local</span> i1,i2 = find(s,<span class="string">'%s*$'</span>)
+
+  <span class="keyword">if</span> i2 &gt;= i1 <span class="keyword">then</span> s = sub(s,1,i1-1) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> s
+
+<span class="keyword">end</span>
+
+<span class="comment">-- based on penlight 0.7.2</span>
+
+
+
+<span class="keyword">function</span> trim9(s)
+
+  <span class="keyword">local</span> _,i1 = find(s,<span class="string">'^%s*'</span>)
+
+  <span class="keyword">local</span> i2 = find(s,<span class="string">'%s*$'</span>)
+
+  <span class="keyword">return</span> sub(s,i1+1,i2-1)
+
+<span class="keyword">end</span>
+
+<span class="comment">-- simplification of trim8</span>
+
+
+
+<span class="keyword">function</span> trim10(s)
+
+  <span class="keyword">local</span> a = s:match(<span class="string">'^%s*()'</span>)
+
+  <span class="keyword">local</span> b = s:match(<span class="string">'()%s*$'</span>, a)
+
+  <span class="keyword">return</span> s:sub(a,b-1)
+
+<span class="keyword">end</span>
+
+<span class="comment">-- variant of trim9 (match)</span>
+
+
+
+<span class="keyword">function</span> trim11(s)
+
+ <span class="keyword">local</span> n = s:find<span class="string">"%S"</span>
+
+ <span class="keyword">return</span> n <span class="keyword">and</span> s:match(<span class="string">".*%S"</span>, n) <span class="keyword">or</span> <span class="string">""</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- variant of trim6 (use n position)</span>
+
+<span class="comment">-- http://lua-users.org/lists/lua-l/2009-12/msg00904.html</span>
+
+
+
+<span class="keyword">function</span> trim12(s)
+
+ <span class="keyword">local</span> from = s:match<span class="string">"^%s*()"</span>
+
+ <span class="keyword">return</span> from &gt; #s <span class="keyword">and</span> <span class="string">""</span> <span class="keyword">or</span> s:match(<span class="string">".*%S"</span>, from)
+
+<span class="keyword">end</span>
+
+<span class="comment">-- variant of trim11 (performs better for all</span>
+
+<span class="comment">-- whitespace string). See Roberto's comments</span>
+
+<span class="comment">-- on ^%s*$" v.s. "%S" performance:</span>
+
+<span class="comment">-- http://lua-users.org/lists/lua-l/2009-12/msg00921.html</span>
+
+
+
+<span class="keyword">do</span>
+
+ <span class="library">require</span> <span class="string">'lpeg'</span>
+
+ <span class="keyword">local</span> space = lpeg.S<span class="string">' \t\n\v\f\r'</span>
+
+ <span class="keyword">local</span> nospace = 1 - space
+
+ <span class="keyword">local</span> ptrim = space^0 * lpeg.C((space^0 * nospace^1)^0)
+
+ <span class="keyword">local</span> match = lpeg.match
+
+ <span class="keyword">function</span> trim13(s)
+
+   <span class="keyword">return</span> match(ptrim, s)
+
+ <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- lpeg.  based on http://lua-users.org/lists/lua-l/2009-12/msg00921.html</span>
+
+
+
+<span class="keyword">do</span>
+
+ <span class="library">require</span> <span class="string">'lpeg'</span>
+
+ <span class="library">require</span> <span class="string">'re'</span>
+
+ <span class="keyword">local</span> ptrim = re.compile<span class="string">"%s* {(%s* %S+)*}"</span>
+
+ <span class="keyword">local</span> match = lpeg.match
+
+ <span class="keyword">function</span> trim14(s)
+
+   <span class="keyword">return</span> match(ptrim, s)
+
+ <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- variant with re module.</span>
+
+
+
+<span class="library">require</span> <span class="string">'trim'</span>
+
+<span class="keyword">local</span> trim15 = trim
+
+<span class="comment">-- C implementation (see separate trim.c file)</span>
+
+
+
+
+
+<span class="comment">-- test utilities</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> trimtest(trim)
+
+  <span class="library">assert</span>(trim<span class="string">''</span> == <span class="string">''</span>)
+
+  <span class="library">assert</span>(trim<span class="string">' '</span> == <span class="string">''</span>)
+
+  <span class="library">assert</span>(trim<span class="string">'  '</span> == <span class="string">''</span>)
+
+  <span class="library">assert</span>(trim<span class="string">'a'</span> == <span class="string">'a'</span>)
+
+  <span class="library">assert</span>(trim<span class="string">' a'</span> == <span class="string">'a'</span>)
+
+  <span class="library">assert</span>(trim<span class="string">'a '</span> == <span class="string">'a'</span>)
+
+  <span class="library">assert</span>(trim<span class="string">' a '</span> == <span class="string">'a'</span>)
+
+  <span class="library">assert</span>(trim<span class="string">'  a  '</span> == <span class="string">'a'</span>)
+
+  <span class="library">assert</span>(trim<span class="string">'  ab cd  '</span> == <span class="string">'ab cd'</span>)
+
+  <span class="library">assert</span>(trim<span class="string">' \t\r\n\f\va\000b \r\t\n\f\v'</span> == <span class="string">'a\000b'</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> perftest(f, s)
+
+  <span class="keyword">local</span> time = <span class="library">os.clock</span>  <span class="comment">-- os.time or os.clock</span>
+
+  <span class="keyword">local</span> t1 = time()
+
+  <span class="keyword">for</span> i=1,100000 <span class="keyword">do</span>
+
+    f(s)f(s)f(s)f(s)f(s)f(s)f(s)f(s)f(s)f(s)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> dt = time() - t1
+
+  <span class="library">io.stdout</span>:write(<span class="library">string.format</span>(<span class="string">"%4.1f"</span>,dt) .. <span class="string">' '</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> trims = {trim1, trim2, trim3, trim4, trim5, trim6, trim7,
+
+               trim8, trim9, trim10, trim11, trim12, trim13, trim14, trim15}
+
+
+
+<span class="comment">-- correctness tests</span>
+
+<span class="keyword">for</span> _,trim <span class="keyword">in</span> <span class="library">ipairs</span>(trims) <span class="keyword">do</span>
+
+  trimtest(trim)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- performance tests</span>
+
+<span class="keyword">for</span> j=1,3 <span class="keyword">do</span>
+
+  <span class="keyword">for</span> i,trim <span class="keyword">in</span> <span class="library">ipairs</span>(trims) <span class="keyword">do</span>
+
+    <span class="library">io.stdout</span>:write(<span class="library">string.format</span>(<span class="string">"%2d"</span>,i) .. <span class="string">": "</span>)
+
+    perftest(trim,  <span class="string">""</span>)
+
+    perftest(trim,  <span class="string">"abcdef"</span>)
+
+    perftest(trim,  <span class="string">"   abcdef   "</span>)
+
+    perftest(trim,  <span class="string">"abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef"</span>)
+
+    perftest(trim,  <span class="string">"  a b c d e f g h i j k l m n o p q r s t u v w x y z A B C "</span>)
+
+    perftest(trim,  <span class="string">"                               a                            "</span>)
+
+    perftest(trim,  <span class="string">"                                                            "</span>)
+
+    <span class="library">print</span>()
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Optional C module for test15 based on <a href="/lists/lua-l/2009-12/msg00951.html">LuaList:2009-12/msg00951.html</a>:
+<p>
+<DL>
+<dt><dd><pre>
+
+/* trim.c - based on http://lua-users.org/lists/lua-l/2009-12/msg00951.html
+
+            from Sean Conner */
+
+#include &lt;stddef.h&gt;
+
+#include &lt;ctype.h&gt;
+
+#include &lt;lua.h&gt;
+
+#include &lt;lauxlib.h&gt;
+
+
+
+int trim(lua_State *L)
+
+{
+
+ const char *front;
+
+ const char *end;
+
+ size_t      size;
+
+
+
+ front = luaL_checklstring(L,1,&amp;size);
+
+ end   = &amp;front[size - 1];
+
+
+
+ for ( ; size &amp;&amp; isspace(*front) ; size-- , front++)
+
+   ;
+
+ for ( ; size &amp;&amp; isspace(*end) ; size-- , end--)
+
+   ;
+
+
+
+ lua_pushlstring(L,front,(size_t)(end - front) + 1);
+
+ return 1;
+
+}
+
+
+
+int luaopen_trim(lua_State *L)
+
+{
+
+ lua_register(L,"trim",trim);
+
+ return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+Test results (lower numbers = faster):
+<p>
+<DL>
+<dt><dd><pre>
+
+Lua 5.1.4/Cygwin1.7
+
+ 1:  0.9  1.9  2.1  9.6 10.3  2.2  2.0
+
+ 2:  0.7  1.6  1.7  8.9 10.0  2.0  1.8
+
+ 3:  1.0  1.3  1.7  3.8  6.4  2.6  2.1
+
+ 4:  1.2  2.2  2.2 10.1 11.2  2.7  2.2
+
+ 5:  0.6  0.9  1.1  1.2  1.3  2.8 77.6
+
+ 6:  0.6  1.2  1.6  1.6  1.8  4.1  1.7
+
+ 7:  0.6  1.1  1.5  1.5  1.6  3.9  1.6
+
+ 8:  1.0  1.7  2.5  7.5  9.7  3.0  2.4
+
+ 9:  1.2  2.0  2.7  8.0  9.3 21.2  3.4
+
+10:  1.5  2.4  2.6  9.8 10.8  2.8  2.6
+
+11:  0.5  1.2  1.5  1.6  1.7  3.5  2.5
+
+12:  0.7  1.3  1.6  1.7  1.8  3.0  1.8
+
+13:  0.8  0.9  1.0  1.3  2.5  1.1  1.0
+
+14:  0.8  0.9  1.0  1.3  2.5  1.1  1.0
+
+15:  0.2  0.2  0.2  0.4  0.4  0.3  0.3
+
+ 1:  0.9  1.9  2.0  9.6 10.3  2.2  1.9
+
+ 2:  0.7  1.6  1.8  8.9 10.0  2.0  1.8
+
+ 3:  1.0  1.3  1.7  3.8  6.4  2.6  2.1
+
+ 4:  1.1  2.2  2.2 10.1 11.4  2.7  2.2
+
+ 5:  0.6  0.9  1.2  1.2  1.2  2.8 78.2
+
+ 6:  0.6  1.2  1.7  1.6  1.8  4.2  1.7
+
+ 7:  0.6  1.1  1.5  1.5  1.7  3.9  1.6
+
+ 8:  1.0  1.7  2.5  7.5  9.6  3.1  2.3
+
+ 9:  1.2  2.0  2.7  8.0  9.3 21.1  3.3
+
+10:  1.5  2.4  2.5  9.8 10.8  2.8  2.5
+
+11:  0.5  1.2  1.5  1.6  1.7  3.5  2.5
+
+12:  0.7  1.3  1.6  1.7  1.8  3.0  1.8
+
+13:  0.8  0.9  1.0  1.3  2.4  1.1  1.0
+
+14:  0.8  0.9  1.0  1.3  2.5  1.1  1.0
+
+15:  0.2  0.2  0.2  0.4  0.4  0.3  0.3
+
+ 1:  0.9  1.9  2.0  9.6 10.3  2.2  2.0
+
+ 2:  0.7  1.6  1.7  8.9 10.0  2.0  1.8
+
+ 3:  1.0  1.3  1.7  3.8  6.4  2.6  2.1
+
+ 4:  1.1  2.2  2.2 10.1 11.2  2.7  2.2
+
+ 5:  0.6  0.9  1.2  1.2  1.3  2.8 77.3
+
+ 6:  0.6  1.2  1.7  1.6  1.8  4.2  1.7
+
+ 7:  0.6  1.1  1.5  1.5  1.7  3.9  1.6
+
+ 8:  1.0  1.7  2.6  7.4  9.6  3.1  2.3
+
+ 9:  1.2  2.0  2.7  8.0  9.3 21.1  3.3
+
+10:  1.5  2.4  2.6  9.8 10.8  2.8  2.6
+
+11:  0.5  1.2  1.5  1.6  1.7  3.5  2.5
+
+12:  0.7  1.3  1.6  1.6  1.8  3.0  1.8
+
+13:  0.8  0.9  1.0  1.3  2.5  1.1  1.0
+
+14:  0.8  0.9  1.0  1.3  2.5  1.1  1.0
+
+15:  0.2  0.2  0.2  0.4  0.4  0.3  0.3
+
+
+
+LuaJIT 2.0.0-beta2/Cygwin1.7
+
+ 1:  0.6  1.5  1.5  7.7  8.3  1.3  1.2
+
+ 2:  0.4  1.2  1.2  7.1  7.8  1.1  1.0
+
+ 3:  0.6  1.0  1.2  3.1  4.9  1.7  1.3
+
+ 4:  0.8  1.6  1.8  8.4  9.0  1.9  1.3
+
+ 5:  0.4  0.6  0.8  1.2  1.2  2.3 99.2
+
+ 6:  0.4  0.9  1.1  1.5  1.5  3.2  0.9
+
+ 7:  0.3  0.8  1.1  1.4  1.5  3.0  0.8
+
+ 8:  0.6  1.2  1.6  5.3  6.8  1.7  1.3
+
+ 9:  0.7  1.2  1.8  5.6  6.7 14.4  1.7
+
+10:  0.9  1.6  1.7  7.6  8.3  1.5  1.5
+
+11:  0.3  0.8  1.1  1.4  1.5  2.9  2.1
+
+12:  0.4  0.9  1.1  1.5  1.5  2.7  0.9
+
+13:  0.6  0.7  0.7  1.0  1.4  0.8  0.7
+
+14:  0.6  0.7  0.7  1.0  1.4  0.8  0.8
+
+15:  0.1  0.1  0.1  0.3  0.3  0.2  0.2
+
+...
+
+</pre>
+</DL>
+<p>
+The speed of <code>trim5</code> is relatively favorable or competitive over the data set except it is quite poor in the case of a long string with only whitespace.  The use of "<code>.*</code>" (rather than a non-greedy "<code>.-</code>") quickly plows to the end of a long string, and the "<code>%S</code>" then triggers backtracking to avoid the trailing whitespace, but the juxtaposition of "<code>%s*</code>" and "<code>.*</code>" imposes substantial backtracking (O(N^2)) if no "<code>%S</code>" match is found.  <code>trim6</code> handles the worst cast condition specially and behaves well over the entire data set.  <code>trim7</code> is a variant that localizes functions, which gives a bit larger code size and does not give a substantial speed improvement.  (On further testing, each localization gives maybe 10% in best case involving empty string data and inlining the function call, but here there are two calls to <code>match</code>).  <code>trim11</code> is also a variant of <code>trim6</code> with similar performance characteristics, perhaps slightly better, except speed is about half in the case of a long string with only whitespace (this is fixed in <code>trim12</code>).  <code>trim13</code> (or its variant <code>trim14</code>) is an lpeg (<a href="../wiki/LuaPeg.html" >LuaPeg</a>) implementation, which generally meets or exceeds the performance of the best pattern matching implementations, particularly exceeding in the case of lots of whitespace, but it is a bit slower in its worst case condition of alternating space and whitespace.  The C implementation (<code>trim15</code>) is by far the fastest over the entire data set.
+<p>
+Reusing the same strings across all test iterations, as done above, might not properly gauge the effect of temporary string creation due to Lua's string interning.  A quick test with <code>local ss = {}; for i=1,80000 do ss[i] = "  " .. (" "..i):rep(10) .. "  " end</code> as a string cache doesn't seem to affect the basic conclusions above.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2009-12/msg00877.html">LuaList:2009-12/msg00877.html</a> - related discussion
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=StringTrim" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=StringTrim" >history</a><br>Last edited January 1, 2010 11:01 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=StringTrim" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,409 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Python Dictionaries</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PythonDictionaries&amp;body=1" title="List pages referring to PythonDictionaries">Python Dictionaries</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  Certain features used like tag methods (<code>settagmethod</code>) are no longer present in Lua 5 but have been replaced with metamethods.</strong>
+<p>
+<H3>Introduction</H3>
+<p>
+Lua's table type is a multipurpose container which is somewhere in between Pythons list and dictionary types. The listing below emulates Pythons dictionaries. See the documentation on Pythons mapping types to what is implemented here <a href="http://www.python.org/doc/current/lib/typesmapping.html">[1]</a>. See <a href="../wiki/PythonLists.html" >PythonLists</a> and <a href="../wiki/ClassesAndMethods.html" >ClassesAndMethods</a> for more information on how it is implemented. The script was written for Lua version 4.0.
+<p>
+This code was an exercise in trying to emulate the functionality of Python using Lua. It threw up some problems with Lua which seem to have been resolved in Lua 4.1. Comments on this implementation :-
+<p>
+<DL>
+<dt><dd>Sorry, this will not work.  Try: <pre>
+
+foo = Dict:new { len="vcbvcb" }
+
+print(foo:len())
+
+</pre> The colon operator accesses foo, not Dict.  You redirect missing elements (methods) to Dict but if the name already exist in foo that one will be taken.  Read <a href="http://groups.yahoo.com/group/lua-l/message/2610">[2]</a> for a possible (already implemented and working) solution. -- ET
+</DL>
+<p>
+<DL>
+<dt><dd>So a solution is to add:
+<DL>
+<dt><dd><pre class="code">
+settagmethod(tag(Dict), <span class="string">"gettable"</span>, 
+
+          <span class="keyword">function</span>(t,k)
+
+            <span class="keyword">if</span> <span class="library">rawget</span>(Dict,k) <span class="keyword">then</span>
+
+              <span class="keyword">return</span> <span class="library">rawget</span>(Dict,k)
+
+            <span class="keyword">else</span>
+
+              <span class="keyword">return</span> <span class="library">rawget</span>(t,k)
+
+            <span class="keyword">end</span>
+
+          <span class="keyword">end</span> )
+
+</pre>
+
+</DL>
+<dt><dd>which stops the conflict between user data and the dict implementation. --NDT
+</DL>
+<p>
+<DL>
+<dt><dd>Sorry, it will not stop the conflict.  You just swap the priorities; the conflict is still there.  Now <code>foo:len()</code> will give 1, but <code>foo.len</code> will give a function, not the stored value "vcbvcb".  Btw, <a href="../wiki/PythonLists.html" >PythonLists</a> only works because there are no collisions between user indexes (always numbers) and methods (always strings).  -- ET
+</DL>
+<p>
+Code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Emulation of Python dictionaries</span>
+
+<span class="comment">-- Nick Trout -- thanks to lhf &amp; ET</span>
+
+<span class="comment">-- See http://www.python.org/doc/current/lib/typesmapping.html</span>
+
+<span class="comment">-- $Header: /Tools/build/pydict.lua 3     11/09/01 14:20 Nick $</span>
+
+
+
+Dict = settag({},newtag())
+
+
+
+<span class="comment">-- handle access to our dictionary table type</span>
+
+<span class="keyword">function</span> Dict._gettable(t,k)
+
+  <span class="comment">-- print("gt",t,k)</span>
+
+  <span class="comment">-- See if the key we are looking for is a method in Dict.</span>
+
+  <span class="comment">-- Note the user may have used a key which has the same name as</span>
+
+  <span class="comment">-- one of our functions, but methods take precidence . eg.</span>
+
+  <span class="comment">-- foo = Dict:new { len="vcbvcb" }  print(foo:len())</span>
+
+  <span class="keyword">local</span> v = <span class="library">rawget</span>(Dict,k)
+
+  <span class="keyword">if</span> v <span class="keyword">then</span>
+
+    <span class="keyword">return</span> v
+
+  <span class="keyword">else</span>
+
+    <span class="comment">-- In Python, if we dont find a key in a dictionary we raise a Key error.</span>
+
+    v = <span class="library">rawget</span>(t,k)
+
+    <span class="library">assert</span>(v,<span class="string">"Key error"</span>)
+
+    <span class="keyword">return</span> v
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+settagmethod(tag(Dict), <span class="string">"gettable"</span>, Dict._gettable)
+
+
+
+<span class="comment">-- Create a new dictionary.</span>
+
+<span class="comment">-- eg. dict = Dict:new()  or  dict = Dict:new{ a=1,b=2 }</span>
+
+<span class="keyword">function</span> Dict:new(t)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> t <span class="keyword">then</span> t={} <span class="keyword">end</span>
+
+  settag(t,tag(Dict))
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- len(a) the number of items in a</span>
+
+<span class="keyword">function</span> Dict:len()
+
+  <span class="comment">-- Note: Lua returns the number of indexed objects, not mapped objects with getn</span>
+
+  <span class="keyword">local</span> cnt=0
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> self <span class="keyword">do</span> cnt=cnt+1 <span class="keyword">end</span>
+
+  <span class="keyword">return</span> cnt
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Python: a[k] the item of a with key k (1)</span>
+
+<span class="comment">-- Lua: dict[k]</span>
+
+
+
+<span class="comment">-- Python: a[k] = v set a[k] to v</span>
+
+<span class="comment">-- Lua: dict[k] = v</span>
+
+
+
+<span class="comment">-- Python: del a[k] remove a[k] from a (1)</span>
+
+<span class="comment">-- Lua: dict:del(k)</span>
+
+<span class="keyword">function</span> Dict:del(k)
+
+  self[k] = <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Python: a.clear() remove all items from a</span>
+
+<span class="comment">-- Lua: dict:clear()</span>
+
+<span class="keyword">function</span> Dict:clear()
+
+  <span class="comment">-- cannot do self = {} as self passed by value</span>
+
+  <span class="comment">-- we cannot change a table inside a for loop</span>
+
+  <span class="comment">-- eg.  for k,v in self do self[k]=nil end</span>
+
+  <span class="comment">-- Must collect keys and delete them thus:</span>
+
+  <span class="keyword">local</span> t={}
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> self <span class="keyword">do</span> t[k]=1 <span class="keyword">end</span>
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> t <span class="keyword">do</span> self[k]=<span class="keyword">nil</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Python: a.copy() a (shallow) copy of a</span>
+
+<span class="comment">-- Lua: dictcopy = dict:copy()</span>
+
+<span class="keyword">function</span> Dict:copy()
+
+  <span class="keyword">local</span> d = Dict:new()
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> self <span class="keyword">do</span> d[k] = v <span class="keyword">end</span>
+
+  <span class="keyword">return</span> d
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Python:  k in a 1 if a has a key k, else 0</span>
+
+<span class="comment">-- k not in a 0 if a has a key k, else 1</span>
+
+<span class="comment">-- a.has_key(k) Equivalent to k in a</span>
+
+<span class="keyword">function</span> Dict:has_key(k)
+
+  <span class="keyword">return</span> self[k]  <span class="comment">-- return value for true, or nil for false</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Python: a.items() a copy of a's list of (key, value) pairs</span>
+
+<span class="keyword">function</span> Dict:items()
+
+  <span class="keyword">local</span> items={}
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> self <span class="keyword">do</span> tinsert(items,{k,v}) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> items
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Python: a.keys() a copy of a's list of keys</span>
+
+<span class="keyword">function</span> Dict:keys()
+
+  <span class="keyword">local</span> keys={}
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> self <span class="keyword">do</span> tinsert(keys,k) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> keys
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Python: a.update(b) for k in b.keys(): a[k] = b[k]</span>
+
+<span class="comment">-- Add b to a</span>
+
+<span class="keyword">function</span> Dict:update(b)
+
+  <span class="library">assert</span>(<span class="library">type</span>(b)==<span class="string">"table"</span>)
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> b <span class="keyword">do</span> self[k] = v <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Python: a.values() a copy of a's list of values</span>
+
+<span class="keyword">function</span> Dict:values()
+
+  <span class="keyword">local</span> vals={}
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> self <span class="keyword">do</span> tinsert(vals,v) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> vals
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Python: a.get(k[, x]) a[k] if k in a, else x</span>
+
+<span class="comment">-- Return the value associated with key k or x is key not found</span>
+
+<span class="keyword">function</span> Dict:get(k,x)
+
+  <span class="comment">-- use rawget to avoid invoking "index" tag method if k not found</span>
+
+  <span class="keyword">return</span> <span class="library">rawget</span>(self,k) <span class="keyword">or</span> x
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Python: a.setdefault(k[, x]) a[k] if k in a, else x (also setting it)</span>
+
+<span class="comment">-- Set value for k to x if k not found, also return value</span>
+
+<span class="keyword">function</span> Dict:setdefault(k,x)
+
+  self[k] = <span class="library">rawget</span>(self,k) <span class="keyword">or</span> x
+
+  <span class="keyword">return</span> self[k]
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Python: a.popitem() remove and return an arbitrary (key, value) pair</span>
+
+<span class="keyword">function</span> Dict:popitem()
+
+  <span class="keyword">local</span> k,v = <span class="library">next</span>(self)
+
+  self[k] = <span class="keyword">nil</span>
+
+  <span class="keyword">return</span> k,v
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Python len(list) is not the same as getn, must count key-value pairs</span>
+
+len = Dict.len
+
+
+
+<span class="comment">-- test using: lua -f pydict.lua -test</span>
+
+<span class="keyword">if</span> arg <span class="keyword">and</span> arg[1]==<span class="string">"-test"</span> <span class="keyword">then</span>
+
+  <span class="keyword">local</span> prl = <span class="keyword">function</span>(l) <span class="keyword">for</span> i=1,getn(l) <span class="keyword">do</span> write(l[i]) <span class="keyword">end</span> <span class="library">print</span>() <span class="keyword">end</span>
+
+  <span class="keyword">local</span> prd = <span class="keyword">function</span>(l) <span class="keyword">for</span> k,v <span class="keyword">in</span> l <span class="keyword">do</span> write(k..<span class="string">"="</span>..v..<span class="string">","</span>) <span class="keyword">end</span> <span class="library">print</span>() <span class="keyword">end</span>
+
+  <span class="keyword">local</span> dict = Dict:new{a=1,b=2,c=3}  prd(dict)
+
+  dict[<span class="string">"d"</span>]=4 ; write(<span class="string">"d=4: "</span>) ; prd(dict)
+
+  dict.e=5 ; write(<span class="string">"e=5: "</span>) ; prd(dict)
+
+  <span class="library">print</span>(<span class="string">"dict length: "</span>..dict:len())
+
+  dict:del(3) ; write(<span class="string">"del[3]: "</span>) ; prd(dict)
+
+  <span class="keyword">local</span> d2 = dict:copy() ; write(<span class="string">"copy: "</span>) ; prd(d2)
+
+  d2:clear() ; write(<span class="string">"clear: "</span>) ; prd(d2)
+
+  <span class="library">print</span>(<span class="string">"length: "</span>..d2:len())
+
+  <span class="library">assert</span>( d2:len()==0 )
+
+  <span class="library">assert</span>( dict:has_key(<span class="string">"a"</span>) )
+
+  <span class="library">print</span>(<span class="string">'dict:has_key("a") : '</span>..dict:has_key(<span class="string">"a"</span>))
+
+  write(<span class="string">"items: "</span>) ; <span class="library">print</span>( getn(dict:items()) )
+
+  write(<span class="string">"keys: "</span>) ; prl( dict:keys() )
+
+  dict:update{ f=6,g=7 } ; write(<span class="string">"dict:update{ f=6,g=7 } : "</span>) ; prd(dict)
+
+  write(<span class="string">"values: "</span>) ; prl( dict:values() )
+
+  write(<span class="string">'dict:get("z",26) : '</span>) <span class="library">print</span>(dict:get(<span class="string">"z"</span>,26))
+
+  write(<span class="string">'dict:setdefault("y",25) : '</span>) <span class="library">print</span>(dict:setdefault(<span class="string">"y"</span>,25))
+
+  write(<span class="string">'dict:popitem() : '</span>..dict:popitem()..<span class="string">", "</span>) ; prd(dict)
+
+  <span class="keyword">local</span> foo = Dict:new { len=<span class="string">"vcbvcb"</span> }  <span class="library">print</span>(foo:len())  <span class="comment">-- same name test</span>
+
+  <span class="comment">-- print(foo["wont find this"]) -- test "key error"</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<hr>See also: <a href="../wiki/PythonLists.html" >PythonLists</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PythonDictionaries" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PythonDictionaries" >history</a><br>Last edited January 6, 2007 4:06 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PythonDictionaries" >(diff)</a>
+</body>
+</html>

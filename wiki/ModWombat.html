@@ -1,0 +1,159 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Mod Wombat</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ModWombat&amp;body=1" title="List pages referring to ModWombat">Mod Wombat</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<a href="../wiki/ModWombat.html" >ModWombat</a> is an Apache module which allows you to script webpages in Lua. It only works with Apache 2.3+ (there are plans to release it with Apache 2.4 under the name of mod_lua <a href="http://n2.nabble.com/mod_lua-for-kepler-1.1-td2626435.html">[1]</a>) and has a number of options available for reusing LuaStates<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaStates" >?</a>, caching compiled scripts, etc.
+<p>
+Following are some thoughts on improvements which could/should be made to mod_wombat.  These ideas are from Brian Akins.
+<p>
+<DL>
+<dt><dd><pre>
+
+// Ability for other modules to call lua without worrying about caching,
+
+// compiling, etc.  i.e. something like:
+
+APR_DECLARE_OPTIONAL_FN(apr_status_t, lua_request_register, (apr_pool_t
+
+*pool, lua_request_t **new, const char *file));
+
+APR_DECLARE_OPTIONAL_FN(apr_status_t, lua_request_run, (request_rec * r,
+
+lua_request_t *run, const char *function, apr_status_t *rc));
+
+</pre>
+</DL>
+<p>
+In theory, this generalized "framework" would be used by mod_wombat
+internally.
+<p>
+-Per thread vm's.  An httpd thread has a dedicated lua vm for each file.
+<p>
+(We do these two things^^.  Brian M. has our very hacked version of
+mod_wombat.  I can post it here if there is interest)
+<p>
+Support for in httpd.conf Lua.  Ie, I want to be able to do "simple" lua in
+the config rather than having to use a separate file.
+<p>
+<DL>
+<dt><dd><pre>
+
+&lt;Lua my_cool_code&gt;
+
+require 'string'
+
+require 'apache2'
+
+function simple_redirect(r)
+
+    if string.match(r.headers_in['User-Agent'], 'mozilla') then
+
+        r.headers_out['Location'] = 'http://somecoolmozillasite.com/stuff'
+
+        return apache2.HTTP_MOVED_TEMPORARILY
+
+    end 
+
+end
+
+&lt;/Lua&gt;
+
+
+
+&lt;Location /my_ie_only_app&gt;
+
+   LuaHook fixups my_cool_code:simple_redirect
+
+&lt;/Location&gt;
+
+</pre>
+</DL>
+<p>
+(Bad example, but you get the general idea)
+<p>
+Ability to make "real" modules in Lua:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> register_hooks(p)
+
+    apache2.hook_handler(my_handler, NULL, NULL, apache2.HOOK_MIDDLE)
+
+<span class="keyword">end</span>
+
+
+
+apache2.module(
+
+    apache2.STANDARD20_MODULE_STUFF,
+
+    create_dir_cfg,
+
+    merge_dir_cfg,
+
+    create_svr_cfg,
+
+    merge_svr_cfg,
+
+    cmd_table,
+
+    register_hooks
+
+)
+
+</pre>
+
+</DL>
+<p>
+The modules loading is place I see this being tricky.
+<p>
+For the truly ambitious, I'd like to be able to configure apache via lua:
+<p>
+<DL>
+<dt><dd><pre class="code">
+httpd.load_module(<span class="string">'mime_module'</span>, <span class="string">'modules/mod_mime.so'</span>)
+
+v = apache2.server.new()
+
+v:document_root = <span class="string">'/opt/apache/htdocs'</span>
+
+mod_mime:types_config = <span class="string">'/etc/mime.types'</span>
+
+mod_env.set_env(<span class="string">'X-Lua'</span>, <span class="string">'is cool'</span>)
+
+</pre>
+
+</DL>
+<p>
+Not valid, but something like that...
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ModWombat" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ModWombat" >history</a><br>Last edited May 18, 2009 12:37 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ModWombat" >(diff)</a>
+</body>
+</html>

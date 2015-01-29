@@ -1,0 +1,292 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Old Text Template</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=OldTextTemplate&amp;body=1" title="List pages referring to OldTextTemplate">Old Text Template</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<hr><DL>
+<dt><dd><strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  It does not run as is under Lua 5.  The latest version of this page is at <a href="../wiki/TextTemplate.html" >TextTemplate</a>.</strong>
+</DL>
+<hr>A good exercise for new Lua programmers is to implement Jon Bentley's M1 macro processor
+<a href="http://wood.lesobank.ru/projects/docs/CD-Bookshelf/unix/unix_bookshelf/sedawk/ch13_10.htm">[1]</a> in Lua.  Then look at test/examples/www/staff.lua <a href="http://www.tecgraf.puc-rio.br/lua/work/">[2]</a>, and one appreciates that the major drawback of macro processors is that they don't have data structures, and that it really isn't too hard to add them.
+The goal is to have one function <code>template</code> for creating templates and another function <code>fillin</code> which takes values from a table and substitues them in place of their references in the template.  The template syntax is pretty simple.  Table members and global variables are refered to by their name bracketed with <code>|</code>, environments variables are prefixed with <code>$</code>, function calls are prefixed with <code>@</code> and Lua code is wrapped in @{ and }.  Here is an example of how to use <code>template</code> and <code>fillin</code>.
+<DL>
+<dt><dd><pre>
+
+require'temp.lua'
+
+t1 = template[[
+
+==============================================================================
+
+you can access variables: |v|
+
+or environment variables: $HOME
+
+you can call functions: @concat( list, ', ' )
+
+this list has |list.n| elements
+
+   @strrep( '=', list.n )
+
+   @concat( list )
+
+   @strrep( '=', list.n )
+
+or evaluate code inline
+
+     @{ for i=1,4 do OUT = OUT .." list[".. i .."] = ".. list[i] .."\n" end }
+
+you can access global variables:
+
+This example is from |mjd| at |mjdweb|
+
+@{ x = getn(list) }The Lord High Chamberlain has gotten @getn(list)
+
+things for me this year.
+
+@{ diff = x - 2
+
+   more = 'more'
+
+   if diff == 0 then
+
+     diff = 'no'
+
+   elseif diff &lt; 0 then
+
+     more = 'fewer'
+
+   end
+
+}
+
+That is |diff| |more| than he gave me last year.
+
+values can have other variables: |ref|
+
+==============================================================================
+
+]]
+
+mjd = "Mark J. Dominus"
+
+mjdweb = 'http://perl.plover.com/'
+
+L = {}
+
+for i = 1,5 do tinsert( L, strchar(64+i) ) end
+
+x = {
+
+  v = 'this is v',
+
+  list = L,
+
+  ref = "|mjd| made Text::Template.pm" 
+
+}
+
+-- fill in the template t1 with values in table x
+
+write( fillin( x, t1 ) )
+
+</pre>
+</DL>
+Here is the output from the code above.  <a href="../wiki/TextTemplateExampleOutput.html" >TextTemplateExampleOutput</a>
+The code for <code>temp.lua</code> is pretty long so I've put it on another page with line numbers.  <a href="../wiki/TextTemplateCode.html" >TextTemplateCode</a>  Note that this code requires Lua 4.1 (beta).
+The <code>template</code> function strips out all the function calls and Lua code in the tempate string and replace them with the names of Magic global varialbes.  For the above example, this is what <code>template</code> returns.
+<DL>
+<dt><dd><pre>
+
+==============================================================================
+
+you can access variables: |v|
+
+or environment variables: /home/administrator
+
+you can call functions: |2concat|
+
+this list has |1list| elements
+
+   |3strrep|
+
+   |4concat|
+
+   |5strrep|
+
+or evaluate code inline
+
+     |7ANY|
+
+you can access global variables:
+
+This example is from |mjd| at |mjdweb|
+
+|8ANY|The Lord High Chamberlain has gotten |6getn|
+
+things for me this year.
+
+|9ANY|
+
+That is |diff| |more| than he gave me last year.
+
+values can have other variables: |ref|
+
+==============================================================================
+
+</pre>
+</DL>
+<code>template</code> also wraps up all the function calls and Lua code that it strips out of the template string and puts them in a table indexed by the Magic variables names and makes all the Magic variables point to that table.  For the example above, here is the code that <code>template</code> generates and evaluates with <code>dostring</code>.
+<DL>
+<dt><dd><pre>
+
+local Magic = settype( {}, newtype'magic' )
+
+Magic['1list'] = function()
+
+  local self=globals()
+
+  return list.n --
+
+end
+
+setglobal('1list', Magic )
+
+Magic['2concat'] = function()
+
+  local self=globals()
+
+  return concat( list, ', ' ) --
+
+end
+
+setglobal('2concat', Magic )
+
+Magic['3strrep'] = function()
+
+  local self=globals()
+
+  return strrep( '=', list.n ) --
+
+end
+
+setglobal('3strrep', Magic )
+
+Magic['4concat'] = function()
+
+  local self=globals()
+
+  return concat( list ) --
+
+end
+
+setglobal('4concat', Magic )
+
+Magic['5strrep'] = function()
+
+  local self=globals()
+
+  return strrep( '=', list.n ) --
+
+end
+
+setglobal('5strrep', Magic )
+
+Magic['6getn'] = function()
+
+  local self=globals()
+
+  return getn(list) --
+
+end
+
+setglobal('6getn', Magic )
+
+Magic['7ANY'] = function()
+
+  local OUT=''
+
+  local self=globals()
+
+  do  for i=1,4 do OUT = OUT .." list[".. i .."] = ".. list[i] .."\n" end  end
+
+  return OUT
+
+end
+
+setglobal('7ANY', Magic )
+
+Magic['8ANY'] = function()
+
+  local OUT=''
+
+  local self=globals()
+
+  do  x = getn(list)  end
+
+  return OUT
+
+end
+
+setglobal('8ANY', Magic )
+
+Magic['9ANY'] = function()
+
+  local OUT=''
+
+  local self=globals()
+
+  do  diff = x - 2
+
+   more = 'more'
+
+   if diff == 0 then
+
+     diff = 'no'
+
+   elseif diff &lt; 0 then
+
+     more = 'fewer'
+
+   end
+
+ end
+
+  return OUT
+
+end
+
+setglobal('9ANY', Magic )
+
+</pre>
+</DL>
+The <code>fillin</code> function takes a table of values and the string returned from <code>template</code> and uses <code>gsub</code> to fill in the values.  Before it does this, it sets the table of values to be the table of globals, and sets the <code>getglobal</code> tag method for <code>nil</code> values.  So if a variable cannot be found in the table of values, it tries to looking in the <code>sharedvars</code> table, and failing that, the real global variable table.  This seems overly complicated, but it lets the code snippets in the template access both the table values and the global variables as if they were in scope.  It also calls the function associated with any Magic variables it finds.  Please fix this if there is a better way.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=OldTextTemplate" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=OldTextTemplate" >history</a><br>Last edited May 28, 2007 7:45 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=OldTextTemplate" >(diff)</a>
+</body>
+</html>

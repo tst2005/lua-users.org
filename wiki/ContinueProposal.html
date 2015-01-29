@@ -1,0 +1,338 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Continue Proposal</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ContinueProposal&amp;body=1" title="List pages referring to ContinueProposal">Continue Proposal</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Add a <code>continue</code> statement that is used to terminate current iteration of a <code>while</code>, <code>repeat</code>, or <code>for</code> loop, skipping to the evaluation of the condition for the next loop iteration. Just like <code>return</code> and <code>break</code> statements, <code>continue</code> can only be written as the <em>last</em> statement of a block.
+<p>
+<H2>Motivation</H2>
+<p>
+For the official motivation for not including <code>continue</code> in Lua, see <a href="http://lua-users.org/lists/lua-l/2008-02/msg01183.html">[1]</a>
+<p>
+Pros:
+<UL>
+<li> It allows writing code with less nested <code>if</code>, thus less identation levels.
+<li> It is a common feature in mainstream languages like C, C++, Java and Python, thus:
+<UL>
+<li> many programmers might be used to it
+<li> simplifies translation of code from these languages to Lua <a href="/lists/lua-l/2005-09/msg00533.html">[2]</a><a href="/lists/lua-l/2010-04/msg00135.html">[3]</a><a href="/lists/lua-l/2010-11/msg00079.html">[4]</a>.
+</UL>
+</UL>
+<p>
+Cons:
+<UL>
+<li> Introduces a new reserved word that might break compatibility with older scripts that uses this word as identifier.
+<li> It is not clear that <code>continue</code> is the right or better choice when also considering for inclusion features like <code>goto</code>, labeled <code>break</code>, and others.
+<li> This new feature might get in conflict or complicate the introduction of more important and useful features in the future.
+</UL>
+<p>
+<H2>Discussion</H2>
+<p>
+Nearly every other language on the planet has this equivalent. Sure, you can restructure your code to get around this limitation, but it's not nice. Arguments against "continue" within loops can be equally applied to "return". Sure, with such a restriction you can restructure your code into towers of if/then/else, but it's very annoying. Being able to "return" from the middle of a code block is exactly like being able to "continue" in a loop -- it's a convenience and it doesn't hurt readability. So this is my plea for "continue". If it's simple to implement, why not? --DanHollis<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DanHollis" >?</a>
+<p>
+<DL>
+<dt><dd><code>return</code> is not quite like <code>continue</code> because it serves at least two additional purposes besides terminating a function: (a) identify the values returned by a function; and (b) make it easier for the compiler to identify tail calls. --RenatoMaia<a href="/cgi-bin/wiki.pl?action=edit&amp;id=RenatoMaia" >?</a>
+</DL>
+<p>
+I do not understand the lack of "continue" in Lua. This is used as often as "break" in C (and other languages). Its use has benefits: it does not oblige us to find tricks to simulate it when needed (in our algorithms). I vote for it in a next version of Lua. -- <a href="../wiki/JulioFernandez.html" >JulioFernandez</a>
+<p>
+<DL>
+<dt><dd>I doubt that "continue" is really used as much as "break". K&amp;R actually says it's used less often. --JohnCowan<a href="/cgi-bin/wiki.pl?action=edit&amp;id=JohnCowan" >?</a>
+</DL>
+<p>
+<DL>
+<dt><dd>As C coder I'm very used to "continue" - as it often keeps loops clean and safes another unnecessary intention level. Additionally it is easy to read, understand and thus maintainable on the longrun, while the workarounds presented here are IMHO not. BTW. the linux kernel uses 106207 times the word break and 14393 times continue. So its 10% (but including all switch statements). But why completly alienate something that has 10% usage? after all. Comining as newbe to LUA this and the missing binary operators are the hugh breakdowns (and I wonder why global variables are default instead otherway around local and a keyword for global usage. But I suppose that on the other hand is far too late to fix.) --~~~~
+</DL>
+<p>
+I have just revised the patch (in <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a>) to Lua 5.1.3, along with a small test suite to prove that it works. -- <a href="../wiki/WolfgangOertl.html" >WolfgangOertl</a>
+<p>
+I support this proposal. The main advantage for me is "continue" clearly and correctly expresses the sense of the algorithm, the intent of the programmer. Less complicated or shorter code is just a nice side-effect. An issue is both "continue" and "break" are ambiguous (quit current iteration or overall repetition?). For this reason, I find "next" much better for the proposed semantics. "next" is more accurate by itself and "next"+"break" resolves "break"'s ambiguity. ("next"+"exit" may be even better but it could conflict with the sense of "os.exit".) -- Denis
+<p>
+<H2>Emulating <code>continue</code> in standard Lua</H2>
+<p>
+<H3>Using <code>if</code></H3>
+<p>
+Usually, you can emulate <code>continue</code> by changing the following code pattern
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">while</span> invariant <span class="keyword">do</span>
+
+  &lt;START BLOCK&gt;
+
+  <span class="keyword">if</span> condition <span class="keyword">then</span>
+
+    &lt;MIDDLE BLOCK&gt;
+
+    continue
+
+    <span class="comment">-- nothing is allowed here and there is</span>
+
+    <span class="comment">-- no sense in adding an 'else' here</span>
+
+  <span class="keyword">end</span>
+
+  &lt;FINISH BLOCK&gt;
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+into
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">while</span> invariant <span class="keyword">do</span>
+
+  &lt;START BLOCK&gt;
+
+  <span class="keyword">if</span> condition <span class="keyword">then</span>
+
+    &lt;MIDDLE BLOCK&gt;
+
+  <span class="keyword">else</span>
+
+    &lt;FINISH BLOCK&gt;
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- here you have the chance to add a</span>
+
+  <span class="comment">-- finalization code that is always executed</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Using errors</H3>
+<p>
+You can do this using lua errors :)
+the code may looks like:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">while</span> cond <span class="keyword">do</span>
+
+  <span class="keyword">local</span> b, err = <span class="library">pcall</span>(<span class="keyword">function</span>()
+
+    ...some code...
+
+    <span class="library">error</span>(<span class="string">"continue"</span>) <span class="comment">-- the 'continue' equivalent :</span>
+
+    ...some code...
+
+  <span class="keyword">end</span>)
+
+  <span class="comment">-- if there is another error :</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> b <span class="keyword">and</span> err ~= <span class="string">"continue"</span> <span class="keyword">then</span> <span class="library">error</span>(err) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Unfortunately, you loose the stack traceback in case of errors ... you can use <code>xpcall</code> and debug.traceback() to keep it :)
+I would also prefer to have a continue statement :)
+<p>
+--Mildred
+<p>
+<H3>Using <code>break</code></H3>
+<p>
+It's easy (though somewhat verbose) to simulate "continue" in pure Lua. --GregLudwig<a href="/cgi-bin/wiki.pl?action=edit&amp;id=GregLudwig" >?</a>
+<p>
+Here's a simple idiom for simulating a <code>continue</code> statement in Lua.
+The basic idea is to use a local <code>continue</code> variable and the <code>break</code> 
+statement inside a <code>repeat</code>-once block.
+<p>
+<p>
+We want implement <code>continue</code> as in the following example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> line <span class="keyword">in</span> <span class="library">io.lines</span>() <span class="keyword">do</span>
+
+
+
+   <span class="comment">-- start BODY</span>
+
+   <span class="keyword">if</span> <span class="library">string.find</span>(line,<span class="string">"c"</span>) <span class="keyword">then</span> continue <span class="keyword">end</span>
+
+
+
+   <span class="keyword">if</span> <span class="library">string.find</span>(line,<span class="string">"b"</span>) <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+
+
+   <span class="library">print</span>(<span class="string">"--&gt;"</span>,line)
+
+   <span class="comment">-- end BODY</span>
+
+
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+To accomplish this, replace <em>BODY</em> with:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> continue
+
+<span class="keyword">repeat</span>
+
+   <span class="comment">-- start BODY</span>
+
+   <span class="string">'BODY'</span> replacing <span class="string">'continue'</span> with <span class="string">'continue=true; break'</span>
+
+   <span class="comment">-- end BODY</span>
+
+   continue=<span class="keyword">true</span>
+
+<span class="keyword">until</span> 1
+
+<span class="keyword">if</span> <span class="keyword">not</span> continue <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+Thus the example becomes:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> line <span class="keyword">in</span> <span class="library">io.lines</span>() <span class="keyword">do</span>
+
+
+
+   <span class="keyword">local</span> continue
+
+   <span class="keyword">repeat</span>
+
+      <span class="comment">-- start BODY</span>
+
+      <span class="keyword">if</span> <span class="library">string.find</span>(line,<span class="string">"c"</span>) <span class="keyword">then</span> continue=<span class="keyword">true</span>; <span class="keyword">break</span> <span class="keyword">end</span>
+
+
+
+      <span class="keyword">if</span> <span class="library">string.find</span>(line,<span class="string">"b"</span>) <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+
+
+      <span class="library">print</span>(<span class="string">"--&gt;"</span>,line)
+
+      <span class="comment">-- end BODY</span>
+
+
+
+      continue=<span class="keyword">true</span>
+
+   <span class="keyword">until</span> 1
+
+   <span class="keyword">if</span> <span class="keyword">not</span> continue <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+Reduced indentation at the expense of the <code>continue</code> functionality (i.e. always continue) can be written like:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> line <span class="keyword">in</span> <span class="library">io.lines</span>() <span class="keyword">do</span> <span class="keyword">repeat</span>
+
+    <span class="keyword">if</span> <span class="library">string.find</span>(line,<span class="string">"c"</span>) <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    <span class="library">print</span>(<span class="string">"--&gt;"</span>,line)
+
+<span class="keyword">until</span> 1 <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H3>Lua 5.2.0beta-rc1</H3>
+<p>
+In Lua 5.2.0beta-rc1, you can write the above example using a <a href="../wiki/GotoStatement.html" >GotoStatement</a> like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> line <span class="keyword">in</span> <span class="library">io.lines</span>() <span class="keyword">do</span>
+
+   <span class="keyword">if</span> <span class="library">string.find</span>(line,<span class="string">"c"</span>) <span class="keyword">then</span> goto continue <span class="keyword">end</span>
+
+   <span class="keyword">if</span> <span class="library">string.find</span>(line,<span class="string">"b"</span>) <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+   <span class="library">print</span>(<span class="string">"--&gt;"</span>,line)
+
+   @continue:
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Patches</H2>
+<p>
+See
+<p>
+<UL>
+<li> Continue statement in <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a>
+<li> <a href="/lists/lua-l/2009-06/msg00331.html">LuaList:2009-06/msg00331.html</a> ; <a href="/lists/lua-l/2010-01/msg00612.html">LuaList:2010-01/msg00612.html</a>
+<li> LuaJIT 2.0: <a href="https://github.com/sd-/luajit/commit/612f1797554b5dc3f1d64e4755b3fdc4f11b617a">https://github.com/sd-/luajit/commit/612f1797554b5dc3f1d64e4755b3fdc4f11b617a</a> - HIGHLY experimental
+</UL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="http://batbytes.com/luafaq/#T1.26">[Unofficial Lua FAQ]</a>, but see this: <a href="/lists/lua-l/2010-02/msg00031.html">LuaList:2010-02/msg00031.html</a>
+<li> <a href="/lists/lua-l/2005-09/msg00527.html">LuaList:2005-09/msg00527.html</a> - Rici's ways to avoid continue in various cases
+<li> <a href="/lists/lua-l/2006-12/msg00441.html">LuaList:2006-12/msg00441.html</a> - "[repeat/until] generated opcode is as good as for a primitive continue"
+<li> <a href="/lists/lua-l/2008-02/msg01183.html">LuaList:2008-02/msg01183.html</a> - Roberto's concerns.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ContinueProposal" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ContinueProposal" >history</a><br>Last edited March 27, 2012 1:32 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ContinueProposal" >(diff)</a>
+</body>
+</html>

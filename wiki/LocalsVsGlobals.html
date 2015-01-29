@@ -1,0 +1,95 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Locals Vs Globals</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LocalsVsGlobals&amp;body=1" title="List pages referring to LocalsVsGlobals">Locals Vs Globals</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Comparison between local and global variables:
+<p>
+<UL>
+<li> <strong>Implementation:</strong> Locals index an array of registers on the stack, with hard-coded integer index (at least in the standard implementation -- <a href="../wiki/LuaImplementations.html" >LuaImplementations</a>).  Globals index from a table (or userdata), typically with variable name string, stored as constant or variable, as the key.
+</UL>
+<p>
+<UL>
+<UL>
+<li> Note: In 5.2.0work3, the concept of globals remains in the language but is eliminated from the VM (no special GETGLOBAL/SETGLOBAL opcodes).  From the VM perspective, globals are no different than gets/sets from a local (actually lexical upvalue) table.
+</UL>
+</UL>
+<p>
+<UL>
+<UL>
+<li> Note: A local promoted to an upvalue is treated slightly differently in the VM from regular locals.  Upvalues are accessed via special VM opcodes.
+</UL>
+</UL>
+<p>
+<UL>
+<li> <strong>Performance:</strong> The above point implies that locals can be a bit faster (<a href="../wiki/OptimisingUsingLocalVariables.html" >OptimisingUsingLocalVariables</a>).  Still, table indexing is a fairly efficient operation in Lua (e.g. strings are interned with precomputed hash), so this point can often be ignored unless profiling indicates optimization is needed.
+</UL>
+<p>
+<UL>
+<li> <strong>Syntax:</strong> If an environment table is set, globals can be accessed in Lua code with or without explicitly naming the environment table they come from: <code>foo</code>, <code>_G.foo</code>, or <code>getfenv().foo</code> (or in 5.2.0work3, <code>_ENV.foo</code>).  This allows different styles of environment usage, such as in <a href="../wiki/ModuleDefinition.html" >ModuleDefinition</a>.
+</UL>
+<p>
+<UL>
+<li> <strong>Scope:</strong> Locals are scoped within a lexical block.  Globals are scoped within any number of functions assigned a given environment table at run-time.  In 5.2.0work3, globals are scoped within any number of lexical blocks assigned a given environment table (declared at compile-time but assigned at run-time).
+</UL>
+<p>
+<UL>
+<li> <strong>Declaration:</strong> Locals must be explicitly declared, with <code>local</code> statement, to use them.  Assignments are global-by-default not <a href="../wiki/LocalByDefault.html" >LocalByDefault</a>.  Globals can be accessed on-the-fly, even with variable name set at runtime (e.g. "<code>foo=io.stdin:read'*l'; return _G[foo]</code>").  The list of locals is defined statically.  The list of globals may be determined at run-time and can even change during program execution.
+</UL>
+<p>
+<UL>
+<li> <strong>Program Analysis:</strong> The above point implies uses of local variables can often be more easily traced to their definition and vice-versa.  This implies that locals can be easier to use for static program analysis, such as correctness checking/<a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>/<a href="../wiki/LuaInspect.html" >LuaInspect</a> and optimization (e.g. <a href="../wiki/SourceOptimizer.html" >SourceOptimizer</a> and <a href="../wiki/LuaImplementations.html" >LuaImplementations</a>).  Locals also reduce unintended coupling.
+</UL>
+<p>
+<UL>
+<li> <strong>Standard library access:</strong> The standard library is normally exposed to a chunk via globals.  An alternative though is to explicitly pass _G or its elements as local parameters, "<code>local _G, math, math_sqrt = ...</code>", but this can be exhaustive.
+</UL>
+<p>
+<UL>
+<li> <strong>Precedence:</strong> Locals override globals.  This remains true even if the globals have a more specific scope, so in 5.2.0work3, "<code>local x = 1; do local _ENV = {x=2}; return x end</code>" returns 1.
+</UL>
+<p>
+<UL>
+<li> <strong>Side-effects on access</strong>: Sets/gets to globals can trigger side-effects or custom actions via metamethods on the environment table.  This is sometimes how two different environment tables are merged (e.g. package.seeall) or special effects like strict.lua (runtime <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>) or <a href="../wiki/SymbolicDifferentiation.html" >SymbolicDifferentiation</a> may be implemented.
+</UL>
+<p>
+<UL>
+<li> <strong>Scope passing:</strong> A complete set of globals or references to globals can be passed to different scopes by passing the environment table.  Global scope is in a way a "first-class valve" in Lua.  Locals can not be passed around as such except by creating a closure with the locals explicitly referenced.  One exception is debug.getlocal/setlocal as used in <a href="../wiki/StringInterpolation.html" >StringInterpolation</a>, but this is a hack.
+</UL>
+<p>
+<UL>
+<li> <strong>Bytecode introspection:</strong> Globals are more visible in the bytecode.  Global get/sets become GETGLOBAL/SETGLOBAL opcodes with the given variable name.  In 5.2.0work3, these become GETTABUP/SETTABUP opcodes <a href="/lists/lua-l/lua-l/2010-0/msg00062.html">[1]</a>.  It is possible to list all the globals read or written byte a compiled chunk, as used by <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>.
+</UL>
+<p>
+<UL>
+<li> <strong>Limit on number:</strong> There is a limit to the number of locals per function (MAXLOCALS, typically 200).
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LocalsVsGlobals" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LocalsVsGlobals" >history</a><br>Last edited July 10, 2010 9:35 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LocalsVsGlobals" >(diff)</a>
+</body>
+</html>

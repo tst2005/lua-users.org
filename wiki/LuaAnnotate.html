@@ -1,0 +1,74 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Annotate</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaAnnotate&amp;body=1" title="List pages referring to LuaAnnotate">Lua Annotate</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua<code></code>Annotate - C code comments externally stored but displayed inline.
+<p>
+<a href="../wiki/LuaAnnotate.html" >LuaAnnotate</a> is a tool for displaying C source file comments inline to the source but stored in a separate file.  The comments are maintained in a text file (<a href="https://github.com/davidm/lua-annotate/blob/master/lua/annotations.txt">[annotate.txt]</a>) in the same
+directory as the C sources.  Displaying the comments inline to the C
+code can be done in many ways:
+<p>
+<UL>
+<li> weaving the comments into the source code as C comments and saving the result to a temporary file for viewing in any text editor.
+<li> displaying comments as annotations in the SciTE text editor when viewing the original source files (without altering those source files).
+<li> other possibilities (not implemented) include rendering as HTML or creating plugins for other text editors.
+</UL>
+<p>
+The original motivation for this project is to allow Lua users to better
+document the Lua source code.  The Lua source code is dense
+but sparsely commented.  It's uncertain whether the original Lua authors
+will incorporate generous use of comments in the original upstream
+sources, so we need to maintain the comments separately.
+This becomes challenging when the upstream sources change
+and users themselves may maintain their own set of patches.
+The problem with using unified patches here is that the contextual
+information contained is more detailed than necessary and its conflict
+checking is more strict than necessary.  All the comment data really
+needs to say is that a certain identifier corresponds with a certain piece of
+documentation, almost in the manner of ctags.  Furthermore, if such an
+identifier cannot be matched in the source, we don't care that much
+--it's just documentation.
+<p>
+Example (viewing lobject.h):
+<p>
+<img src="/files/wiki_insecure/users/DavidManura/luaannotate.png">
+<p>
+For further details and to download, see <a href="http://github.com/davidm/lua-annotate">[lua-annotate on github]</a>.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaSource.html" >LuaSource</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaAnnotate" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaAnnotate" >history</a><br>Last edited November 27, 2010 1:34 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaAnnotate" >(diff)</a>
+</body>
+</html>

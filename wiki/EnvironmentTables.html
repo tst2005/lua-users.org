@@ -1,0 +1,99 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Environment Tables</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=EnvironmentTables&amp;body=1" title="List pages referring to EnvironmentTables">Environment Tables</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Lua 5.0</H3>
+<p>
+In Lua 5.0.2, Lua closures (but not C closures) have <em>environment tables</em>. The environment table is used to look up unbound names (that is, "global variables"). When a new closure is created, by executing a function expression or statement, the new closure acquires the environment table of the currently executing closure, so in the absence of any changes, all closures share the same environment table, which makes it pretty much a <em>globals</em> table as in previous versions of Lua.
+<p>
+The environment table of a closure can be accessed in C with <code>lua_getfenv()</code> and in Lua with <code>getfenv()</code>; it can be set to a different table with <code>lua_setfenv()</code> / <code>setfenv()</code>. See the manual for these functions.
+<p>
+In 5.0.2, C closures effectively share a single globals table, which is associated with the currently executing thread. This table is available to the C closure by using the pseudo-index <code>LUA_GLOBALSINDEX</code> (and indeed can be modified with <code>lua_replace(L, LUA_GLOBALSINDEX)</code>). This is a useful but can be a bit messy.
+<p>
+<H3>Lua 5.1</H3>
+<p>
+In 5.1, every C closure has its own environment table reference. However, the <code>LUA_GLOBALSINDEX</code> pseudo-index has not been altered, so that existing code which references <code>LUA_GLOBALSINDEX</code> will still be referring to the "globals" table of the currently executing thread. (That table is now referred to as the thread's <em>environment table</em>, and can be accessed and modified with lua_getfenv and lua_setfenv applied to the thread object itself.) In order to access the closure's environment table, one uses <code>LUA_ENVIRONINDEX</code>; a closure environment table (for either a C closure or a Lua closure) can be accessed and modified with <code>lua_getfenv()</code> and <code>lua_setfenv()</code>, applied to the closure object.
+<p>
+You can replace "your own" environment with <code>lua_replace(L, LUA_ENVIRONINDEX)</code>, just as you can change the globals table with <code>lua_replace(L, LUA_GLOBALSINDEX)</code>. However, the more common case is to call <code>lua_setfenv()</code> on a newly-created closure.
+<p>
+(Full) userdata also have environment tables, although as I have argued elsewhere (<a href="../wiki/UserDataRefinement.html" >UserDataRefinement</a>), the name is confusing. Userdata environment tables are <strong>only</strong> a place to store information relevant to the userdata; no pseudo-index exists for them.
+<p>
+Newly created closures (and userdata) acquire their environment tables from the currently executing closure, if there is one, and otherwise from the current thread. (Again, as I have argued elsewhere, this is not a particularly useful default for userdata, but I won't go into that again.)
+<p>
+<H3>Where to put what?</H3>
+C closures don't really have a concept of bound and unbound variables. However, the C closure does have a number of places to put Lua values:
+<UL>
+<li> transiently on the stack, at a known index
+<li> or persistently, in order of privateness:
+<UL>
+<li> in the upvalue array, which is a fixed-length array created as part of the C closure by <code>lua_pushcclosure()</code>. (That is, the size is fixed at creation, but individual elements can be modified by <code>lua_replace()</code>.)
+<li> in the closure's own environment table
+<li> in the thread's environment table
+<li> in the Lua registry.
+</UL>
+</UL>
+<p>
+Figuring out which of these options to use for what can be a challenge, but I offer my own very personal guide:
+<p>
+<strong>Use upvalues:</strong>
+<UL>
+<li> for reference data which is frequently used by the closure. This is particularly useful in closures, such as iterators, which need to return other closures.
+<li> to persist state information between calls to a particular closure. This can be useful for iterators themselves, for example, if the iteration state cannot be captured adequately by the iteration protocol
+</UL>
+<p>
+<strong>Use the closure's own environment table:</strong>
+<UL>
+<li> as a table shared between related closures. For example, this can be a good place to store the method table for the class for which the closure is a method, and/or to store persistent state information shared by methods for a given class.
+</UL>
+<p>
+<strong>Use the thread's environment table:</strong>
+<UL>
+<li> To keep state information which is thread-specific. (Duh!) In an application which uses Lua threads for multithreading, this is more or less equivalent to thread local state; it might be, for example, something related to the event loop running in that particular thread.
+</UL>
+<p>
+<strong>Use the registry:</strong>
+<UL>
+<li> To keep persistent information which applies to the entire application, and
+<li> Only in desperation.
+</UL>
+<p>
+<H3>Note on thread safety</H3>
+<p>
+The only options which are threadsafe are the stack and the thread's environment table. If <code>lua_lock</code> and <code>lua_unlock</code> are appropriately defined, you cannot corrupt the Lua state by storing into the registry or the closure's upvalue array or environment table, but nothing stops another (OS) thread from storing something else at the same time, leading to the standard race condition where access and update are interrupted by another process. In particular, this applies to lauxlib's implementation of references (if stored in the registry). With all the various environment tables available, however, this should now be much easier to avoid.
+<p>
+The thread's environment table is threadsafe provided that each Lua thread is mapped onto a single OS thread (it can be a many-to-one mapping); that is, a given Lua thread is always run in the same OS thread. That makes it an attractive option for keeping lauxlib-style references, if it is not possible to avoid using them altogether.
+<p>
+The closure's upvalue array and environment table are threadsafe under the same conditions, but this is often harder to guarantee. It will likely be the case for short-lifetime closures, such as ones returned to implemented an iterator, but it unlikely to be the case for long-lifetime closures, such as library functions.
+<p>
+If you do find yourself modifying the registry in a multi-threaded environment, you should think seriously about protecting the modification with a lock of some form. This also applies to the use of registry-based <code>lauxlib</code> features such as <code>luaL_newmetatable()</code>, if its use is not restricted to the pre-thread initialization stage.
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=EnvironmentTables" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=EnvironmentTables" >history</a><br>Last edited December 22, 2005 1:18 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=EnvironmentTables" >(diff)</a>
+</body>
+</html>

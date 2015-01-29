@@ -1,0 +1,438 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Func Tables</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FuncTables&amp;body=1" title="List pages referring to FuncTables">Func Tables</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+An important insight is that in Lua there is very little difference between a function
+and a table with a <code>__call</code> metamethod. I refer to the latter as functables,
+and they are incredibly useful. For example, it is almost trivial to write a memoizing
+functable which caches the result of a given function. By using the <code>__call</code> metamethod
+we can allow the table to be used as though it were the function; in fact, we could even
+give it the name of the original function, making the change almost invisible.
+<p>
+<DL>
+<dt><dd><em>It is not completely equivalent because, sadly, there are a couple of places in Lua where the <code>__call</code> metamethod is not checked (see <a href="../wiki/LuaVirtualization.html" >LuaVirtualization</a>). One of these is the <code>__index</code> metamethod itself, with the result that functables cannot be used as __index metamethods; they have to be wrapped into a real function. But functables are available for functional composition, currying, and so on.</em>
+</DL>
+<p>
+My first implementation of Memoize was written for Lua 4; here it is, updated for Lua 5:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="comment">-- The marker table serves double duty. It is a private key in the</span>
+
+  <span class="comment">-- hash, and also serves as the hashes metatable.</span>
+
+
+
+  <span class="keyword">local</span> marker = {}
+
+
+
+  <span class="comment">-- If the key is not found, we use the saved function (stored with the</span>
+
+  <span class="comment">-- private key) to generate a value, and save it.</span>
+
+
+
+  <span class="keyword">function</span> marker.__index(t, k)
+
+    <span class="keyword">local</span> val = t[marker](k)
+
+    t[k] = val
+
+    <span class="keyword">return</span> val
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- We make the table look like a function, just deferring to lookup</span>
+
+
+
+  <span class="keyword">function</span> marker.__call(t, k)
+
+    <span class="keyword">return</span> t[k]
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- They'll hit an endless loop if they do Memoize(nil). So we do</span>
+
+  <span class="comment">-- something reasonable. We could also report an error, of course.</span>
+
+
+
+  <span class="keyword">function</span> Memoize(fn)
+
+    <span class="keyword">local</span> self = {[marker] = fn <span class="keyword">or</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="keyword">nil</span> <span class="keyword">end</span>}
+
+    <span class="library">setmetatable</span>(self, marker)
+
+    <span class="keyword">return</span> self
+
+  <span class="keyword">end</span>
+
+
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Unfortunately, this stashes a private key in the functable which affects table
+iteration. <a href="../wiki/ThomasWrensch.html" >ThomasWrensch</a> made the useful suggestion that all memoized functions
+could be stored in a weak table, which is a minor change to the above code.
+However, I prefer the following solution which uses closures, even though
+it results in the creation of two tables and a closure for every function
+to be memoized.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> Memoize(fn)
+
+    fn = fn <span class="keyword">or</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="keyword">nil</span> <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>({},
+
+      {
+
+       __index = <span class="keyword">function</span>(t, k)
+
+                   <span class="keyword">local</span> val = fn(k)
+
+                   t[k] = val
+
+                   <span class="keyword">return</span> val
+
+                 <span class="keyword">end</span>,
+
+       __call  = <span class="keyword">function</span>(t, k)
+
+                   <span class="keyword">return</span> t[k]
+
+                 <span class="keyword">end</span>
+
+      })
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Dejay Clayton offers the following enhancements, which support object methods, methods with multiple arguments and return values, methods with nil arguments and return values, weak references for memoized values, and a "__forget" method to clear all memoization results for a particular memoized instance:
+<p>
+<pre class="code">
+<span class="keyword">function</span> pack( ... )
+
+    <span class="keyword">return</span> arg
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> memoize( fn )
+
+    <span class="keyword">local</span> <span class="keyword">function</span> fnKey( ... )
+
+        <span class="keyword">local</span> key = <span class="string">""</span>
+
+        <span class="keyword">for</span> i = 1, <span class="library">table.getn</span>( arg ) <span class="keyword">do</span>
+
+            key = key .. <span class="string">"["</span> .. <span class="library">tostring</span>( arg[ i ] ) .. <span class="string">"]"</span>
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> key 
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">local</span> object = {
+
+        __call  = <span class="keyword">function</span>( targetTable, ... )
+
+            <span class="keyword">local</span> key = fnKey( ... )
+
+            <span class="keyword">local</span> values = targetTable.__memoized[ key ]
+
+
+
+            <span class="keyword">if</span> ( values == <span class="keyword">nil</span> ) <span class="keyword">then</span>
+
+                values = pack( fn( ... ) )
+
+                targetTable.__memoized[ key ] = values
+
+            <span class="keyword">end</span>
+
+
+
+            <span class="keyword">if</span> ( <span class="library">table.getn</span>( values ) &gt; 0 ) <span class="keyword">then</span>
+
+                <span class="keyword">return</span> <span class="library">unpack</span>( values )
+
+            <span class="keyword">end</span>
+
+
+
+            <span class="keyword">return</span> <span class="keyword">nil</span>
+
+        <span class="keyword">end</span>,
+
+        __forget = <span class="keyword">function</span>( self ) self.__memoized = {} <span class="keyword">end</span>,
+
+        __memoized = {},
+
+        __mode = <span class="string">"v"</span>,
+
+    }
+
+
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>( object, object )
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+Another very useful example of a functable is a function which has
+non-algorithmic exceptions. For example, in an implementation of
+<code>plural()</code>, we could stash exceptions in the table, leaving the function
+for algorithmic cases: adding "s" or "es" as
+appropriate, for example. This is just like the memoizing functable, except that it
+doesn't remember the result. (They are not incompatible; the memoizer can be "primed"
+with non-algorithmic exceptions, and that's often useful.)
+<p>
+Arguably, all this is just monkeying around with syntax, but it is an
+interesting way to look at program structure and I thank Lua for giving me
+this insight. In the case of <code>plural()</code>, for example, the plural function
+could be written traditionally with some sort of exception list, but that distracts from the
+pluralisation algorithm and also requires some sort of API to add to the
+exception list, whereas with the functable, adding to the exception list is
+seamless:
+<DL>
+<dt><dd><pre class="code">
+plural = To_Functable({},
+
+           <span class="keyword">function</span>(word)
+
+             <span class="keyword">local</span> gsub = <span class="library">string.gsub</span>
+
+             <span class="keyword">local</span> nsubs
+
+             <span class="comment">-- some sample rules:</span>
+
+             <span class="comment">-- if word ends in consonant "y", change "y" to "ies"</span>
+
+             word, nsubs = gsub(word, <span class="string">"([bcdfghjklmnpqrstvwxyz])y$"</span>, <span class="string">"%1ies"</span>)
+
+             <span class="keyword">if</span> nsubs &gt; 0 <span class="keyword">then</span> <span class="keyword">return</span> word <span class="keyword">end</span> 
+
+             <span class="comment">-- if word ends in a sibilant, append "es"</span>
+
+             word, nsubs = gsub(word, <span class="string">"([sxz])$"</span>, <span class="string">"%1es"</span>)
+
+             <span class="keyword">if</span> nsubs &gt; 0 <span class="keyword">then</span> <span class="keyword">return</span> word <span class="keyword">end</span>
+
+             word, nsubs = gsub(word, <span class="string">"([cs]h)$"</span>, <span class="string">"%1es"</span>)
+
+             <span class="keyword">if</span> nsubs &gt; 0 <span class="keyword">then</span> <span class="keyword">return</span> word <span class="keyword">end</span>
+
+             <span class="comment">-- otherwise append "s"</span>
+
+             <span class="keyword">return</span> word .. <span class="string">"s"</span>
+
+           <span class="keyword">end</span>)
+
+<span class="comment">-- standard exceptions (many omitted)</span>
+
+plural.mouse = <span class="string">"mice"</span>
+
+plural.man = <span class="string">"men"</span>
+
+plural[<span class="string">"right-of-way"</span>] = <span class="string">"rights of way"</span>
+
+
+
+<span class="comment">-- maybe we like some old-fashioned usages</span>
+
+plural.cow = <span class="string">"kine"</span>
+
+</pre>
+
+</DL>
+<p>
+As a longer example of functables, here is a nifty bottles of beer implementation (although it is not nearly compact as Philippe's):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> To_Functable(t, fn)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>(t,
+
+    {
+
+     __index = <span class="keyword">function</span>(t, k) <span class="keyword">return</span> fn(k) <span class="keyword">end</span>,
+
+     __call = <span class="keyword">function</span>(t, k) <span class="keyword">return</span> t[k] <span class="keyword">end</span>
+
+    })
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Functable bottles of beer implementation</span>
+
+
+
+spell_out = {
+
+  <span class="string">"One"</span>, <span class="string">"Two"</span>, <span class="string">"Three"</span>, <span class="string">"Four"</span>, <span class="string">"Five"</span>,
+
+  <span class="string">"Six"</span>, <span class="string">"Seven"</span>, <span class="string">"Eight"</span>, <span class="string">"Nine"</span>, <span class="string">"Ten"</span>,
+
+  [0] = <span class="string">"No more"</span>,
+
+  [-1] = <span class="string">"Lots more"</span>
+
+}
+
+
+
+spell_out = To_Functable(spell_out, <span class="keyword">function</span>(i) <span class="keyword">return</span> i <span class="keyword">end</span>)
+
+
+
+bottles = To_Functable({<span class="string">"Just one bottle of beer"</span>},
+
+                       <span class="keyword">function</span>(i)
+
+                         <span class="keyword">return</span> spell_out(i) .. <span class="string">" bottles of beer"</span>
+
+                       <span class="keyword">end</span>)
+
+
+
+<span class="keyword">function</span> line1(i)
+
+  <span class="keyword">return</span> bottles(i) .. <span class="string">" on the wall, "</span> .. bottles(i) .. <span class="string">"\n"</span>
+
+<span class="keyword">end</span>
+
+
+
+line2 = To_Functable({[0] = <span class="string">"Go to the store, Buy some more,\n"</span>},
+
+                     <span class="keyword">function</span>(i)
+
+                       <span class="keyword">return</span> <span class="string">"Take one down and pass it around,\n"</span>
+
+                     <span class="keyword">end</span>)
+
+
+
+<span class="keyword">function</span> line3(i)
+
+  <span class="keyword">return</span> bottles(i) .. <span class="string">" on the wall.\n"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> song(n)
+
+  <span class="keyword">for</span> i = n, 0, -1 <span class="keyword">do</span>
+
+    <span class="library">io.write</span>(line1(i), line2(i), line3(i - 1), <span class="string">"\n"</span>)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+-- <a href="../wiki/RiciLake.html" >RiciLake</a>
+<p>
+<DL>
+<dt><dd>Here is another implementation of memoize.  It is simpler and creates one table and one closure per memoized function.  The return value is a true function.  Data hiding abilities are stronger.  A variant of the below is to include t as an input parameter or second return value to permit seeding as done in the <code>plural</code> example above.  --<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> memoize(fn)
+
+  <span class="keyword">local</span> t = {}
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(x)
+
+    <span class="keyword">local</span> y = t[x]
+
+    <span class="keyword">if</span> y == <span class="keyword">nil</span> <span class="keyword">then</span> y = fn(x); t[x] = y <span class="keyword">end</span>
+
+    <span class="keyword">return</span> y
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+Some more fun with metamethods can be found in:
+<UL>
+<li> <a href="../wiki/AutomagicTables.html" >AutomagicTables</a> -- Perl style tables which autocreate subtables on demand
+<li> <a href="../wiki/BoundScalarGlobalsOne.html" >BoundScalarGlobalsOne</a>, <a href="../wiki/BoundScalarGlobalsTwo.html" >BoundScalarGlobalsTwo</a> -- How to bind a global to getter/setter functions, possibly written in C
+<li> <a href="../wiki/TableFuncs.html" >TableFuncs</a>, <a href="../wiki/TableFuncsTwo.html" >TableFuncsTwo</a> -- sort of the inverse of functables; create a function with persistent state
+<li> <a href="../wiki/MutableFunctions.html" >MutableFunctions</a> - inverse of functable; create a function having the semantics of tables.
+</UL>
+<p>
+Additional memoize implementations:
+<UL>
+<li> <a href="http://penlight.luaforge.net/api/modules/pl.utils.html#memoize">[memoize]</a> function in PenLight<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PenLight" >?</a>
+<li> <a href="https://github.com/kikito/memoize.lua">[memoize.lua]</a> package on github, supporting multiple parameters and return values
+<li> <a href="http://siffiejoe.github.io/lua-multikey/#multikey.memoize">[multikey.memoize]</a> another package on github, supporting multiple parameters and return values
+<li> <a href="../wiki/CurriedMemoization.html" >CurriedMemoization</a> -- another multiple parameter, multiple return value implementation.  This one accurately caches the results of functions taking or returning nil.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FuncTables" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FuncTables" >history</a><br>Last edited February 17, 2014 6:23 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FuncTables" >(diff)</a>
+</body>
+</html>

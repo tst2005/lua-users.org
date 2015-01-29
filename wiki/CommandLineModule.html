@@ -1,0 +1,405 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Command Line Module</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CommandLineModule&amp;body=1" title="List pages referring to CommandLineModule">Command Line Module</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This module is intended for processing command line parameters of Lua scripts. It doesn't try to be POSIX (or any other standard) compliant, since it is very Lua-oriented and allows to specify parameters of any Lua data type.
+<p>
+The module exports just one function: <strong>cmdline.getparam</strong> (its detailed description is given in the comment preceding the function body).
+<p>
+See also: <a href="../wiki/GetOpt.html" >GetOpt</a>, <a href="../wiki/AlternativeGetOpt.html" >AlternativeGetOpt</a> and <a href="../wiki/PosixGetOpt.html" >PosixGetOpt</a>
+<p>
+<H2>cmdline.lua</H2>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- started: 2008-04-12 by Shmuel Zeigerman</span>
+
+<span class="comment">-- license: public domain</span>
+
+
+
+<span class="keyword">local</span> <span class="library">ipairs</span>,<span class="library">pairs</span>,<span class="library">setfenv</span>,<span class="library">tonumber</span>,<span class="library">loadstring</span>,<span class="library">type</span> =
+
+  <span class="library">ipairs</span>,<span class="library">pairs</span>,<span class="library">setfenv</span>,<span class="library">tonumber</span>,<span class="library">loadstring</span>,<span class="library">type</span>
+
+<span class="keyword">local</span> tinsert, tconcat = <span class="library">table.insert</span>, <span class="library">table.concat</span>
+
+<span class="library">module</span>(...)
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> commonerror (msg)
+
+  <span class="keyword">return</span> <span class="keyword">nil</span>, (<span class="string">"[cmdline]: "</span> .. msg)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> argerror (msg, numarg)
+
+  msg = msg <span class="keyword">and</span> (<span class="string">": "</span> .. msg) <span class="keyword">or</span> <span class="string">""</span>
+
+  <span class="keyword">return</span> <span class="keyword">nil</span>, (<span class="string">"[cmdline]: bad argument #"</span> .. numarg .. msg)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> iderror (numarg)
+
+  <span class="keyword">return</span> argerror(<span class="string">"ID not valid"</span>, numarg)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> idcheck (id)
+
+  <span class="keyword">return</span> id:match(<span class="string">"^[%a_][%w_]*$"</span>) <span class="keyword">and</span> <span class="keyword">true</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--[[------------------------------------------------------------------------
+
+Syntax:
+
+  t_out = getparam(t_in [,options] [,params])
+
+
+
+Parameters:
+
+  t_in:   table - list of string arguments to be processed in order
+
+          (usually it is the `arg' table created by the Lua interpreter).
+
+
+
+     * if an argument begins with $, the $ is skipped and the rest is inserted
+
+       into the array part of the output table.
+
+
+
+     * if an argument begins with -, the rest is a sequence of variables
+
+       (separated by commas or semicolons) that are all set to true;
+
+            example: -var1,var2  --&gt; var1,var2 = true,true
+
+
+
+     * if an argument begins with !, the rest is a Lua chunk;
+
+            example: !a=(40+3)*5;b=20;name="John";window={w=600,h=480}
+
+
+
+     * if an argument contains =, then it is an assignment in the form
+
+       var1,...=value (no space is allowed around the =)
+
+         * if value begins with $, the $ is skipped, the rest is a string
+
+                 example: var1,var2=$         --&gt; var1,var2 = "",""
+
+                 example: var1,var2=$125      --&gt; var1,var2 = "125","125"
+
+                 example: var1,var2=$$125     --&gt; var1,var2 = "$125","$125"
+
+         * if value is convertible to number, it is a number
+
+                 example: var1,var2=125       --&gt; var1,var2 = 125,125
+
+         * otherwise it is a string
+
+                 example: name=John           --&gt; name = "John"
+
+
+
+     * if an argument neither begins with one of the special characters (-,!,$),
+
+       nor contains =, it is inserted as is into the array part of the output
+
+       table.
+
+
+
+  options (optional): a list of names of all command-line options and parameters
+
+     permitted in the application; used to check that each found option
+
+     is valid; no checks are done if not supplied.
+
+
+
+  params (optional): a list of names of all command-line parameters required
+
+     by the application; used to check that each required parameter is present;
+
+     no checks are done if not supplied.
+
+
+
+Returns:
+
+  On success: the output table, e.g. { [1]="./myfile.txt", name="John", age=40 }
+
+  On error: nil followed by error message string.
+
+
+
+--]]</span><span class="comment">------------------------------------------------------------------------</span>
+
+<span class="keyword">function</span> getparam (t_in, options, params)
+
+  <span class="keyword">local</span> t_out = {}
+
+  <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(t_in) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> prefix, command = v:sub(1,1), v:sub(2)
+
+    <span class="keyword">if</span> prefix == <span class="string">"$"</span> <span class="keyword">then</span>
+
+      tinsert(t_out, command)
+
+    <span class="keyword">elseif</span> prefix == <span class="string">"-"</span> <span class="keyword">then</span>
+
+      <span class="keyword">for</span> id <span class="keyword">in</span> command:gmatch<span class="string">"[^,;]+"</span> <span class="keyword">do</span>
+
+        <span class="keyword">if</span> <span class="keyword">not</span> idcheck(id) <span class="keyword">then</span> <span class="keyword">return</span> iderror(i) <span class="keyword">end</span>
+
+        t_out[id] = <span class="keyword">true</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">elseif</span> prefix == <span class="string">"!"</span> <span class="keyword">then</span>
+
+      <span class="keyword">local</span> f, err = <span class="library">loadstring</span>(command)
+
+      <span class="keyword">if</span> <span class="keyword">not</span> f <span class="keyword">then</span> <span class="keyword">return</span> argerror(err, i) <span class="keyword">end</span>
+
+      <span class="library">setfenv</span>(f, t_out)()
+
+    <span class="keyword">elseif</span> v:find(<span class="string">"="</span>) <span class="keyword">then</span>
+
+      <span class="keyword">local</span> ids, val = v:match(<span class="string">"^([^=]+)%=(.*)"</span>) <span class="comment">-- no space around =</span>
+
+      <span class="keyword">if</span> <span class="keyword">not</span> ids <span class="keyword">then</span> <span class="keyword">return</span> argerror(<span class="string">"invalid assignment syntax"</span>, i) <span class="keyword">end</span>
+
+      val = val:sub(1,1)==<span class="string">"$"</span> <span class="keyword">and</span> val:sub(2) <span class="keyword">or</span> <span class="library">tonumber</span>(val) <span class="keyword">or</span> val
+
+      <span class="keyword">for</span> id <span class="keyword">in</span> ids:gmatch<span class="string">"[^,;]+"</span> <span class="keyword">do</span>
+
+        <span class="keyword">if</span> <span class="keyword">not</span> idcheck(id) <span class="keyword">then</span> <span class="keyword">return</span> iderror(i) <span class="keyword">end</span>
+
+        t_out[id] = val
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">else</span>
+
+      tinsert(t_out, v)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> options <span class="keyword">then</span>
+
+    <span class="keyword">local</span> lookup, unknown = {}, {}
+
+    <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(options) <span class="keyword">do</span> lookup[v] = <span class="keyword">true</span> <span class="keyword">end</span>
+
+    <span class="keyword">for</span> k,_ <span class="keyword">in</span> <span class="library">pairs</span>(t_out) <span class="keyword">do</span>
+
+      <span class="keyword">if</span> lookup[k]==<span class="keyword">nil</span> <span class="keyword">and</span> <span class="library">type</span>(k)==<span class="string">"string"</span> <span class="keyword">then</span> tinsert(unknown, k) <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> #unknown &gt; 0 <span class="keyword">then</span>
+
+      <span class="keyword">return</span> commonerror(<span class="string">"unknown options: "</span> .. tconcat(unknown, <span class="string">", "</span>))
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> params <span class="keyword">then</span>
+
+    <span class="keyword">local</span> missing = {}
+
+    <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(params) <span class="keyword">do</span>
+
+      <span class="keyword">if</span> t_out[v]==<span class="keyword">nil</span> <span class="keyword">then</span> tinsert(missing, v) <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> #missing &gt; 0 <span class="keyword">then</span>
+
+      <span class="keyword">return</span> commonerror(<span class="string">"missing parameters: "</span> .. tconcat(missing, <span class="string">", "</span>))
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t_out
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>test_cmdline.lua</H2>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"cmdline"</span>
+
+<span class="keyword">local</span> getparam = cmdline.getparam
+
+<span class="keyword">local</span> <span class="keyword">function</span> assertgood(...) <span class="keyword">return</span> <span class="library">assert</span>(getparam(...)) <span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> assertbad(...) <span class="keyword">return</span> <span class="library">assert</span>(<span class="keyword">not</span> getparam(...)) <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> t_in = {
+
+  <span class="string">"var1,var1b=John"</span>,
+
+  <span class="string">"var2,var2b=$Peter"</span>,
+
+  <span class="string">"var3,var3b=$005"</span>,
+
+  <span class="string">"var4,var4b=005"</span>,
+
+  <span class="string">"!var5=8/2;var6=var5*40;var7=\"Ann\""</span>,
+
+  <span class="string">"!var8=nil"</span>,
+
+  <span class="string">"!var9={} and 5 and 6"</span>,
+
+  <span class="string">"-a,b2,c"</span>,
+
+  <span class="string">"abcd"</span>,
+
+  <span class="string">"/bin"</span>,
+
+  <span class="string">"$-abc"</span>
+
+}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> test1(t_out)
+
+  <span class="library">assert</span> (t_out.var1 == <span class="string">"John"</span> <span class="keyword">and</span> t_out.var1b == <span class="string">"John"</span>)
+
+  <span class="library">assert</span> (t_out.var2 == <span class="string">"Peter"</span> <span class="keyword">and</span> t_out.var2b == <span class="string">"Peter"</span>)
+
+  <span class="library">assert</span> (t_out.var3 == <span class="string">"005"</span> <span class="keyword">and</span> t_out.var3b == <span class="string">"005"</span>)
+
+  <span class="library">assert</span> (t_out.var4 == 5 <span class="keyword">and</span> t_out.var4b == 5)
+
+  <span class="library">assert</span> (t_out.var5 == 4)
+
+  <span class="library">assert</span> (t_out.var6 == 160)
+
+  <span class="library">assert</span> (t_out.var7 == <span class="string">"Ann"</span>)
+
+  <span class="library">assert</span> (t_out.var8 == <span class="keyword">nil</span>)
+
+  <span class="library">assert</span> (t_out.var9 == 6)
+
+  <span class="library">assert</span> (t_out.a==<span class="keyword">true</span> <span class="keyword">and</span> t_out.b2==<span class="keyword">true</span> <span class="keyword">and</span> t_out.c==<span class="keyword">true</span>)
+
+  <span class="library">assert</span> (t_out[1] == <span class="string">"abcd"</span>)
+
+  <span class="library">assert</span> (t_out[2] == <span class="string">"/bin"</span>)
+
+  <span class="library">assert</span> (t_out[3] == <span class="string">"-abc"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> options = {
+
+  <span class="string">"var1"</span>, <span class="string">"var1b"</span>, <span class="string">"var2"</span>, <span class="string">"var2b"</span>, <span class="string">"var3"</span>, <span class="string">"var3b"</span>, <span class="string">"var4"</span>, <span class="string">"var4b"</span>, <span class="string">"var5"</span>,
+
+  <span class="string">"var6"</span>, <span class="string">"var7"</span>, <span class="string">"var8"</span>, <span class="string">"var9"</span>, <span class="string">"a"</span>, <span class="string">"b2"</span>, <span class="string">"c"</span>
+
+}
+
+
+
+<span class="keyword">local</span> t_out = assertgood(t_in) <span class="comment">-- no options checking</span>
+
+test1(t_out)
+
+
+
+<span class="keyword">local</span> t_out = assertgood(t_in, options) <span class="comment">-- options checking</span>
+
+test1(t_out)
+
+assertbad(t_in, {}) <span class="comment">-- no options permitted</span>
+
+
+
+<span class="keyword">local</span> t_out = assertgood(t_in, <span class="keyword">nil</span>, {3, <span class="string">"var1"</span>}) <span class="comment">-- parameters checking</span>
+
+test1(t_out)
+
+assertbad(t_in, <span class="keyword">nil</span>, {<span class="string">"var0"</span>}) <span class="comment">-- parameter missing</span>
+
+
+
+<span class="keyword">local</span> t_bad = { <span class="comment">-- bad syntax tests</span>
+
+  {<span class="string">"!abc"</span>}, {<span class="string">"--88"</span>}, {<span class="string">"-a,8,b"</span>}, {<span class="string">"=8a=1"</span>}
+
+}
+
+<span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(t_bad) <span class="keyword">do</span> assertbad(v) <span class="keyword">end</span>
+
+
+
+<span class="library">print</span> (<span class="string">"OK: test_cmdline"</span>)
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CommandLineModule" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CommandLineModule" >history</a><br>Last edited December 11, 2009 11:40 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CommandLineModule" >(diff)</a>
+</body>
+</html>

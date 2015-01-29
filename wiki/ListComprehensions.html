@@ -1,0 +1,434 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: List Comprehensions</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ListComprehensions&amp;body=1" title="List pages referring to ListComprehensions">List Comprehensions</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+List comprehensions <a href="http://en.wikipedia.org/wiki/List_comprehension.html">[1]</a> provide concise syntax for building lists in mathematical set-builder notation.  A number of programming languages (e.g. Haskell and Python) provide built-in support for list comprehensions.  Lua does not; however, there are are ways to implement it in Lua.
+<p>
+<H2>List Comprehensions in Pure Lua with Code Generation</H2>
+<p>
+Unlike some other approaches, the following approach implements list comprehensions in pure Lua as a library (without patching or token filters).  It uses a trick with dynamic code generation (loadstring) and caching somewhat analogous to <a href="../wiki/ShortAnonymousFunctions.html" >ShortAnonymousFunctions</a>.
+<p>
+This library has been incorporated into <a href="http://penlight.luaforge.net/">[Penlight]</a>.
+<p>
+<H3>Examples</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> comp = <span class="library">require</span> <span class="string">'comprehension'</span> . new()
+
+comp <span class="string">'x^2 for x'</span> {2,3} <span class="comment">--&gt; {2^2,3^2}</span>
+
+comp <span class="string">'x^2 for _,x in ipairs(_1)'</span> {2,3} <span class="comment">--&gt; {2^2,3^2}</span>
+
+comp <span class="string">'x^2 for x=_1,_2'</span> (2,3) <span class="comment">--&gt; {2^2,3^2}</span>
+
+
+
+comp <span class="string">'sum(x^2 for x)'</span> {2,3} <span class="comment">--&gt; 2^2+3^2</span>
+
+comp <span class="string">'max(x*y for x for y if x&lt;4 if y&lt;6)'</span> ({2,3,4}, {4,5,6}) <span class="comment">--&gt; 3*5</span>
+
+comp <span class="string">'table(v,k for k,v in pairs(_1))'</span> {[3]=5, [5]=7} <span class="comment">--&gt; {[5]=3, [7]=5}</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Examples/Tests</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- comprehension_test.lua</span>
+
+<span class="comment">-- test of comprehension.lua</span>
+
+
+
+<span class="comment">-- Utility function for the test suite.</span>
+
+<span class="comment">-- Returns true/false whether arrays a and b</span>
+
+<span class="comment">-- are equal.  This does a deep by-value comparison (supports nested arrays).</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> eqarray(a, b)
+
+  <span class="keyword">if</span> #a ~= #b <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+  <span class="keyword">for</span> i=1,#a <span class="keyword">do</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(a[i]) == <span class="string">'table'</span> <span class="keyword">and</span> <span class="library">type</span>(b[i]) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+      <span class="keyword">if</span> <span class="keyword">not</span> eqarray(a[i], b[i]) <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">if</span> a[i] ~= b[i] <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">true</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> comp = <span class="library">require</span> <span class="string">'comprehension'</span> . new()
+
+
+
+<span class="comment">-- test of list building</span>
+
+<span class="library">assert</span>(eqarray(comp <span class="string">'x for x'</span> {}, {}))
+
+<span class="library">assert</span>(eqarray(comp <span class="string">'x for x'</span> {2,3}, {2,3}))
+
+<span class="library">assert</span>(eqarray(comp <span class="string">'x^2 for x'</span> {2,3}, {2^2,3^2}))
+
+<span class="library">assert</span>(eqarray(comp <span class="string">'x for x if x % 2 == 0'</span> {4,5,6,7}, {4,6}))
+
+<span class="library">assert</span>(eqarray(comp <span class="string">'{x,y} for x for y if x&gt;2 if y&gt;4'</span> ({2,3},{4,5}), {{3,5}}))
+
+
+
+<span class="comment">-- test of table building</span>
+
+<span class="keyword">local</span> t = comp <span class="string">'table(x,x+1 for x)'</span> {3,4}
+
+<span class="library">assert</span>(t[3] == 3+1 <span class="keyword">and</span> t[4] == 4+1)
+
+<span class="keyword">local</span> t = comp <span class="string">'table(x,x+y for x for y)'</span> ({3,4}, {2})
+
+<span class="library">assert</span>(t[3] == 3+2 <span class="keyword">and</span> t[4] == 4+2)
+
+<span class="keyword">local</span> t = comp <span class="string">'table(v,k for k,v in pairs(_1))'</span> {[3]=5, [5]=7}
+
+<span class="library">assert</span>(t[5] == 3 <span class="keyword">and</span> t[7] == 5)
+
+
+
+<span class="comment">-- test of sum</span>
+
+<span class="library">assert</span>(comp <span class="string">'sum(x for x)'</span> {} == 0)
+
+<span class="library">assert</span>(comp <span class="string">'sum(x for x)'</span> {2,3} == 2+3)
+
+<span class="library">assert</span>(comp <span class="string">'sum(x^2 for x)'</span> {2,3} == 2^2+3^2)
+
+<span class="library">assert</span>(comp <span class="string">'sum(x*y for x for y)'</span> ({2,3}, {4,5}) == 2*4+2*5+3*4+3*5)
+
+<span class="library">assert</span>(comp <span class="string">'sum(x^2 for x if x % 2 == 0)'</span> {4,5,6,7} == 4^2+6^2)
+
+<span class="library">assert</span>(comp <span class="string">'sum(x*y for x for y if x&gt;2 if y&gt;4)'</span> ({2,3}, {4,5}) == 3*5)
+
+
+
+<span class="comment">-- test of min/max</span>
+
+<span class="library">assert</span>(comp <span class="string">'min(x for x)'</span> {3,5,2,4} == 2)
+
+<span class="library">assert</span>(comp <span class="string">'max(x for x)'</span> {3,5,2,4} == 5)
+
+
+
+<span class="comment">-- test of placeholder parameters --</span>
+
+<span class="library">assert</span>(comp <span class="string">'sum(x^_1 + _3 for x if x &gt;= _4)'</span> (2, <span class="keyword">nil</span>, 3, 4, {3,4,5})
+
+       == 4^2+3 + 5^2+3)
+
+
+
+<span class="comment">-- test of for =</span>
+
+<span class="library">assert</span>(comp <span class="string">'sum(x^2 for x=2,3)'</span> () == 2^2+3^2)
+
+<span class="library">assert</span>(comp <span class="string">'sum(x^2 for x=2,6,1+1)'</span> () == 2^2+4^2+6^2)
+
+<span class="library">assert</span>(comp <span class="string">'sum(x*y*z for x=1,2 for y=3,3 for z)'</span> {5,6} ==
+
+  1*3*5 + 2*3*5 + 1*3*6 + 2*3*6)
+
+<span class="library">assert</span>(comp <span class="string">'sum(x*y*z for z for x=1,2 for y=3,3)'</span> {5,6} ==
+
+  1*3*5 + 2*3*5 + 1*3*6 + 2*3*6)
+
+
+
+<span class="comment">-- test of for in</span>
+
+<span class="library">assert</span>(comp <span class="string">'sum(i*v for i,v in ipairs(_1))'</span> {2,3} == 1*2+2*3)
+
+<span class="library">assert</span>(comp <span class="string">'sum(i*v for i,v in _1,_2,_3)'</span> (<span class="library">ipairs</span>{2,3}) == 1*2+2*3)
+
+
+
+<span class="comment">-- test of difficult syntax</span>
+
+<span class="library">assert</span>(eqarray(comp <span class="string">'" x for x " for x'</span> {2}, {<span class="string">' x for x '</span>}))
+
+<span class="library">assert</span>(eqarray(comp <span class="string">'x --[=[for x\n\n]=] for x'</span> {2}, {2}))
+
+<span class="library">assert</span>(eqarray(comp <span class="string">'(function() for i = 1,1 do return x*2 end end)() for x'</span>
+
+               {2}, {4}))
+
+<span class="library">assert</span>(comp <span class="string">'sum(("_5" and x)^_1 --[[_6]] for x)'</span> (2, {4,5}) == 4^2 + 5^2)
+
+
+
+<span class="comment">-- error checking</span>
+
+<span class="library">assert</span>(({<span class="library">pcall</span>(<span class="keyword">function</span>() comp <span class="string">'x for __result'</span> <span class="keyword">end</span>)})[2]
+
+       :find<span class="string">'not contain __ prefix'</span>)
+
+
+
+<span class="comment">-- environment.</span>
+
+<span class="comment">-- Note: generated functions are set to the environment of the 'new' call.</span>
+
+<span class="library">assert</span>(5 == (<span class="keyword">function</span>()
+
+  <span class="keyword">local</span> env = {d = 5}
+
+  <span class="library">setfenv</span>(1, env)
+
+  <span class="keyword">local</span> comp = comp.new()
+
+  <span class="keyword">return</span> comp <span class="string">'sum(d for x)'</span> {1}
+
+<span class="keyword">end</span>)());
+
+
+
+<span class="library">print</span> <span class="string">'DONE'</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Run-time behavior</H3>
+<p>
+To illustrate the run-time characteristics, consider the following code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+comp <span class="string">'sum(x^2 for x if x % 2 == 0)'</span>
+
+</pre>
+
+</DL>
+<p>
+That gets code generated to this Lua function:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> __in1 = ...
+
+<span class="keyword">local</span> __result = (  0  )
+
+<span class="keyword">for</span> __idx1 = 1, #__in1 <span class="keyword">do</span>
+
+  <span class="keyword">local</span> x = __in1[__idx1]
+
+  <span class="keyword">if</span> x % 2 == 0 <span class="keyword">then</span>
+
+    __result = __result + ( __x^2 )
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">return</span> __result
+
+</pre>
+
+</DL>
+<p>
+Note that no intermediate lists are built.  The code efficiently avoids memory allocations (apart from the allocation of the function itself, but that is done only on the first invocation due to caching/memoization).  Also, no global variables are referenced.
+<p>
+<H3>Source</H3>
+<p>
+Download from <a href="http://github.com/davidm/lua-list-comprehension">[github]</a>.
+<p>
+Note: the implementation uses the module <a href="../wiki/LuaBalanced.html" >LuaBalanced</a>.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>Status</H2>
+<p>
+This module is new and likely still has some bugs.
+<p>
+<H3>Possible extensions</H3>
+<p>
+A simple extension would be to provide a more mathematical (or more Haskell-like) syntax:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">assert</span>(comp <span class="string">'sum { x^2 | x &lt;- ?, x % 2 == 0 }'</span> {2,3,4} == 2^2+4^2)
+
+</pre>
+
+</DL>
+<p>
+A compelling extension, as recommended by Greg Fitzgerald, is to implement the generalized list comprehensions proposed by SPJ and Wadler <a href="http://research.microsoft.com/~simonpj/papers/list-comp/">[2]</a>.  This provides some clear directions to take this to the next level, and the related work in Microsoft LINQ <a href="http://en.wikipedia.org/wiki/Language_Integrated_Query.html">[3]</a> shows what this could look like in practice.
+<p>
+The "zip" extension to list comprehensions, using the Haskell-like notation in the paper
+<p>
+<DL>
+<dt><dd><pre>
+
+[ (x,y,z,w) | (x &lt;- xs | y &lt;- ys), (z &lt;- zs | w &lt;- ws) ] ,
+
+</pre>
+</DL>
+<p>
+would require only small changes.  The corresponding Lua function to generate that would be like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> __xs, __ys, __zs, __ws = ...
+
+<span class="keyword">local</span> __ret = {}   <span class="comment">-- i.e. $list_init</span>
+
+<span class="keyword">for</span> __i=1,__math_min(#__xs, #__ys) <span class="keyword">do</span>
+
+  <span class="keyword">local</span> x, y = __xs[__i], __ys[__i]
+
+  <span class="keyword">for</span> __j=1,__math_min(#__zs, #__ws) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> z, w = __zs[__j], __ws[__j]
+
+    __ret[#__ret+1] = {x,y,z,w}   <span class="comment">-- i.e. $list_accum(__ret, x, y, z, w)</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">return</span> ret
+
+</pre>
+
+</DL>
+<p>
+(The "$" notation here is a short-hand for compile-time macros that were used to expand the source.)
+<p>
+Supporting sort or grouped by, e.g. again using notation in the paper
+<p>
+<DL>
+<dt><dd><pre>
+
+[ the x.name, sum x.deposit | x &lt;- transactions, group by x.name ] ,
+
+</pre>
+</DL>
+<p>
+could be achieved by generating functions like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> __transactions = ...
+
+<span class="keyword">local</span> __groups1 = {}
+
+<span class="keyword">local</span> __groups2 = {}
+
+<span class="keyword">for</span> __i = 1, #__transactions <span class="keyword">do</span>
+
+  <span class="keyword">local</span> x = __transactions[__i]
+
+  <span class="keyword">local</span> __key = ( x.name )  <span class="comment">-- i.e. $group_by_key</span>
+
+  __groups1[__key] = ( x.name )
+
+         <span class="comment">-- i.e. $accum_the(__groups1[__key], $val1)</span>
+
+  __groups2[__key] = (__groups2[__key] <span class="keyword">or</span> 0) + ( x.deposit )
+
+         <span class="comment">-- i.e. $accum_sum(__groups2[__key], $val2)</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> __result = {}   <span class="comment">-- i.e. $list_init</span>
+
+<span class="keyword">for</span> __key <span class="keyword">in</span> __pairs(__groups1) <span class="keyword">do</span>
+
+  __result[__result+1] = {__groups1[__key], __groups2[__key]}
+
+         <span class="comment">-- i.e. $accum_list(__result, __v)</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">return</span> __result
+
+</pre>
+
+</DL>
+<p>
+Taking this to its full fruition seems quite achievable (after some research), though it would be a significant extension to this module (any takers?).
+<p>
+<H2>Changes</H2>
+<p>
+2009-12-01 - fix __call convenience operator not caching (noted by Joshua Jensen on mail list)
+<p>
+<H2><a href="../wiki/MetaLua.html" >MetaLua</a></H2>
+<p>
+List comprehensions have also been implemented in <a href="../wiki/MetaLua.html" >MetaLua</a> (clist):
+<p>
+<UL>
+<li> <a href="http://metalua.luaforge.net/metalua-manual.html#htoc52">[Metalua manual]</a>
+<li> <a href="http://metalua.luaforge.net/src/lib/ext-syntax/clist.lua.html">[clist.lua]</a>
+</UL>
+<p>
+<H2><a href="../wiki/LuaMacros.html" >LuaMacros</a></H2>
+<p>
+List comprehensions have also been implemented in <a href="../wiki/LuaMacros.html" >LuaMacros</a>:
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2007-12/msg00014.html">LuaList:2007-12/msg00014.html</a>
+<li> <a href="../wiki/LuaMacros.html" >LuaMacros</a>
+</UL>
+<p>
+<H2>Moon<code></code>Script</H2>
+<p>
+Moonscript has list comprehensions -- <a href="http://moonscript.org/reference/#comprehensions">http://moonscript.org/reference/#comprehensions</a> .  Moonscript gets compiled into Lua code.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="http://en.wikipedia.org/wiki/List_comprehension.html">[Wikipedia:List Comprehension]</a>
+<li> This example uses the technique of <a href="../wiki/CodeGeneration.html" >CodeGeneration</a>.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ListComprehensions" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ListComprehensions" >history</a><br>Last edited April 7, 2012 8:05 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ListComprehensions" >(diff)</a>
+</body>
+</html>

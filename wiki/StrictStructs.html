@@ -1,0 +1,201 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Strict Structs</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=StrictStructs&amp;body=1" title="List pages referring to StrictStructs">Strict Structs</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+We all know that global variables can be a pain (see <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>) and should be
+avoided.  The 'strict struct' pattern brings these benefits to tables
+with named keys
+<p>
+A 'struct' can be declared so:
+<p>
+<DL>
+<dt><dd><pre class="code">
+struct.Alice {
+
+	x = 1;
+
+	y = 2;
+
+}
+
+</pre>
+
+</DL>
+<p>
+And instantiated like so:
+<p>
+<DL>
+<dt><dd><pre class="code">
+a = Alice {x = 10, y = 20}
+
+</pre>
+
+</DL>
+<p>
+or
+<p>
+<DL>
+<dt><dd><pre class="code">
+b = Alice {x = 10}  <span class="comment">-- y will be set to 2</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+Any attempt to access an unknown field of a and b will be an error,
+like <code>a.z = 1</code> or <code>print(b.zz)</code>, or even <code>Alice{z = 4} </code>.
+<p>
+So this brings two things to the party:
+<p>
+<UL>
+<li> typos in fieldnames are errors, not silent problems.
+<li> such tables now have an <em>identity</em>, and this in particular helps when trying to write more self-documenting code. When <a href="../wiki/DocumentingLuaCode.html" >DocumentingLuaCode</a>, you can then confidently give the type of a parameter as <code>Alice</code>, rather than 'a table with x and y being numbers'
+</UL>
+<p>
+Stronger typing also means that type-specific assertions can be thrown.
+<p>
+A simple overload of <code>__tostring</code> would also give you type-specific
+string representations like 'Alice #23' for debugging purposes.
+<p>
+It would be possible (using a suitable proxy table) to enforce dynamic
+type checking on field assignments, but of course this would incur a
+run-time cost.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- struct.lua</span>
+
+<span class="comment">--- defining a struct constructor ---</span>
+
+<span class="keyword">local</span> struct_mt = {
+
+	<span class="comment">-- instances can be created by calling the struct object</span>
+
+	__call = <span class="keyword">function</span>(s,t)
+
+		<span class="keyword">local</span> obj = t <span class="keyword">or</span> {}  <span class="comment">-- pass it a table (or nothing)</span>
+
+		<span class="keyword">local</span> fields = s._fields
+
+		<span class="comment">-- attempt to set a non-existent field in ctor?</span>
+
+		<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(obj) <span class="keyword">do</span>
+
+			<span class="keyword">if</span> <span class="keyword">not</span> fields[k] <span class="keyword">then</span>
+
+				s._error_nf(<span class="keyword">nil</span>,k)
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>
+
+		<span class="comment">-- fill in any default values if not supplied</span>
+
+		<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(fields) <span class="keyword">do</span>
+
+			<span class="keyword">if</span> <span class="keyword">not</span> obj[k] <span class="keyword">then</span>
+
+				obj[k] = v
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>
+
+		<span class="library">setmetatable</span>(obj,s._mt)
+
+		<span class="keyword">return</span> obj
+
+	<span class="keyword">end</span>;
+
+}
+
+
+
+<span class="comment">-- creating a new struct triggered by struct.STRUCTNAME</span>
+
+struct = <span class="library">setmetatable</span>({},{
+
+	__index = <span class="keyword">function</span>(tbl,sname)
+
+		<span class="comment">-- so we create a new struct object with a name</span>
+
+		<span class="keyword">local</span> s = {_name = sname}
+
+		<span class="comment">-- and put the struct in the enclosing context</span>
+
+		<span class="library">_G</span>[sname] = s
+
+		<span class="comment">-- the not-found error</span>
+
+		s._error_nf = <span class="keyword">function</span> (tbl,key)
+
+			<span class="library">error</span>(<span class="string">"field '"</span>..key..<span class="string">"' is not in "</span>..s._name)
+
+		<span class="keyword">end</span>
+
+		<span class="comment">-- reading or writing an undefined field of this struct is an error</span>
+
+		s._mt = {
+
+			_name = s._name;
+
+			__index = s._error_nf;
+
+			__newindex = s._error_nf;
+
+		}
+
+		<span class="comment">-- the struct has a ctor</span>
+
+		<span class="library">setmetatable</span>(s,struct_mt)
+
+		<span class="comment">-- return a function that sets the struct's fields</span>
+
+		<span class="keyword">return</span> <span class="keyword">function</span>(t)
+
+			s._fields = t
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+})
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/SteveDonovan.html" >SteveDonovan</a>
+<p>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=StrictStructs" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=StrictStructs" >history</a><br>Last edited September 29, 2009 1:46 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=StrictStructs" >(diff)</a>
+</body>
+</html>

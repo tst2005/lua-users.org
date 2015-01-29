@@ -1,0 +1,267 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Deferred Call</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=DeferredCall&amp;body=1" title="List pages referring to DeferredCall">Deferred Call</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Deferred Function Calls using C Closures.</H2>
+<p>
+<H3>Description</H3>
+<p>
+Sometimes it is necessary to define a function call at one point in a program but defer its execution for a later time. For example, an event driven system needs to serialise the response to events occurring asynchronously. We need to enqueue the response functions when the event occurs and then dequeue and execute them once the response to earlier (or higher priority) events has completed. If the response functions are parameterless this is straightforward - just store the functions in a table. However if the response functions require parameters to further characterise the event, there is a problem - the parameters are known when the function is enqueued, but not when it is executed.
+<p>
+This is an archetypical case for the use of closures which is straightforward if the whole system is written in Lua. However we may want to write the queuing system in C with only the event response functions coded in Lua. It is not possible to enclosure a Lua function directly using the C API as you can in Lua using lexical scoping.
+<p>
+The scheme presented here uses a C closure to encapsulate an arbitrary Lua function plus its calling parameters. When the C closure is called, it recovers the Lua function and its parameters from its upvalues, makes the call and returns the results. Since the C closure is just a Lua Function it can be stored in the registry or in any other table.
+<p>
+This scheme can also be surfaced in Lua to simplify the use of closures to create deferred function calls and it is easiest to understand if we approach it from Lua first.
+<p>
+<H3>Lua code</H3>
+<p>
+The C code presented later publishes a new global function <em>createdeferredcall</em> which is used as follows:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> func = <span class="keyword">function</span>(p1, p2, p3) <span class="library">print</span>(<span class="string">"func"</span>, p1, p2, p3); <span class="keyword">return</span> <span class="string">"ret1"</span>,<span class="string">"ret2"</span>; <span class="keyword">end</span>
+
+<span class="keyword">local</span> dfunc = createdeferredcall(func, <span class="string">"call1"</span>, <span class="string">"call2"</span>, <span class="string">"call3"</span>)
+
+</pre>
+
+</DL>
+<p>
+<em>dfunc</em> is just a variable holding a Lua function, but this function now encapsulates the original function <em>func</em> and the values for its three string parameters (there could be any number of parameters of any Lua type). We can treat this exactly as we would any Lua variable. Later, when we want to execute the function, we simply call <em>dfunc</em> without parameters:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(dfunc())
+
+</pre>
+
+</DL>
+<p>
+Which gives the following result:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt;func call1 call2 call3
+
+&gt;ret1 ret2
+
+</pre>
+</DL>
+<p>
+If there is an error during the call, the system will report it and terminate, similar to a normal call operation. However we can pass an error function to the call and it will then behave like <em>pcall</em>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(dfunc(<span class="keyword">function</span>() <span class="library">print</span>(<span class="string">"inerrorfunc"</span>); <span class="keyword">return</span> <span class="string">"errormess"</span>; <span class="keyword">end</span>))
+
+</pre>
+
+</DL>
+<p>
+This gives the following result:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt;func call1 call2 call3
+
+&gt;true ret1 ret2
+
+</pre>
+</DL>
+<p>
+If an error is introduced into <em>func</em> the call will return boolean <em>false</em> followed by the message supplied by the error function:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt;inerrorfunc
+
+&gt;false errormess
+
+</pre>
+</DL>
+<p>
+This is already conceptually and practically more straightforward than using lexical scoping to produce a closure in standard Lua. However the real benefit is that <em>createdeferredcall</em> is also available as a new C API function allowing us to do something we could not do before - create a closure in C from a function defined in Lua.
+<p>
+<H3>C code</H3>
+<p>
+Here is the C code:
+<p>
+<DL>
+<dt><dd><pre>
+
+static int Lua_DcallDelegate(lua_State* L)
+
+{
+
+  int efun = (lua_isfunction(L, 1))? 1 : luaL_optint(L, 1, 0);
+
+  int nret = luaL_optint(L, 2, LUA_MULTRET);
+
+  lua_checkstack(L, 1);
+
+  lua_pushboolean(L, TRUE);
+
+  int sm = lua_gettop(L);
+
+  int ix = 1;
+
+  while (!lua_isnone(L, lua_upvalueindex(ix)))
+
+  {
+
+    lua_checkstack(L, 1);
+
+    lua_pushvalue(L, lua_upvalueindex(ix++));
+
+  }
+
+  ix--;
+
+  if ((ix &lt; 1) || (!lua_isfunction(L, (-1 * ix)))) return luaL_error(L, "Bad Deferred Call");
+
+  if (lua_pcall(L, ix - 1, nret, efun) == 0)
+
+    return (efun == 0)? lua_gettop(L) - sm : lua_gettop(L) - sm + 1; 
+
+  else
+
+  {
+
+    lua_pushboolean(L, FALSE);
+
+    lua_replace(L, sm);
+
+    return (efun == 0)? lua_error(L) : 2;
+
+  }
+
+}
+
+
+
+static void luaX_pushdcall(lua_State* L, int nargs)
+
+{
+
+  luaL_checktype(L, 1, LUA_TFUNCTION);
+
+  lua_pushcclosure(L, Lua_DcallDelegate, nargs + 1);
+
+}
+
+
+
+static int luaX_dcall(lua_State* L, int nresults, int errfunc)
+
+{
+
+  lua_checkstack(L, 2);
+
+  lua_pushinteger(L, errfunc);
+
+  lua_pushinteger(L, nresults);
+
+  return lua_pcall(L, 2, nresults, errfunc);
+
+}
+
+
+
+static int LuaMakeDeferredCall(lua_State* L)
+
+{
+
+  luaX_pushdcall(L, lua_gettop(L) - 1);
+
+  return 1;
+
+}
+
+
+
+lua_pushcfunction(L, LuaMakeDeferredCall);
+
+lua_setglobal(L, "makedeferredcall");
+
+</pre>
+</DL>
+<p>
+<em>luaX_pushdcall</em> and <em>luaX_dcall</em> are the two new API functions and they closely follow the conventions used by <em>lua_call</em>. <em>luaX_pushdcall</em> requires a Lua function on the stack underneath <em>nargs</em> parameters with the last parameter at the top of the stack. On exit the parameters have been popped and the function replaced by a C closure over the function <em>Lua_DcallDelegate</em>. <em>luaX_dcall</em> requires the C closure to be at the top of the stack. As for <em>lua_call</em>, <em>nresults</em> specifies the number of return parameters to be taken (it can be the key LUA_MULTRET). The parameter <em>errfunc</em> is 0 to specify no error function or the position of the error function on the stack, similar to <em>lua_pcall</em>.
+<p>
+If <em>errfunc</em> is 0, any error in the encapsulated function is terminal, otherwise the return parameters are on the stack with the last parameter at the top.
+<p>
+If an <em>errfunc</em> is identified, any error in the encapsulated function causes <em>luaX_dcall</em> to return boolean <em>false</em> under the string message returned by <em>errfunc</em>, otherwise it returns boolean <em>true</em> under the return parameters, with the last parameter at the top.
+<p>
+<a href="../wiki/JohnHind.html" >JohnHind</a>
+<p>
+Using LuaK, it is a full Lua 5.x distribution with defer semantic support.
+<p>
+e.g.
+<pre>
+
+function foo()
+
+  defer
+
+    defer
+
+      print("defer in defer")
+
+    end
+
+    print("defer")
+
+  end
+
+  print("foo")
+
+end
+
+
+
+foo() =&gt; output
+
+foo
+
+defer
+
+defer in defer
+
+</pre>
+<p>
+source code:
+git@github.com:peterk9999/LuaK.git
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DeferredCall" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=DeferredCall" >history</a><br>Last edited April 15, 2012 3:10 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=DeferredCall" >(diff)</a>
+</body>
+</html>

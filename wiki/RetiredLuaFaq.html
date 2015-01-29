@@ -1,0 +1,633 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Retired Lua Faq</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=RetiredLuaFaq&amp;body=1" title="List pages referring to RetiredLuaFaq">Retired Lua Faq</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em>[A few of the following may still be salvageable]</em>
+<p>
+<H2>Programming in Lua</H2>
+<p>
+<H3>How do I declare variables?</H3>
+<p>
+You don't: Lua does not have or need variable declarations.
+<p>
+But why do you need to declare variables?
+<p>
+Some people want to declare variables to protect themselves against typing mistakes.  For example, the code
+<p>
+<DL>
+<dt><dd><pre class="code">
+color=<span class="string">"red"</span>
+
+<span class="library">print</span>(colour)
+
+</pre>
+
+</DL>
+<p>
+will print <code>nil</code> because <code>color</code> has been mistyped in line 2 and <code>colour</code> has not been defined.
+<p>
+To safeguard against these mistakes, and also to spot undefined variables, you can use the <code>getglobal</code> tag method:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> safe_getglobal(x)
+
+  <span class="keyword">local</span> v=rawgetglobal(x)
+
+  <span class="keyword">if</span> v <span class="keyword">then</span> <span class="keyword">return</span> v <span class="keyword">else</span> <span class="library">error</span>(<span class="string">"undefined global variable "</span>..x) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+settagmethod(tag(<span class="keyword">nil</span>),<span class="string">"getglobal"</span>,safe_getglobal)
+
+</pre>
+
+</DL>
+<p>
+With this code in place, any attempt to use an undefined variable (which would have the value <code>nil</code>) will produce an error message.
+<p>
+<H3>How do I do typing in Lua?</H3>
+<p>
+Lua is a dynamically typed language. This means that variables do not have type, only values do. Since Lua provides access to the type of values (via the <code>type</code> function), you can write your own functions for dynamic typing. Here is one possible scheme.
+<p>
+To check simple types, just use <code>type</code>. The interesting case is checking tables, because we must check that all fields are present and correctly filled, according to pre-defined "templates". So, we need a way to describe the "type" of tables. As mentioned above, a simple type is described by its name, as reported by the <code>type</code> function. Tables are described by "type templates", which are tables that map each field to its required type. Here are some examples useful for user interface toolkits:
+<p>
+<DL>
+<dt><dd><pre class="code">
+TNumber=<span class="string">"number"</span>
+
+TPoint={x=TNumber, y=TNumber}
+
+TColor={red=TNumber, blue=TNumber, green=TNumber}
+
+TRectangle={topleft=TPoint, botright=TPoint}
+
+TWindow={title=<span class="string">"string"</span>, bounds=TRectangle, color=TColor}
+
+</pre>
+
+</DL>
+<p>
+Given such descriptions, the following function checks whether a value has a given type:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> checkType(d, t)
+
+  <span class="keyword">if</span> <span class="library">type</span>(t) == <span class="string">"string"</span> <span class="keyword">then</span>
+
+    <span class="comment">-- t is the name of a type</span>
+
+    <span class="keyword">return</span> (<span class="library">type</span>(d) == t)
+
+  <span class="keyword">else</span>
+
+    <span class="comment">-- t is a table, so d must also be a table</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(d) ~= <span class="string">"table"</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>
+
+    <span class="keyword">else</span>
+
+      <span class="comment">-- d is also a table; check its fields</span>
+
+      <span class="keyword">local</span> i,v = <span class="library">next</span>(t,<span class="keyword">nil</span>)
+
+      <span class="keyword">while</span> i <span class="keyword">do</span>
+
+        <span class="keyword">if</span> <span class="keyword">not</span> checkType(d[i],v) <span class="keyword">then</span>
+
+          <span class="keyword">return</span> <span class="keyword">nil</span>
+
+        <span class="keyword">end</span>
+
+        i,v = <span class="library">next</span>(t,i)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> 1
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>How do I create read-only variables?</H3>
+<p>
+In large projects, and also in libraries, it is sometimes important to protect some variables so that they cannot be redefined. This is specially useful when several libraries are loaded and you want to make sure they don't redefine each other's functions by accident.
+<p>
+You can protect functions in Lua by using the <code>setglobal</code> tag method:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> protect(x)
+
+  <span class="library">error</span>(<span class="string">"cannot redefine "</span>..x)
+
+<span class="keyword">end</span>
+
+
+
+settagmethod(tag(protect),<span class="string">"setglobal"</span>,protect)
+
+</pre>
+
+</DL>
+<p>
+This code should be run after all libraries have been loaded.
+<p>
+With this code in place, any attempt to redefine functions will produce an error message. You can still redefine functions, but you have to do it explicitly:
+<p>
+<DL>
+<dt><dd><pre class="code">
+rawsetglobal(<span class="string">"print"</span>,<span class="keyword">nil</span>)
+
+<span class="keyword">function</span> <span class="library">print</span> (x) ... <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+To extend this scheme to other kinds of values, you need to wrap values with tables, and use both <code>setglobal</code> and <code>getglobal</code> tag methods:
+<p>
+<DL>
+<dt><dd><pre class="code">
+RO=newtag()				<span class="comment">-- tag for read-only values</span>
+
+
+
+<span class="keyword">function</span> ROvalue(value)			<span class="comment">-- make a read-only value</span>
+
+  <span class="keyword">local</span> t={value=value}
+
+  settag(t,RO)
+
+  <span class="keyword">return</span> t
+
+
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> ROsetglobal(x)			<span class="comment">-- protects assignment</span>
+
+  <span class="library">error</span>(x..<span class="string">" is read-only"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> ROgetglobal(x,value)		<span class="comment">-- get the actual value</span>
+
+  <span class="keyword">return</span> value.value
+
+<span class="keyword">end</span>
+
+
+
+settagmethod(RO,<span class="string">"getglobal"</span>,ROgetglobal)
+
+settagmethod(RO,<span class="string">"setglobal"</span>,ROsetglobal)
+
+
+
+tolerance=ROvalue(0.12)			<span class="comment">-- make some read-only variables</span>
+
+color=ROvalue(<span class="string">"red"</span>)
+
+myprint=ROvalue(<span class="library">print</span>)
+
+</pre>
+
+</DL>
+<p>
+This scheme only affects variables created with <code>ROvalue</code>, because only those have the <code>RO</code> tag.
+<p>
+<H3>How are block comments done in Lua?</H3>
+<p>
+<strong>Lua 5.0 now has a block comment syntax:</strong>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--Double-dashes begin a single-line comment</span>
+
+
+
+<span class="comment">--[[Double-dashes immediately followed by double left square bracket
+
+    Begin a multi-line comment
+
+    That continues until the __matching__ double right square bracket,
+
+    so you can do [[this]]</span> too. ]]
+
+</pre>
+
+</DL>
+<em>The following information about block comments applies for versions prior to 5.0.</em>
+<p>
+Lua doesn't have a special syntax for block comments.  One solution is to enclose the comment in a string:
+<p>
+<DL>
+<dt><dd><pre class="code">
+comment = <span class="string">[[
+
+    this is my
+
+    multi-line comment
+
+]]</span>
+
+</pre>
+
+</DL>
+<p>
+A variant of this solution, which is convenient for temporarily disabling a block of code, is the following:
+<p>
+<DL>
+<dt><dd><pre class="code">
+comment = <span class="string">[[
+
+    disabled code
+
+--]]</span>
+
+</pre>
+
+</DL>
+<p>
+You can enable the code simply by adding <code>--</code> to the assigment: 
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--comment = [[</span>
+
+    enabled code
+
+<span class="comment">--]]</span>
+
+</pre>
+
+</DL>
+<p>
+If the block is big, you may want to avoid letting it float in memory until the garbage collector removes it. You can then write:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> comment = <span class="string">[[
+
+    disabled code
+
+--]]</span> ; comment = <span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+<p>
+Luiz Henrique de Figueiredo suggested also:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span> <span class="keyword">local</span> C=<span class="string">[[
+
+--]]</span> <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+"C goes immediately out of scope. The parser could exploit this (but doesn't).
+There's also:"
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> C= 1 <span class="keyword">or</span> <span class="string">[[
+
+&lt;syntaxly correct code to comment out&gt;
+
+--]]</span>
+
+</pre>
+
+</DL>
+<p>
+"The code generator could exploit this (but doesn't)."
+<p>
+Another solution is to use an editor macro to prefix selected lines with "-- "; or with "--~ " for example, so the commented block stand out of surrounding regular comments.
+<p>
+For commenting out a block of code, it's possible to use <code>if nil then ... end</code>.  (See the next question.)
+<p>
+<H3>How do I clone objects?</H3>
+<p>
+In Lua, tables are manipulated by reference. So, if the value of <code>x</code> is a table, then the assignment <code>y=x</code> does not duplicate the table: <code>x</code> and <code>y</code> contain the  <em>same </em> table. (In other words, the values of <code>x</code> and <code>y</code> are references to the same table.)
+<p>
+If you really want to  <em>copy </em> a table, you can use the built-in function <code>next</code>, as in the code below:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> clone(t)            <span class="comment">-- return a copy of the table t</span>
+
+  <span class="keyword">local</span> new = {}             <span class="comment">-- create a new table</span>
+
+  <span class="keyword">local</span> i, v = <span class="library">next</span>(t, <span class="keyword">nil</span>)  <span class="comment">-- i is an index of t, v = t[i]</span>
+
+  <span class="keyword">while</span> i <span class="keyword">do</span>
+
+    new[i] = v
+
+    i, v = <span class="library">next</span>(t, i)        <span class="comment">-- get next index</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> new
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+If you want a  <em>deep copy </em>, add <code>if type(v)=="table" then v=clone(v) end</code> before <code>new[i] = v</code>.
+<p>
+<H3>How do I implement sets using tables?</H3>
+<p>
+The best way to implement a set in Lua is to store its elements as keys in a table. An element is present in a set when the corresponding value in the table is not <code>nil</code>.
+<p>
+Here are some code snippets for sets:
+<p>
+<DL>
+<dt><dd><pre class="code">
+s={}			<span class="comment">-- create an empty set</span>
+
+s[x]=1			<span class="comment">-- insert element x into set s</span>
+
+s[x]=<span class="keyword">nil</span>		<span class="comment">-- remove element x from set s</span>
+
+x_is_present=s[x]	<span class="comment">-- does s contain x?</span>
+
+</pre>
+
+</DL>
+<p>
+Bags are similar to sets, except that elements may appear more than once. Bags can be implemented similarly to sets, but using the value associated to an element as its counter. Here is a code snippet for bags:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- insert element x into bag s</span>
+
+<span class="keyword">if</span> s[x] <span class="keyword">then</span> s[x] = s[x]+1 <span class="keyword">else</span> s[x] = 1 <span class="keyword">end</span>
+
+
+
+<span class="comment">-- remove element x from set s</span>
+
+<span class="keyword">if</span> s[x] <span class="keyword">then</span>
+
+  s[x] = s[x]-1
+
+  <span class="keyword">if</span> s[x] == 0 <span class="keyword">then</span> s[x] = <span class="keyword">nil</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>How do I convert a number to char?</H3>
+<p>
+As of Lua 5.0, use <code>string.char(n)</code> or even <code>string.format("%c", n)</code>.  Prior to Lua 5.0, use <code>strchar(n)</code> or <code>format("%c",n)</code>.
+<p>
+<H3>How do I read words, numbers, quoted strings, etc?</H3>
+<p>
+<em>[needs updating!]</em>
+<p>
+The pattern matching capabilities of <code>read</code> are powerful, but writing patterns is not for everyone. Here are some useful patterns:
+<p>
+<DL>
+<dt><dd><pre>
+
+Word (sequence of letters and digits)
+
+        {{"%w%w*"}}
+
+Word (sequence of non-white space characters)
+
+        {{"%S%S*"}}
+
+Integer
+
+        {{"[+-]?%d%d*"}}
+
+Real
+
+        {{"[+-]?%d%d*[.]%d%d*"}}
+
+Double quoted string
+
+        {{'"[^"]*"'}}
+
+Single quoted string
+
+        {{"'[^']*'"}}
+
+</pre>
+</DL>
+<p>
+If you want to skip whitespace before reading an item, just prepend <code>"{%s*}"</code> to your pattern. For instance, <code>"{%s*}%S%S*"</code> skips whitespace and then reads the next word.
+<p>
+Version 3.2 made this even simpler: you can use <code>"*w"</code> to read a word and <code>"*n"</code> to read a number. See the reference manual for a complete list of predefined patterns.
+<p>
+<H3>How do I write a self-reproducing program in Lua?</H3>
+<p>
+Writing a self-reproducing program in any language is fun but not always easy because you have to be careful with quotes. In Lua it is easy because there are alternative quotes:
+<p>
+<DL>
+<dt><dd><pre class="code">
+y = <span class="string">[[ print("y = [[" .. y .. "]]</span>\ndostring(y)") ]]
+
+dostring(y)
+
+</pre>
+
+</DL>
+<p>
+<a href="../wiki/VersionNotice.html" >VersionNotice</a>: above is Lua 4.0.
+<p>
+For self-reproducing programs in other languages, see the Quine page <a href="http://www.nyx.net/~gthompso/quine.htm">[1]</a>.  Read also a good explanation of how self-reproducing programs work <a href="http://www.cs.washington.edu/homes/csk/paper/">[2]</a>.
+<p>
+<H3>How do I save/restore the global environment?</H3>
+<p>
+<em>[needs updating!]</em>
+<p>
+Try this code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> save()
+
+  <span class="keyword">local</span> g={}
+
+  foreachvar(<span class="keyword">function</span> (n,v) %g[n]=v <span class="keyword">end</span>)
+
+  <span class="keyword">return</span> g
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> restore(g)
+
+  foreach(g,setglobal)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Since version 3.1, you can do these same, and much more, in C, using <code>lua_open</code>, <code>lua_close</code>, and <code>lua_setstate</code>.
+<p>
+<p>
+<H2>Interfacing C with Lua</H2>
+<p>
+<H3>How do I write a C function to be called from Lua?</H3>
+<p>
+<em>[needs updating!]</em>
+<p>
+You must follow a simple protocol: Get any parameters from Lua with <code>lua_getparam</code>, make sure they are of the correct type with the appropriate <code>lua_is... </code> function, convert them with the appropriate <code>lua_get... </code> function, do something with the converted values, and push the results back to Lua with the appropriate <code>lua_push... </code> function.
+<p>
+Let's see a practical example and export the <code>getenv</code> function to Lua. For more examples, see the code that implements the standard library.
+<p>
+The <code>getenv</code> function in C takes a string and returns another string. Its prototype is
+<DL>
+<dt><dd><pre>
+
+char* getenv(char*);
+
+</pre>
+</DL>
+<p>
+So, the appropriate functions to call are <code>lua_isstring</code>, <code>lua_getstring</code> and <code>lua_pushstring</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+void wrap_getenv(void) {
+
+ lua_Object o=lua_getparam(1);
+
+ if (lua_isstring(o))
+
+  lua_pushstring(getenv(lua_getstring(o)));
+
+ else
+
+  lua_error("string expected in argument #1 to getenv");
+
+}
+
+</pre>
+</DL>
+<p>
+Since version 3.0, Lua includes auxiliary functions that simplify writing wrappers. With these functions, we can write <code>wrap_getenv</code> as:
+<p>
+<DL>
+<dt><dd><pre>
+
+void wrap_getenv(void) {
+
+ lua_pushstring(getenv(luaL_check_string(1)));
+
+}
+
+</pre>
+</DL>
+<p>
+After writing the wrapper, you must make it visible to Lua by calling <code>lua_register("getenv",wrap_getenv)</code>. In fact, this is almost exactly what the standard library does.
+<p>
+<H3>How can I use my favorite C library with Lua?</H3>
+<p>
+Just write a wrapper for each function in your library, as explained above.
+<p>
+Several solutions are provided for automating this process.  See "Code wrappers" on <a href="../wiki/LuaAddons.html" >LuaAddons</a>.
+<p>
+<H3>What is "stack size overflow"?</H3>
+<p>
+<a href="../wiki/VersionNotice.html" >VersionNotice</a>: this is Pre-Lua5.
+<p>
+Except for trivial cases, such as an infinite recursion, you get this message when you call Lua from C in a loop because arguments and return values accumulate in Lua's stack. For example, this code will produce "stack size overflow":
+<p>
+<DL>
+<dt><dd><pre>
+
+ for (i=0;;i++) {
+
+  lua_pushnumber(i);
+
+  lua_call("print");
+
+ }
+
+</pre>
+</DL>
+<p>
+The solution is to enclose the code that talks to Lua with calls to <code>lua_beginblock</code> and  <code>lua_endblock</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+ for (i=0;;i++) {
+
+  lua_beginblock();
+
+  lua_pushnumber(i);
+
+  lua_call("print");
+
+  lua_endblock();
+
+ }
+
+</pre>
+</DL>
+<p>
+To quote from the reference manual: The use of explicit nested blocks is strongly encouraged.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=RetiredLuaFaq" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=RetiredLuaFaq" >history</a><br>Last edited June 3, 2009 12:28 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=RetiredLuaFaq" >(diff)</a>
+</body>
+</html>

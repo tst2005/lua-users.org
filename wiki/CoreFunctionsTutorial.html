@@ -1,0 +1,387 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Core Functions Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CoreFunctionsTutorial&amp;body=1" title="List pages referring to CoreFunctionsTutorial">Core Functions Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page covers section 5.1 of the Reference Manual.<a href="http://www.lua.org/manual/5.1/manual.html#5.1">[1]</a> These functions provide access to the core functionality of Lua. We will not go into detail about all of the topics here, but links will be mentioned to other parts of the tutorial for more detail.
+<p>
+<H3>assert(test, [message])</H3>
+<p>
+<code>assert</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-assert">[2]</a> is similar to the <code>assert()</code> function in C. If the test condition is <code>false</code> or <code>nil</code> an error is raised; otherwise test is returned.  An optional user-defined message is included in the error raised. Also, see the <code>error()</code> function. E.g.,
+<DL>
+<dt><dd><pre>
+
+&gt; assert(1==1)          -- no error as test was true
+
+&gt; assert(1==0)
+
+stdin:1: assertion failed!
+
+stack traceback:
+
+        [C]: in function `assert'
+
+        stdin:1: in main chunk
+
+        [C]: ?
+
+&gt; assert("green"=="blue", "Colours not equal")
+
+stdin:1: Colours not equal
+
+stack traceback:
+
+        [C]: in function `assert'
+
+        stdin:1: in main chunk
+
+        [C]: ?
+
+</pre>
+</DL>
+<p>
+Many Lua functions, such as <code>io.open</code>, return a value on success, or return <code>nil</code> and an error message on failure.  This works well with <code>assert</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+file = assert(io.open(filename))
+
+</pre>
+</DL>
+<p>
+This either opens <code>filename</code> for reading and assigns it to <code>file</code>, or it raises an error with the message in the second return value from <code>io.open</code>.
+<p>
+<H3>collectgarbage(opt [, arg])</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-collectgarbage">[3]</a></em>
+</DL>
+<p>
+<H3>dofile(filename)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-dofile">[4]</a></em>
+</DL>
+<p>
+<H3>error(message [, level])</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-error">[5]</a></em>
+</DL>
+<p>
+<H3>_G</H3>
+<p>
+<code>_G</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-_G">[6]</a> is a global variable which points to the global environment. For example to display all of the globals variables we might do the following:
+<DL>
+<dt><dd><pre>
+
+&gt; table.foreach(_G,print)
+
+string  table: 00357098
+
+xpcall  function: 00354E10
+
+tostring        function: 00354708
+
+gcinfo  function: 00354E90
+
+loadlib function: 00358B40
+
+os      table: 00355AE0
+
+unpack  function: 003547C8
+
+level   2
+
+require function: 00354F90
+
+getfenv function: 00354548
+
+... -- etc.
+
+</pre>
+</DL>
+<p>
+<code>_G</code> is also recursive as <code>_G</code> lives in <code>_G</code>! I.e. the following all point to the same table (which holds the global variables):
+<DL>
+<dt><dd><pre>
+
+&gt; = _G
+
+table: 00353710
+
+&gt; = _G._G
+
+table: 00353710
+
+&gt; = _G._G._G
+
+table: 00353710
+
+</pre>
+</DL>
+<p>
+Lua itself does not use this variable, so changing its value does not affect any environment. You should use <code>setfenv()</code> to change environments.
+<p>
+<H3>getfenv(f)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-getfenv">[7]</a></em>
+</DL>
+<p>
+<H3>getmetatable(object)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-getmetatable">[8]</a></em>
+</DL>
+<p>
+<H3>ipairs(t)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-ipairs">[9]</a></em>
+</DL>
+<p>
+<H3>load(func [, chunkname])</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-load">[10]</a></em>
+</DL>
+<p>
+<H3>loadfile(filename)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-loadfile">[11]</a></em>
+</DL>
+<p>
+<H3>loadstring(string [, chunkname])</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-loadstring">[12]</a></em>
+</DL>
+<p>
+<H3>module(name [, ···])</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-module">[13]</a></em>
+</DL>
+<p>
+<H3>next(table [, index])</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-next">[14]</a></em> 
+</DL>
+<p>
+<H3>pairs(t)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-pairs">[15]</a></em>
+</DL>
+<p>
+<H3>pcall(f, arg1, ...)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-pcall">[16]</a></em>
+</DL>
+<p>
+<H3>print(e1, e2, ...)</H3>
+<p>
+<code>print</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-print">[17]</a> can be passed any number of comma seperated arguments which it prints the values of to stdout. <code>print</code> uses <code>tostring</code> to convert the arguments into string form to be printed. E.g.
+<DL>
+<dt><dd><pre>
+
+&gt; print(1,2,"buckle my shoe", 22/7)
+
+1       2       buckle my shoe  3.1428571428571
+
+</pre>
+</DL>
+<p>
+<code>print</code> is very simple and will not recurse into tables printing the content, it will just print the type and a unique id.
+<DL>
+<dt><dd><pre>
+
+&gt; print({1,2,3})
+
+table: 002FE9C8
+
+</pre>
+</DL>
+<p>
+<code>print</code> does not format text. In order to do this you should use the <code>string.format()</code> function in conjunction with <code>print</code> (see <a href="../wiki/StringLibraryTutorial.html" >StringLibraryTutorial</a>) E.g.,
+<DL>
+<dt><dd><pre>
+
+&gt; print(string.format("Pi is approximately %.4f", 22/7))
+
+Pi is approximately 3.1429
+
+</pre>
+</DL>
+<p>
+<H3>rawequal(v1, v2)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-rawequal">[18]</a></em>
+</DL>
+<p>
+<H3>rawget(table, index)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-rawget">[19]</a></em>
+</DL>
+<p>
+<H3>rawset(table, index, value)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-rawset">[20]</a></em>
+</DL>
+<p>
+<H3>require(packagename)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-require">[21]</a></em>
+</DL>
+<p>
+<H3>select(index, ...)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-select">[22]</a></em>
+</DL>
+<p>
+<H3>setfenv(f, table)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-setfenv">[23]</a></em>
+</DL>
+<p>
+<H3>setmetatable(table, metatable)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-setmetatable">[24]</a></em>
+</DL>
+<p>
+<H3>tonumber(e [, base])</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-tonumber">[25]</a></em>
+</DL>
+<p>
+<H3>tostring(e)</H3>
+<p>
+<code>tostring</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-tostring">[26]</a> converts its argument (just its first argument if there is more than one) to a string and returns that string.  <code>print</code> is implemented using <code>tostring</code> so you are probably already familiar with the output format.  Simple values (numbers, strings, booleans, and nil) are converted as you probably expect.  Tables, Userdata, and Threads, are printed as `table:', `userdata:', or `thread:', followed by the address of an internal interpreter object (which should on no account be relied upon).
+<p>
+Note that unlike <code>print</code>, <code>tostring</code> doesn't print anything, it just converts its argument to a string and returns it.
+<p>
+<code>tostring</code>'s behaviour is extensible.  If the value to be converted has a metatable with a <code>__tostring</code> entry then that entry is called with the value to be converted and the result of that call is returned.  This allows you to change how <code>tostring</code> works on (certain) tables, by giving them a metatable with a <code>__tostring</code> function that performs the conversion that you want.
+<p>
+<H3>type(v)</H3>
+<p>
+<code>type</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-type">[27]</a> returns a string describing the type of the object passed to it.
+<DL>
+<dt><dd><pre>
+
+&gt; = type(1), type(true), type("hello"), type({}), type(function() end)
+
+number  boolean string  table   function
+
+</pre>
+</DL>
+<p>
+Note, the type of <code>nil</code> is "nil".
+<DL>
+<dt><dd><pre>
+
+&gt; =type(nil)
+
+nil
+
+</pre>
+</DL>
+<p>
+The possible types returned in Lua 5.0 are: "number", "string", "boolean, "table", "function", "thread", and "userdata". A "thread" is a coroutine, and "userdata" is a C data type with a reference to it in Lua.
+<p>
+<p>
+<H3>unpack(list)</H3>
+<p>
+<code>unpack</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-unpack">[28]</a> takes the elements of a list and returns them, e.g.:
+<DL>
+<dt><dd><pre>
+
+&gt; = unpack( {1,2,3} )
+
+1       2       3
+
+&gt; = unpack( {"one",2,6*7} )
+
+one     2       42
+
+</pre>
+</DL>
+<p>
+The number of elements unpacked is defined by the size of the table, which is not necessarily the number of elements in the table! See the <a href="../wiki/TableLibraryTutorial.html" >TableLibraryTutorial</a> for more details on this.
+<DL>
+<dt><dd><pre>
+
+&gt; t = {"one",2,6*7}
+
+&gt; t.n = 2
+
+&gt; = table.getn(t)
+
+2
+
+&gt; = unpack(t)
+
+one     2
+
+</pre>
+</DL>
+<p>
+<H3>_VERSION</H3>
+<p>
+Straight from the manual, <code>_VERSION</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-_VERSION">[29]</a> is "a global variable (not a function) that holds a string containing the current interpreter version." 
+<DL>
+<dt><dd><pre>
+
+&gt; = _VERSION
+
+Lua 5.1
+
+</pre>
+</DL>
+<p>
+<H3>xpcall(f, err)</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: <a href="http://www.lua.org/manual/5.1/manual.html#pdf-xpcall">[30]</a></em>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CoreFunctionsTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CoreFunctionsTutorial" >history</a><br>Last edited January 30, 2013 8:25 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CoreFunctionsTutorial" >(diff)</a>
+</body>
+</html>

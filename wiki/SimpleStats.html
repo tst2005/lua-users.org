@@ -1,0 +1,295 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Simple Stats</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SimpleStats&amp;body=1" title="List pages referring to SimpleStats">Simple Stats</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a small set of functions to do some statistics (e.g. mean, mode, median, standard deviation, and min/max) on tables. Just fill your tables with numbers and call the function you want.  I haven't optimised these at all.
+<p>
+All function except <code>mode</code> will skip over any non-numeric data and also the table does not have to be indexed.  E.g.
+<p>
+<DL>
+<dt><dd><pre class="code">
+t = {[1]=5, [2]=7, [3]=8, [4]=<span class="string">'Something else.'</span>}  <span class="comment">-- or</span>
+
+t = {[<span class="string">"a"</span>]=5, [<span class="string">"b"</span>]=7, [<span class="string">"c"</span>]=8, [<span class="string">"name"</span>]=<span class="string">'My table of numbers'</span>}
+
+</pre>
+
+</DL>
+<p>
+is fine for input to these.  Note that the 'Mode' function is slightly different.  It works on anything, not just numbers.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Small stats library                      --</span>
+
+<span class="comment">----------------------------------------------</span>
+
+<span class="comment">-- Version History --</span>
+
+<span class="comment">-- 1.0 First written.</span>
+
+
+
+<span class="comment">-- Tables supplied as arguments are not changed.</span>
+
+
+
+
+
+<span class="comment">-- Table to hold statistical functions</span>
+
+stats={}
+
+
+
+<span class="comment">-- Get the mean value of a table</span>
+
+<span class="keyword">function</span> stats.mean( t )
+
+  <span class="keyword">local</span> sum = 0
+
+  <span class="keyword">local</span> count= 0
+
+
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(v) == <span class="string">'number'</span> <span class="keyword">then</span>
+
+      sum = sum + v
+
+      count = count + 1
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> (sum / count)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Get the mode of a table.  Returns a table of values.</span>
+
+<span class="comment">-- Works on anything (not just numbers).</span>
+
+<span class="keyword">function</span> stats.mode( t )
+
+  <span class="keyword">local</span> counts={}
+
+
+
+  <span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">pairs</span>( t ) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> counts[v] == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+      counts[v] = 1
+
+    <span class="keyword">else</span>
+
+      counts[v] = counts[v] + 1
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> biggestCount = 0
+
+
+
+  <span class="keyword">for</span> k, v  <span class="keyword">in</span> <span class="library">pairs</span>( counts ) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> v &gt; biggestCount <span class="keyword">then</span>
+
+      biggestCount = v
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> temp={}
+
+
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>( counts ) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> v == biggestCount <span class="keyword">then</span>
+
+      <span class="library">table.insert</span>( temp, k )
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> temp
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Get the median of a table.</span>
+
+<span class="keyword">function</span> stats.median( t )
+
+  <span class="keyword">local</span> temp={}
+
+
+
+  <span class="comment">-- deep copy table so that when we sort it, the original is unchanged</span>
+
+  <span class="comment">-- also weed out any non numbers</span>
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(v) == <span class="string">'number'</span> <span class="keyword">then</span>
+
+      <span class="library">table.insert</span>( temp, v )
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="library">table.sort</span>( temp )
+
+
+
+  <span class="comment">-- If we have an even number of table elements or odd.</span>
+
+  <span class="keyword">if</span> <span class="library">math.fmod</span>(#temp,2) == 0 <span class="keyword">then</span>
+
+    <span class="comment">-- return mean value of middle two elements</span>
+
+    <span class="keyword">return</span> ( temp[#temp/2] + temp[(#temp/2)+1] ) / 2
+
+  <span class="keyword">else</span>
+
+    <span class="comment">-- return middle element</span>
+
+    <span class="keyword">return</span> temp[<span class="library">math.ceil</span>(#temp/2)]
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+    
+
+
+
+<span class="comment">-- Get the standard deviation of a table</span>
+
+<span class="keyword">function</span> stats.standardDeviation( t )
+
+  <span class="keyword">local</span> m
+
+  <span class="keyword">local</span> vm
+
+  <span class="keyword">local</span> sum = 0
+
+  <span class="keyword">local</span> count = 0
+
+  <span class="keyword">local</span> result
+
+
+
+  m = stats.mean( t )
+
+
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(v) == <span class="string">'number'</span> <span class="keyword">then</span>
+
+      vm = v - m
+
+      sum = sum + (vm * vm)
+
+      count = count + 1
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  result = <span class="library">math.sqrt</span>(sum / (count-1))
+
+
+
+  <span class="keyword">return</span> result
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Get the max and min for a table</span>
+
+<span class="keyword">function</span> stats.maxmin( t )
+
+  <span class="keyword">local</span> max = -<span class="library">math.huge</span>
+
+  <span class="keyword">local</span> min = <span class="library">math.huge</span>
+
+
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>( t ) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(v) == <span class="string">'number'</span> <span class="keyword">then</span>
+
+      max = <span class="library">math.max</span>( max, v )
+
+      min = <span class="library">math.min</span>( min, v )
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> max, min
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SimpleStats" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SimpleStats" >history</a><br>Last edited July 4, 2008 4:56 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SimpleStats" >(diff)</a>
+</body>
+</html>

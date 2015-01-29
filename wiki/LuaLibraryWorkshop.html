@@ -1,0 +1,268 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Library Workshop</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaLibraryWorkshop&amp;body=1" title="List pages referring to LuaLibraryWorkshop">Lua Library Workshop</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Lua Library Design Workshop at Harvard, Tuesday, February 19</H2>
+The design of the embedded programming language Lua <a href="http://www.lua.org">[1]</a>
+shows the results of almost ten years' worth of careful thought and
+attention from the designers.  The standard library that accompanies
+Lua, however, has not received comparable attention.  As users of the
+language, we have an interest in improving the library.  We are
+therefore holding a (short) one-day workshop to develop suggestions
+for improvements in the library.  Backwards compatibility is not a
+requirement; we are free to scrap everything and start over if we
+want!  (We will stick to the current language definition,
+however---only the library is up for grabs.)  We will be fortunate
+enough to have with us <a href="../wiki/RobertoIerusalimschy.html" >RobertoIerusalimschy</a>, one of Lua's chief
+designers.
+<p>
+We anticipate working from about 10 to 4, with a short break for
+lunch.  This is intended to be a working meeting, not a day of talks
+and panels, and we hope to emerge with very concrete, specific
+suggestions for the Lua team.  For that reason, enrollment will be
+limited to about 20 people.
+<p>
+Please let us know if you would like to participate in this workshop.
+Send email to Christian Lindig <a href="mailto:lindig@eecs.harvard.edu">[lindig@eecs.harvard.edu]</a>.  We would like to hear from you by Friday, February 8.
+<p>
+-- ChristianLindig<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ChristianLindig" >?</a>
+<p>
+<hr>Please suggest what you would like to see discussed at the workshop, even if
+you cannot attend.
+<p>
+<strong><a href="../wiki/ReubenThomas.html" >ReubenThomas</a> continues:</strong> Before starting it is important to establish the scope and purpose of the standard libraries. In my opinion, the standard libraries should
+<p>
+<UL>
+<li> provide only widely needed functionality
+<li> provide only functionality that can't be written in Lua or would be too inefficient in Lua
+<li> use only standard ANSI C library routines (other than Lua's own code, of course), in a completely portable manner
+</UL>
+<p>
+ChristianLinding<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ChristianLinding" >?</a> originally listed some recent topics from the mailing list below, most of which are probably not suitable for discussion at the workshop; here's the list, with explanation: 
+<p>
+<UL>
+<li> Dynamic Loading of libraries to avoid building the Lua interpreter for each application. <strong>Non-ANSI</strong>
+<li> An IO library that allows to query file and directory attributes. <strong>Non-ANSI</strong>
+<li> Some form of coroutines or asynchronous execution. <strong>Non-ANSI; already largely addressed in 4.1</strong>
+<li> Standard IP sockets interface. <strong>Non-ANSI</strong>
+<li> Interface for UNIX system calls (like, exec, kill, waitpid, etc.). <strong>Non-ANSI; poslib does this but needs updating to 4.x</strong>
+<li> Name space management to allow libraries to co-exist. <strong>This was a point about Lua libraries, not C libraries</strong>
+<li> A buffer library. <strong>The C code already exists in auxlib; this should indeed be discussed.</strong>
+</UL>
+<p>
+<strong><a href="../wiki/RiciLake.html" >RiciLake</a></strong> interjects:
+<p>
+<DL>
+<dt><dd><em>I agree with <a href="../wiki/ReubenThomas.html" >ReubenThomas</a> that the standard libraries should only provide services which could be written in portable ANSI C. However, it also seems clear that many of the enhancements suggested by ChristianLindig<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ChristianLindig" >?</a> would be useful to many people, and indeed have been requested many times. There is perhaps a middle ground here: define the <strong>standard interfaces</strong> to a set of facilities commonly available on many operating systems and possibly provide a reference implementation for one of them. A well-thought-out set of interfaces is often the hardest part of library design.</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>This would at least allow people to write semi-portable code; that is, code portable  to platforms for which the standard interfaces have been implemented. Candidates for such interfaces would probably include IP sockets, file attributes, a subset of the rest of POSIX, and dynamic linking facilities, to select a few things from Christian's list.</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Ports of the standard interfaces would be highly encouraged, but with some moral suasion against over- or under- implementing them. The spirit would be "if you have the facility, this is how you integrate it into Lua." Then a simple existence test for the implementing function would suffice to know whether the facility was available; it would be nice if it were never necessary to perform tests by operating system. This is somewhat limiting but not as limiting as pure ANSI C (and, in fact, compatible with the current philosophy where the math or io libraries may not be available for particular embedded platforms.)</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>The one thing I forgot from when I wrote this the first time: it would be really nice if the math library made it possible to use IEEE-754 arithmetic on platforms which support it. It wouldn't break my heart if traps were not supported, but it would be nice to be able to test and set the IEEE-754 mandated exception flags, and to have a way of at least turning traps off if they cannot otherwise be supported. And of course to test for NaN and +-Inf.</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Back to <a href="../wiki/ReubenThomas.html" >ReubenThomas</a>...</em>
+</DL>
+<p>
+Here are some more high-level ideas of mine:
+<p>
+<strong>1. Is it possible to expose more of Lua's internals as libraries?</strong>
+<p>
+In particular, it'd be really nice to be able to get at the internals of
+the compilation process, e.g. to be able to manipulate code as data
+(rather than resorting to string mangling as at present). Similarly, see
+my past proposals on the list about being able to plug in a different
+regexp engine or (more controversially) garbage collector.
+<p>
+<strong>2. What about reimplementing some of the standard libraries in Lua?</strong>
+<p>
+Some functions, like assert, could easily be implemented in Lua, and
+implementing them in C gives little or no advantage. In addition, there
+are functions written in Lua that it is most useful to add pre-loaded to
+the interpreter, e.g. require (to 4.0). Having a framework to build Lua
+libraries into the executable would be easy (bin2c already does the work)
+and useful. Reducing the amount of code written in C would improve
+usability and reduce maintenance.
+<p>
+<strong>3. What else is needed?</strong>
+<p>
+As far as the standard libraries go, this reduces to the small question of
+whether there are any missing bits of the ANSI C libraries that can
+usefully be exposed to Lua, and the rather bigger question of whether
+there are any techniques that, like pattern matching, would both benefit
+from a C implementation and be widely used. The only (pure ANSI)
+functionality I've ever needed to add has been bitwise logical operations
+(my library for this is widely packaged, so others seem to agree).
+<p>
+Finally, an obvious next step if you accept the argument that as little as
+possible should be written in C is:
+<p>
+<strong>4. What about Lua standard libraries written in Lua?</strong>
+<p>
+I'm not talking here about a large rich set of libraries as in the <a href="../wiki/StandardLibraryProposal.html" >StandardLibraryProposal</a>, but just having some core functionality built into Lua. Candidates for this include functions such as assert and require which neither functionality nor performance reasons force to be implemented in C.
+<p>
+One specific idea:  it would be useful to have a fuller interface to strftime so that one can, for instance, use it to construct lists of the names of the months or days in the current locale. Being able to pass nil (NULL) to setlocale would also be useful.
+<p>
+<strong>List Implementation</strong> (<a href="../wiki/NickTrout.html" >NickTrout</a>)
+<p>
+The implementation of lists using Luas tables ( <code>tinsert(), tremove() and getn()</code> ) involves adding "<code>n</code>" to each table to hold the highest index of elements included. This addition has a few problems :-
+<UL>
+<li> Name conflicts. ie. <code>n</code> maybe an element in the table.
+<li> Iterators iterate over <code>n</code> :-
+</UL><DL>
+<dt><dd><pre>
+
+list = { "a","b","c" }
+
+tinsert(list,"d")
+
+
+
+for _,v in list do print(v) end -- will print a,b,c,d,4
+
+foreach(list, function(i,v) print(v) end) -- will print a,b,c,d,4
+
+for i = 1,getn(list) do local v=list[i] print(v) end -- will print a,b,c,d
+
+foreachi(list, function(i,v) print(v) end) -- will print a,b,c,d
+
+</pre>
+<dt><dd>The first method for iterating over a list is clear and convenient but fails due to <code>n</code>. The last two methods do work, but I don't think they are as concise (or efficient?).
+</DL>
+<p>
+Now that unified method tables have been added wouldn't it be good to deprecate <code>tinsert, tremove and getn</code> and add a <code>table()</code> method which creates a table list with functionality similar to <a href="../wiki/PythonLists.html" >PythonLists</a> and <a href="../wiki/PythonDictionaries.html" >PythonDictionaries</a> combined. It would probably be called "table" as opposed to "list" or "dictionary" as the functionality is a union of the two. eg.
+<DL>
+<dt><dd><pre>
+
+t = {}  -- table with no methods, "clean"
+
+t = table()  -- create table with tag/unified methods attached.
+
+t = table{ a=1,b=7,c=8 }  -- constructor with dictionary/associative items.
+
+t = table{ a=1 ; "b","c" }  -- mixed items.
+
+t = table{ "a","b","c" }  -- constructor with list.
+
+
+
+t:append("d")
+
+print( t:len() )
+
+t= t:sort( function (a,b) return a&gt;b end )
+
+print( t:count("b") )
+
+t:print()  -- print items (rather than "&lt;table&gt;") and/or "print( t:tostring() )"
+
+t:keys():print()
+
+t:values():print()
+
+for _,v in t do print(v) end  -- and no "n"!
+
+</pre>
+</DL>
+<p>
+Some thoughts of <a href="../wiki/PeterPrade.html" >PeterPrade</a> about the standardlibrary: 
+<UL>
+<li> I think the namespace issue should be adressed and a method shown that is encouraged to be adopted by everyone writing a library for lua. (like the simple addition of a wrapper table - for example "str" for strings library - "str.find" instead of "strfind" - although i don't know if i like the additional runtime cost. if you don't like that additional cost, naming conventions would do the job nearly as well (for example "str_find")
+<li> I think the behaviour of the standardlibrary should be fixed to be able to write simple lua wrappers (no lua standard library function should make use of the number of parameters given to it, or should treat extra nils equally to no extra parameters given) also see <a href="../wiki/TrailingNilParameters.html" >TrailingNilParameters</a> - this is important because many people will adopt the style of the standardlibrary.
+<li> add some more tools for table manipulation (split + join (<a href="../wiki/SplitJoin.html" >SplitJoin</a>), clone, map(map a table using a function), collapse etc.) maybe even add a standard way how to make tables persistent (a really naive way to do it is <a href="../wiki/PersistentTables.html" >PersistentTables</a>) and fix the getn() issue (<a href="../wiki/LuaTableSize.html" >LuaTableSize</a>)!
+<li> add some tools to files manipulation (readfile+writefile of <a href="../wiki/PetersStdLib.html" >PetersStdLib</a> - i found it very useful to add functions that take a filename and return the contents of the file in a string or that write a string into a file, this makes code just a lot more concise)
+</UL>
+<p>
+Instead of going this way, I think it's better to just accept Lua's lists as "raw lists".  These raw lists are used by the VM for function arguments, and of course are the result of table constructors.  The implementation is exposed (the n field).  Many applications will be better served by a higher level list implementation, as you propose.  But certainly you'd want the higher level list implemented on top of whatever class system you were using.  I don't think the Lua distribution should be imposing a class system.  So this kind of thing belongs in a bigger "on top of Lua" library...  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>
+<p>
+Some sort of basic table functionality, <code>n</code>, will need to stay, so that <code>for i=1,getn(t) ... end</code> will work for the most basic scripts. In any event, adding <code>n</code> to the table is not popular and should be removed. Whether the above table functionality comes as an optional component of the standard library or part of an extended library is the topic of discussion. I can see your point about it imposing slightly, but since it is very basic I cant really see it imposing too much to the extent that its the basis of a class system. --<a href="../wiki/NickTrout.html" >NickTrout</a>
+<p>
+<p>
+<hr><H2>Summary From the Workshop</H2>
+<p>
+The workshop started with a public talk by Roberto Ierusalimschy on Lua.
+He stressed the design philosophy of Lua. The talk also made obvious
+that Lua's small size and fast execution is a result of a well thought
+out implementation.
+<p>
+After the talk the following people attended the Lua Library Workshop: 
+<p>
+<UL>
+<li> Allyn Dimock            &lt;dimock at eecs.harvard.edu&gt;
+<li> Christian Carrillo      &lt;carrillo at tenebril.com&gt;
+<li> Christian Lindig        &lt;lindig at eecs.harvard.edu&gt;
+<li> John D. Ramsdell        &lt;ramsdell at linus.mitre.org&gt;
+<li> John Dias               &lt;dias at eecs.harvard.edu&gt;
+<li> Jon Eddy                &lt;eddy at eecs.harvard.edu&gt;
+<li> Noam Zeilberger         &lt;noam at eecs.harvard.edu&gt;
+<li> Norman Ramsey           &lt;nr at eecs.harvard.edu&gt;
+<li> Roberto Ierusalimschy   &lt;roberto at inf.puc-rio.br&gt;
+<li> Sukyoung Ryu            &lt;syryu at eecs.harvard.edu&gt;
+</UL>
+<p>
+Here is an incomplete list of topics that were discussed at the Lua
+Library Workshop. Maybe the other attendees of the workshop can help to
+complete it.
+<p>
+<UL>
+<li> I took a look at the IO libray of Lua 4.0 and proposed some changes.  The essence of the proposal is to remove functions like writeto which handle files implicitly. The rational is that they are not general enough when you deal with multiple files. The discussion was mostly around less radical ways such that the casual user still can have default input and output channels.
+</UL>
+<p>
+<DL>
+<DL>
+<dt><dd><a href="http://www.eecs.harvard.edu/~lindig/papers/lua-iolib/">http://www.eecs.harvard.edu/~lindig/papers/lua-iolib/</a>
+<dt><dd><a href="http://www.eecs.harvard.edu/~lindig/papers/lua-iolib/slides.pdf">http://www.eecs.harvard.edu/~lindig/papers/lua-iolib/slides.pdf</a>
+</DL>
+<dt><dd>
+
+</DL><UL>
+<li> A big topic of discussion was name space management. A hierarchical name space like IO.open allows everybody to contribute libraries and simplifies the transition between libraries. For example, at this point is it not clear whether libraries should be written in an object-oriented style, or a procedural style. We could have both and pick as a standard what emerges later.  Problems related to name spaces are: 
+<UL>
+<li> Writing module X.Y.Z, how do I refer to function X.Y.Z.f, without having to know that this is X.Y.Z?  A local module M does the trick.
+<li> How are modules mapped into the file system? The success of Python suggests to use directories hierarchies.  Discussion was around how to load libraries and search paths. What can be written in Lua, what must go into the kernel?
+<li> Inside a module, is there a way to "open" other modules such that their members can be accessed without dot notation?  Seems to be difficult.
+</UL>
+<li> Loading of object files at run-time. Consensus was, that this is not a technical problem, but a problem of policy. Where to put the tiny target specific module that implements it? John Ramsdell suggested to mine Python and the GNU Libtool for implementation details.
+<li> A mechanism that forces variable declarations in large projects. A flexible technical solution emerged that I did not fully understand.  Probably Roberto can explain it.   
+<li> Christian Carrillo suggested some changes to the C API to support Lua threaded environments better. The details escaped me because I don't write threaded programs.
+</UL>
+<p>
+-- ChristianLindig<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ChristianLindig" >?</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaLibraryWorkshop" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaLibraryWorkshop" >history</a><br>Last edited July 10, 2006 5:55 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaLibraryWorkshop" >(diff)</a>
+</body>
+</html>

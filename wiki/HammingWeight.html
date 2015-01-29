@@ -1,0 +1,91 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Hamming Weight</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=HammingWeight&amp;body=1" title="List pages referring to HammingWeight">Hamming Weight</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The hamming weight of a bitwise integer is the number of 1's in the binary representation <a href="http://en.wikipedia.org/wiki/Hamming_weight.html">[1]</a>.
+<p>
+Benchmark tests of various ways to calculate it are in <a href="https://gist.github.com/2065267">[hamming_weight_test.lua]</a>:
+<p>
+<DL>
+<dt><dd><pre>
+
+Lua 5.2.0/bit32, Intel Xeon, 2012-03-22
+
+ hw_simple: 5.9E-06 5.9E-06 5.9E-06 s
+
+ hw_dc2bit: 1.7E-06 1.7E-06 1.7E-06 s
+
+ hw_dc3bit: 1.5E-06 1.5E-06 1.5E-06 s
+
+ hw_dc4bit: 1.8E-06 1.8E-06 1.8E-06 s
+
+    hw_dci: 1.7E-06 1.7E-06 1.7E-06 s
+
+   hw_lut8: 1.2E-06 1.2E-06 1.2E-06 s
+
+  hw_lut8a: 5.4E-07 5.4E-07 5.3E-07 s
+
+ hw_wegner: 2.9E-06 2.9E-06 2.9E-06 s
+
+
+
+LuaJIT 2.x/bit git2012-03-17, Intel Xeon, 2012-03-22
+
+ hw_simple: 6.9E-08 6.9E-08 6.9E-08 s
+
+ hw_dc2bit: 1.9E-09 1.9E-09 1.9E-09 s
+
+ hw_dc3bit: 1.8E-09 1.8E-09 1.8E-09 s
+
+ hw_dc4bit: 2.0E-09 2.0E-09 2.0E-09 s
+
+    hw_dci: 1.8E-09 1.8E-09 1.8E-09 s
+
+   hw_lut8: 1.7E-09 1.7E-09 1.7E-09 s
+
+  hw_lut8a: 8.2E-09 8.2E-09 8.2E-09 s
+
+ hw_wegner: 6.0E-08 5.9E-08 5.9E-08 s
+
+
+
+(smaller is better)
+
+</pre>
+</DL>
+<p>
+<H3>See Also</H3>
+<p>
+<UL>
+<li> <a href="http://en.wikipedia.org/wiki/Hamming_weight.html">http://en.wikipedia.org/wiki/Hamming_weight</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=HammingWeight" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=HammingWeight" >history</a><br>Last edited March 23, 2012 3:39 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=HammingWeight" >(diff)</a>
+</body>
+</html>

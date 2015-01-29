@@ -1,0 +1,627 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Object Properties</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ObjectProperties&amp;body=1" title="List pages referring to ObjectProperties">Object Properties</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Some object-orientated languages (like <a href="http://en.wikipedia.org/wiki/C_Sharp.html">[C#]</a>) support <strong>properties</strong>, which appear like public data fields on objects but are really syntactic sugar for accessor functions (getters and setters).  In Lua it might look like this:
+<DL>
+<dt><dd><pre class="code">
+obj.field = 123  <span class="comment">-- equivalent to obj:set_field(123)</span>
+
+x = obj.field    <span class="comment">-- equivalent to x = obj:get_field()</span>
+
+</pre>
+
+</DL>
+Here is one way to implement such a thing in Lua:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Make proxy object with property support.</span>
+
+<span class="comment">-- Notes:</span>
+
+<span class="comment">--   If key is found in &lt;getters&gt; (or &lt;setters&gt;), then</span>
+
+<span class="comment">--     corresponding function is used, else lookup turns to the</span>
+
+<span class="comment">--     &lt;class&gt; metatable (or first to &lt;priv&gt; if &lt;is_expose_private&gt; is true).</span>
+
+<span class="comment">--   Given a proxy object &lt;self&gt;, &lt;priv&gt; can be obtained with</span>
+
+<span class="comment">--     getmetatable(self).priv .</span>
+
+<span class="comment">-- @param class - metatable acting as the object class.</span>
+
+<span class="comment">-- @param priv - table containing private data for object.</span>
+
+<span class="comment">-- @param getters - table of getter functions</span>
+
+<span class="comment">--                  with keys as property names. (default is nil)</span>
+
+<span class="comment">-- @param setters - table of setter functions,</span>
+
+<span class="comment">--                  with keys as property names. (default is nil)</span>
+
+<span class="comment">-- @param is_expose_private - Boolean whether to expose &lt;priv&gt; through proxy.</span>
+
+<span class="comment">--                  (default is nil/false)</span>
+
+<span class="comment">-- @version 3 - 20060921 (D.Manura)</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> make_proxy(class, priv, getters, setters, is_expose_private)
+
+  <span class="library">setmetatable</span>(priv, class)  <span class="comment">-- fallback priv lookups to class</span>
+
+  <span class="keyword">local</span> fallback = is_expose_private <span class="keyword">and</span> priv <span class="keyword">or</span> class
+
+  <span class="keyword">local</span> index = getters <span class="keyword">and</span>
+
+    <span class="keyword">function</span>(self, key)
+
+      <span class="comment">-- read from getter, else from fallback</span>
+
+      <span class="keyword">local</span> func = getters[key]
+
+      <span class="keyword">if</span> func <span class="keyword">then</span> <span class="keyword">return</span> func(self) <span class="keyword">else</span> <span class="keyword">return</span> fallback[key] <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">or</span> fallback  <span class="comment">-- default to fast property reads through table</span>
+
+  <span class="keyword">local</span> newindex = setters <span class="keyword">and</span>
+
+    <span class="keyword">function</span>(self, key, value)
+
+      <span class="comment">-- write to setter, else to proxy</span>
+
+      <span class="keyword">local</span> func = setters[key]
+
+      <span class="keyword">if</span> func <span class="keyword">then</span> func(self, value)
+
+      <span class="keyword">else</span> <span class="library">rawset</span>(self, key, value) <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">or</span> fallback  <span class="comment">-- default to fast property writes through table</span>
+
+  <span class="keyword">local</span> proxy_mt = {         <span class="comment">-- create metatable for proxy object</span>
+
+    __newindex = newindex,
+
+    __index = index,
+
+    priv = priv
+
+  }
+
+  <span class="keyword">local</span> self = <span class="library">setmetatable</span>({}, proxy_mt)  <span class="comment">-- create proxy object</span>
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Here's some tests of that
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Test Suite</span>
+
+
+
+<span class="comment">-- test: typical usage</span>
+
+
+
+<span class="keyword">local</span> Apple = {}
+
+Apple.__index = Apple
+
+<span class="keyword">function</span> Apple:drop()
+
+  <span class="keyword">return</span> self.color .. <span class="string">" apple dropped"</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> Apple_attribute_setters = {
+
+  color = <span class="keyword">function</span>(self, color)
+
+    <span class="keyword">local</span> priv = <span class="library">getmetatable</span>(self).priv
+
+    <span class="library">assert</span>(color == <span class="string">"red"</span> <span class="keyword">or</span> color == <span class="string">"green"</span>)
+
+    priv.color = <span class="library">string.upper</span>(color)
+
+  <span class="keyword">end</span>
+
+}
+
+<span class="keyword">function</span> Apple:new()
+
+  <span class="keyword">local</span> priv = {color = <span class="string">"RED"</span>} <span class="comment">-- private attributes in instance</span>
+
+  <span class="keyword">local</span> self = make_proxy(Apple, priv, <span class="keyword">nil</span>, Apple_attribute_setters, <span class="keyword">true</span>)
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> a = Apple:new()
+
+<span class="library">assert</span>(<span class="string">"RED"</span> == a.color)
+
+a:drop()         <span class="comment">-- "RED apple dropped"</span>
+
+
+
+a.color = <span class="string">"green"</span>
+
+<span class="library">assert</span>(<span class="string">"GREEN apple dropped"</span> == a:drop())
+
+a.color = <span class="string">"red"</span>
+
+<span class="library">assert</span>(<span class="string">"RED apple dropped"</span> == a:drop())
+
+
+
+a.weight = 123   <span class="comment">-- new field</span>
+
+<span class="library">assert</span>(123 == a.weight)
+
+
+
+<span class="comment">-- fails as expected (invalid color)</span>
+
+<span class="keyword">local</span> is_ok = <span class="library">pcall</span>(<span class="keyword">function</span>() a.color = <span class="string">"blue"</span> <span class="keyword">end</span>)
+
+<span class="library">assert</span>(<span class="keyword">not</span> is_ok)
+
+
+
+
+
+<span class="comment">-- test: simple</span>
+
+<span class="keyword">local</span> T = {}
+
+T.__index = T
+
+<span class="keyword">local</span> T_setters = {
+
+  a = <span class="keyword">function</span>(self, value)
+
+    <span class="keyword">local</span> priv = <span class="library">getmetatable</span>(self).priv
+
+    priv.a = value * 2
+
+  <span class="keyword">end</span>
+
+}
+
+<span class="keyword">local</span> T_getters = {
+
+  b = <span class="keyword">function</span>(self, value)
+
+    <span class="keyword">local</span> priv = <span class="library">getmetatable</span>(self).priv
+
+    <span class="keyword">return</span> priv.a + 1
+
+  <span class="keyword">end</span>
+
+}
+
+<span class="keyword">function</span> T:hello()
+
+  <span class="keyword">return</span> 123
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> T:new() <span class="keyword">return</span> make_proxy(T, {a=5}, T_getters, T_setters) <span class="keyword">end</span>
+
+<span class="keyword">local</span> t = T:new()
+
+<span class="library">assert</span>(123 == t:hello())
+
+<span class="library">assert</span>(<span class="keyword">nil</span> == t.hello2)
+
+<span class="library">assert</span>(<span class="keyword">nil</span> == t.a)
+
+<span class="library">assert</span>(6 == t.b)
+
+t.a = 10
+
+<span class="library">assert</span>(<span class="keyword">nil</span> == t.a)
+
+<span class="library">assert</span>(21 == t.b)
+
+
+
+<span class="comment">-- test: is_expose_private = true</span>
+
+<span class="keyword">local</span> t = make_proxy(T, {a=5}, T_getters, T_setters, <span class="keyword">true</span>)
+
+<span class="library">assert</span>(5 == t.a)
+
+<span class="library">assert</span>(6 == t.b)
+
+
+
+<span class="library">print</span>(<span class="string">"done"</span>)
+
+</pre>
+
+</DL>
+<p>
+Variations of this are possible, and this might not be optimal (--<a href="../wiki/RiciLake.html" >RiciLake</a>).  You may have different design constraints.  One suggestion was possibly to memoize the lookup Apple_attribute_funcs[key] or abstract away the actual rawset out of the setter functions.
+<p>
+<p>
+-- <a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+Here is another way of doing this, shown first in lua, then again in C:
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Rewrite in lua of array example from http://www.lua.org/pil/28.4.html</span>
+
+<span class="comment">-- that implements both array and OO access.</span>
+
+array = {
+
+  new = <span class="keyword">function</span>(self, size)
+
+      <span class="keyword">local</span> o = {
+
+        _size = size,
+
+        _array = {},
+
+      }
+
+      <span class="keyword">for</span> i = 1, o._size <span class="keyword">do</span>
+
+        o._array[i] = 0
+
+      <span class="keyword">end</span>
+
+      <span class="library">setmetatable</span>(o, self)
+
+      <span class="keyword">return</span> o
+
+    <span class="keyword">end</span>,
+
+
+
+  size = <span class="keyword">function</span>(self)
+
+      <span class="keyword">return</span> self._size
+
+    <span class="keyword">end</span>,
+
+
+
+  get = <span class="keyword">function</span>(self, i)
+
+      <span class="comment">-- should do bounds checking on array</span>
+
+      <span class="keyword">return</span> self._array[<span class="library">tonumber</span>(i)]
+
+    <span class="keyword">end</span>,
+
+
+
+  set = <span class="keyword">function</span>(self, i, v)
+
+      <span class="comment">-- should do bounds checking on array</span>
+
+      self._array[<span class="library">tonumber</span>(i)] = <span class="library">tonumber</span>(v)
+
+    <span class="keyword">end</span>,
+
+
+
+  __index = <span class="keyword">function</span>(self, key)
+
+      <span class="keyword">return</span> <span class="library">getmetatable</span>(self)[key] <span class="keyword">or</span> self:get(key)
+
+    <span class="keyword">end</span>,
+
+
+
+  __newindex = <span class="keyword">function</span>(self, i, v)
+
+      self:set(i, v)
+
+    <span class="keyword">end</span>,
+
+}
+
+
+
+</pre>
+
+</DL>
+<p>
+In C, this is:
+<DL>
+<dt><dd><pre>
+
+/*
+
+Rewrite in C of array example from http://www.lua.org/pil/28.4.html that
+
+implements both array and OO access.
+
+
+
+Lacks bounds checking, its not pertinent to this example.
+
+*/
+
+#include "lauxlib.h"
+
+#include "lua.h"
+
+
+
+#include &lt;assert.h&gt;
+
+#include &lt;stdint.h&gt;
+
+#include &lt;string.h&gt;
+
+
+
+#define ARRAY_REGID  "22d3fa81-aef3-4335-be43-6ff037daf78e"
+
+#define ARRAY_CLASS  "array"
+
+
+
+struct array {
+
+	lua_Integer size;
+
+	lua_Number data[1];
+
+};
+
+
+
+typedef struct array* array;
+
+
+
+static array array_check(lua_State* L, int index) 
+
+{
+
+	void* userdata = luaL_checkudata(L,index,ARRAY_REGID);
+
+	assert(userdata);
+
+	return  userdata;
+
+}
+
+int array_new(lua_State* L) 
+
+{
+
+	// Ignoring [1], the "array" global table.
+
+	int size = luaL_checkinteger(L, 2);
+
+	array self = (array) lua_newuserdata(L,sizeof(*self) + (size-1) * sizeof(self-&gt;data));
+
+
+
+	self-&gt;size = size;
+
+	for(size = 0; size &lt; self-&gt;size; size++)
+
+		self-&gt;data[size] = 0;
+
+
+
+	luaL_getmetatable(L, ARRAY_REGID);
+
+	lua_setmetatable(L, -2);
+
+	return 1;
+
+}
+
+int array_size(lua_State* L) 
+
+{
+
+	array self = array_check(L, 1);
+
+	lua_pushinteger(L, self-&gt;size);
+
+	return 1;
+
+}
+
+int array_get(lua_State* L) 
+
+{
+
+	array self = array_check(L, 1);
+
+	lua_Integer i = luaL_checkinteger(L, 2);
+
+	// TODO bounds checking on i
+
+	lua_pushnumber(L, self-&gt;data[i-1]);
+
+	return 1;
+
+}
+
+int array_set(lua_State* L) 
+
+{
+
+	array self = array_check(L, 1);
+
+	lua_Integer i = luaL_checkinteger(L, 2);
+
+	lua_Number v = luaL_checknumber(L, 3);
+
+	// TODO bounds checking on i
+
+	self-&gt;data[i-1] = v;
+
+	return 0;
+
+}
+
+int array_index(lua_State* L) 
+
+{
+
+	const char* key = luaL_checkstring(L, 2);
+
+
+
+	lua_getmetatable(L, 1);
+
+	lua_getfield(L, -1, key);
+
+
+
+   	// Either key is name of a method in the metatable
+
+	if(!lua_isnil(L, -1))
+
+		return 1;
+
+
+
+	// ... or its a field access, so recall as self.get(self, value).
+
+	lua_settop(L, 2);
+
+
+
+	return array_get(L);
+
+}
+
+static const struct luaL_reg array_class_methods[] = {
+
+	{ "new",            array_new },
+
+	{ NULL, NULL }
+
+};
+
+static const struct luaL_reg array_instance_methods[] = {
+
+	{ "get",             array_get },
+
+	{ "set",             array_set },
+
+	{ "size",            array_size },
+
+	{ "__index",         array_index },
+
+	{ "__newindex",      array_set },
+
+	{ NULL, NULL }
+
+};
+
+
+
+int array_open(lua_State* L) 
+
+{
+
+	luaL_newmetatable(L, ARRAY_REGID);
+
+	luaL_openlib(L, NULL, array_instance_methods, 0);
+
+	luaL_openlib(L, ARRAY_CLASS, array_class_methods, 0);
+
+	return 1;
+
+}
+
+</pre>
+</DL>
+<p>
+For both implementations, array can be used as:
+<DL>
+<dt><dd><pre class="code">
+o = array:new(3)
+
+
+
+<span class="library">print</span>(o:size())
+
+
+
+o[1] = 1
+
+o[2] = 2
+
+o[3] = 3
+
+
+
+<span class="library">print</span>(o:get(2))
+
+o:set(3, -1)
+
+<span class="library">print</span>(o[3])
+
+</pre>
+
+</DL>
+<p>
+-- see also <a href="../wiki/GeneralizedPairsAndIpairs.html" >GeneralizedPairsAndIpairs</a> to allow "pairs" and "ipairs" to work with this.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/ObjectOrientedProgramming.html" >ObjectOrientedProgramming</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ObjectProperties" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ObjectProperties" >history</a><br>Last edited March 14, 2009 4:48 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ObjectProperties" >(diff)</a>
+</body>
+</html>

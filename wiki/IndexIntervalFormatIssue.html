@@ -1,0 +1,133 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Index Interval Format Issue</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=IndexIntervalFormatIssue&amp;body=1" title="List pages referring to IndexIntervalFormatIssue">Index Interval Format Issue</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here is discussed the combined issue of 1-based indexing and closed interval slicing versus 0-based indexing and right-open interval slicing. Other solutions are, in my opinion, not consistent.
+<p>
+<DL>
+<dt><dd>[<em>Note from the initial author: Though this text first expresses my point of view on this topic, as a wiki page it is intended to be further elaborated (also polished, as I'm not a native English speaker!). Yet, I have thought and talked about this issue for a while, especially because I've been involved in training; so you may consider thinking, too, before firing. Remove this note after editing. --<a href="../wiki/DeniSpir.html" >DeniSpir</a> (denis dot spir at free dot fr), 8 Oct 2008.</em>]
+</DL>
+<p>
+<H2>Origin Of The War?</H2>
+<p>
+The source of the whole point lies in the history of programming. An implementation detail of some languages such as C is that array items are referenced through a pointer + offset address. Thus, the offset exists at the implementation level, which leads to a choice for the language designer to either transfer that scheme into the language itself, so that the programmer has to adapt to it, or let the compiler or interpreter subtract one from all indexes so that the (often human) programmer can use ordinals instead. This choice was not the one for C, and as a consequence for the whole C/C++/Java/Python/Ruby family. As C has been highly successful, language designers who want their 'baby' be widely used have to take this <em>de facto</em> standard into account -- in addition to the fact that they also are C programmers. Now, stating that a feature is "natural" because it is a standard simply is a logical error.
+<p>
+<DL>
+<dt><dd><em>The use of zero-indexing in C is a choice that many (probably most) programmers agree with to this day, and you cannot just assume that it is only because of familiarity or convention that they continue to prefer it (unless of course you take your conclusion as a premise). Your last sentence, and terms like "baby", unfairly tar all opponents of your viewpoint with the same brush.</em> &mdash;MarceloCantos<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MarceloCantos" >?</a>
+</DL>
+<p>
+<H2>Campaigns</H2>
+<p>
+<H3>Humans Are Humans</H3>
+<p>
+Arrays, lists, sequences, and tables are ordered sets. Humans use ordinal numbers--first, second, third (or #1, #2, #3)--for pointing an element in a set (which one?).  In contrast, they use cardinal numbers--1, 2, 3--to count the number of elements (how many?). Unfortunately enough, programming is massively English speaking, and this language calls both number types "numbers" (compare with Nummer/Zahl in German or numéro/nombre in French). Still all languages make a big difference between the two.
+In all fields of human life, except for a sub-field of programming, ordinals are used for pointing things. Look for year 0, the 0th book on a shelve, or Baker Street, #0 ;-). Moreover, ordinals seem to have appeared first, which is the reason why "zero", a cardinal, is so young in human history. Languages witness this fact: people say "nobody", "never", and "nothing" instead of using the word "zero". All of this is to say that at the human level, the programmer-friendly choice is to use ordinals, not offsets, to reference items in an ordered set.
+<p>
+<DL>
+<dt><dd><em>Humans also use 0 for the first minute of the hour. Also consider the stupidities foisted on us by one-based counting. The new millenium started on 1/1/2001. <code> a[(i - 1)%n + 1] </code>. The first hour of the day is 12 and the last hour is 11 (it seems they had the presence of mind to make 1 o'clock start one hour after midnight, but then got all tied up in knots when it came to midnight itself). Lists of ten always have one two-digit number; this thoroughly confuses children learning to count and read to 10 and confuses them even more when they have to learn about zero. The first kilometer of a trip starts at zero kilometers.</em> &mdash;MarceloCantos<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MarceloCantos" >?</a>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Your argument regarding the terms "nobody", "never" and "nothing" is a </em>non sequiter<em>. These are all cardinal terms, not ordinal. It is perhaps odd that such terms are used to describe sets of cardinality zero, but this has little to do with the question of whether ordinals should start at zero.</em> &mdash;MarceloCantos<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MarceloCantos" >?</a>
+</DL>
+<p>
+Similarly, closed intervals happen to be more natural or intuitive. In everyday life, "from the first to the third" has an inclusive meaning in any case. Using half-open intervals thus first demands a mental work which eventually becomes automatic. This neither means that such a syntax is less efficient, nor less rational, but simply less human-friendly for non-initiates. Some programmers seem to be proud of such esoteric features that lead newbies to errors ;-).
+<p>
+<DL>
+<dt><dd><em>Again, the use of emotive terms such as "proud" and "esoteric" is an </em>ad hominem<em> rhetorical device that tries to sway the reader by means other than rational argumentation.</em> &mdash;MarceloCantos<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MarceloCantos" >?</a>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Some programmers find half-open intervals to be a much saner system that produces more reliable code than closed intervals, and that reliability trumps conformity to a millenia-old mistake for the sake of what non-initiates find "intuitive".</em> &mdash;MarceloCantos<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MarceloCantos" >?</a>
+</DL>
+<p>
+Here it is necessary to distinguish process and human semantic levels. On the process level, both schemes are equally functional, and both semantics are consistent. On the human level, the 0-base/half-open scheme needs a kind of 'transcoding' from the process layer. As a consequence, if one agrees that source code (as well as mathematical expressions for instance) is to be read by humans first, rather than by machines, then this scheme is a lesser option -- one should choose it only if the alternative proved to be impossible for any reason. Note that Pascal, while as old as C, has taken the opposite way -- not a coincidence, as it has been designed to be suitable for education.
+<p>
+<H3>Programmers, Too</H3>
+<p>
+In everyday work, once one is used to one or the other convention, both schemes prove to be usable. When programmers discuss about that issue, they tend to bitterly hold to their personal comfort, that is their mental habits built through everyday use. As mostly used languages follow the C convention, there are many arguments supporting it. Now, when carefully watched, these words happen to be wrong as logical reasons: behind rational expression, they are <em>opinions</em>.
+<p>
+<DL>
+<dt><dd><em>Both schemes may be usable, but half-open ranges are substantively simpler, more rational and less prone to off-by-one mistakes.</em> &mdash;MarceloCantos<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MarceloCantos" >?</a>
+</DL>
+<p>
+For instance, the argument that a 0-length range is best expressed with <code>[n,n)</code> is more or less meaningless; the only sensible way to express an empty sequence is <code>[]</code>. Both <code>[5,5)</code> and <code>[5,4]</code> simply are semantically absurd. Now, it may happen <em>at run time</em> that a sequence slice is empty -- this is another level: the programmer does not cope with it <em>at design time</em>.
+<p>
+<DL>
+<dt><dd><em>First off, a minor quibble: the argument may have more or less merit, but it makes no sense to say that it is meaningless.</em> &mdash;MarceloCantos<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MarceloCantos" >?</a>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Using <code>[]</code> to express the empty range is awkward. A computer program will typically use a data structure with two end-points: <code>struct range { int start, end; };</code>. The code to intersect two such ranges is very simple: <code>range intersect(range a, range b) { range r = { max(a.start, b.start); min(a.end, b.end); if (r.end &lt; r.start) r.end = r.start; return r; </code>}, as is the cardinality: <code>int count(range r) { return r.end - r.start; </code>}, and the empty function: <code>bool empty(range r) { return r.start == r.end; </code>}. As soon as you require a different representation for empty ranges, everything suddenly gets more complicated and consumes more RAM and CPU. You'll also find that you have to liberally sprinkle your code with <code>+ 1</code> and <code>- 1</code> to correct for various off-by-one issues (e.g., the count now requires <code>r.end - r.start + 1</code> as well as explicitly testing for the empty state).</em> &mdash;MarceloCantos<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MarceloCantos" >?</a>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Closed ranges are extremely awkward for continuous quantities. How do you express the range of timestamps corresponding to a single day? Half-open ranges do this easily: [2010-01-01, 2010-01-02). Closed ranges would need to do this: [2010-01-01, 2010-01-01 23:59:59], which has at least two problems: 1) it necessarily assumes a quantum; 2) it is an unnatural and complex way to express the simple concept of a day. Half-open ranges are also trivial to splice into contiguous non-intersecting sub-ranges: [e, pi) can be spliced into [e, 3) and [3, pi). In the general case, this is impossible with closed ranges, and even with a quantum, it is not at all obvious that the pair [2010-01-01, 2010-01-01 11:59:59] and [2010-01-01 12:00:00, 2010-01-01 23:59:59] is contiguous (is the quantum one second?). While many of these issues are more tractable for discrete applications such as array indexing, it remains the case that half-open ranges are easier to work with. As a simple example, it is blatantly obvious that [a, b) and [b, c) are contiguous, whereas [a, b] and [c, d] require further inspection of the code. Also, it is easier to represent an n-way splice of a half-open range, [a, b), [b, c), ..., [y, z) as an array, [a, b, c, ..., z], whereas with an n-way splice of a closed range, you have be careful to remember whether you are storing the start of each splice or the end.</em> &mdash;MarceloCantos<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MarceloCantos" >?</a>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Consider also the fact that the "length" of a half-open range is <code>end - start</code>, regardless of whether the range is continuous or discrete, whereas the formula for the "length" of a closed range is different for continuous and discrete ranges. As a practical and quite common example, the number of days in a half-open date range is computed the same way regardless of whether the end-points are dates or timestamps. This is why I tend to prefer <code>date1 &lt;= d AND d &lt; date2</code> over SQL's <code>BETWEEN</code> operator; I never have to think about whether the variables in question are dates or timestamps, or worry about whether a maintainer will ever switch the types from one to the other.</em> &mdash;MarceloCantos<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MarceloCantos" >?</a>
+</DL>
+<p>
+<DL>
+<dt><dd><em><code>[5,5)</code> is a degenerate case, and such cases are often very useful. What, exactly, makes it absurd?</em> &mdash;MarceloCantos<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MarceloCantos" >?</a>
+</DL>
+<p>
+<H2>Light(s) For Peace</H2>
+<p>
+In the 21st century, should such losses of time and energy still happen? There are at least two paths to get out of this problem.
+<p>
+<H3>Explicit Syntax</H3>
+<p>
+As some note, BASIC allows explicit expression of the array index scheme. For instance, <code>array(0,10)</code> would define a zero-based range of indexes. In a similar point of view, one could explicitly use half-open intervals using either of the common mathematical syntaxes for that: <code> [a,b) </code> or <code> [a,b[ </code>.
+This option has the additional advantage of getting rid of error-prone format, as the scheme used is explicitly written. All of this is good for the human reader, yet the problem remains to properly interpret expressions written in a convention one is not used to. The following proposal addresses this issue.
+<p>
+<H3>Editor Customization Layer</H3>
+<p>
+As programmers all of us are familiar with nice editor customization features, like indent options that allow us to say if we prefer tabs or spaces or how wide an indent should be. Note that this works both for loading/reading and editing/saving source code files. Whatever the author's options, we are able to read and edit the code with our own preferred convention. Whatever our options, another developer will be able to read and edit the same code using his own choices. Now, the file may be saved according to any standard norm, no matter. This is a kind of foreground/background distinction performed through an editor customization layer. Great!
+<p>
+Now, why not extend this principle to *any* language feature? For instance, one may prefer to get rid of the '<code>=</code>' for assignments (which is semantically wrong), replace it with e.g. '<code>:</code>', and use '<code>=</code>' only for logical equality instead. When loading a file, the editor should display the code using these preferences, whatever the standard used for saving.
+<p>
+The same is worth for indexes and slices: a C programmer would set 0-base/half-open slices and get the code displayed that way, whatever the background saving standard may be. A programmer used to Delphi would choose the opposite scheme, no matter.
+<p>
+[<em>What do you think of that? I mainly program in Python these days, and most of the IDEs for this language are written in Python/wxPython, too. So that when I have time for it, I aim to implement this feature into an editor...</em>]
+<p>
+<DL>
+<dt><dd><em>"There be dragons." How would an editor convert <code>a[len - 1 - i]</code> to 1-based indexing? Would it simply wrap the index thus: <code>a[(len - 1 - i) + 1]</code>, or would it try to parse the content, looking for a "<code>- 1</code>" to remove or a "<code>+/- &lt;constant&gt;</code>" to alter, thus: <code>a[len - i]</code>? What if the code were unfinished: <code>a[len - ]</code> or simply perverse: <code>a[~i &amp; 0xff] /* len == 256 */</code>? And how would you deal with C++, which lets you overload <code>operator []</code>? Also consider that programmers frequently share a screen while discussing code, which would lead to horrendous confusion.</em> &mdash;MarceloCantos<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MarceloCantos" >?</a>
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/CountingFromOne.html" >CountingFromOne</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=IndexIntervalFormatIssue" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=IndexIntervalFormatIssue" >history</a><br>Last edited January 16, 2010 10:47 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=IndexIntervalFormatIssue" >(diff)</a>
+</body>
+</html>

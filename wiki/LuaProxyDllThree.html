@@ -1,0 +1,1273 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Proxy Dll Three</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaProxyDllThree&amp;body=1" title="List pages referring to LuaProxyDllThree">Lua Proxy Dll Three</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Below are two Lua script to create a proxy dll for Lua 5.1. They is similar to what you can find on <a href="../wiki/LuaProxyDllTwo.html" >LuaProxyDllTwo</a> (and to some extent on <a href="../wiki/LuaProxyDll.html" >LuaProxyDll</a>). However they have several advantages:
+<UL>
+<li> Output dll contains absolutely no code (even generated code), thanks to the /NOENTRY and /NODEFAULTLIB linker flags (-nostartfiles for gcc).
+<li> It just declares aliases in a format understood by the dynamic loader of the Windows kernel (I think the real name for these things is <em>export forwarder</em>). When you open the generated dll with depends.exe you can see the entry points as special forwarding entry points.
+<li> It is smaller (6-7kB against 14kB).
+<li> It has fewer dependencies: you only need the compiler, you don't need the import library, you don't need the headers.
+</UL>
+<p>
+The first one, <em>mkforwardlib.lua</em>, requires Visual C++. It has been tested with Visual C++ 2005 Express, and with the free Visual C++ for AMD64 and IA64 platforms available with the Microsoft Platform SDK. If you use another version of Visual C++ you will have to put the path to link.exe in the VCPATH environment variable.
+<p>
+The second one, <em>mkforwardlib-gcc.lua</em>, requires GCC. It has been tested with MinGW 5.0.2 for x86.
+<p>
+<em>mkforwardlib.lua:</em>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> reallib
+
+<span class="keyword">local</span> fakelib
+
+<span class="keyword">local</span> machine
+
+<span class="keyword">local</span> extrasymbols = {}
+
+
+
+<span class="keyword">local</span> args = {...}
+
+<span class="keyword">local</span> errmsg
+
+<span class="keyword">if</span> args[1] <span class="keyword">then</span> reallib = args[1] <span class="keyword">end</span>
+
+<span class="keyword">if</span> args[2] <span class="keyword">then</span> fakelib = args[2] <span class="keyword">end</span>
+
+<span class="keyword">if</span> args[3] <span class="keyword">then</span> machine = args[3] <span class="keyword">end</span>
+
+<span class="keyword">for</span> i=4,#args <span class="keyword">do</span>
+
+	<span class="library">table.insert</span>(extrasymbols, args[i])
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">if</span> #args&lt;3 <span class="keyword">then</span>
+
+	errmsg = <span class="string">"not enough parameters"</span>
+
+<span class="keyword">elseif</span> <span class="keyword">not</span> ({X86=<span class="keyword">true</span>, AMD64=<span class="keyword">true</span>, IA64=<span class="keyword">true</span>})[machine] <span class="keyword">then</span>
+
+	errmsg = <span class="string">"'"</span>..machine..<span class="string">"' is not a recognized machine architecture"</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">if</span> errmsg <span class="keyword">then</span>
+
+	<span class="keyword">if</span> errmsg <span class="keyword">then</span> <span class="library">io.stderr</span>:write(<span class="string">"Error: "</span>..errmsg..<span class="string">"\n"</span>) <span class="keyword">end</span>
+
+	<span class="library">io.stderr</span>:write<span class="string">[[
+
+Usage: mkforwardlib &lt;reallib&gt; &lt;fakelib&gt; &lt;machine&gt; [&lt;extrasymbols&gt;...]
+
+
+
+    reallib         The name of the existing dll that you want to use.
+
+    fakelib         The name of the fake dll that you want to create and that
+
+                    will call the reallib instead.
+
+    machine         The hardware architecture of your windows version among:
+
+                    X86, AMD64, IA64
+
+    extrasymbols    Additionnal symbols to export beyond standard Lua symbols
+
+                    (if you have a very custom Lua dll).
+
+
+
+Example: mkforwardlib lua51.dll lua5.1.dll X86
+
+]]</span>
+
+	<span class="comment">-- :TODO: add support for AM33, ARM, CEE, EBC, M32R, MIPS, MIPS16, MIPSFPU, MIPSFPU16, MIPSR41XX, SH4, SH5, THUMB</span>
+
+	<span class="library">os.exit</span>(0)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> VisualC = <span class="library">os.getenv</span>(<span class="string">'VCPATH'</span>)
+
+<span class="keyword">if</span> <span class="keyword">not</span> VisualC <span class="keyword">then</span>
+
+	<span class="keyword">if</span> machine==<span class="string">'AMD64'</span> <span class="keyword">then</span>
+
+		<span class="keyword">local</span> PlatformSDK = <span class="library">assert</span>(<span class="library">os.getenv</span><span class="string">"MSSDK"</span>, <span class="string">"MSSDK environment variable is not set, please set it to the path to your Platform SDK"</span>)
+
+		VisualC = PlatformSDK..<span class="string">"\\Bin\\win64\\x86\\AMD64"</span>
+
+	<span class="keyword">elseif</span> machine==<span class="string">'IA64'</span> <span class="keyword">then</span>
+
+		<span class="keyword">local</span> PlatformSDK = <span class="library">assert</span>(<span class="library">os.getenv</span><span class="string">"MSSDK"</span>, <span class="string">"MSSDK environment variable is not set, please set it to the path to your Platform SDK"</span>)
+
+		VisualC = PlatformSDK..<span class="string">"\\Bin\\win64"</span>
+
+	<span class="keyword">else</span>
+
+	<span class="comment">--	local VisualCRoot = (os.getenv"PROGRAMFILES(X86)" or os.getenv"PROGRAMFILES").."\\Microsoft Visual Studio .NET 2003\\Vc7"</span>
+
+		<span class="keyword">local</span> VisualCRoot = (<span class="library">os.getenv</span><span class="string">"PROGRAMFILES(X86)"</span> <span class="keyword">or</span> <span class="library">os.getenv</span><span class="string">"PROGRAMFILES"</span>)..<span class="string">"\\Microsoft Visual Studio 8\\VC"</span>
+
+		VisualC = VisualCRoot..<span class="string">"\\bin"</span>
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> symbols = {
+
+	<span class="string">"luaL_addlstring"</span>,
+
+	<span class="string">"luaL_addstring"</span>,
+
+	<span class="string">"luaL_addvalue"</span>,
+
+	<span class="string">"luaL_argerror"</span>,
+
+	<span class="string">"luaL_buffinit"</span>,
+
+	<span class="string">"luaL_callmeta"</span>,
+
+	<span class="string">"luaL_checkany"</span>,
+
+	<span class="string">"luaL_checkinteger"</span>,
+
+	<span class="string">"luaL_checklstring"</span>,
+
+	<span class="string">"luaL_checknumber"</span>,
+
+	<span class="string">"luaL_checkoption"</span>,
+
+	<span class="string">"luaL_checkstack"</span>,
+
+	<span class="string">"luaL_checktype"</span>,
+
+	<span class="string">"luaL_checkudata"</span>,
+
+	<span class="string">"luaL_error"</span>,
+
+	<span class="string">"luaL_findtable"</span>,
+
+	<span class="string">"luaL_getmetafield"</span>,
+
+	<span class="string">"luaL_gsub"</span>,
+
+	<span class="string">"luaL_loadbuffer"</span>,
+
+	<span class="string">"luaL_loadfile"</span>,
+
+	<span class="string">"luaL_loadstring"</span>,
+
+	<span class="string">"luaL_newmetatable"</span>,
+
+	<span class="string">"luaL_newstate"</span>,
+
+	<span class="string">"luaL_openlib"</span>,
+
+	<span class="string">"luaL_openlibs"</span>,
+
+	<span class="string">"luaL_optinteger"</span>,
+
+	<span class="string">"luaL_optlstring"</span>,
+
+	<span class="string">"luaL_optnumber"</span>,
+
+	<span class="string">"luaL_prepbuffer"</span>,
+
+	<span class="string">"luaL_pushresult"</span>,
+
+	<span class="string">"luaL_ref"</span>,
+
+	<span class="string">"luaL_register"</span>,
+
+	<span class="string">"luaL_typerror"</span>,
+
+	<span class="string">"luaL_unref"</span>,
+
+	<span class="string">"luaL_where"</span>,
+
+	<span class="string">"lua_atpanic"</span>,
+
+	<span class="string">"lua_call"</span>,
+
+	<span class="string">"lua_checkstack"</span>,
+
+	<span class="string">"lua_close"</span>,
+
+	<span class="string">"lua_concat"</span>,
+
+	<span class="string">"lua_cpcall"</span>,
+
+	<span class="string">"lua_createtable"</span>,
+
+	<span class="string">"lua_dump"</span>,
+
+	<span class="string">"lua_equal"</span>,
+
+	<span class="string">"lua_error"</span>,
+
+	<span class="string">"lua_gc"</span>,
+
+	<span class="string">"lua_getallocf"</span>,
+
+	<span class="string">"lua_getfenv"</span>,
+
+	<span class="string">"lua_getfield"</span>,
+
+	<span class="string">"lua_gethook"</span>,
+
+	<span class="string">"lua_gethookcount"</span>,
+
+	<span class="string">"lua_gethookmask"</span>,
+
+	<span class="string">"lua_getinfo"</span>,
+
+	<span class="string">"lua_getlocal"</span>,
+
+	<span class="string">"lua_getmetatable"</span>,
+
+	<span class="string">"lua_getstack"</span>,
+
+	<span class="string">"lua_gettable"</span>,
+
+	<span class="string">"lua_gettop"</span>,
+
+	<span class="string">"lua_getupvalue"</span>,
+
+	<span class="string">"lua_insert"</span>,
+
+	<span class="string">"lua_iscfunction"</span>,
+
+	<span class="string">"lua_isnumber"</span>,
+
+	<span class="string">"lua_isstring"</span>,
+
+	<span class="string">"lua_isuserdata"</span>,
+
+	<span class="string">"lua_lessthan"</span>,
+
+	<span class="string">"lua_load"</span>,
+
+	<span class="string">"lua_newstate"</span>,
+
+	<span class="string">"lua_newthread"</span>,
+
+	<span class="string">"lua_newuserdata"</span>,
+
+	<span class="string">"lua_next"</span>,
+
+	<span class="string">"lua_objlen"</span>,
+
+	<span class="string">"lua_pcall"</span>,
+
+	<span class="string">"lua_pushboolean"</span>,
+
+	<span class="string">"lua_pushcclosure"</span>,
+
+	<span class="string">"lua_pushfstring"</span>,
+
+	<span class="string">"lua_pushinteger"</span>,
+
+	<span class="string">"lua_pushlightuserdata"</span>,
+
+	<span class="string">"lua_pushlstring"</span>,
+
+	<span class="string">"lua_pushnil"</span>,
+
+	<span class="string">"lua_pushnumber"</span>,
+
+	<span class="string">"lua_pushstring"</span>,
+
+	<span class="string">"lua_pushthread"</span>,
+
+	<span class="string">"lua_pushvalue"</span>,
+
+	<span class="string">"lua_pushvfstring"</span>,
+
+	<span class="string">"lua_rawequal"</span>,
+
+	<span class="string">"lua_rawget"</span>,
+
+	<span class="string">"lua_rawgeti"</span>,
+
+	<span class="string">"lua_rawset"</span>,
+
+	<span class="string">"lua_rawseti"</span>,
+
+	<span class="string">"lua_remove"</span>,
+
+	<span class="string">"lua_replace"</span>,
+
+	<span class="string">"lua_resume"</span>,
+
+	<span class="string">"lua_setallocf"</span>,
+
+	<span class="string">"lua_setfenv"</span>,
+
+	<span class="string">"lua_setfield"</span>,
+
+	<span class="string">"lua_sethook"</span>,
+
+	<span class="string">"lua_setlocal"</span>,
+
+	<span class="string">"lua_setmetatable"</span>,
+
+	<span class="string">"lua_settable"</span>,
+
+	<span class="string">"lua_settop"</span>,
+
+	<span class="string">"lua_setupvalue"</span>,
+
+	<span class="string">"lua_status"</span>,
+
+	<span class="string">"lua_toboolean"</span>,
+
+	<span class="string">"lua_tocfunction"</span>,
+
+	<span class="string">"lua_tointeger"</span>,
+
+	<span class="string">"lua_tolstring"</span>,
+
+	<span class="string">"lua_tonumber"</span>,
+
+	<span class="string">"lua_topointer"</span>,
+
+	<span class="string">"lua_tothread"</span>,
+
+	<span class="string">"lua_touserdata"</span>,
+
+	<span class="string">"lua_type"</span>,
+
+	<span class="string">"lua_typename"</span>,
+
+	<span class="string">"lua_xmove"</span>,
+
+	<span class="string">"lua_yield"</span>,
+
+<span class="comment">--	"luaopen_base",</span>
+
+<span class="comment">--	"luaopen_debug",</span>
+
+<span class="comment">--	"luaopen_io",</span>
+
+<span class="comment">--	"luaopen_math",</span>
+
+<span class="comment">--	"luaopen_os",</span>
+
+<span class="comment">--	"luaopen_package",</span>
+
+<span class="comment">--	"luaopen_string",</span>
+
+<span class="comment">--	"luaopen_table",</span>
+
+}
+
+
+
+<span class="keyword">local</span> command = {
+
+	<span class="string">'"'</span>..VisualC..<span class="string">'\\link.exe"'</span>,
+
+	<span class="string">" -dll"</span>,
+
+	<span class="string">" -nologo"</span>,
+
+	<span class="string">" -noentry"</span>,
+
+	<span class="string">" -machine:"</span>..machine,
+
+	<span class="string">" -incremental:no"</span>,
+
+	<span class="string">" -nodefaultlib"</span>,
+
+	<span class="string">" -out:"</span>..fakelib..<span class="string">".dll"</span>,
+
+	<span class="string">" -implib:"</span>..fakelib..<span class="string">".lib"</span>,
+
+}
+
+
+
+<span class="keyword">for</span> _,symbol <span class="keyword">in</span> <span class="library">ipairs</span>(symbols) <span class="keyword">do</span>
+
+	<span class="library">table.insert</span>(command,<span class="string">" /export:"</span>..symbol..<span class="string">"="</span>..reallib..<span class="string">"."</span>..symbol)
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> _,symbol <span class="keyword">in</span> <span class="library">ipairs</span>(extrasymbols) <span class="keyword">do</span>
+
+	<span class="library">table.insert</span>(command,<span class="string">" /export:"</span>..symbol..<span class="string">"="</span>..reallib..<span class="string">"."</span>..symbol)
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">os.execute</span>(<span class="string">'"'</span>..<span class="library">table.concat</span>(command)..<span class="string">'"'</span>)
+
+</pre>
+
+</DL>
+<p>
+<p>
+<em>mkforwardlib-gcc.lua:</em>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> reallib
+
+<span class="keyword">local</span> fakelib
+
+<span class="keyword">local</span> machine
+
+<span class="keyword">local</span> extrasymbols = {}
+
+
+
+<span class="keyword">local</span> args = {...}
+
+<span class="keyword">local</span> errmsg
+
+<span class="keyword">if</span> args[1] <span class="keyword">then</span> reallib = args[1] <span class="keyword">end</span>
+
+<span class="keyword">if</span> args[2] <span class="keyword">then</span> fakelib = args[2] <span class="keyword">end</span>
+
+<span class="keyword">if</span> args[3] <span class="keyword">then</span> machine = args[3] <span class="keyword">end</span>
+
+<span class="keyword">for</span> i=4,#args <span class="keyword">do</span>
+
+	<span class="library">table.insert</span>(extrasymbols, args[i])
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">if</span> #args&lt;3 <span class="keyword">then</span> errmsg = <span class="string">"not enough parameters"</span> <span class="keyword">end</span>
+
+<span class="keyword">if</span> <span class="keyword">not</span> ({X86=<span class="keyword">true</span>})[machine] <span class="keyword">then</span> errmsg = <span class="string">"'"</span>..machine..<span class="string">"' is not a recognized machine architecture"</span> <span class="keyword">end</span>
+
+<span class="keyword">if</span> errmsg <span class="keyword">then</span>
+
+	<span class="keyword">if</span> errmsg <span class="keyword">then</span> <span class="library">io.stderr</span>:write(<span class="string">"Error: "</span>..errmsg..<span class="string">"\n"</span>) <span class="keyword">end</span>
+
+	<span class="library">io.stderr</span>:write<span class="string">[[
+
+Usage: mkforwardlib-gcc &lt;reallib&gt; &lt;fakelib&gt; &lt;machine&gt; [&lt;extrasymbols&gt;...]
+
+
+
+    reallib         The name of the existing dll that you want to use.
+
+    fakelib         The name of the fake dll that you want to create and that
+
+                    will call the reallib instead.
+
+    machine         The hardware architecture of your windows version among:
+
+                    X86
+
+    extrasymbols    Additionnal symbols to export beyond standard Lua symbols
+
+                    (if you have a very custom Lua dll).
+
+
+
+Example: mkforwardlib lua51.dll lua5.1.dll X86
+
+]]</span>
+
+	<span class="comment">-- :TODO: add support for AMD64, IA64, AM33, ARM, CEE, EBC, M32R, MIPS, MIPS16, MIPSFPU, MIPSFPU16, MIPSR41XX, SH4, SH5, THUMB</span>
+
+	<span class="library">os.exit</span>(0)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> symbols = {
+
+	<span class="string">"luaL_addlstring"</span>,
+
+	<span class="string">"luaL_addstring"</span>,
+
+	<span class="string">"luaL_addvalue"</span>,
+
+	<span class="string">"luaL_argerror"</span>,
+
+	<span class="string">"luaL_buffinit"</span>,
+
+	<span class="string">"luaL_callmeta"</span>,
+
+	<span class="string">"luaL_checkany"</span>,
+
+	<span class="string">"luaL_checkinteger"</span>,
+
+	<span class="string">"luaL_checklstring"</span>,
+
+	<span class="string">"luaL_checknumber"</span>,
+
+	<span class="string">"luaL_checkoption"</span>,
+
+	<span class="string">"luaL_checkstack"</span>,
+
+	<span class="string">"luaL_checktype"</span>,
+
+	<span class="string">"luaL_checkudata"</span>,
+
+	<span class="string">"luaL_error"</span>,
+
+	<span class="string">"luaL_findtable"</span>,
+
+	<span class="string">"luaL_getmetafield"</span>,
+
+	<span class="string">"luaL_gsub"</span>,
+
+	<span class="string">"luaL_loadbuffer"</span>,
+
+	<span class="string">"luaL_loadfile"</span>,
+
+	<span class="string">"luaL_loadstring"</span>,
+
+	<span class="string">"luaL_newmetatable"</span>,
+
+	<span class="string">"luaL_newstate"</span>,
+
+	<span class="string">"luaL_openlib"</span>,
+
+	<span class="string">"luaL_openlibs"</span>,
+
+	<span class="string">"luaL_optinteger"</span>,
+
+	<span class="string">"luaL_optlstring"</span>,
+
+	<span class="string">"luaL_optnumber"</span>,
+
+	<span class="string">"luaL_prepbuffer"</span>,
+
+	<span class="string">"luaL_pushresult"</span>,
+
+	<span class="string">"luaL_ref"</span>,
+
+	<span class="string">"luaL_register"</span>,
+
+	<span class="string">"luaL_typerror"</span>,
+
+	<span class="string">"luaL_unref"</span>,
+
+	<span class="string">"luaL_where"</span>,
+
+	<span class="string">"lua_atpanic"</span>,
+
+	<span class="string">"lua_call"</span>,
+
+	<span class="string">"lua_checkstack"</span>,
+
+	<span class="string">"lua_close"</span>,
+
+	<span class="string">"lua_concat"</span>,
+
+	<span class="string">"lua_cpcall"</span>,
+
+	<span class="string">"lua_createtable"</span>,
+
+	<span class="string">"lua_dump"</span>,
+
+	<span class="string">"lua_equal"</span>,
+
+	<span class="string">"lua_error"</span>,
+
+	<span class="string">"lua_gc"</span>,
+
+	<span class="string">"lua_getallocf"</span>,
+
+	<span class="string">"lua_getfenv"</span>,
+
+	<span class="string">"lua_getfield"</span>,
+
+	<span class="string">"lua_gethook"</span>,
+
+	<span class="string">"lua_gethookcount"</span>,
+
+	<span class="string">"lua_gethookmask"</span>,
+
+	<span class="string">"lua_getinfo"</span>,
+
+	<span class="string">"lua_getlocal"</span>,
+
+	<span class="string">"lua_getmetatable"</span>,
+
+	<span class="string">"lua_getstack"</span>,
+
+	<span class="string">"lua_gettable"</span>,
+
+	<span class="string">"lua_gettop"</span>,
+
+	<span class="string">"lua_getupvalue"</span>,
+
+	<span class="string">"lua_insert"</span>,
+
+	<span class="string">"lua_iscfunction"</span>,
+
+	<span class="string">"lua_isnumber"</span>,
+
+	<span class="string">"lua_isstring"</span>,
+
+	<span class="string">"lua_isuserdata"</span>,
+
+	<span class="string">"lua_lessthan"</span>,
+
+	<span class="string">"lua_load"</span>,
+
+	<span class="string">"lua_newstate"</span>,
+
+	<span class="string">"lua_newthread"</span>,
+
+	<span class="string">"lua_newuserdata"</span>,
+
+	<span class="string">"lua_next"</span>,
+
+	<span class="string">"lua_objlen"</span>,
+
+	<span class="string">"lua_pcall"</span>,
+
+	<span class="string">"lua_pushboolean"</span>,
+
+	<span class="string">"lua_pushcclosure"</span>,
+
+	<span class="string">"lua_pushfstring"</span>,
+
+	<span class="string">"lua_pushinteger"</span>,
+
+	<span class="string">"lua_pushlightuserdata"</span>,
+
+	<span class="string">"lua_pushlstring"</span>,
+
+	<span class="string">"lua_pushnil"</span>,
+
+	<span class="string">"lua_pushnumber"</span>,
+
+	<span class="string">"lua_pushstring"</span>,
+
+	<span class="string">"lua_pushthread"</span>,
+
+	<span class="string">"lua_pushvalue"</span>,
+
+	<span class="string">"lua_pushvfstring"</span>,
+
+	<span class="string">"lua_rawequal"</span>,
+
+	<span class="string">"lua_rawget"</span>,
+
+	<span class="string">"lua_rawgeti"</span>,
+
+	<span class="string">"lua_rawset"</span>,
+
+	<span class="string">"lua_rawseti"</span>,
+
+	<span class="string">"lua_remove"</span>,
+
+	<span class="string">"lua_replace"</span>,
+
+	<span class="string">"lua_resume"</span>,
+
+	<span class="string">"lua_setallocf"</span>,
+
+	<span class="string">"lua_setfenv"</span>,
+
+	<span class="string">"lua_setfield"</span>,
+
+	<span class="string">"lua_sethook"</span>,
+
+	<span class="string">"lua_setlocal"</span>,
+
+	<span class="string">"lua_setmetatable"</span>,
+
+	<span class="string">"lua_settable"</span>,
+
+	<span class="string">"lua_settop"</span>,
+
+	<span class="string">"lua_setupvalue"</span>,
+
+	<span class="string">"lua_status"</span>,
+
+	<span class="string">"lua_toboolean"</span>,
+
+	<span class="string">"lua_tocfunction"</span>,
+
+	<span class="string">"lua_tointeger"</span>,
+
+	<span class="string">"lua_tolstring"</span>,
+
+	<span class="string">"lua_tonumber"</span>,
+
+	<span class="string">"lua_topointer"</span>,
+
+	<span class="string">"lua_tothread"</span>,
+
+	<span class="string">"lua_touserdata"</span>,
+
+	<span class="string">"lua_type"</span>,
+
+	<span class="string">"lua_typename"</span>,
+
+	<span class="string">"lua_xmove"</span>,
+
+	<span class="string">"lua_yield"</span>,
+
+<span class="comment">--	"luaopen_base",</span>
+
+<span class="comment">--	"luaopen_debug",</span>
+
+<span class="comment">--	"luaopen_io",</span>
+
+<span class="comment">--	"luaopen_math",</span>
+
+<span class="comment">--	"luaopen_os",</span>
+
+<span class="comment">--	"luaopen_package",</span>
+
+<span class="comment">--	"luaopen_string",</span>
+
+<span class="comment">--	"luaopen_table",</span>
+
+}
+
+
+
+<span class="keyword">local</span> def = <span class="library">io.open</span>(<span class="string">"lib"</span>..fakelib..<span class="string">".def"</span>, <span class="string">"wb"</span>)
+
+def:write(<span class="string">"EXPORTS\n"</span>)
+
+<span class="keyword">if</span> reallib:find(<span class="string">"%."</span>) <span class="keyword">then</span>
+
+	reallib = <span class="string">'"'</span>..reallib..<span class="string">'"'</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> _,symbol <span class="keyword">in</span> <span class="library">ipairs</span>(symbols) <span class="keyword">do</span>
+
+	def:write(<span class="string">""</span>..symbol..<span class="string">"="</span>..reallib..<span class="string">"."</span>..symbol..<span class="string">"\n"</span>)
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> _,symbol <span class="keyword">in</span> <span class="library">ipairs</span>(extrasymbols) <span class="keyword">do</span>
+
+	def:write(<span class="string">""</span>..symbol..<span class="string">"="</span>..reallib..<span class="string">"."</span>..symbol..<span class="string">"\n"</span>)
+
+<span class="keyword">end</span>
+
+def:close()
+
+
+
+<span class="library">os.execute</span>(<span class="string">'"'</span>..<span class="library">table.concat</span>({
+
+	<span class="string">'gcc'</span>,
+
+<span class="comment">--	" -shared", -- this option seem to be incompatible with -nostartfiles</span>
+
+	<span class="string">" -o "</span>..fakelib..<span class="string">".dll"</span>,
+
+	<span class="string">" -nostartfiles"</span>,
+
+	<span class="string">" lib"</span>..fakelib..<span class="string">".def"</span>,
+
+})..<span class="string">'"'</span>)
+
+
+
+<span class="library">os.execute</span>(<span class="string">'"'</span>..<span class="library">table.concat</span>({
+
+	<span class="string">'strip'</span>,
+
+	<span class="string">" --strip-unneeded"</span>,
+
+	<span class="string">" "</span>..fakelib..<span class="string">".dll"</span>,
+
+})..<span class="string">'"'</span>)
+
+</pre>
+
+</DL>
+-- <a href="../wiki/JeromeVuarand.html" >JeromeVuarand</a>
+<p>
+This is the same script as above with few modifications to make it work with Lua 5.2:
+<p>
+<em>mkforwardlib-gcc-52.lua:</em>
+<pre class="code">
+<span class="keyword">local</span> reallib
+
+<span class="keyword">local</span> fakelib
+
+<span class="keyword">local</span> machine
+
+<span class="keyword">local</span> extrasymbols = {}
+
+
+
+<span class="keyword">local</span> args = {...}
+
+<span class="keyword">local</span> errmsg
+
+<span class="keyword">if</span> args[1] <span class="keyword">then</span> reallib = args[1] <span class="keyword">end</span>
+
+<span class="keyword">if</span> args[2] <span class="keyword">then</span> fakelib = args[2] <span class="keyword">end</span>
+
+<span class="keyword">if</span> args[3] <span class="keyword">then</span> machine = args[3] <span class="keyword">end</span>
+
+<span class="keyword">for</span> i=4,#args <span class="keyword">do</span>
+
+	<span class="library">table.insert</span>(extrasymbols, args[i])
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">if</span> #args&lt;3 <span class="keyword">then</span> errmsg = <span class="string">"not enough parameters"</span> <span class="keyword">end</span>
+
+<span class="keyword">if</span> <span class="keyword">not</span> ({X86=<span class="keyword">true</span>})[machine] <span class="keyword">then</span> errmsg = <span class="string">"'"</span>..machine..<span class="string">"' is not a recognized machine architecture"</span> <span class="keyword">end</span>
+
+<span class="keyword">if</span> errmsg <span class="keyword">then</span>
+
+	<span class="keyword">if</span> errmsg <span class="keyword">then</span> <span class="library">io.stderr</span>:write(<span class="string">"Error: "</span>..errmsg..<span class="string">"\n"</span>) <span class="keyword">end</span>
+
+	<span class="library">io.stderr</span>:write<span class="string">[[
+
+Usage: mkforwardlib-gcc &lt;reallib&gt; &lt;fakelib&gt; &lt;machine&gt; [&lt;extrasymbols&gt;...]
+
+
+
+    reallib         The name of the existing dll that you want to use.
+
+    fakelib         The name of the fake dll that you want to create and that
+
+                    will call the reallib instead.
+
+    machine         The hardware architecture of your windows version among:
+
+                    X86
+
+    extrasymbols    Additionnal symbols to export beyond standard Lua symbols
+
+                    (if you have a very custom Lua dll).
+
+
+
+Example: mkforwardlib lua52 lua5.2 X86
+
+]]</span>
+
+	<span class="comment">-- :TODO: add support for AMD64, IA64, AM33, ARM, CEE, EBC, M32R, MIPS, MIPS16, MIPSFPU, MIPSFPU16, MIPSR41XX, SH4, SH5, THUMB</span>
+
+	<span class="library">os.exit</span>(0)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> symbols = {
+
+        <span class="string">'luaL_addlstring'</span>,
+
+        <span class="string">'luaL_addstring'</span>,
+
+        <span class="string">'luaL_addvalue'</span>,
+
+        <span class="string">'luaL_argerror'</span>,
+
+        <span class="string">'luaL_buffinit'</span>,
+
+        <span class="string">'luaL_buffinitsize'</span>,
+
+        <span class="string">'luaL_callmeta'</span>,
+
+        <span class="string">'luaL_checkany'</span>,
+
+        <span class="string">'luaL_checkinteger'</span>,
+
+        <span class="string">'luaL_checklstring'</span>,
+
+        <span class="string">'luaL_checknumber'</span>,
+
+        <span class="string">'luaL_checkoption'</span>,
+
+        <span class="string">'luaL_checkstack'</span>,
+
+        <span class="string">'luaL_checktype'</span>,
+
+        <span class="string">'luaL_checkudata'</span>,
+
+        <span class="string">'luaL_checkunsigned'</span>,
+
+        <span class="string">'luaL_checkversion_'</span>,
+
+        <span class="string">'luaL_error'</span>,
+
+        <span class="string">'luaL_execresult'</span>,
+
+        <span class="string">'luaL_fileresult'</span>,
+
+        <span class="string">'luaL_getmetafield'</span>,
+
+        <span class="string">'luaL_getsubtable'</span>,
+
+        <span class="string">'luaL_gsub'</span>,
+
+        <span class="string">'luaL_len'</span>,
+
+        <span class="string">'luaL_loadbufferx'</span>,
+
+        <span class="string">'luaL_loadfilex'</span>,
+
+        <span class="string">'luaL_loadstring'</span>,
+
+        <span class="string">'luaL_newmetatable'</span>,
+
+        <span class="string">'luaL_newstate'</span>,
+
+        <span class="string">'luaL_openlib'</span>,
+
+        <span class="string">'luaL_openlibs'</span>,
+
+        <span class="string">'luaL_optinteger'</span>,
+
+        <span class="string">'luaL_optlstring'</span>,
+
+        <span class="string">'luaL_optnumber'</span>,
+
+        <span class="string">'luaL_optunsigned'</span>,
+
+        <span class="string">'luaL_prepbuffsize'</span>,
+
+        <span class="string">'luaL_pushmodule'</span>,
+
+        <span class="string">'luaL_pushresult'</span>,
+
+        <span class="string">'luaL_pushresultsize'</span>,
+
+        <span class="string">'luaL_ref'</span>,
+
+        <span class="string">'luaL_requiref'</span>,
+
+        <span class="string">'luaL_setfuncs'</span>,
+
+        <span class="string">'luaL_setmetatable'</span>,
+
+        <span class="string">'luaL_testudata'</span>,
+
+        <span class="string">'luaL_tolstring'</span>,
+
+        <span class="string">'luaL_traceback'</span>,
+
+        <span class="string">'luaL_unref'</span>,
+
+        <span class="string">'luaL_where'</span>,
+
+        <span class="string">'lua_absindex'</span>,
+
+        <span class="string">'lua_arith'</span>,
+
+        <span class="string">'lua_atpanic'</span>,
+
+        <span class="string">'lua_callk'</span>,
+
+        <span class="string">'lua_checkstack'</span>,
+
+        <span class="string">'lua_close'</span>,
+
+        <span class="string">'lua_compare'</span>,
+
+        <span class="string">'lua_concat'</span>,
+
+        <span class="string">'lua_copy'</span>,
+
+        <span class="string">'lua_createtable'</span>,
+
+        <span class="string">'lua_dump'</span>,
+
+        <span class="string">'lua_error'</span>,
+
+        <span class="string">'lua_gc'</span>,
+
+        <span class="string">'lua_getallocf'</span>,
+
+        <span class="string">'lua_getctx'</span>,
+
+        <span class="string">'lua_getfield'</span>,
+
+        <span class="string">'lua_getglobal'</span>,
+
+        <span class="string">'lua_gethook'</span>,
+
+        <span class="string">'lua_gethookcount'</span>,
+
+        <span class="string">'lua_gethookmask'</span>,
+
+        <span class="string">'lua_getinfo'</span>,
+
+        <span class="string">'lua_getlocal'</span>,
+
+        <span class="string">'lua_getmetatable'</span>,
+
+        <span class="string">'lua_getstack'</span>,
+
+        <span class="string">'lua_gettable'</span>,
+
+        <span class="string">'lua_gettop'</span>,
+
+        <span class="string">'lua_getupvalue'</span>,
+
+        <span class="string">'lua_getuservalue'</span>,
+
+        <span class="string">'lua_insert'</span>,
+
+        <span class="string">'lua_iscfunction'</span>,
+
+        <span class="string">'lua_isnumber'</span>,
+
+        <span class="string">'lua_isstring'</span>,
+
+        <span class="string">'lua_isuserdata'</span>,
+
+        <span class="string">'lua_len'</span>,
+
+        <span class="string">'lua_load'</span>,
+
+        <span class="string">'lua_newstate'</span>,
+
+        <span class="string">'lua_newthread'</span>,
+
+        <span class="string">'lua_newuserdata'</span>,
+
+        <span class="string">'lua_next'</span>,
+
+        <span class="string">'lua_pcallk'</span>,
+
+        <span class="string">'lua_pushboolean'</span>,
+
+        <span class="string">'lua_pushcclosure'</span>,
+
+        <span class="string">'lua_pushfstring'</span>,
+
+        <span class="string">'lua_pushinteger'</span>,
+
+        <span class="string">'lua_pushlightuserdata'</span>,
+
+        <span class="string">'lua_pushlstring'</span>,
+
+        <span class="string">'lua_pushnil'</span>,
+
+        <span class="string">'lua_pushnumber'</span>,
+
+        <span class="string">'lua_pushstring'</span>,
+
+        <span class="string">'lua_pushthread'</span>,
+
+        <span class="string">'lua_pushunsigned'</span>,
+
+        <span class="string">'lua_pushvalue'</span>,
+
+        <span class="string">'lua_pushvfstring'</span>,
+
+        <span class="string">'lua_rawequal'</span>,
+
+        <span class="string">'lua_rawget'</span>,
+
+        <span class="string">'lua_rawgeti'</span>,
+
+        <span class="string">'lua_rawgetp'</span>,
+
+        <span class="string">'lua_rawlen'</span>,
+
+        <span class="string">'lua_rawset'</span>,
+
+        <span class="string">'lua_rawseti'</span>,
+
+        <span class="string">'lua_rawsetp'</span>,
+
+        <span class="string">'lua_remove'</span>,
+
+        <span class="string">'lua_replace'</span>,
+
+        <span class="string">'lua_resume'</span>,
+
+        <span class="string">'lua_setallocf'</span>,
+
+        <span class="string">'lua_setfield'</span>,
+
+        <span class="string">'lua_setglobal'</span>,
+
+        <span class="string">'lua_sethook'</span>,
+
+        <span class="string">'lua_setlocal'</span>,
+
+        <span class="string">'lua_setmetatable'</span>,
+
+        <span class="string">'lua_settable'</span>,
+
+        <span class="string">'lua_settop'</span>,
+
+        <span class="string">'lua_setupvalue'</span>,
+
+        <span class="string">'lua_setuservalue'</span>,
+
+        <span class="string">'lua_status'</span>,
+
+        <span class="string">'lua_toboolean'</span>,
+
+        <span class="string">'lua_tocfunction'</span>,
+
+        <span class="string">'lua_tointegerx'</span>,
+
+        <span class="string">'lua_tolstring'</span>,
+
+        <span class="string">'lua_tonumberx'</span>,
+
+        <span class="string">'lua_topointer'</span>,
+
+        <span class="string">'lua_tothread'</span>,
+
+        <span class="string">'lua_tounsignedx'</span>,
+
+        <span class="string">'lua_touserdata'</span>,
+
+        <span class="string">'lua_type'</span>,
+
+        <span class="string">'lua_typename'</span>,
+
+        <span class="string">'lua_upvalueid'</span>,
+
+        <span class="string">'lua_upvaluejoin'</span>,
+
+        <span class="string">'lua_version'</span>,
+
+        <span class="string">'lua_xmove'</span>,
+
+        <span class="string">'lua_yieldk'</span>,
+
+<span class="comment">--      'luaopen_base',</span>
+
+<span class="comment">--      'luaopen_bit32',</span>
+
+<span class="comment">--      'luaopen_coroutine',</span>
+
+<span class="comment">--      'luaopen_debug',</span>
+
+<span class="comment">--      'luaopen_io',</span>
+
+<span class="comment">--      'luaopen_math',</span>
+
+<span class="comment">--      'luaopen_os',</span>
+
+<span class="comment">--      'luaopen_package',</span>
+
+<span class="comment">--      'luaopen_string',</span>
+
+<span class="comment">--      'luaopen_table',</span>
+
+}
+
+
+
+<span class="keyword">local</span> def = <span class="library">io.open</span>(fakelib..<span class="string">".def"</span>, <span class="string">"wb"</span>)
+
+def:write(<span class="string">"EXPORTS\n"</span>)
+
+<span class="keyword">if</span> reallib:find(<span class="string">"%."</span>) <span class="keyword">then</span>
+
+	reallib = <span class="string">'"'</span>..reallib..<span class="string">'"'</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> _,symbol <span class="keyword">in</span> <span class="library">ipairs</span>(symbols) <span class="keyword">do</span>
+
+<span class="comment">--	def:write(""..reallib.."."..symbol.."="..reallib.."."..symbol.."\n")</span>
+
+	def:write(<span class="string">""</span>..symbol..<span class="string">"="</span>..reallib..<span class="string">"."</span>..symbol..<span class="string">"\n"</span>)
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> _,symbol <span class="keyword">in</span> <span class="library">ipairs</span>(extrasymbols) <span class="keyword">do</span>
+
+<span class="comment">--	def:write(""..reallib.."."..symbol.."="..reallib.."."..symbol.."\n")</span>
+
+	def:write(<span class="string">""</span>..symbol..<span class="string">"="</span>..reallib..<span class="string">"."</span>..symbol..<span class="string">"\n"</span>)
+
+<span class="keyword">end</span>
+
+def:close()
+
+
+
+<span class="library">os.execute</span>(<span class="string">'"'</span>..<span class="library">table.concat</span>({
+
+	<span class="string">'gcc'</span>,
+
+<span class="comment">--	" -shared", -- this option seem to be incompatible with -nostartfiles</span>
+
+	<span class="string">" -o "</span>..fakelib..<span class="string">".dll"</span>,
+
+	<span class="string">" -nostartfiles"</span>,
+
+	<span class="string">" "</span>..fakelib..<span class="string">".def"</span>,
+
+})..<span class="string">'"'</span>)
+
+
+
+<span class="library">os.execute</span>(<span class="string">'"'</span>..<span class="library">table.concat</span>({
+
+	<span class="string">'strip'</span>,
+
+	<span class="string">" --strip-unneeded"</span>,
+
+	<span class="string">" "</span>..fakelib..<span class="string">".dll"</span>,
+
+})..<span class="string">'"'</span>)
+
+</pre>
+
+-- PaulKulchenko<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PaulKulchenko" >?</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaProxyDll.html" >LuaProxyDll</a> | <a href="../wiki/LuaProxyDllTwo.html" >LuaProxyDllTwo</a> | <a href="../wiki/LuaProxyDllThree.html" >LuaProxyDllThree</a> | <a href="../wiki/LuaProxyDllFour.html" >LuaProxyDllFour</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaProxyDllThree" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaProxyDllThree" >history</a><br>Last edited October 31, 2013 6:44 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaProxyDllThree" >(diff)</a>
+</body>
+</html>

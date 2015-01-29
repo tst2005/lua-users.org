@@ -1,0 +1,330 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Range Iterator</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=RangeIterator&amp;body=1" title="List pages referring to RangeIterator">Range Iterator</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The range function below returns an iterator that can be used in for loops instead of the basic <code>for i=i,j,k do end</code> syntax. It can be used for example when the two or three parameters of the basic for loop are returned by another function. -- <a href="../wiki/JeromeVuarand.html" >JeromeVuarand</a>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> range(from, to, step)
+
+  step = step <span class="keyword">or</span> 1
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(_, lastvalue)
+
+    <span class="keyword">local</span> nextvalue = lastvalue + step
+
+    <span class="keyword">if</span> step &gt; 0 <span class="keyword">and</span> nextvalue &lt;= to <span class="keyword">or</span> step &lt; 0 <span class="keyword">and</span> nextvalue &gt;= to <span class="keyword">or</span>
+
+       step == 0
+
+    <span class="keyword">then</span>
+
+      <span class="keyword">return</span> nextvalue
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>, <span class="keyword">nil</span>, from - step
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example use:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> f() <span class="keyword">return</span> 10, 0, -1 <span class="keyword">end</span>
+
+
+
+<span class="keyword">for</span> i <span class="keyword">in</span> range(f()) <span class="keyword">do</span>
+
+  <span class="library">print</span>(i)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Update #1:
+<p>
+<DL>
+<dt><dd>Conditionals may also be moved out of the functions: --<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> range(from, to, step)
+
+  step = step <span class="keyword">or</span> 1
+
+  <span class="keyword">local</span> f =
+
+    step &gt; 0 <span class="keyword">and</span>
+
+      <span class="keyword">function</span>(_, lastvalue)
+
+        <span class="keyword">local</span> nextvalue = lastvalue + step
+
+        <span class="keyword">if</span> nextvalue &lt;= to <span class="keyword">then</span> <span class="keyword">return</span> nextvalue <span class="keyword">end</span>
+
+      <span class="keyword">end</span> <span class="keyword">or</span>
+
+    step &lt; 0 <span class="keyword">and</span>
+
+      <span class="keyword">function</span>(_, lastvalue)
+
+        <span class="keyword">local</span> nextvalue = lastvalue + step
+
+        <span class="keyword">if</span> nextvalue &gt;= to <span class="keyword">then</span> <span class="keyword">return</span> nextvalue <span class="keyword">end</span>
+
+      <span class="keyword">end</span> <span class="keyword">or</span>
+
+      <span class="keyword">function</span>(_, lastvalue) <span class="keyword">return</span> lastvalue <span class="keyword">end</span>
+
+  <span class="keyword">return</span> f, <span class="keyword">nil</span>, from - step
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+</DL>
+<p>
+Update #2:
+<DL>
+<dt><dd>Here is a version that in addition to treating step as optional and optimizing the inner conditional checks, allows 1 argument calls:
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- range(a) returns an iterator from 1 to a (step = 1)</span>
+
+<span class="comment">-- range(a, b) returns an iterator from a to b (step = 1)</span>
+
+<span class="comment">-- range(a, b, step) returns an iterator from a to b, counting by step.</span>
+
+<span class="keyword">function</span> range(a, b, step)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> b <span class="keyword">then</span>
+
+    b = a
+
+    a = 1
+
+  <span class="keyword">end</span>
+
+  step = step <span class="keyword">or</span> 1
+
+  <span class="keyword">local</span> f =
+
+    step &gt; 0 <span class="keyword">and</span>
+
+      <span class="keyword">function</span>(_, lastvalue)
+
+        <span class="keyword">local</span> nextvalue = lastvalue + step
+
+        <span class="keyword">if</span> nextvalue &lt;= b <span class="keyword">then</span> <span class="keyword">return</span> nextvalue <span class="keyword">end</span>
+
+      <span class="keyword">end</span> <span class="keyword">or</span>
+
+    step &lt; 0 <span class="keyword">and</span>
+
+      <span class="keyword">function</span>(_, lastvalue)
+
+        <span class="keyword">local</span> nextvalue = lastvalue + step
+
+        <span class="keyword">if</span> nextvalue &gt;= b <span class="keyword">then</span> <span class="keyword">return</span> nextvalue <span class="keyword">end</span>
+
+      <span class="keyword">end</span> <span class="keyword">or</span>
+
+      <span class="keyword">function</span>(_, lastvalue) <span class="keyword">return</span> lastvalue <span class="keyword">end</span>
+
+  <span class="keyword">return</span> f, <span class="keyword">nil</span>, a - step
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+</DL>
+<p>
+<DL>
+<dt><dd>This allows for a more compact form for simple upwards counting:
+<dt><dd><pre class="code">
+<span class="comment">-- Prints the range of numbers 1 to 10 inclusive.</span>
+
+<span class="keyword">for</span> i <span class="keyword">in</span> range(10) <span class="keyword">do</span>
+
+  <span class="library">print</span>(i)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Update #3:
+<p>
+<DL>
+<dt><dd>Here is my take, it supports both forward and backward iteration.
+<dt><dd>The other BIG thing is that iterators (imo) _should_ return at least 2 values on each successful iteration.
+</DL>
+<p>
+<DL>
+<dt><dd>Consider this:
+</DL>
+<p>
+<pre class="code">
+
+
+       <span class="comment">-- Some functions accept the returned values of generators (like ipairs())</span>
+
+       <span class="comment">-- and have a predefined for loop in their body like so:</span>
+
+       some_function = (...) <span class="keyword">local</span> tmp = {} <span class="keyword">for</span> k, v <span class="keyword">in</span> ... <span class="keyword">do</span> tmp[k] = v <span class="keyword">end</span> <span class="keyword">return</span> tmp <span class="keyword">end</span>
+
+       some_function(<span class="library">ipairs</span>({ 1, 2, 3 }) -&gt; { 1, 2, 3 }
+
+       some_function(range(3)) -&gt; { 1, 2, 3 }
+
+
+
+</pre>
+
+<p>
+The actual range() definition:
+<p>
+<pre class="code">
+       <span class="comment">-- range(start)             returns an iterator from 1 to a (step = 1)</span>
+
+       <span class="comment">-- range(start, stop)       returns an iterator from a to b (step = 1)</span>
+
+       <span class="comment">-- range(start, stop, step) returns an iterator from a to b, counting by step.</span>
+
+       range =
+
+           <span class="keyword">function</span> (i, to, inc)
+
+                <span class="keyword">if</span> i == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span> <span class="comment">-- range(--[[ no args ]]) -&gt; return "nothing" to fail the loop in the caller</span>
+
+
+
+               <span class="keyword">if</span> <span class="keyword">not</span> to <span class="keyword">then</span>
+
+                   to = i 
+
+                   i  = to == 0 <span class="keyword">and</span> 0 <span class="keyword">or</span> (to &gt; 0 <span class="keyword">and</span> 1 <span class="keyword">or</span> -1) 
+
+               <span class="keyword">end</span> 
+
+
+
+               <span class="comment">-- we don't have to do the to == 0 check</span>
+
+               <span class="comment">-- 0 -&gt; 0 with any inc would never iterate</span>
+
+               inc = inc <span class="keyword">or</span> (i &lt; to <span class="keyword">and</span> 1 <span class="keyword">or</span> -1) 
+
+
+
+               <span class="comment">-- step back (once) before we start</span>
+
+               i = i - inc 
+
+
+
+               <span class="keyword">return</span> <span class="keyword">function</span> () <span class="keyword">if</span> i == to <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span> <span class="keyword">end</span> i = i + inc <span class="keyword">return</span> i, i <span class="keyword">end</span> 
+
+           <span class="keyword">end</span> 
+
+       </pre>
+
+<p>
+Why
+<p>
+<DL>
+<dt><dd>I had needed a range() because I wanted to do:
+</DL>
+<p>
+<pre class="code">
+        to_table(range(10)) <span class="comment">-- would create { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }</span>
+
+</pre>
+
+<p>
+<DL>
+<dt><dd>Sure you could type a literal { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 } to get the table you want, but that's not the point, it's about what having a generator like range() can let you do.  It's for places where you need to provide an iterator because you can't use a numeric-for. (functional vs imperative programming?)
+</DL>
+<p>
+<DL>
+<dt><dd>Elsewhere I use it to do things like this:
+</DL>
+<p>
+<pre class="code">
+        <span class="comment">-- print the sum of every cleanly-divisible-by-3 number from 1 to 100</span>
+
+        <span class="library">print</span>(<span class="library">setmetatable</span>(to_table(range(100)), { __index == <span class="string">'special_table'</span> }):remove_if(<span class="keyword">function</span> (x) <span class="keyword">return</span> x % 3 ~= 0 <span class="keyword">end</span>):reduce(<span class="keyword">function</span> (x, y) <span class="keyword">return</span> x + y <span class="comment">--[[ sum ]]</span> <span class="keyword">end</span>, 0 <span class="comment">--[[ initial y ]]</span>))
+
+</pre>
+
+<p>
+<DL>
+<dt><dd>There are, of course, more direct ways to write this -- but let your imagination flow for a better example. :-)
+</DL>
+<p>
+Example calls:
+<p>
+<pre class="code">
+        <span class="keyword">for</span> i <span class="keyword">in</span> range( 10) <span class="library">print</span>(i) <span class="keyword">end</span> <span class="comment">-- iterate 1 to 10, increment by 1</span>
+
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(-10) <span class="library">print</span>(i) <span class="keyword">end</span> <span class="comment">-- iterate -1 to -10, decrement by 1</span>
+
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(7, -2) <span class="library">print</span>(i) <span class="keyword">end</span> <span class="comment">-- iterate 7 to -2, decrement by 1</span>
+
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(3, 27, 3) <span class="library">print</span>(i) <span class="keyword">end</span> <span class="comment">-- iterate 3 to 27, increment by 3</span>
+
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(0, 1, -1) <span class="library">print</span>(i) <span class="keyword">end</span> <span class="comment">-- iterate 0 to 1, decrementing by 1 (loop forever downward)</span>
+
+        <span class="keyword">for</span> i <span class="keyword">in</span> range() <span class="library">print</span>(i) <span class="keyword">end</span> <span class="comment">-- error() because the call to the "returned" iterator is a nil value</span>
+
+</pre>
+
+<p>
+-- <a href="../wiki/SleepyCoder.html" >SleepyCoder</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=RangeIterator" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=RangeIterator" >history</a><br>Last edited August 5, 2012 8:55 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=RangeIterator" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,448 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Table Library Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TableLibraryTutorial&amp;body=1" title="List pages referring to TableLibraryTutorial">Table Library Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The table library is explained in section 5.5 of the Reference Manual <a href="http://www.lua.org/manual/5.1/manual.html#5.5">[1]</a>. There are more details about tables in the <a href="../wiki/TablesTutorial.html" >TablesTutorial</a>.
+<p>
+The manual is concise about the purpose of this library. We'll quote it here: <em>Most functions in the table library assume that the table represents an array or a list. For these functions, when we talk about the "length" of a table we mean the result of the length operator [i.e. #].</em>
+<p>
+<H3>table.concat(table [, sep [, i [, j]]])</H3>
+<p>
+Concatenate the elements of a table together to form a string. Each element must be able to be coerced into a string. A separator can be specified which is placed between concatenated elements. Additionally a range can be specified within the table, starting at the <code>i</code>-th element and finishing at the <code>j</code>-th element.
+<DL>
+<dt><dd><pre>
+
+&gt; = table.concat({ 1, 2, "three", 4, "five" })
+
+12three4five
+
+&gt; = table.concat({ 1, 2, "three", 4, "five" }, ", ")
+
+1, 2, three, 4, five
+
+&gt; = table.concat({ 1, 2, "three", 4, "five" }, ", ", 2)
+
+2, three, 4, five
+
+&gt; = table.concat({ 1, 2, "three", 4, "five" }, ", ", 2, 4)
+
+2, three, 4
+
+</pre>
+</DL>
+<p>
+<code>concat</code> will fail on a table that contains tables because they cannot be coerced into strings. See the <a href="../wiki/StringsTutorial.html" >StringsTutorial</a> for more information on coercion.
+<DL>
+<dt><dd><pre>
+
+&gt; = table.concat({ 1,2,{} })
+
+stdin:1: bad argument #1 to `concat' (table contains non-strings)
+
+stack traceback:
+
+        [C]: in function `concat'
+
+        stdin:1: in main chunk
+
+        [C]: ?
+
+</pre>
+</DL>
+<p>
+<H3>table.foreach(table, f)</H3>
+<p>
+(Note: this function is deprecated in Lua 5.1, but it can still be useful for printing out a table.  You should use the pairs() operator instead.  As with pairs(),
+the <code>table.foreach()</code> method is not guaranteed to return indexed keys in order, contrary to what examples here might imply.)
+<p>
+Apply the function <code>f</code> to the elements of the table passed. On each iteration the function <code>f</code> is passed the <em>key-value</em> pair of that element in the table.
+<DL>
+<dt><dd><pre>
+
+&gt; table.foreach({1,"two",3}, print) -- print the key-value pairs
+
+
+
+
+
+1       1
+
+2       two
+
+3       3
+
+&gt; table.foreach({1,"two",3,"four"}, function(k,v) print(string.rep(v,k)) end)
+
+1
+
+twotwo
+
+333
+
+fourfourfourfour
+
+</pre>
+</DL>
+<p>
+If the function <code>f</code> returns a <strong>non</strong>-<code>nil</code> value the iteration loop terminates.
+<DL>
+<dt><dd><pre>
+
+&gt; table.foreach({1,"two",3}, function(k,v) print(k,v) return k&lt;2 and nil end)
+
+1       1
+
+2       two
+
+</pre>
+</DL>
+<p>
+Tables can contain mixed <em>key-value</em> and <em>index-value</em> elements. <code>table.foreach()</code> will display all of the elements in a table. To only display the <em>index-value</em> elements see <code>table.foreachi()</code>. For more information about this subject see the <a href="../wiki/TablesTutorial.html" >TablesTutorial</a>.
+<DL>
+<dt><dd><pre>
+
+&gt; t = { 1,2,"three"; pi=3.14159, banana="yellow" }
+
+&gt; table.foreach(t, print)
+
+1       1
+
+2       2
+
+3       three
+
+pi      3.14159
+
+banana  yellow
+
+</pre>
+</DL>
+<p>
+<H3>table.foreachi(table, f)</H3>
+<p>
+(Note: this function is deprecated in Lua 5.1, but it can still be useful for printing out a table.  You should use the <code>ipairs()</code> operator instead.  As with <code>ipairs()</code>,
+the <code>table.foreachi()</code> method is guaranteed to return indexed keys in order, and to skip non-index keys.)
+<p>
+Apply the function <code>f</code> to the elements of the table passed. On each iteration the function <code>f</code> is passed the <em>index-value</em> pair of that element in the table. This is similar to <code>table.foreach()</code> except that <em>index-value</em> pairs are passed, not <em>key-value</em> pairs. If the function <code>f</code> returns a <strong>non</strong>-<code>nil</code> value the iteration loop terminates.
+<DL>
+<dt><dd><pre>
+
+&gt; t = { 1,2,"three"; pi=3.14159, banana="yellow" }
+
+&gt; table.foreachi(t, print)
+
+1       1
+
+2       2
+
+3       three
+
+</pre>
+</DL>
+Note in the example only the indexed elements of the table are displayed. See the <a href="../wiki/TablesTutorial.html" >TablesTutorial</a> for more information on <em>key-value</em> and <em>index-value</em> pairs.
+<p>
+<H3>table.sort(table [, comp])</H3>
+<p>
+Sort the elements of a table in-place (i.e. alter the table).
+<DL>
+<dt><dd><pre>
+
+&gt; t = { 3,2,5,1,4 }
+
+&gt; table.sort(t)
+
+&gt; = table.concat(t, ", ")  -- display sorted values
+
+1, 2, 3, 4, 5
+
+</pre>
+</DL>
+<p>
+If the table has a specified size only the range specified is sorted, e.g.,
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; t = { 3,2,5,1,4; n=3 }   -- construct a table with user size of 3
+
+&gt; table.sort(t)            -- sort will be limited by user size
+
+&gt; = table.concat(t, ", ")  -- only specified size is concatenated as well
+
+
+
+2, 3, 5
+
+</pre>
+</DL>
+<p>
+A comparison function can be provided to customise the element sorting. The comparison function must return a boolean value specifying whether the first argument should be before the second argument in the sequence. The default behaviour is for the <code>&lt;</code> comparison to be made. For example, the following behaves the same as no function being supplied:
+<DL>
+<dt><dd><pre>
+
+&gt; t = { 3,2,5,1,4 }
+
+&gt; table.sort(t, function(a,b) return a&lt;b end)
+
+&gt; = table.concat(t, ", ")
+
+1, 2, 3, 4, 5        
+
+</pre>
+</DL>
+<p>
+We can see if we reverse the comparison the sequence order is reversed.
+<DL>
+<dt><dd><pre>
+
+&gt; table.sort(t, function(a,b) return a&gt;b end)
+
+&gt; = table.concat(t, ", ")
+
+5, 4, 3, 2, 1
+
+</pre>
+</DL>
+<p>
+<p>
+<H3>table.insert(table, [pos,] value)</H3>
+<p>
+Insert a given value into a table. If a position is given insert the value before the element currently at that position:
+<DL>
+<dt><dd><pre>
+
+&gt; t = { 1,3,"four" }
+
+&gt; table.insert(t, 2, "two")  -- insert "two" at position before element 2
+
+&gt; = table.concat(t, ", ")
+
+1, two, 3, four
+
+</pre>
+</DL>
+<p>
+If no position is specified we append the value to the end of the table:
+<DL>
+<dt><dd><pre>
+
+&gt; table.insert(t, 5)         -- no position given so append to end
+
+&gt; = table.concat(t, ", ")
+
+1, two, 3, four, 5
+
+</pre>
+</DL>
+<p>
+When a table has an element inserted both the size of the table and the element indices are updated:
+<DL>
+<dt><dd><pre>
+
+&gt; t = { 1,"two",3 }               -- create a table
+
+&gt; = # t                           -- find current size
+
+3
+
+&gt; table.foreach(t, print)         -- display the table contents
+
+1       1
+
+2       two
+
+3       3
+
+&gt; table.insert(t, 1, "inserted")  -- insert an element at the start
+
+&gt; = table.concat(t, ", ")         -- see what we have
+
+inserted, 1, two, 3
+
+&gt; = # t                          -- find the size
+
+4
+
+&gt; table.foreach(t, print)         -- the indexes have been updated
+
+1       inserted
+
+2       1
+
+3       two
+
+4       3
+
+</pre>
+</DL>
+<p>
+When no position is specified the element is inserted at the end of the table according to the calculated size. The size of a table may be user specified and not reflect the number of elements, e.g.,
+<DL>
+<dt><dd><pre>
+
+&gt; t = { 1,"two",3; n=10 }  -- create a table with user size
+
+&gt; table.insert(t, "end")   -- insert with no position inserts at "end"
+
+&gt; table.foreach(t, print)  -- display the table contents
+
+1       1
+
+2       two
+
+3       3
+
+11      end
+
+n       11
+
+</pre>
+</DL>
+<p>
+<H3>table.remove(table [, pos])</H3>
+<p>
+Remove an element from a table. If a position is specified the element at that the position is removed. The remaining elements are reindexed sequentially and the size of the table is updated to reflect the change. The element removed is returned by this function. E.g.,
+<DL>
+<dt><dd><pre>
+
+&gt; t = { 1,"two",3,"four" }   -- create a table
+
+&gt; = # t                      -- find the size
+
+4
+
+&gt; table.foreach(t, print)    -- have a look at the elements
+
+1       1
+
+2       two
+
+3       3
+
+4       four
+
+&gt; = table.remove(t,2)        -- remove element number 2 and display it
+
+two
+
+&gt; table.foreach(t, print)    -- display the updated table contents
+
+1       1
+
+2       3
+
+3       four
+
+&gt; = # t                      -- find the size
+
+3
+
+</pre>
+</DL>
+<p>
+If no position is given remove the last element in the table which is specified by the size of the table. E.g.,
+<DL>
+<dt><dd><pre>
+
+&gt; t = { 1,"two","three" }    
+
+&gt; = # t                     -- find the table size (which is removed)
+
+3
+
+&gt; table.foreach(t, print)   -- display contents
+
+1       1
+
+2       two
+
+3       three
+
+&gt; = table.remove(t)         -- remove the element at position "n"
+
+three
+
+&gt; table.foreach(t, print)   -- display updated contents
+
+1       1
+
+2       two
+
+&gt; = # t                     -- display new size
+
+2
+
+</pre>
+</DL>
+<p>
+If the size of the table does not reflect the number of elements nothing is removed, e.g.,
+<DL>
+<dt><dd><pre>
+
+&gt; t = {1,2,3}
+
+&gt; table.setn(t,10)          -- set user size
+
+&gt; table.foreach(t, print)   -- display table contents, note size "n" is stored internally
+
+1       1
+
+2       2
+
+3       3
+
+&gt; = # t                     -- find the size
+
+10
+
+&gt; = table.remove(t)         -- remove last element
+
+nil
+
+&gt; = # t                     -- find the updated size
+
+9
+
+&gt; table.foreach(t, print)   -- display elements
+
+1       1
+
+2       2
+
+3       3
+
+</pre>
+</DL>
+<p>
+Note that table.remove only works with numeric indexes. For dictionaries you can just unset tables entries with 
+tablevariable["index"] = nil;
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TableLibraryTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TableLibraryTutorial" >history</a><br>Last edited July 19, 2008 12:56 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TableLibraryTutorial" >(diff)</a>
+</body>
+</html>

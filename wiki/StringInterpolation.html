@@ -1,0 +1,980 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: String Interpolation</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=StringInterpolation&amp;body=1" title="List pages referring to StringInterpolation">String Interpolation</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+When variables need to be interpolated in strings, the resultant quoting and unquoting can become slightly unwieldy:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(<span class="string">"Hello "</span> .. name .. <span class="string">", the value of key "</span> .. k .. <span class="string">" is "</span> .. v .. <span class="string">"!"</span>)
+
+</pre>
+
+</DL>
+<p>
+Compare to Perl, where variables can be embedded in strings:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span> <span class="string">"Hello $name, the value of key $k is $b!\n"</span>;
+
+</pre>
+
+</DL>
+<p>
+The complaint concerning the Lua version is that the quoting is verbose and can make it more difficult to read, such as in visually distinguishing what text is inside or outside of the quotes.  Besides using an editor with syntax highlighting, the latter issue might be improved with a bracketed quoting style:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(<span class="string">[[Hello ]]</span> .. name .. <span class="string">[[, the value of key ]]</span> ..
+
+      k .. <span class="string">[[ is ]]</span> .. v .. <span class="string">[[!]]</span>)
+
+</pre>
+
+</DL>
+<p>
+This might also be made more terse with <code>string.format</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(<span class="library">string.format</span>(<span class="string">"Hello %s, the value of key %s is %s"</span>, name, k, v))
+
+</pre>
+
+</DL>
+<p>
+possibly using a helper function:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> printf(...) <span class="library">print</span>(<span class="library">string.format</span>(...)) <span class="keyword">end</span>
+
+
+
+printf(<span class="string">"Hello %s, the value of key %s is %s"</span>, name, k, v)
+
+</pre>
+
+</DL>
+<p>
+The new problem that this presents is that the variables are identified positionally, which presents readability and maintainability problems if the number of variables is large.
+<p>
+The following solutions show how to implement support for interpolating variables into strings in Lua to achieve a syntax somewhat like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+printf(<span class="string">"Hello %(name), the value of key %(k) is %(v)"</span>)
+
+</pre>
+
+</DL>
+<p>
+<H3>Solution: Named Parameters in Table</H3>
+<p>
+Here's one simple implementation (-- <a href="../wiki/RiciLake.html" >RiciLake</a>):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> interp(s, tab)
+
+  <span class="keyword">return</span> (s:gsub(<span class="string">'($%b{})'</span>, <span class="keyword">function</span>(w) <span class="keyword">return</span> tab[w:sub(3, -2)] <span class="keyword">or</span> w <span class="keyword">end</span>))
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>( interp(<span class="string">"${name} is ${value}"</span>, {name = <span class="string">"foo"</span>, value = <span class="string">"bar"</span>}) )
+
+
+
+<span class="library">getmetatable</span>(<span class="string">""</span>).__mod = interp
+
+<span class="library">print</span>( <span class="string">"${name} is ${value}"</span> % {name = <span class="string">"foo"</span>, value = <span class="string">"bar"</span>} )
+
+<span class="comment">-- Outputs "foo is bar"</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Solution: Named Parameters with Formatting Codes</H3>
+<p>
+Here's another implementation (-- <a href="../wiki/RiciLake.html" >RiciLake</a>) supporting Pythonic formatting specifications (requires Lua 5.1 or greater):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> interp(s, tab)
+
+  <span class="keyword">return</span> (s:gsub(<span class="string">'%%%((%a%w*)%)([-0-9%.]*[cdeEfgGiouxXsq])'</span>,
+
+            <span class="keyword">function</span>(k, fmt) <span class="keyword">return</span> tab[k] <span class="keyword">and</span> (<span class="string">"%"</span>..fmt):format(tab[k]) <span class="keyword">or</span>
+
+                <span class="string">'%('</span>..k..<span class="string">')'</span>..fmt <span class="keyword">end</span>))
+
+<span class="keyword">end</span>
+
+<span class="library">getmetatable</span>(<span class="string">""</span>).__mod = interp
+
+<span class="library">print</span>( <span class="string">"%(key)s is %(val)7.2f%"</span> % {key = <span class="string">"concentration"</span>, val = 56.2795} )
+
+<span class="comment">-- outputs "concentration is   56.28%"</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Solution: Named Parameters and Format String in Same Table</H3>
+<p>
+Here's another Lua-only solution (-- <a href="../wiki/MarkEdgar.html" >MarkEdgar</a>):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> replace_vars(str, vars)
+
+  <span class="comment">-- Allow replace_vars{str, vars} syntax as well as replace_vars(str, {vars})</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> vars <span class="keyword">then</span>
+
+    vars = str
+
+    str = vars[1]
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> (string_gsub(str, <span class="string">"({([^}]+)})"</span>,
+
+    <span class="keyword">function</span>(whole,i)
+
+      <span class="keyword">return</span> vars[i] <span class="keyword">or</span> whole
+
+    <span class="keyword">end</span>))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Example:</span>
+
+output = replace{
+
+	<span class="string">[[Hello {name}, welcome to {company}. ]]</span>,
+
+	name = name,
+
+	company = get_company_name()
+
+}
+
+</pre>
+
+</DL>
+<p>
+<H3>Solution: Ruby- and Python-like string formatting with % operator</H3>
+<p>
+Both Ruby and Python have a short form for string formatting, using the % operator.
+<p>
+The following snippet adds a similar use of the mod operator to lua:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">getmetatable</span>(<span class="string">""</span>).__mod = <span class="keyword">function</span>(a, b)
+
+        <span class="keyword">if</span> <span class="keyword">not</span> b <span class="keyword">then</span>
+
+                <span class="keyword">return</span> a
+
+        <span class="keyword">elseif</span> <span class="library">type</span>(b) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+                <span class="keyword">return</span> <span class="library">string.format</span>(a, <span class="library">unpack</span>(b))
+
+        <span class="keyword">else</span>
+
+                <span class="keyword">return</span> <span class="library">string.format</span>(a, b)
+
+        <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+
+
+<span class="library">print</span>( <span class="string">"%5.2f"</span> % <span class="library">math.pi</span> )
+
+
+
+<span class="library">print</span>( <span class="string">"%-10.10s %04d"</span> % { <span class="string">"test"</span>, 123 } )
+
+
+
+</pre>
+
+</DL>
+<p>
+You might like or dislike this notation, choose for yourself.
+<p>
+<H3>Hack: Using debug to Access Lexicals</H3>
+<p>
+Below is a more complex implementation (-- <a href="../wiki/DavidManura.html" >DavidManura</a>).  This makes use of the debug library (particularly debug.getlocal()) to query locals, which might be undesirable for a number of reasons (-- <a href="../wiki/RiciLake.html" >RiciLake</a>).  First, it can be used to break into things you shouldn't break into, so it's a bad idea if trusted code is being run.  debug.getlocal() is also expensive since it needs to scan through the entire byte code to figure out which variables are in scope.  It also does not capture closed variables.
+<p>
+Code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- "nil" value that can be stored in tables.</span>
+
+<span class="keyword">local</span> mynil_mt = {__tostring = <span class="keyword">function</span>() <span class="keyword">return</span> <span class="library">tostring</span>(<span class="keyword">nil</span>) <span class="keyword">end</span>}
+
+<span class="keyword">local</span> mynil = <span class="library">setmetatable</span>({}, mynil_mt)
+
+
+
+<span class="comment">-- Retrieves table of all local variables (name, value)</span>
+
+<span class="comment">-- in given function &lt;func&gt;.  If a value is Nil, it instead</span>
+
+<span class="comment">-- stores the value &lt;mynil&gt; in the table to distinguish a</span>
+
+<span class="comment">-- a local variable that is nil from the local variable not</span>
+
+<span class="comment">-- existing.</span>
+
+<span class="comment">-- If a number is given in place of &lt;func&gt;, then it</span>
+
+<span class="comment">-- uses that level in the call stack.  Level 1 is the</span>
+
+<span class="comment">-- function that called get_locals.</span>
+
+<span class="comment">-- Note: this correctly handles the case where two locals have the</span>
+
+<span class="comment">-- same name: "local x = 1 ... get_locals(1) ... local x = 2".</span>
+
+<span class="comment">-- This function is similar and is based on debug.getlocal().</span>
+
+<span class="keyword">function</span> get_locals(func)
+
+  <span class="keyword">local</span> n = 1
+
+  <span class="keyword">local</span> locals = {}
+
+  func = (<span class="library">type</span>(func) == <span class="string">"number"</span>) <span class="keyword">and</span> func + 1 <span class="keyword">or</span> func
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    <span class="keyword">local</span> lname, lvalue = <span class="library">debug.getlocal</span>(func, n)
+
+    <span class="keyword">if</span> lname == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>  <span class="comment">-- end of list</span>
+
+    <span class="keyword">if</span> lvalue == <span class="keyword">nil</span> <span class="keyword">then</span> lvalue = mynil <span class="keyword">end</span>  <span class="comment">-- replace</span>
+
+    locals[lname] = lvalue
+
+    n = n + 1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> locals
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Interpolates variables into string &lt;str&gt;.</span>
+
+<span class="comment">-- Variables are defined in table &lt;table&gt;.  If &lt;table&gt; is</span>
+
+<span class="comment">-- omitted, then it uses local and global variables in the</span>
+
+<span class="comment">-- calling function.</span>
+
+<span class="comment">-- Option level indicates the level in the call stack to</span>
+
+<span class="comment">-- obtain local variable from (1 if omitted).</span>
+
+<span class="keyword">function</span> interp(str, <span class="library">table</span>, level)
+
+  <span class="keyword">local</span> use_locals = (<span class="library">table</span> == <span class="keyword">nil</span>)
+
+  <span class="library">table</span> = <span class="library">table</span> <span class="keyword">or</span> <span class="library">getfenv</span>(2)
+
+  <span class="keyword">if</span> use_locals <span class="keyword">then</span>
+
+    level = level <span class="keyword">or</span> 1
+
+    <span class="keyword">local</span> locals = get_locals(level + 1)
+
+    <span class="library">table</span> = <span class="library">setmetatable</span>(locals, {__index = <span class="library">table</span>})
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> out = <span class="library">string.gsub</span>(str, <span class="string">'$(%b{})'</span>,
+
+    <span class="keyword">function</span>(w)
+
+      <span class="keyword">local</span> variable_name = <span class="library">string.sub</span>(w, 2, -2)
+
+      <span class="keyword">local</span> variable_value = <span class="library">table</span>[variable_name]
+
+      <span class="keyword">if</span> variable_value == mynil <span class="keyword">then</span> variable_value = <span class="keyword">nil</span> <span class="keyword">end</span>
+
+      <span class="keyword">return</span> <span class="library">tostring</span>(variable_value)
+
+    <span class="keyword">end</span>
+
+  )
+
+  <span class="keyword">return</span> out
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Interpolating print.</span>
+
+<span class="comment">-- This is just a wrapper around print and interp.</span>
+
+<span class="comment">-- It only accepts a single string argument.</span>
+
+<span class="keyword">function</span> printi(str)
+
+  <span class="library">print</span>(interp(str, <span class="keyword">nil</span>, 2))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Pythonic "%" operator for srting interpolation.</span>
+
+<span class="library">getmetatable</span>(<span class="string">""</span>).__mod = interp
+
+</pre>
+
+</DL>
+<p>
+Tests:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- test globals</span>
+
+x=123
+
+<span class="library">assert</span>(interp <span class="string">"x = ${x}"</span> == <span class="string">"x = 123"</span>)
+
+
+
+<span class="comment">-- test table</span>
+
+<span class="library">assert</span>(interp(<span class="string">"x = ${x}"</span>, {x = 234}) == <span class="string">"x = 234"</span>)
+
+
+
+<span class="comment">-- test locals (which override globals)</span>
+
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> x = 3
+
+  <span class="library">assert</span>(interp <span class="string">"x = ${x}"</span> == <span class="string">"x = 3"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- test globals using setfenv</span>
+
+<span class="keyword">function</span> test()
+
+  <span class="library">assert</span>(interp <span class="string">"y = ${y}"</span> == <span class="string">"y = 123"</span>)
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> env = {y = 123}
+
+<span class="library">setmetatable</span>(env, {__index = <span class="library">_G</span>})
+
+<span class="library">setfenv</span>(test, env)
+
+test()
+
+
+
+<span class="comment">-- test of multiple locals of same name</span>
+
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> z = 1
+
+  <span class="keyword">local</span> z = 2
+
+  <span class="library">assert</span>(interp <span class="string">"z = ${z}"</span> == <span class="string">"z = 2"</span>)
+
+  <span class="keyword">local</span> z = 3
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- test of locals with nil value</span>
+
+<span class="keyword">do</span>
+
+  z = 2
+
+  <span class="keyword">local</span> z = 1
+
+  <span class="keyword">local</span> z = <span class="keyword">nil</span>
+
+  <span class="library">assert</span>(interp <span class="string">"z = ${z}"</span> == <span class="string">"z = nil"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- test of printi</span>
+
+x = 123
+
+<span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">ipairs</span> {3,4} <span class="keyword">do</span>
+
+  printi(<span class="string">"${x} - The value of key ${k} is ${v}"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- test of "%" operator</span>
+
+<span class="library">assert</span>(<span class="string">"x = ${x}"</span> % {x = 2} == <span class="string">"x = 2"</span>)
+
+</pre>
+
+</DL>
+<p>
+Various enhancements could be made.  For example,
+<p>
+<DL>
+<dt><dd><pre class="code">
+v = {x = 2}
+
+<span class="library">print</span>(interp <span class="string">"v.x = ${v.x}"</span>)  <span class="comment">-- not implemented</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Patch to Lua</H3>
+<p>
+One of the features I loved in Ruby and PHP was the ability to include variables inside strings, 
+example print "Hello ${Name}"
+The following patch does the same thing but only for the doc string type, strings starting with
+[[ and ending with ]].   It uses the "|" character to represent the open and close braces.
+<p>
+To add variables inline example :
+<p>
+<DL>
+<dt><dd><pre class="code">
+output = <span class="string">[[Hello |name|, welcome to |get_company_name()|. ]]</span>
+
+</pre>
+
+</DL>
+<p>
+What the patch does is quite literally convert the above
+to:
+<p>
+<DL>
+<dt><dd><pre class="code">
+output = <span class="string">[[Hello ]]</span>..name..<span class="string">[[, welcome to ]]</span>..get_company_name()..<span class="string">[[. ]]</span>
+
+</pre>
+
+</DL>
+<p>
+The following functions are updated in the llex.c file.
+<p>
+<em>Important Note:</em>  Somehow, I needed another character as a means to represent the closing brace inside the code, and I have arbitarily chosen '¶' , what this means if somehow you have that character in your string (specially when you are using foreign language encoding) you will get a syntax error.  I don't know if there is the solution to this problem as yet.
+<p>
+<DL>
+<dt><dd><pre>
+
+
+
+int luaX_lex (LexState *LS, SemInfo *seminfo) {
+
+  for (;;) {
+
+    switch (LS-&gt;current) {
+
+
+
+      case '\n': {
+
+        inclinenumber(LS);
+
+        continue;
+
+      }
+
+      case '-': {
+
+        next(LS);
+
+        if (LS-&gt;current != '-') return '-';
+
+        /* else is a comment */
+
+        next(LS);
+
+        if (LS-&gt;current == '[' &amp;&amp; (next(LS), LS-&gt;current == '['))
+
+          read_long_string(LS, NULL);  /* long comment */
+
+        else  /* short comment */
+
+          while (LS-&gt;current != '\n' &amp;&amp; LS-&gt;current != EOZ)
+
+            next(LS);
+
+        continue;
+
+      }
+
+      case '[': {
+
+        next(LS);
+
+        if (LS-&gt;current != '[') return '[';
+
+        else {
+
+          read_long_string(LS, seminfo);
+
+          return TK_STRING;
+
+        }
+
+      }
+
+      case '=': {
+
+        next(LS);
+
+        if (LS-&gt;current != '=') return '=';
+
+        else { next(LS); return TK_EQ; }
+
+      }
+
+      case '&lt;': {
+
+        next(LS);
+
+        if (LS-&gt;current != '=') return '&lt;';
+
+        else { next(LS); return TK_LE; }
+
+      }
+
+      case '&gt;': {
+
+        next(LS);
+
+        if (LS-&gt;current != '=') return '&gt;';
+
+        else { next(LS); return TK_GE; }
+
+      }
+
+      case '~': {
+
+        next(LS);
+
+        if (LS-&gt;current != '=') return '~';
+
+        else { next(LS); return TK_NE; }
+
+      }
+
+      case '"':
+
+      case '\'': {
+
+        read_string(LS, LS-&gt;current, seminfo);
+
+        return TK_STRING;
+
+      }
+
+
+
+	// added!!!
+
+        //------------------------------
+
+      case '|': {
+
+	 LS-&gt;current = '¶';
+
+	 return TK_CONCAT;
+
+      }
+
+
+
+      case '¶': {
+
+	read_long_string(LS, seminfo);
+
+	return TK_STRING;
+
+	}
+
+        //------------------------------
+
+
+
+      case '.': {
+
+        next(LS);
+
+        if (LS-&gt;current == '.') {
+
+          next(LS);
+
+          if (LS-&gt;current == '.') {
+
+            next(LS);
+
+            return TK_DOTS;   /* ... */
+
+          }
+
+          else return TK_CONCAT;   /* .. */
+
+        }
+
+
+
+        else if (!isdigit(LS-&gt;current)) return '.';
+
+        else {
+
+          read_numeral(LS, 1, seminfo);
+
+          return TK_NUMBER;
+
+        }
+
+      }
+
+      case EOZ: {
+
+        return TK_EOS;
+
+      }
+
+      default: {
+
+        if (isspace(LS-&gt;current)) {
+
+          next(LS);
+
+          continue;
+
+        }
+
+        else if (isdigit(LS-&gt;current)) {
+
+          read_numeral(LS, 0, seminfo);
+
+          return TK_NUMBER;
+
+        }
+
+        else if (isalpha(LS-&gt;current) || LS-&gt;current == '_') {
+
+          /* identifier or reserved word */
+
+          size_t l = readname(LS);
+
+          TString *ts = luaS_newlstr(LS-&gt;L, luaZ_buffer(LS-&gt;buff), l);
+
+          if (ts-&gt;tsv.reserved &gt; 0)  /* reserved word? */
+
+            return ts-&gt;tsv.reserved - 1 + FIRST_RESERVED;
+
+          seminfo-&gt;ts = ts;
+
+          return TK_NAME;
+
+        }
+
+        else {
+
+          int c = LS-&gt;current;
+
+          if (iscntrl(c))
+
+            luaX_error(LS, "invalid control char",
+
+                           luaO_pushfstring(LS-&gt;L, "char(%d)", c));
+
+          next(LS);
+
+          return c;  /* single-char tokens (+ - / ...) */
+
+        }
+
+      }
+
+    }
+
+  }
+
+}
+
+
+
+
+
+static void read_long_string (LexState *LS, SemInfo *seminfo) {
+
+  int cont = 0;
+
+  size_t l = 0;
+
+  checkbuffer(LS, l);
+
+  save(LS, '[', l);  /* save first `[' */
+
+  save_and_next(LS, l);  /* pass the second `[' */
+
+  if (LS-&gt;current == '\n')  /* string starts with a newline? */
+
+    inclinenumber(LS);  /* skip it */
+
+  for (;;) {
+
+    checkbuffer(LS, l);
+
+    switch (LS-&gt;current) {
+
+      case EOZ:
+
+        save(LS, '\0', l);
+
+        luaX_lexerror(LS, (seminfo) ? "unfinished long string" :
+
+                                   "unfinished long comment", TK_EOS);
+
+        break;  /* to avoid warnings */
+
+      case '[':
+
+        save_and_next(LS, l);
+
+        if (LS-&gt;current == '[') {
+
+          cont++;
+
+          save_and_next(LS, l);
+
+        }
+
+        continue;
+
+      case ']':
+
+        save_and_next(LS, l);
+
+        if (LS-&gt;current == ']') {
+
+          if (cont == 0) goto endloop;
+
+          cont--;
+
+          save_and_next(LS, l);
+
+        }
+
+        continue;
+
+
+
+// added
+
+//------------------------------
+
+      case '|':
+
+		save(LS, ']', l);  
+
+
+
+		LS-&gt;lookahead.token = TK_CONCAT;
+
+        goto endloop;
+
+        continue;
+
+//------------------------------
+
+
+
+      case '\n':
+
+        save(LS, '\n', l);
+
+        inclinenumber(LS);
+
+        if (!seminfo) l = 0;  /* reset buffer to avoid wasting space */
+
+        continue;
+
+      default:
+
+        save_and_next(LS, l);
+
+    }
+
+  } endloop:
+
+  save_and_next(LS, l);  /* skip the second `]' */
+
+  save(LS, '\0', l);
+
+  if (seminfo)
+
+    seminfo-&gt;ts = luaS_newlstr(LS-&gt;L, luaZ_buffer(LS-&gt;buff) + 2, l - 5);
+
+}
+
+
+
+</pre>
+</DL>
+<p>
+--Sam Lie
+<p>
+<DL>
+<dt><dd>Note: the above patch is broken in 5.1.  Make sure that f [[Hello |name|, welcome to |get_company_name()|. ]] translates into f([[Hello ]]..name..[[, welcome to ]]..get_company_name()..[[. ]]).  Alternately translate it to f([[Hello ]], name, [[, welcome to ]], get_company_name(), [[. ]]).  Perhaps use [[ ]] rather than | | to break out of the string because nested [[ ]] are deprecated in Lua 5.1 and by default raise an error, so we are free to redefine its semantics. --<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+<H3>Metalua</H3>
+<p>
+For a <a href="../wiki/MetaLua.html" >MetaLua</a> implementation, see "String Interpolation" in <a href="../wiki/MetaLuaRecipes.html" >MetaLuaRecipes</a>.
+<p>
+<H3>Var Expand</H3>
+<DL>
+<dt><dd>
+
+</DL>
+<a href="../wiki/VarExpand.html" >VarExpand</a> - Advanced version of bash-like inline variable expanding.
+<p>
+<H3>Customer searcher that preprocesses</H3>
+<p>
+See <a href="https://gist.github.com/1338609">[gist1338609]</a> (--<a href="../wiki/DavidManura.html" >DavidManura</a>), which installs a custom searcher function that preprocesses modules being loaded.  The example preprocessor given does string interpolation:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--! code = require 'interpolate' (code)</span>
+
+
+
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> printf(s, ...)
+
+  <span class="keyword">local</span> vals = {...}
+
+  <span class="keyword">local</span> i = 0
+
+  s = s:gsub(<span class="string">'\0[^\0]*\0'</span>, <span class="keyword">function</span>()
+
+    i = i + 1
+
+    <span class="keyword">return</span> <span class="library">tostring</span>(vals[i])
+
+  <span class="keyword">end</span>)
+
+  <span class="library">print</span>(s)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> M.test()
+
+  <span class="keyword">local</span> x = 16
+
+  printf(<span class="string">"value is $(math.sqrt(x)) "</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+<H3>Other Ideas</H3>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2011-09/msg00254.html">LuaList:2011-09/msg00254.html</a> - making <code>f"$(x) $(y)"</code> be syntax sugar for <code>f("$(x) $(y)",x,y)</code>
+</UL>
+<p>
+<H3>Other Possible Applications</H3>
+<p>
+Embedding expressions inside strings can have these applications:
+<p>
+<UL>
+<li> <a href="../wiki/ListComprehensions.html" >ListComprehensions</a>
+<li> <a href="../wiki/ShortAnonymousFunctions.html" >ShortAnonymousFunctions</a>
+<li> <a href="../wiki/CodeGeneration.html" >CodeGeneration</a>
+<li> safely escaping or interpolating Lua variables inside HTML or SQL (e.g. like <a href="http://search.cpan.org/dist/SQL-Interp/lib/SQL/Interp.pm">[1]</a><a href="http://search.cpan.org/~markstos/SQL-Interpolate/lib/SQL/Interpolate/Filter.pm">[2]</a>)
+</UL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=StringInterpolation" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=StringInterpolation" >history</a><br>Last edited January 14, 2012 4:29 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=StringInterpolation" >(diff)</a>
+</body>
+</html>

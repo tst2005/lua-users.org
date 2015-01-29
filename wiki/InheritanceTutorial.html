@@ -1,0 +1,593 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Inheritance Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=InheritanceTutorial&amp;body=1" title="List pages referring to InheritanceTutorial">Inheritance Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This tutorial demonstrates a technique for implementing object oriented inheritance in Lua.  Before continuing it is recommended that you familiarize yourself with <a href="../wiki/ObjectOrientationTutorial.html" >ObjectOrientationTutorial</a> and <a href="../wiki/MetamethodsTutorial.html" >MetamethodsTutorial</a>. 
+<p>
+<H2>Simple Classes</H2>
+<p>
+The following example implements a class with no inheritance:
+<DL>
+<dt><dd><pre class="code">
+SimpleClass = {}
+
+SimpleClass_mt = { __index = SimpleClass }
+
+
+
+<span class="comment">-- This function creates a new instance of SimpleClass</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">function</span> SimpleClass:create()
+
+    <span class="keyword">local</span> new_inst = {}    <span class="comment">-- the new instance</span>
+
+    <span class="library">setmetatable</span>( new_inst, SimpleClass_mt ) <span class="comment">-- all instances share the same metatable</span>
+
+    <span class="keyword">return</span> new_inst
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Here are some functions (methods) for SimpleClass:</span>
+
+
+
+<span class="keyword">function</span> SimpleClass:className()
+
+    <span class="library">print</span>( <span class="string">"SimpleClass"</span> )
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> SimpleClass:doSomething()
+
+    <span class="library">print</span>( <span class="string">"Doing something"</span> )
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+In the above example, <code>SimpleClass</code> represents a table that holds all of our class's methods, like a class declaration. <code>SimpleClass_mt</code> is the metatable we will attach to each class instance we create. The function <code>SimpleClass:create()</code> creates an instance of our class <code>SimpleClass</code>. Construction of a class instance involves creating an empty table and then attaching our <code>SimpleClass</code> metamethods to it. The result of attaching the metamethods is that the new instance looks to the metatable we attached for its customised behaviour.
+<p>
+Method invocations on the instance will trigger the "index" event on the instance, causing a lookup on the "<code>__index</code>" member of the instance's metatable. The <code>__index</code> member is simply a reference to <code>SimpleClass</code>. Therefore, method invocations on the instance will cause a lookup in the <code>SimpleClass</code> table.
+<p>
+Here is an example:
+<DL>
+<dt><dd><pre>
+
+&gt; simple = SimpleClass:create()
+
+&gt; 
+
+&gt; simple:className()
+
+SimpleClass
+
+&gt; 
+
+&gt; simple:doSomething()
+
+Doing something
+
+</pre>
+</DL>
+<p>
+<H2>Implementing Inheritance</H2>
+<p>
+Now we want to create a new class <code>SubClass</code> that inherits and, optionally, overrides functions from <code>SimpleClass</code>.
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Create a new class that inherits from a base class</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">function</span> inheritsFrom( baseClass )
+
+
+
+    <span class="comment">-- The following lines are equivalent to the SimpleClass example:</span>
+
+
+
+    <span class="comment">-- Create the table and metatable representing the class.</span>
+
+    <span class="keyword">local</span> new_class = {}
+
+    <span class="keyword">local</span> class_mt = { __index = new_class }
+
+
+
+    <span class="comment">-- Note that this function uses class_mt as an upvalue, so every instance</span>
+
+    <span class="comment">-- of the class will share the same metatable.</span>
+
+    <span class="comment">--</span>
+
+    <span class="keyword">function</span> new_class:create()
+
+        <span class="keyword">local</span> newinst = {}
+
+        <span class="library">setmetatable</span>( newinst, class_mt )
+
+        <span class="keyword">return</span> newinst
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- The following is the key to implementing inheritance:</span>
+
+
+
+    <span class="comment">-- The __index member of the new class's metatable references the</span>
+
+    <span class="comment">-- base class.  This implies that all methods of the base class will</span>
+
+    <span class="comment">-- be exposed to the sub-class, and that the sub-class can override</span>
+
+    <span class="comment">-- any of these methods.</span>
+
+    <span class="comment">--</span>
+
+    <span class="keyword">if</span> baseClass <span class="keyword">then</span>
+
+        <span class="library">setmetatable</span>( new_class, { __index = baseClass } )
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">return</span> new_class
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The function <code>inheritsFrom(baseClass)</code> takes a single argument, the class declaration we want to inherit from. The function returns a class declaration which we can then tailor. <code>new_class</code> is the new class declaration to be returned. The nested function <code>new_class:create()</code> is part of the class declaration returned and will create new instances of the sub class we are creating. This function creates a <code>newinst</code> table which uses our new class table to hold its methods. The new class table in turn looks in the <code>baseClass</code> if it cannot find a method we require, and thus we inherit its methods.
+<p>
+<p>
+<H2>Inheritance Example</H2>
+<p>
+Building on <code>SimpleClass</code> we now create a class called <code>SubClass</code> that inherits from <code>SimpleClass</code> and overrides <code>className()</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; -- Create a new class that inherits from SimpleClass
+
+&gt; SubClass = inheritsFrom( SimpleClass )
+
+&gt;
+
+&gt; -- override className() function
+
+&gt; function SubClass:className() print( "SubClass" ) end
+
+&gt;
+
+&gt; -- Create an instance of SimpleClass
+
+&gt; simple = SimpleClass:create()
+
+&gt; 
+
+&gt; simple:className()
+
+SimpleClass
+
+
+
+
+
+
+
+&gt; 
+
+&gt; simple:doSomething()
+
+Doing something
+
+&gt; 
+
+&gt; -- Create an instance of SubClass
+
+&gt; sub = SubClass:create()
+
+&gt; 
+
+&gt; sub:className()  -- Call overridden method
+
+SubClass
+
+&gt; 
+
+&gt; sub:doSomething()  -- Call base class method
+
+Doing something
+
+&gt; 
+
+</pre>
+</DL>
+<p>
+<H2>OO Properties</H2>
+<p>
+We can now expand on our inheritance structure and add features that are common in other languages, like access to a class's super class and a <code>isa()</code> method that provides type id functionality:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- A new inheritsFrom() function</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">function</span> inheritsFrom( baseClass )
+
+
+
+    <span class="keyword">local</span> new_class = {}
+
+    <span class="keyword">local</span> class_mt = { __index = new_class }
+
+
+
+    <span class="keyword">function</span> new_class:create()
+
+        <span class="keyword">local</span> newinst = {}
+
+        <span class="library">setmetatable</span>( newinst, class_mt )
+
+        <span class="keyword">return</span> newinst
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">if</span> <span class="keyword">nil</span> ~= baseClass <span class="keyword">then</span>
+
+        <span class="library">setmetatable</span>( new_class, { __index = baseClass } )
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- Implementation of additional OO properties starts here --</span>
+
+
+
+    <span class="comment">-- Return the class object of the instance</span>
+
+    <span class="keyword">function</span> new_class:class()
+
+        <span class="keyword">return</span> new_class
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- Return the super class object of the instance</span>
+
+    <span class="keyword">function</span> new_class:superClass()
+
+        <span class="keyword">return</span> baseClass
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- Return true if the caller is an instance of theClass</span>
+
+    <span class="keyword">function</span> new_class:isa( theClass )
+
+        <span class="keyword">local</span> b_isa = <span class="keyword">false</span>
+
+
+
+        <span class="keyword">local</span> cur_class = new_class
+
+
+
+        <span class="keyword">while</span> ( <span class="keyword">nil</span> ~= cur_class ) <span class="keyword">and</span> ( <span class="keyword">false</span> == b_isa ) <span class="keyword">do</span>
+
+            <span class="keyword">if</span> cur_class == theClass <span class="keyword">then</span>
+
+                b_isa = <span class="keyword">true</span>
+
+            <span class="keyword">else</span>
+
+                cur_class = cur_class:superClass()
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+
+
+        <span class="keyword">return</span> b_isa
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">return</span> new_class
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+And, an example of usage:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; SimpleClass = inheritsFrom( nil )  -- pass nil because SimpleClass has no super class
+
+&gt; 
+
+&gt; SubClass = inheritsFrom( SimpleClass )
+
+&gt; 
+
+&gt; FinalClass = inheritsFrom( SubClass )
+
+&gt; 
+
+&gt; sub = SubClass:create()
+
+&gt; fc = FinalClass:create()
+
+&gt; 
+
+&gt; print( fc:isa( SubClass ) )
+
+true
+
+&gt; print( fc:isa( FinalClass ) )
+
+true
+
+&gt; print( sub:isa( SubClass ) )
+
+true
+
+&gt; print( sub:isa( FinalClass ) )
+
+false
+
+</pre>
+</DL>
+<p>
+<H2>Alternative Approach: Prototype Based</H2>
+<p>
+<DL>
+<dt><dd>Prototype-based programming is a style of object-oriented programming in which classes are not present, and behavior reuse (known as inheritance in class-based languages) is performed via a process of cloning existing objects that serve as prototypes. This model can also be known as class-less, prototype-oriented or instance-based programming.
+</DL>
+<p>
+<a href="http://en.wikipedia.org/wiki/Prototype_based_programming.html">[Wikipedia article on Prototype-based programming]</a>
+<p>
+Most of the code is basically the same as above, but reduced to only the essentials needed to make "Prototype based programming" work. More exactly it allows prototype programming using cloning and prototype delegation. Access to a property not set in an object is delegated to it's prototype. This code uses the <code>table</code> table as the very basic prototype, and <code>object</code> as a specialization of <code>table</code>. The function <code>object.isa</code> is not strictly needed for the prototype paradigm, but more of a convenience.
+<p>
+<H3>Function <code>clone(base_object[, clone_object]) -&gt; table</code></H3>
+<p>
+Parameters:
+<UL>
+<li> <code>base_object</code>: table, the base object to be cloned.
+<li> <code>clone_object</code>: table, an optional object to turn into a clone of <code>base_object</code>.
+</UL>
+<p>
+Returns:
+<UL>
+<li> <code>table</code>: the new clone.
+</UL>
+<p>
+If <code>new_object</code> is not of type <code>table</code> <code>new_object</code> is returned if it's not <code>nil</code> in which case <code>base_object</code> is returned. <code>new_object</code> has it's metatable set to itself, and it's <code>__index</code> now points to it's prototype <code>base_object</code>. <code>clone</code> is also available as <code>object.clone</code>.
+<p>
+<DL>
+<dt><dd><em>It also has potential problems with boolean values being passed as either argument, because, uhm... as exercise for the reader!? ;-)</em>
+</DL>
+<p>
+<H3>Function <code>isa( clone_object, base_object) -&gt; bool</code></H3>
+<p>
+Parameters:
+<UL>
+<li> <code>clone_object</code>: table, the clone to check
+<li> <code>base_object</code>: table, the suspected base of <code>clone_object</code>.
+</UL>
+<p>
+Returns:
+<UL>
+<li> <code>bool</code>: clone has base in the prototype hierarchy.
+</UL>
+<p>
+If neither of the arguments is a <code>table</code> <code>isa</code> falls back to returning the comparison of the types. It's also available as <code>object.isa</code>.
+<p>
+<DL>
+<dt><dd><em>This function will get bad performance on deep prototype hierarchies.</em>
+</DL>
+<p>
+<H3>The Code</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> clone( base_object, clone_object )
+
+  <span class="keyword">if</span> <span class="library">type</span>( base_object ) ~= <span class="string">"table"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> clone_object <span class="keyword">or</span> base_object 
+
+  <span class="keyword">end</span>
+
+  clone_object = clone_object <span class="keyword">or</span> {}
+
+  clone_object.__index = base_object
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>(clone_object, clone_object)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> isa( clone_object, base_object )
+
+  <span class="keyword">local</span> clone_object_type = <span class="library">type</span>(clone_object)
+
+  <span class="keyword">local</span> base_object_type = <span class="library">type</span>(base_object)
+
+  <span class="keyword">if</span> clone_object_type ~= <span class="string">"table"</span> <span class="keyword">and</span> base_object_type ~= <span class="library">table</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> clone_object_type == base_object_type
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> index = clone_object.__index
+
+  <span class="keyword">local</span> _isa = index == base_object
+
+  <span class="keyword">while</span> <span class="keyword">not</span> _isa <span class="keyword">and</span> index ~= <span class="keyword">nil</span> <span class="keyword">do</span>
+
+    index = index.__index
+
+    _isa = index == base_object
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> _isa
+
+<span class="keyword">end</span>
+
+
+
+object = clone( <span class="library">table</span>, { clone = clone, isa = isa } )
+
+</pre>
+
+</DL>
+<p>
+<H3>Examples</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- testing "isa"</span>
+
+foo = object:clone()
+
+bar = object:clone()
+
+baz = foo:clone()
+
+
+
+<span class="library">print</span>( foo:isa(object) )
+
+<span class="library">print</span>( bar:isa(foo) )
+
+<span class="library">print</span>( baz:isa(foo) )
+
+
+
+<span class="comment">--[[ output:
+
+true
+
+false
+
+true
+
+]]</span>
+
+
+
+<span class="comment">--testing prototype delegation</span>
+
+
+
+foo = object:clone()
+
+bar = foo:clone()
+
+
+
+<span class="keyword">function</span> foo:speak()
+
+  <span class="library">print</span>(self.thoughts <span class="keyword">or</span> <span class="string">"foo has no thoughts"</span>)
+
+<span class="keyword">end</span>
+
+
+
+bar:speak()
+
+
+
+<span class="comment">--[[ output:
+
+foo has no thoughts
+
+]]</span>
+
+
+
+bar.thoughts = <span class="string">"I may be a clone, but I'm an individual!"</span>
+
+bar:speak()
+
+
+
+<span class="comment">--[[ output:
+
+I may be a clone, but I'm an individual!
+
+]]</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+<hr>Contributors: <a href="../wiki/KevinBaca.html" >KevinBaca</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/ObjectOrientedProgramming.html" >ObjectOrientedProgramming</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=InheritanceTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=InheritanceTutorial" >history</a><br>Last edited November 18, 2011 11:09 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=InheritanceTutorial" >(diff)</a>
+</body>
+</html>

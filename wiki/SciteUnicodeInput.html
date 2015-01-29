@@ -1,0 +1,539 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Unicode Input</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteUnicodeInput&amp;body=1" title="List pages referring to SciteUnicodeInput">Scite Unicode Input</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This script replaces the hexadecimal unicode codepoint before the cursor
+with its utf-8 encoding.      If the script is hocked up with the Ctrl+U
+keyboard combination, then typing 2200 Ctrl+U is replaced with &#8704;.
+<p>
+This script is also provided as a GPLv2 project on sourceforge:
+<a href="http://sourceforge.net/projects/emitunicodeinscite/">http://sourceforge.net/projects/emitunicodeinscite/</a>
+<p>
+Enjoy!
+<p>
+<pre class="code">
+
+
+<span class="comment">-- DESCRIPTION:</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- This lua script adds utf8 unicode input, to the scite text editor.</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- The scite text editor should be set to use the UTF-8 encoding</span>
+
+<span class="comment">-- , because this script adds utf8, into the text buffer of the</span>
+
+<span class="comment">-- scite editor. Select File-&gt;Encoding-&gt;UTF-8, from the</span>
+
+<span class="comment">-- menu bar of scite.</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- For example, it will be possible that you type 2200 CTRL+U</span>
+
+<span class="comment">-- , and 2200 is replaced to &#8704;; (U+2200), in the scite editor.</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- ______________________________________________________________________________</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- INSTALL:</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- To have scite running this script each time you press Ctrl+U, add next lines</span>
+
+<span class="comment">-- into your ~/SciTEUser.properties file, where ~ is your home directory.</span>
+
+<span class="comment">-- FILE ~/SciTEUser.properties:</span>
+
+<span class="comment">--[[
+
+ext.lua.startup.script=$(SciteUserHome)/emitUtf8UnicodeIntoTheSciteEditor.lua
+
+command.name.12.*=Emit UTF8 Unicode
+
+command.subsystem.12.*=3
+
+command.12.*=emitUtf8UnicodeIntoTheSciteEditor
+
+command.mode.12.*=savebefore:no
+
+command.shortcut.12.*=Ctrl+U
+
+--]]</span>
+
+<span class="comment">-- ______________________________________________________________________________</span>
+
+<span class="comment">-- THE LUA CODE:</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- Next is the definition of the lua function that is called by scite</span>
+
+<span class="comment">-- when CTRL+U is pressed, to replace unicode endpoint encoding, with</span>
+
+<span class="comment">-- utf8 encoding of the unicode endpoint.</span>
+
+<span class="comment">-- ______________________________________________________________________________</span>
+
+
+
+
+
+<span class="comment">-- Computes the utf8 encoding for a unicode codepoint u</span>
+
+<span class="comment">-- , when 0 &lt;= u &lt;= 0x7f</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- @param unicodeValue the unicode codepoint u</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- @return the utf8 encoding of the unicode codepoint u</span>
+
+<span class="keyword">function</span> case1UnicodeToUtf8(unicodeValue)
+
+  <span class="comment">--print('case 1')</span>
+
+  <span class="keyword">local</span> u = unicodeValue
+
+  <span class="keyword">local</span> byte0 = (u % 0x80)
+
+  <span class="keyword">local</span> utf8 = <span class="library">string.char</span>(byte0)
+
+  <span class="keyword">return</span> utf8
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- ______________________________________________________________________________</span>
+
+<span class="comment">-- Computes the utf8 encoding for a unicode codepoint u</span>
+
+<span class="comment">-- , when 0x80 &lt;= u &lt;= 0x7ff</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- @param unicodeValue the unicode codepoint u</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- @return the utf8 encoding of the unicode codepoint u</span>
+
+<span class="keyword">function</span> case2UnicodeToUtf8(unicodeValue)
+
+  <span class="comment">--print('case 2')</span>
+
+  <span class="keyword">local</span> u = unicodeValue
+
+  <span class="keyword">local</span> byte1 = (0x80 + (u % 0x40) )
+
+  u = <span class="library">math.floor</span>(u / 0x40)
+
+  <span class="keyword">local</span> byte0 = (0xc0 + (u % 0x20) )
+
+  <span class="keyword">local</span> utf8 = <span class="library">string.char</span>(byte0, byte1)
+
+  <span class="keyword">return</span> utf8
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- ______________________________________________________________________________</span>
+
+<span class="comment">-- Computes the utf8 encoding for a unicode codepoint u</span>
+
+<span class="comment">-- , when 0x800 &lt;= u &lt;= 0xffff.</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- @param unicodeValue the unicode codepoint u</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- @return the utf8 encoding of the unicode codepoint u</span>
+
+<span class="keyword">function</span> case3UnicodeToUtf8(unicodeValue)
+
+  <span class="keyword">local</span> u = unicodeValue
+
+  <span class="keyword">local</span> byte2 = (0x80 + (u % 0x40))
+
+  <span class="comment">-- print('byte2: '..byte2)</span>
+
+  u = <span class="library">math.floor</span>(u / 0x40)
+
+  <span class="keyword">local</span> byte1 = (0x80 + (u % 0x40))
+
+  <span class="comment">-- print('byte1: '..byte1)</span>
+
+  u = <span class="library">math.floor</span>(u / 0x40)
+
+  <span class="keyword">local</span> byte0 = (0xe0 + (u % 0x10))
+
+  <span class="comment">-- print('byte0: '..byte0)</span>
+
+  <span class="keyword">local</span> utf8 = <span class="library">string.char</span>(byte0, byte1, byte2)
+
+  <span class="keyword">return</span> utf8
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- ______________________________________________________________________________</span>
+
+<span class="comment">-- Computes the utf8 encoding for a unicode codepoint u</span>
+
+<span class="comment">-- , when 0x10000 &lt;= u &lt;= 0x10ffff.</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- @param unicodeValue the unicode codepoint u</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- @return the utf8 encoding of the unicode codepoint u</span>
+
+<span class="keyword">function</span> case4UnicodeToUtf8(unicodeValue)
+
+  <span class="keyword">local</span> u = unicodeValue
+
+  <span class="keyword">local</span> byte3 = (0x80 + (u % 0x40))
+
+  u = <span class="library">math.floor</span>(u / 0x40)
+
+  <span class="keyword">local</span> byte2 = (0x80 + (u % 0x40))
+
+  u = <span class="library">math.floor</span>(u / 0x40)
+
+  <span class="keyword">local</span> byte1 = (0x80 + (u % 0x40))
+
+  u = <span class="library">math.floor</span>(u / 0x40)
+
+  <span class="keyword">local</span> byte0 = (0xf0 + (u % 0x8))
+
+  <span class="keyword">local</span> utf8 = <span class="library">string.char</span>(byte0, byte1, byte2, byte3)
+
+  <span class="keyword">return</span> utf8
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- ______________________________________________________________________________</span>
+
+<span class="comment">-- Converts a unicode integer value, into a utf8 string value.</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- The unicode integer value is an integer that</span>
+
+<span class="comment">-- is greater than or equal to zero.</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- The utf8 string value is a string that is a sequence of</span>
+
+<span class="comment">-- 8 bits characters that give the utf8 encoding of the</span>
+
+<span class="comment">-- unicode codepoint given by the unicode integer value.</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- @param unicodeValue the unicode integer value;</span>
+
+<span class="comment">-- a unicode codepoint</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- @return the utf8 encoding of the unicode codepoint</span>
+
+<span class="comment">-- provided by the unicodeValue input argument</span>
+
+<span class="keyword">function</span> unicodeToUtf8(unicodeValue)
+
+  <span class="keyword">local</span> u = unicodeValue
+
+  <span class="keyword">if</span> ((0x800 &lt;= u) <span class="keyword">and</span> (0xffff &gt;= u))
+
+  <span class="keyword">then</span>
+
+    <span class="keyword">return</span> case3UnicodeToUtf8(u)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> ((0x80 &lt;= u) <span class="keyword">and</span> (0x7fff &gt;= u))
+
+  <span class="keyword">then</span>
+
+    <span class="keyword">return</span> case2UnicodeToUtf8(u)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> ((0x0 &lt;= u) <span class="keyword">and</span> (0x7f &gt;= u))
+
+  <span class="keyword">then</span>
+
+    <span class="keyword">return</span> case1UnicodeToUtf8(u)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span>( (0x10000 &lt;= u) <span class="keyword">and</span> (0x10ffff &gt;= u) )
+
+  <span class="keyword">then</span>
+
+    <span class="keyword">return</span> case4UnicodeToUtf8(u)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- ______________________________________________________________________________</span>
+
+<span class="comment">-- Peeks (reads) the character at position i, in the Scite Editor.</span>
+
+<span class="comment">-- If the character is the ascii name of a hex digit, it returns</span>
+
+<span class="comment">-- the corresponding hex digit, otherwise it returns nil.</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- @param i position in the Scite Editor</span>
+
+<span class="comment">-- @return hex digit at position i, or nil</span>
+
+<span class="keyword">function</span> peekHexdigit(i)
+
+  <span class="keyword">local</span> e = editor
+
+  <span class="keyword">local</span> asciiCode = e.CharAt[i]
+
+  <span class="keyword">if</span>((0&gt;asciiCode) <span class="keyword">or</span> (0xff &lt; asciiCode))
+
+  <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">nil</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> charValue = <span class="library">string.char</span>(asciiCode)
+
+  <span class="keyword">local</span> hexDigit = <span class="library">tonumber</span>(charValue,0x10)
+
+  <span class="keyword">return</span> hexDigit <span class="comment">-- may be nil</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- ______________________________________________________________________________</span>
+
+<span class="comment">-- Reads the sequence of maximum length at most 5, at the left of the cursor</span>
+
+<span class="comment">-- in the Scite Editor.</span>
+
+<span class="comment">-- Encodes the longest suffix of this sequence, that is a hex number, into</span>
+
+<span class="comment">-- the utf encoding of this hex number.</span>
+
+<span class="comment">-- Replaces this longest suffix, with the utf8 sequence.</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- @return true a suffix of length greater than zero, at most 5 existed</span>
+
+<span class="comment">-- and was replaced with the utf8 encoding of the number it</span>
+
+<span class="comment">-- represented</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- false , when no such suffix existed</span>
+
+<span class="keyword">function</span> emitUtf8Unicode()
+
+  <span class="keyword">local</span> e = editor
+
+  <span class="keyword">local</span> n = e.TextLength
+
+  <span class="keyword">local</span> i = e.CurrentPos
+
+  <span class="keyword">local</span> maxlen = 5
+
+  <span class="keyword">if</span> ((0 == n) <span class="keyword">or</span> (1 &gt; i))
+
+  <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">nil</span> <span class="comment">-- Success. No request</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> len = 1
+
+  <span class="keyword">local</span> len2 = 0
+
+  <span class="keyword">local</span> u = 0
+
+  <span class="keyword">local</span> thePower = 1
+
+  <span class="keyword">while</span> (     (len &lt;= maxlen)
+
+          <span class="keyword">and</span> (0 &lt;= (i - len) )
+
+        )
+
+  <span class="keyword">do</span>
+
+    <span class="keyword">local</span> hexDigit = peekHexdigit(i-len,u)
+
+    <span class="keyword">if</span> (<span class="keyword">nil</span> == hexDigit)
+
+    <span class="keyword">then</span>
+
+      <span class="keyword">break</span> <span class="comment">-- out of the while loop</span>
+
+    <span class="keyword">end</span>
+
+    u = ( u + (thePower * hexDigit) )
+
+    thePower = (0x10 * thePower )
+
+    len2 = len
+
+    <span class="comment">--print("u: "..u)</span>
+
+    len = len + 1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> (0 == len2)
+
+  <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">nil</span> <span class="comment">-- Failure. No unicode</span>
+
+  <span class="keyword">end</span>
+
+  utf8 = unicodeToUtf8(u)
+
+  <span class="keyword">if</span>(<span class="keyword">nil</span> == utf8)
+
+  <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">nil</span> <span class="comment">-- Failure. Unicode to utf8 conversion failed.</span>
+
+  <span class="keyword">end</span>
+
+  e:SetSel(i-len2,i)
+
+  e:ReplaceSel(utf8)
+
+  <span class="comment">--print("utf8: "..utf8)</span>
+
+  <span class="keyword">return</span> <span class="keyword">true</span> <span class="comment">-- Success.</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- ______________________________________________________________________________</span>
+
+<span class="comment">-- Emits utf8 encoding in the place of the unicode codepoint</span>
+
+<span class="comment">-- in the editor, at the left of the cursor.</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- Writes a message to the Output pane, if no codepoint existed</span>
+
+<span class="comment">-- at the left of the cursor.</span>
+
+<span class="comment">-- </span>
+
+<span class="keyword">function</span> emitUtf8UnicodeIntoTheSciteEditor()
+
+  <span class="keyword">local</span> ok = emitUtf8Unicode()
+
+  <span class="keyword">if</span> <span class="keyword">not</span> ok
+
+  <span class="keyword">then</span>
+
+    <span class="library">print</span>(<span class="string">"Failed to encode unicode into text editor."</span>)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- ______________________________________________________________________________</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- Following web pages were useful in writing the lua scite script.</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- http://lua-users.org/wiki/UsingLuaWithScite</span>
+
+<span class="comment">-- http://www.scintilla.org/PaneAPI.html</span>
+
+<span class="comment">-- http://www.lua.org/manual/5.1/manual.html#pdf-tonumber</span>
+
+<span class="comment">-- https://en.wikipedia.org/wiki/UTF-8</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- http://lua-users.org/lists/lua-l/2007-08/msg00276.html</span>
+
+<span class="comment">-- http://keplerproject.github.io/luadoc/ </span>
+
+
+
+</pre>
+
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteUnicodeInput" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteUnicodeInput" >history</a><br>Last edited August 8, 2013 4:26 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteUnicodeInput" >(diff)</a>
+</body>
+</html>

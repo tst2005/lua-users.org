@@ -1,0 +1,414 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Interactive Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=InteractiveLua&amp;body=1" title="List pages referring to InteractiveLua">Interactive Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<strong>ilua</strong> is utility that gives you an extended interactive prompt which offers more features than standard Lua.  It is implemented in pure Lua.  See also <a href="../wiki/CompleteWithReadline.html" >CompleteWithReadline</a>.
+<p>
+A good feature of Lua is that you can work with the language interactively, as if you are having a conversation with the interpreter. Just as conversation is the best way to learn a human language, it is very helpful to try out ideas interactively. (Or, you just want a better calculator on your computer ;)). The standalone lua interpreter will enter interactive mode if there is no script specified, or if the <code>-i</code> option has been specified.
+<p>
+However, there are some limitations about the standard interactive prompt; if you wish to evaluate an expression, you must prefix it with '='. The interpreter translates this as 'return ' so that you are always entering a <em>valid chunk</em> of Lua code. Also, tables are not printed out, unless there is an explicit <code>__tostring</code> in their metatables:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua
+
+Lua 5.1.2  Copyright (C) 1994-2007 Lua.org, PUC-Rio
+
+&gt; = 10+20
+
+30
+
+&gt; t = {10,20,30}
+
+&gt; = t
+
+table: 003DB790
+
+</pre>
+</DL>
+<p>
+This is a little awkward, and not what users of other interactive languages might expect.  With ilua, expressions do not need a '=', and tables are printed out as nicely as possible. The value of the last expression is always available in the '_' variable.
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua ilua.lua
+
+ILUA: Lua 5.1.2  Copyright (C) 1994-2007 Lua.org, PUC-Rio
+
+"quit" to end
+
+&gt; 10+20
+
+30
+
+&gt; t = {10,20,30}
+
+&gt; t
+
+{10,20,30}
+
+&gt; _
+
+{10,20,30}
+
+&gt; m = {alice=1,john=2,betty=3}
+
+&gt; m
+
+{betty=3,john=2,alice=1}
+
+&gt; x+1
+
+[string "local"]:1: variable 'x' is not declared
+
+&gt; quit
+
+</pre>
+</DL>
+<p>
+Notice that variables must be declared before they are used; <code>ilua</code> operates in <em>strict mode</em>. Any assignment to a variable (including nil) will declare it.
+<p>
+The fact remains that <code>10+20</code> is not a valid Lua statement. The technique I use is <em>experimental compilation</em> - first assume the user has typed an expression, and if that fails, attempt to compile as a statement. This shows the basic logic:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> eval_lua(line)
+
+  <span class="comment">-- is it an expression?</span>
+
+  <span class="keyword">local</span> err,chunk = compile(<span class="string">'_pretty_print('</span>..line..<span class="string">')'</span>)
+
+  <span class="keyword">if</span> err <span class="keyword">then</span>
+
+      <span class="comment">-- otherwise, a statement?</span>
+
+      err,chunk = compile(line)
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- if compiled ok, then evaluate the chunk</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> err <span class="keyword">then</span>
+
+      err = evaluate(chunk)
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- if there was any error, print it out</span>
+
+  <span class="keyword">if</span> err <span class="keyword">then</span>
+
+      <span class="library">print</span>(err)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+We get precise control of how values are printed out using the global <code>_pretty_print</code>; its most important job is expanding tables.  It is necessary to watch out for a few <em>runaway situations</em>. The table may be too large, or too deeply nested; it may contain circular references. <code>ilua</code> deals with this by specifying a default length and depth; the function <code>ilua.table_options</code> can be used to change the maximum length and depth (defaults to 20 and 7 respectively). For example, <code>ilua.table_options {limit=100} </code> would allow you to print longer tables. It detects any table which has been previously printed, or is currently being printed. These are currently rendered as '{&lt;self&gt;}'. For example, calling <code>require</code> for a well-defined library will return this kind of table, which has a circular reference <code>_M</code>.
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; require 'utils'
+
+{hex=function: 00487548,_PACKAGE='',printf=function: 003DD3F0,choose=function:
+
+04878D8,import=function: 00487888,quit=function: 00486678,dump=function: 004875
+
+0,_NAME='utils',timer=function: 00487638,_M={&lt;self&gt;},fprintf=function: 00485310
+
+readf=function: 004878F8}
+
+</pre>
+</DL>
+<p>
+By default, <code>ilua</code> tries to be clever about printing tables. I use a simple-minded scheme to decide whether they are <em>list-like</em> or <em>map-like</em>; sometimes it gets things wrong because not all tables are classifiable as one or the other. You can switch off the cleverness with <code>table_options</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; s = {1,2,bonzo='dog',felix='cat'}
+
+&gt; s
+
+{1,2}
+
+&gt; ilua.table_options {clever = false}
+
+&gt; s
+
+{[1]=1,[2]=2,felix='cat',bonzo='dog'}
+
+</pre>
+</DL>
+<p>
+<H3>Command-line options</H3>
+<p>
+Before processing any options or filenames, <code>ilua</code> attempts to load 'ilua-defs.lua' using <code>require</code>, so it can be anywhere on your package path. This is a useful place to put any Lua code you want to load each time.
+<p>
+<code>ilua</code> has several command-line flags. <code>-l</code> works like the same option for Lua; it preloads the indicated library. <code>-L</code> loads the library and brings all its functions into the global namespace.
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua ilua.lua -Lmath
+
+ILUA: Lua 5.1.2  Copyright (C) 1994-2007 Lua.org, PUC-Rio
+
+"quit" to end
+
+&gt; sin(1.2)
+
+0.93203908596723
+
+</pre>
+</DL>
+<p>
+<code>-L</code> can bite you badly so it will warn of any collisions found:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua ilua.lua -Lutils -Ltest
+
+ILUA: Lua 5.1.2  Copyright (C) 1994-2007 Lua.org, PUC-Rio
+
+"quit" to end
+
+warning: test.printf overwrites utils.printf
+
+warning: test.unpack overwrites global unpack
+
+</pre>
+</DL>
+<p>
+The <code>-t</code> option will save a transcript of your session to a log file. If no file is specified, it uses 'ilua.log'. Since this option expects a parameter, it must be the last option on the line:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua ilua.lua -t
+
+saving transcript "ilua.log"
+
+ILUA: Lua 5.1.2  Copyright (C) 1994-2007 Lua.org, PUC-Rio
+
+"quit" to end
+
+&gt; 2.3*math(1.2)
+
+[string "local"]:1: attempt to call global 'math' (a table value)
+
+&gt; 2.3*math.sin(1.2)
+
+2.1436898977246
+
+&gt; quit
+
+$ cat ilua.log
+
+! ilua -t
+
+&gt; 2.3*math(1.2)
+
+[string "local"]:1: attempt to call global 'math' (a table value)
+
+&gt; 2.3*math.sin(1.2)
+
+2.1436898977246
+
+</pre>
+</DL>
+<p>
+Another way to get a log is <code>-T</code>, which automatically generates a log file with the name <code>ilua_yyyy_mm_dd_HH_MM.log</code>.
+<p>
+Importing a table into the global namespace is generally useful for testing, so <code>ilua.import</code> is available. For example, <code>ilua.import(require 'lfs')</code> will bring in the <code>lfs</code> library and make all its functions global. 
+<p>
+<H3>Controlling Output Precision</H3>
+<p>
+Sometimes it's useful to control the number of decimal places for floating-point output. <code>ilua.precision</code> lets you set the width and precision for numbers (use a width of 0 if you don't particularly care). 'Integers' are treated slightly differently. To reset to the usual representation, just call <code>ilua.precision</code> with no arguments.
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; t = {sin(1),sin(1.5),sin(5.2)}
+
+&gt; t
+
+{0.8414709848079,0.99749498660405,-0.88345465572015}
+
+&gt; ilua.precision(0,2)
+
+&gt; t
+
+{0.84,1.00,-0.88}
+
+&gt; {10,20,30}
+
+{10,20,30}
+
+&gt; ilua.precision()
+
+&gt; t
+
+{0.8414709848079,0.99749498660405,-0.88345465572015}
+
+</pre>
+</DL>
+<p>
+<H3>Customizing ilua</H3>
+<p>
+Sometimes it's useful to change how <code>ilua</code> prints out a particular type. <code>ilua.print_handler</code> can be used to set a handler for a particular type:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; ilua.print_handler('function',function(f) return 'fun' end)
+
+&gt; math.sin
+
+fun
+
+&gt; math
+
+{log=fun,max=fun,acos=fun,huge=1.#INF,ldexp=fun,pi=3.1415926535898,cos=fun,tanh=fun,
+
+ pow=fun,deg=fun,tan=fun,cosh=fun,sinh=fun,random=fun,randomseed=fun,frexp=fun,
+
+ ceil=fun,floor=fun,rad=fun,abs=fun,sqrt=fun ... }
+
+</pre>
+</DL>
+<p>
+As mentioned, <code>ilua</code> operates in strict mode. However, you can specify a handler that gets called if a variable cannot be found. This example makes operating system environment variables available as if they were read-only Lua variables:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; ilua.global_handler(function(s) return os.getenv(s) end)
+
+&gt; COMSPEC
+
+'C:\WINDOWS\system32\cmd.exe'
+
+&gt; WINDIR
+
+'C:\WINDOWS'
+
+&gt; s
+
+[string "local"]:1: variable 's' is not declared
+
+</pre>
+</DL>
+<p>
+The final customization allows your code to see each line entered by the user. For instance, you can put this in your 'ilua-defs.lua' file:
+<p>
+<DL>
+<dt><dd><pre class="code">
+ilua.line_handler(<span class="keyword">function</span> (line)
+
+    <span class="keyword">if</span> line:sub(1,1) == <span class="string">'.'</span> <span class="keyword">then</span> <span class="comment">-- a shell command!</span>
+
+        <span class="library">os.execute</span>(line:sub(2))
+
+        <span class="keyword">return</span> <span class="keyword">nil</span>
+
+    <span class="keyword">else</span>
+
+        <span class="keyword">return</span> line
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+Now if you type a line like '. ls' or '. dir' it will regard the rest of the line as a OS command! <code>ilua</code> continues processing if you pass back a string, so you also have an opportunity to filter that string in some way.
+<p>
+<p>
+<H3>Limitations</H3>
+<p>
+You cannot enter multiline statements in <code>ilua</code>, unlike with regular <code>lua</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; for i=1,5 do print(i) end
+
+1
+
+2
+
+3
+
+4
+
+5
+
+&gt; for i=1,10 do
+
+[string "local"]:1: 'end' expected near '&lt;eof&gt;'
+
+</pre>
+</DL>
+<p>
+In practice this is not usually a problem, since one can always bring in code using <code>dofile(filename)</code> at any stage. It would not be difficult to solve this, if there's any need.
+<p>
+<H3>Further Work</H3>
+<p>
+It will be interesting to integrate <code>ilua</code> with the <a href="../wiki/PlutoLibrary.html" >PlutoLibrary</a> for true 'workspace' persistence. This is a very productive mode offered by some language systems where you can save your session state, complete with functions and data, to be reloaded later.
+<p>
+<H3>Source Code</H3>
+<p>
+<UL>
+<li> <code>ilua.lua</code> is available at <a href="/files/wiki_insecure/users/steved/ilua.lua">Files:wiki_insecure/users/steved/ilua.lua</a>.
+</UL>
+<p>
+An interactive GUI version of ilua (lconsole) that uses <a href="../wiki/LuaInterface.html" >LuaInterface</a>, is available here:
+<p>
+<UL>
+<li> <a href="http://mysite.mweb.co.za/residents/sdonovan/lua/LuaInterfaceUtils.zip">http://mysite.mweb.co.za/residents/sdonovan/lua/LuaInterfaceUtils.zip</a>
+</UL>
+<p>
+It has a useful little code pane where you can define multi-line functions and have them automatically saved.
+<p>
+<a href="../wiki/SteveDonovan.html" >SteveDonovan</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=InteractiveLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=InteractiveLua" >history</a><br>Last edited June 14, 2011 4:28 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=InteractiveLua" >(diff)</a>
+</body>
+</html>

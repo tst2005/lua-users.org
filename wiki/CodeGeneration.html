@@ -1,0 +1,434 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Code Generation</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CodeGeneration&amp;body=1" title="List pages referring to CodeGeneration">Code Generation</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em>Wiki editors: This is a <strong>work in progress</strong>. I'll link it in to appropriate pages when I finish. It's continuing on from the saga started in <a href="../wiki/LuaSorting.html" >LuaSorting</a> -- <a href="../wiki/RiciLake.html" >RiciLake</a></em>
+<p>
+<H3>Customizing Sort</H3>
+<p>
+It's clear that shellsort can be speeded up quite a bit by specializing it for different comparison functions. However, there is no obvious criterion for deciding which specialized versions will be useful in a particular program. Rather than trying to guess what will and will not be useful, we can take advantage of Lua's built-in (and rapid) compiler in order to create specialized versions on the spot, using a template. Shellsort is particularly well suited to that, because the comparison function is only called in one place.
+<p>
+We want to end up with a function which returns a specialized sort function, given an arbitrary Lua expression which represents the comparison. The expression will be provided as a string; to simplify things, we'll insist that the expression use the variables <code>a</code> and <code>b</code> to represent the object's compared. For example, suppose we want to sort an array of <code>Person</code> objects, where each object looks like <code> {name = "Joe", age = 32, &lt;other fields&gt; } </code>. A sample call will look like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> sort_by_age = make_sorter  <span class="string">[[a.age &lt; b.age]]</span>
+
+
+
+<span class="comment">-- ... somewhere later on ...</span>
+
+
+
+sort_by_age(folks)
+
+</pre>
+
+</DL>
+<p>
+<code>make_sorter</code> simply inserts its argument into the Shell sort template. To make the template work, we need to rename variables inside <code>shellsort</code> so that the values compared end up being called <code>a</code> and <code>b</code>, to match the names in the comparison function.
+<p>
+Our first attempt looks like this (courtesy <a href="../wiki/DavidManura.html" >DavidManura</a> who actually wrote the second version, below):
+<p>
+<DL>
+<dt><dd><pre class="code">
+   <span class="keyword">function</span> make_sorter(compare)
+
+     <span class="keyword">local</span> src = <span class="string">[[
+
+       local incs = { 1391376,
+
+                      463792, 198768, 86961, 33936,
+
+                      13776, 4592, 1968, 861, 336, 
+
+                      112, 48, 21, 7, 3, 1 }
+
+ 
+
+       -- The value of the compiled chunk needs to be the sort function itself
+
+       return function(t, n)
+
+         for _, h in ipairs(incs) do
+
+           for i = h + 1, n do
+
+             local a = t[i]
+
+             for j = i - h, 1, -h do
+
+               local b = t[j]
+
+               if not (]]</span> .. compare .. <span class="string">[[) then break end
+
+               t[i] = b; i = j
+
+             end
+
+             t[i] = a
+
+           end 
+
+         end
+
+         return t
+
+       end
+
+     ]]</span>
+
+     <span class="keyword">return</span> <span class="library">assert</span>(<span class="library">loadstring</span>(src, <span class="string">"Shellsort "</span>..compare))()
+
+   <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Sharing common data between generated code</H3>
+<p>
+This works nicely, but there's a small problem. After we've defined 35 different shell sorters, we've got 35 copies of the <code>incs</code> array cluttering up storage. (We also have 35 customized sort functions, but they actually take up less space.) What we'd like to do is use the same <code>incs</code> array for every specialized sortation function.
+<p>
+With Lua 5.1.1, we can pass arguments into a newly-compiled chunk, where they're available as the values of <code>...</code>. So, instead of just calling the chunk in order to get the sortation function, and compiling a new <code>incs</code> array in every chunk, we simply pass the master <code>incs</code> table in as an argument:
+<p>
+<DL>
+<dt><dd><pre class="code">
+   <span class="keyword">local</span> incs = { 1391376,
+
+                  463792, 198768, 86961, 33936,
+
+                  13776, 4592, 1968, 861, 336, 
+
+                  112, 48, 21, 7, 3, 1 }
+
+   <span class="keyword">function</span> make_sorter(compare)
+
+ 
+
+     <span class="comment">-- The first line captures the argument to the chunk</span>
+
+     <span class="keyword">local</span> src = <span class="string">[[
+
+       local incs = ...
+
+       return function(t, n)
+
+         for _, h in ipairs(incs) do
+
+           for i = h + 1, n do
+
+             local a = t[i]
+
+             for j = i - h, 1, -h do
+
+               local b = t[j]
+
+               if not (]]</span> .. compare .. <span class="string">[[) then break end
+
+               t[i] = b; i = j
+
+             end
+
+             t[i] = a
+
+           end 
+
+         end
+
+         return t
+
+       end
+
+     ]]</span>
+
+     <span class="comment">-- We have to call the compiled chunk with incs:</span>
+
+     <span class="keyword">return</span> <span class="library">assert</span>(<span class="library">loadstring</span>(src, <span class="string">"Shellsort "</span>..compare))(incs)
+
+   <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Combining code generation with memoization</H3>
+<p>
+Now we can easily generate specialized sorters, but it's still a bit awkward. As our application grows, we find that we're generating the same sorter over and over again in various modules. Also, it's a bit annoying to have to think up a name for each sortation function, and call <code>make_sorter</code> for each one. It would be nicer if we could just put the comparison in the actual call. In other words, we've ended up with something like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> sort_by_age = make_sorter <span class="string">[[a.age &lt; b.age]]</span>
+
+<span class="keyword">local</span> sort_by_name = make_sorter <span class="string">[[a.name &lt; b.name]]</span>
+
+<span class="comment">-- This is inefficient, but simple. See below for an improvement.</span>
+
+<span class="keyword">local</span> sort_by_number_of_children = make_sorter <span class="string">[[#(a.children or {}) &lt; #(b.children or {})]]</span>
+
+
+
+<span class="comment">-- ... much later ...</span>
+
+
+
+<span class="keyword">function</span> show_offspring(grandmom)
+
+  <span class="comment">-- Arrange the families so the smallest ones come first</span>
+
+  sort_by_number_of_children(grandmom.children)
+
+  <span class="comment">-- In each family, sort the grandkids, if any, by age </span>
+
+  <span class="keyword">for</span> _, child <span class="keyword">in</span> <span class="library">pairs</span>(grandmom.children) <span class="keyword">do</span>
+
+     <span class="keyword">if</span> child.children <span class="keyword">then</span> sort_by_age(child.children) <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+But now we realize that we really wanted the families sorted with the largest family first, and moreover we don't use <code>sort_by_name</code> at all.
+So we've got a code maintenance problem.
+<p>
+Now, we could just create the sorter when we needed it, like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> show_offspring(grandmom)
+
+  <span class="comment">-- Arrange the families so the largest ones come first</span>
+
+  make_sorter<span class="string">[[#(a.children or {}) &gt; #(b.children or {})]]</span>(grandmom.children)
+
+  <span class="comment">-- In each family, sort the grandkids, if any, by age </span>
+
+  <span class="keyword">for</span> _, child <span class="keyword">in</span> <span class="library">pairs</span>(grandmom.children) <span class="keyword">do</span>
+
+     <span class="keyword">if</span> child.children <span class="keyword">then</span> make_sorter<span class="string">[[a.age &lt; b.age]]</span>(child.children) <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+That seem's better, although it's got a lot of punctuation. However, it means we're calling <code>make_sorter</code> a lot of times, and even though Lua's compiler is remarkably fast, that's still a lot of excess work.
+<p>
+Fortunately, with Lua we can have our cake and eat it to. We can create a table of sorting functions, indexed by the comparison string, and let Lua create the functions <em>on demand</em> -- a sort of virtual table. This technique is called <em>memoization</em>, as in memory: the result of a complex computation which is likely to be used again is remembered based on the actual argument of the function. (It is sometimes also called caching, but that word is used in quite a few contexts.)
+<p>
+We could write a cache into the definition of make_sorter, but memoization is a very common <a href="../wiki/LuaDesignPatterns.html" >LuaDesignPatterns</a>, so we might as well use a general solution, particularly since it is so simple:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Make this part of your standard Lua library. You'll find yourself using it a lot</span>
+
+
+
+<span class="comment">-- Given a function, return a memoization table for that function</span>
+
+<span class="keyword">function</span> memoize(func)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({}, {
+
+    __index = <span class="keyword">function</span>(self, k) <span class="keyword">local</span> v = func(k); self[k] = v; <span class="keyword">return</span> v <span class="keyword">end</span>,
+
+    __call = <span class="keyword">function</span>(self, k) <span class="keyword">return</span> self[k] <span class="keyword">end</span>
+
+  })
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Now, we can turn make_sorter into a memoized table in a single line of code:
+<DL>
+<dt><dd><pre class="code">
+Shellsorter = memoize(make_sorter)
+
+</pre>
+
+</DL>
+<p>
+and we can safely write show_offspring, confident that it will result in at most two compilations in the lifetime of our application:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> show_offspring(grandmom)
+
+  <span class="comment">-- Arrange the families so the largest ones come first</span>
+
+  Shellsorter[ <span class="string">"#(a.children or {}) &gt; #(b.children or {})"</span> ](grandmom.children)
+
+  <span class="comment">-- In each family, sort the grandkids, if any, by age </span>
+
+  <span class="keyword">for</span> _, child <span class="keyword">in</span> <span class="library">pairs</span>(grandmom.children) <span class="keyword">do</span>
+
+     <span class="keyword">if</span> child.children <span class="keyword">then</span> Shellsorter[ <span class="string">"a.age &lt; b.age"</span> ](child.children) <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<em>Note that I replaced the call to <code>make_sorter</code> with an index on <code>Shellsorter</code>. The implementation of <code>memoize</code> provided above makes this unnecessary; I could use <code>Shellsorter</code> as though it were a function. Sometimes that's useful, and  this technique is further explained in <a href="../wiki/FuncTables.html" >FuncTables</a>. In this case, though, it doesn't seem to add any clarity, and it only serves to create an unnecessary function call.</em>
+<p>
+<H3>Interlude: the Schwartzian transform</H3>
+<p>
+Often (though not always) the comparison used in a sort can be expressed in the form <code>f(a) &lt; f(b)</code> for some function <code>f</code>. The value of <code>f(a)</code> is often called the <em>characteristic</em>.
+<p>
+For example, we might need to sort an array of points in three-dimensional space according to their distance from some reference point. The naive version of this would be:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> distance(x, y) <span class="keyword">return</span> ((x[1]-y[1])^2 + (x[2]-y[2])^2 + (x[3]-y[3])^2)^0.5 <span class="keyword">end</span>
+
+Shellsorter[<span class="string">" distance(a, ref) &lt; distance(b, ref) "</span>](array)
+
+</pre>
+
+</DL>
+<p>
+A moment's thought should suggest that it would be better to remove the square root computation, since it makes no difference to the final outcome. Even so, the computation is somewhat time-consuming. Roughly speaking, most sorting algorithms will perform about <code>N log&#x2082;N</code> comparisons to sort an array of <code>N</code> objects, which means that <code>distance</code> above will be called <code>2N log&#x2082;N</code> times on a total of <code>N</code> objects; in other words, it will be called <code>2 log&#x2082; N</code> times on each object, yielding the same result each time. If we had. say, 100,000 points, that would mean approximately 34 calls to <code>distance</code> for each point. The discussion of memoization above suggests that it should be possible to just call it once once on each object.
+<p>
+Characteristics don't need to be numbers; they just need to be simpler to compare than the original values. For example, sorting words according to the rules of a given language can be done by transforming each word into a longer string which can be compared with a simple string comparison. (See the <code>strxfrm()</code> function in Posix.)
+<p>
+The easiest way of sorting by a characteristic function is to first compute the characteristic of each element, constructing an array of pairs <code> {characteristic, element} </code>. This array can then be sorted using a much simpler comparison function, and then the sorted array can be turned back into an array of objects by just selecting the second element of each pair. This approach is a common idiom in Perl, where it is called the <em>Schwartzian transform</em>, named after the famous Perl hacker Randall Schwartz. <a href="http://en.wikipedia.org/wiki/Schwartzian_Transform.html">[wikipedia]</a>
+<p>
+A naive translation of the Perl idiom to Lua turns out to be extremely inefficient, however; the array of pairs uses an enormous amount of space. However, an analogous solution exists, which elegantly solves the related problem of sorting tables other than arrays.
+<p>
+In general, a Lua table is a set of mappings from key to value:
+<DL>
+<dt><dd><code> T = {k&#x2081;&#x2192;v&#x2081;, k&#x2082;&#x2192;v&#x2082;, &#x2026; kn&#x2192;vn}  </code>
+</DL>
+<p>
+In order to provide an ordered view of this table, we can construct an array of keys: 
+<DL>
+<dt><dd><code> K = {1&#x2192;k&#x2081;,2&#x2192;k&#x2082;, &#x2026; n&#x2192;kn;} </code>.
+</DL>
+<p>
+We can then iterate over the key array and recover the key-value pair by looking up the key in the original table, using an iterator like this:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> pairs_in_order(T, K)
+
+  <span class="keyword">local</span> i = 0
+
+  <span class="keyword">return</span> <span class="keyword">function</span> iter()
+
+    i = i + 1
+
+    <span class="keyword">local</span> k = K[i]
+
+    <span class="keyword">if</span> k <span class="keyword">then</span> <span class="keyword">return</span> k, T[k] <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+To sort such a table, we can construct a third table, the characteristic table, which maps keys onto characteristics: 
+<p>
+<DL>
+<dt><dd><code> C = {k&#x2081;&#x2192;f(k&#x2081;, v&#x2081;), k&#x2082;&#x2192;f(k&#x2082;, v&#x2082;), &#x2026; kn&#x2192;f(kn, vn)} </code>
+</DL>
+<p>
+Note that we've given the characteristic function both the key and the value, since both might participate in the sortation order. We then sort the array of keys, looking up each key in the characteristic table:
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- K = keytable(T)</span>
+
+K = {}; <span class="keyword">for</span> k <span class="keyword">in</span> <span class="library">pairs</span>(T) <span class="keyword">do</span> K[#K+1] = k <span class="keyword">end</span>
+
+<span class="comment">-- C = map(f, T)</span>
+
+C = {}; <span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">pairs</span>(T) <span class="keyword">do</span> C[k] = f(k, v) <span class="keyword">end</span>
+
+<span class="comment">-- Sort</span>
+
+Shellsorter[<span class="string">"C[a] &lt; C[b]"</span>](K)
+
+<span class="comment">-- Get rid of C (see below)</span>
+
+C = <span class="keyword">nil</span>
+
+<span class="comment">-- Iterate the sorted key, value pairs</span>
+
+<span class="keyword">for</span> k, v <span class="keyword">in</span> pairs_in_order(T, K) <span class="keyword">do</span>
+
+  <span class="library">print</span>(k, v)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+This technique works regardless of the keys in the original table. What's more, because the key is given to the comparison function, we can ensure a stable sort by falling back on key comparison if the characteristics of the values are equal; we just replace the sort with:
+<p>
+<DL>
+<dt><dd><pre class="code">
+Shellsorter[<span class="string">"C[a] &lt; C[b] or C[a] == C[b] and a &lt; b"</span>](K)
+
+</pre>
+
+</DL>
+<p>
+But there's a problem: we'd really like the auxiliary tables to be local variables; in particular, the characteristic table is a temporary value, and we'd like it to be garbage collected as soon as possible. But the code generation we've done does not allow the comparison function to refer to upvalues.
+<p>
+<H3>Hygienic Macros</H3>
+<p>
+Often, we would like to insert a piece of code into a boilerplate template. However, that can lead to obscure problems if the inserted code has a <em>free variable</em> which happens to be bound at the point of insertion.
+<p>
+<em>To be continued...</em>
+<p>
+<H3>See Also</H3>
+<p>
+<UL>
+<li> <a href="../wiki/ExPattern.html" >ExPattern</a> - code generation example
+<li> <a href="../wiki/ListComprehensions.html" >ListComprehensions</a> - code generation example
+</UL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CodeGeneration" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CodeGeneration" >history</a><br>Last edited May 28, 2009 2:06 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CodeGeneration" >(diff)</a>
+</body>
+</html>

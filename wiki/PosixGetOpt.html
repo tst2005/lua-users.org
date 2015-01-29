@@ -1,0 +1,207 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Posix Get Opt</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PosixGetOpt&amp;body=1" title="List pages referring to PosixGetOpt">Posix Get Opt</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+If you want real POSIX getopt, use real POSIX! See <a href="https://github.com/luaposix/luaposix/">[luaposix]</a> for a binding to getopt_long.
+<p>
+<H2>Pure Lua</H2>
+<p>
+The following should behave exactly according to the <a href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/getopt.html">[POSIX/SUS definition]</a>, except that the return value differs slightly so that there's no global state.
+<p>
+<H3>Usage</H3>
+<p>
+<pre class="code">
+<span class="comment">--</span>
+
+<span class="comment">-- opt is either the option character, "?", or ":".</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- If opt is the option character, arg is either a string or false--if optstring</span>
+
+<span class="comment">-- did not specify a required argument.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- If opt is either "?" or ":", then arg is the unknown option or the option</span>
+
+<span class="comment">-- lacking the required argument. Like the standard says, there's really only</span>
+
+<span class="comment">-- one scenario for ":" to ever be returned. And per the standard, unless</span>
+
+<span class="comment">-- optstring begins with a colon, "?" is returned instead.</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">for</span> opt, arg <span class="keyword">in</span> getopt(<span class="string">":a:b"</span>, ...) <span class="keyword">do</span>
+
+        <span class="library">print</span>(<span class="string">"opt:"</span>, opt, <span class="string">"arg:"</span>, arg)
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<H3>Code</H3>
+<p>
+<pre class="code">
+<span class="comment">--</span>
+
+<span class="comment">-- getopt(":a:b", ...) -- works just like getopt(3).</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Send bug reports to william@25thandClement.com.</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">function</span> getopt(optstring, ...)
+
+	<span class="keyword">local</span> opts = { }
+
+	<span class="keyword">local</span> args = { ... }
+
+
+
+	<span class="keyword">for</span> optc, optv <span class="keyword">in</span> optstring:gmatch<span class="string">"(%a)(:?)"</span> <span class="keyword">do</span>
+
+		opts[optc] = { hasarg = optv == <span class="string">":"</span> }
+
+	<span class="keyword">end</span>
+
+
+
+	<span class="keyword">return</span> <span class="library">coroutine.wrap</span>(<span class="keyword">function</span>()
+
+		<span class="keyword">local</span> yield = <span class="library">coroutine.yield</span>
+
+		<span class="keyword">local</span> i = 1
+
+
+
+		<span class="keyword">while</span> i &lt;= #args <span class="keyword">do</span>
+
+			<span class="keyword">local</span> arg = args[i]
+
+
+
+			i = i + 1
+
+
+
+			<span class="keyword">if</span> arg == <span class="string">"--"</span> <span class="keyword">then</span>
+
+				<span class="keyword">break</span>
+
+			<span class="keyword">elseif</span> arg:sub(1, 1) == <span class="string">"-"</span> <span class="keyword">then</span>
+
+				<span class="keyword">for</span> j = 2, #arg <span class="keyword">do</span>
+
+					<span class="keyword">local</span> opt = arg:sub(j, j)
+
+
+
+					<span class="keyword">if</span> opts[opt] <span class="keyword">then</span>
+
+						<span class="keyword">if</span> opts[opt].hasarg <span class="keyword">then</span>
+
+							<span class="keyword">if</span> j == #arg <span class="keyword">then</span>
+
+								<span class="keyword">if</span> args[i] <span class="keyword">then</span>
+
+									yield(opt, args[i])
+
+									i = i + 1
+
+								<span class="keyword">elseif</span> optstring:sub(1, 1) == <span class="string">":"</span> <span class="keyword">then</span>
+
+									yield(<span class="string">':'</span>, opt)
+
+								<span class="keyword">else</span>
+
+									yield(<span class="string">'?'</span>, opt)
+
+								<span class="keyword">end</span>
+
+							<span class="keyword">else</span>
+
+								yield(opt, arg:sub(j + 1))
+
+							<span class="keyword">end</span>
+
+
+
+							<span class="keyword">break</span>
+
+						<span class="keyword">else</span>
+
+							yield(opt, <span class="keyword">false</span>)
+
+						<span class="keyword">end</span>
+
+					<span class="keyword">else</span>
+
+						yield(<span class="string">'?'</span>, opt)
+
+					<span class="keyword">end</span>
+
+				<span class="keyword">end</span>
+
+			<span class="keyword">else</span>
+
+				yield(<span class="keyword">false</span>, arg)
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>
+
+
+
+		<span class="keyword">for</span> i = i, #args <span class="keyword">do</span>
+
+			yield(<span class="keyword">false</span>, args[i])
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/GetOpt.html" >GetOpt</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PosixGetOpt" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PosixGetOpt" >history</a><br>Last edited April 10, 2013 6:39 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PosixGetOpt" >(diff)</a>
+</body>
+</html>

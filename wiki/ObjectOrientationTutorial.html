@@ -1,0 +1,536 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Object Orientation Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ObjectOrientationTutorial&amp;body=1" title="List pages referring to ObjectOrientationTutorial">Object Orientation Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua is not really an object-oriented language, and it doesn't have a built-in concept of classes. But it is easily possible to create your own class system using tables and metatables.
+<p>
+<H2>Simple metatable-based class</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> MyClass = {} <span class="comment">-- the table representing the class, which will double as the metatable for the instances</span>
+
+MyClass.__index = MyClass <span class="comment">-- failed table lookups on the instances should fallback to the class table, to get methods</span>
+
+
+
+<span class="comment">-- syntax equivalent to "MyClass.new = function..."</span>
+
+<span class="keyword">function</span> MyClass.new(init)
+
+  <span class="keyword">local</span> self = <span class="library">setmetatable</span>({}, MyClass)
+
+  self.value = init
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> MyClass.set_value(self, newval)
+
+  self.value = newval
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> MyClass.get_value(self)
+
+  <span class="keyword">return</span> self.value
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> i = MyClass.new(5)
+
+<span class="comment">-- tbl:name(arg) is a shortcut for tbl.name(tbl, arg), except tbl is evaluated only once</span>
+
+<span class="library">print</span>(i:get_value()) <span class="comment">--&gt; 5</span>
+
+i:set_value(6)
+
+<span class="library">print</span>(i:get_value()) <span class="comment">--&gt; 6</span>
+
+</pre>
+
+</DL>
+<p>
+First we create a table to represent the class and contain its methods. We also make it double as the metatable for instances, but you can use a separate instance metatable if you like.
+<p>
+In the constructor, we create the instance (an empty table), give it the metatable, fill in fields, and return the new instance.
+<p>
+In the methods, we use a "self" parameter to get the instance to operate on. This is so common that Lua offers the <code>:</code> syntax sugar that calls a function entry from a table and inserts the table itself before the first arg.
+<p>
+There are some improvements that can be made:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> MyClass = {}
+
+MyClass.__index = MyClass
+
+
+
+<span class="library">setmetatable</span>(MyClass, {
+
+  __call = <span class="keyword">function</span> (cls, ...)
+
+    <span class="keyword">return</span> cls.new(...)
+
+  <span class="keyword">end</span>,
+
+})
+
+
+
+<span class="keyword">function</span> MyClass.new(init)
+
+  <span class="keyword">local</span> self = <span class="library">setmetatable</span>({}, MyClass)
+
+  self.value = init
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- the : syntax here causes a "self" arg to be implicitly added before any other args</span>
+
+<span class="keyword">function</span> MyClass:set_value(newval)
+
+  self.value = newval
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> MyClass:get_value()
+
+  <span class="keyword">return</span> self.value
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> instance = MyClass(5)
+
+<span class="comment">-- do stuff with instance...</span>
+
+</pre>
+
+</DL>
+<p>
+Here we add a metatable to the class table that has the <code>__call</code> metamethod, which is triggered when a value is called like a function. We make it call the class's constructor, so you don't need the <code>.new</code> when creating instances. Another option would be to put the constructor right in the metamethod.
+<p>
+Also, to complement the <code>:</code> method call shortcut, Lua lets you use <code>:</code> when defining a function in a table, which implicitly adds a <code>self</code> argument so you don't have to type it out yourself.
+<p>
+<H2>Inheritance</H2>
+<p>
+It's easy to extend the design of the class in the above example to use inheritance:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> BaseClass = {}
+
+BaseClass.__index = BaseClass
+
+
+
+<span class="library">setmetatable</span>(BaseClass, {
+
+  __call = <span class="keyword">function</span> (cls, ...)
+
+    <span class="keyword">local</span> self = <span class="library">setmetatable</span>({}, cls)
+
+    self:_init(...)
+
+    <span class="keyword">return</span> self
+
+  <span class="keyword">end</span>,
+
+})
+
+
+
+<span class="keyword">function</span> BaseClass:_init(init)
+
+  self.value = init
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> BaseClass:set_value(newval)
+
+  self.value = newval
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> BaseClass:get_value()
+
+  <span class="keyword">return</span> self.value
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">---</span>
+
+
+
+<span class="keyword">local</span> DerivedClass = {}
+
+DerivedClass.__index = DerivedClass
+
+
+
+<span class="library">setmetatable</span>(DerivedClass, {
+
+  __index = BaseClass, <span class="comment">-- this is what makes the inheritance work</span>
+
+  __call = <span class="keyword">function</span> (cls, ...)
+
+    <span class="keyword">local</span> self = <span class="library">setmetatable</span>({}, cls)
+
+    self:_init(...)
+
+    <span class="keyword">return</span> self
+
+  <span class="keyword">end</span>,
+
+})
+
+
+
+<span class="keyword">function</span> DerivedClass:_init(init1, init2)
+
+  BaseClass._init(self, init1) <span class="comment">-- call the base class constructor</span>
+
+  self.value2 = init2
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> DerivedClass:get_value()
+
+  <span class="keyword">return</span> self.value + self.value2
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> i = DerivedClass(1, 2)
+
+<span class="library">print</span>(i:get_value()) <span class="comment">--&gt; 3</span>
+
+i:set_value(3)
+
+<span class="library">print</span>(i:get_value()) <span class="comment">--&gt; 5</span>
+
+</pre>
+
+</DL>
+<p>
+Here we have the derived class table an <code>__index</code> metamethod that makes it inherit the base class. Also we moved the creating of the instance into the <code>__call</code> metamethods, and turned the constructors purely into initialization methods. This is so that the derived class can call the base class initialization function on itself.
+<p>
+One final optimization that can be done is to copy the contents of the base class into the derived class instead of using <code>__index</code>. This avoids the long <code>__index</code> chain that can slow down method calls, and also makes it so that if the base class has methods like <code>__add</code>, they will work like proper metamethods on the derived class. This is because <code>__index</code> is not followed when looking for metamethods:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> DerivedClass = {}
+
+<span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">pairs</span>(BaseClass) <span class="keyword">do</span>
+
+  DerivedClass[k] = v
+
+<span class="keyword">end</span>
+
+DerivedClass.__index = DerivedClass
+
+</pre>
+
+</DL>
+<p>
+<H2>Class creation function</H2>
+<p>
+Knowing all this, it's possible to create a convenience function that creates classes, optionally inheriting from other classes. Here is an example of such a function:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> (...)
+
+  <span class="comment">-- "cls" is the new class</span>
+
+  <span class="keyword">local</span> cls, bases = {}, {...}
+
+  <span class="comment">-- copy base class contents into the new class</span>
+
+  <span class="keyword">for</span> i, base <span class="keyword">in</span> <span class="library">ipairs</span>(bases) <span class="keyword">do</span>
+
+    <span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">pairs</span>(base) <span class="keyword">do</span>
+
+      cls[k] = v
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- set the class's __index, and start filling an "is_a" table that contains this class and all of its bases</span>
+
+  <span class="comment">-- so you can do an "instance of" check using my_instance.is_a[MyClass]</span>
+
+  cls.__index, cls.is_a = cls, {[cls] = <span class="keyword">true</span>}
+
+  <span class="keyword">for</span> i, base <span class="keyword">in</span> <span class="library">ipairs</span>(bases) <span class="keyword">do</span>
+
+    <span class="keyword">for</span> c <span class="keyword">in</span> <span class="library">pairs</span>(base.is_a) <span class="keyword">do</span>
+
+      cls.is_a[c] = <span class="keyword">true</span>
+
+    <span class="keyword">end</span>
+
+    cls.is_a[base] = <span class="keyword">true</span>
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- the class's __call metamethod</span>
+
+  <span class="library">setmetatable</span>(cls, {__call = <span class="keyword">function</span> (c, ...)
+
+    <span class="keyword">local</span> instance = <span class="library">setmetatable</span>({}, c)
+
+    <span class="comment">-- run the init method if it's there</span>
+
+    <span class="keyword">local</span> init = instance._init
+
+    <span class="keyword">if</span> init <span class="keyword">then</span> init(instance, ...) <span class="keyword">end</span>
+
+    <span class="keyword">return</span> instance
+
+  <span class="keyword">end</span>})
+
+  <span class="comment">-- return the new class table, that's ready to fill with methods</span>
+
+  <span class="keyword">return</span> cls
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Closure-based objects</H2>
+<p>
+It's also possible to make objects using closures. Instances are slower to create and use more memory, but there are also some advantages (like faster instance field access), and it's an interesting example of how closures can be used.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> MyClass(init)
+
+  <span class="comment">-- the new instance</span>
+
+  <span class="keyword">local</span> self = {
+
+    <span class="comment">-- public fields go in the instance table</span>
+
+    public_field = 0
+
+  }
+
+
+
+  <span class="comment">-- private fields are implemented using locals</span>
+
+  <span class="comment">-- they are faster than table access, and are truly private, so the code that uses your class can't get them</span>
+
+  <span class="keyword">local</span> private_field = init
+
+
+
+  <span class="keyword">function</span> self.foo()
+
+    <span class="keyword">return</span> self.public_field + private_field
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">function</span> self.bar()
+
+    private_field = private_field + 1
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- return the instance</span>
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> i = MyClass(5)
+
+<span class="library">print</span>(i.foo()) <span class="comment">--&gt; 5</span>
+
+i.public_field = 3
+
+i.bar()
+
+<span class="library">print</span>(i.foo()) <span class="comment">--&gt; 9</span>
+
+</pre>
+
+</DL>
+<p>
+Notice that the <code>.</code> syntax was used to call methods, not <code>:</code>. This is because the self variable is already stored in the methods as an upvalue, so it doesn't need to be passed in by the code calling it.
+<p>
+Inheritance is also possible this way:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> BaseClass(init)
+
+  <span class="keyword">local</span> self = {}
+
+
+
+  <span class="keyword">local</span> private_field = init
+
+
+
+  <span class="keyword">function</span> self.foo()
+
+    <span class="keyword">return</span> private_field
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">function</span> self.bar()
+
+    private_field = private_field + 1
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- return the instance</span>
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> DerivedClass(init, init2)
+
+  <span class="keyword">local</span> self = BaseClass(init)
+
+
+
+  self.public_field = init2
+
+
+
+  <span class="comment">-- this is independent from the base class's private field that has the same name</span>
+
+  <span class="keyword">local</span> private_field = init2
+
+
+
+  <span class="comment">-- save the base version of foo for use in the derived version</span>
+
+  <span class="keyword">local</span> base_foo = self.foo
+
+  <span class="keyword">function</span> self.foo()
+
+    <span class="keyword">return</span> private_field + self.public_field + base_foo()
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- return the instance</span>
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> i = DerivedClass(1, 2)
+
+<span class="library">print</span>(i.foo()) <span class="comment">--&gt; 5</span>
+
+i.bar()
+
+<span class="library">print</span>(i.foo()) <span class="comment">--&gt; 6</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Table- vs. Closure-based classes</H3>
+<p>
+Advantages of table-based:
+<p>
+<UL>
+<li> Creating instances of table-based classes is faster, since you only create the instance table and its fields, and the methods are shared by all instances.
+<li> Table-based instances use less memory, since the methods are not duplicated for each instance.
+<li> It's possible to get a method directly from the class (for example <code>MyClass.method(instance, args)</code>).
+<li> Many Lua developers might find <code>:</code> for method calls more consistent with the vast majority of object-oriented Lua code.
+</UL>
+<p>
+Advantages of closure-based:
+<p>
+<UL>
+<li> Closure-based instances can have truly private fields, so that the users of your class cannot accidentally or intentionally get to them.
+<li> Access to private fields is faster with closure-based classes, since they're upvalues, not table lookups.
+<li> Method calls are faster, since they don't have to go through an <code>__index</code> metamethod.
+<li> Many developers from other languages may find the <code>.</code> method call syntax more familiar.
+</UL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/ObjectOrientedProgramming.html" >ObjectOrientedProgramming</a> - links and discussions on using object oriented programming techniques in Lua.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ObjectOrientationTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ObjectOrientationTutorial" >history</a><br>Last edited August 1, 2014 9:50 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ObjectOrientationTutorial" >(diff)</a>
+</body>
+</html>

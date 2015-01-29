@@ -1,0 +1,261 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Making Lua Like Php</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MakingLuaLikePhp&amp;body=1" title="List pages referring to MakingLuaLikePhp">Making Lua Like Php</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here lies a few functions or code snippets that make Lua behave more like PHP.
+<p>
+Note: Some of these PHP-style functions don't do exactly the same as PHP. In some cases this is intentional.
+<p>
+<H3>print_r</H3>
+<p>
+See PHP-like print_r function in <a href="../wiki/TableSerialization.html" >TableSerialization</a>.
+<p>
+<H3>explode</H3>
+Based on <a href="http://www.php.net/explode">[PHP explode]</a>
+<p>
+Example: <code>explode(" and ","one and two and three and four") --&gt; {"one","two","three","four"} </code>
+<p>
+Compatibility: Lua 5.0 and 5.1
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> explode(div,str) <span class="comment">-- credit: http://richard.warburton.it</span>
+
+  <span class="keyword">if</span> (div==<span class="string">''</span>) <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+  <span class="keyword">local</span> pos,arr = 0,{}
+
+  <span class="comment">-- for each divider found</span>
+
+  <span class="keyword">for</span> st,sp <span class="keyword">in</span> <span class="keyword">function</span>() <span class="keyword">return</span> <span class="library">string.find</span>(str,div,pos,<span class="keyword">true</span>) <span class="keyword">end</span> <span class="keyword">do</span>
+
+    <span class="library">table.insert</span>(arr,<span class="library">string.sub</span>(str,pos,st-1)) <span class="comment">-- Attach chars left of current divider</span>
+
+    pos = sp + 1 <span class="comment">-- Jump past current divider</span>
+
+  <span class="keyword">end</span>
+
+  <span class="library">table.insert</span>(arr,<span class="library">string.sub</span>(str,pos)) <span class="comment">-- Attach chars right of last divider</span>
+
+  <span class="keyword">return</span> arr
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>implode</H3>
+Based on <a href="http://www.php.net/implode">[PHP implode]</a>
+<p>
+Use <code>table.concat</code>:
+<p>
+PHP <code>implode(join,array)</code> is equivalent to Lua <code>table.concat(table,join)</code>
+<p>
+PHP: <code>implode(" ",array("this","is","a","test","array")) --&gt; "this is a test array"</code>
+<p>
+Lua: <code>table.concat({"this","is","a","test","array"}," ") --&gt; "this is a test array"</code>
+<p>
+<p>
+<H3>PHP Tables</H3>
+PHP arrays retain the order that key, value pairs are added.  This is not true for Lua by default.  But such functionality can be emulated.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> phpTable(...) <span class="comment">-- abuse to: http://richard.warburton.it</span>
+
+  <span class="keyword">local</span> newTable,keys,values={},{},{}
+
+  newTable.pairs=<span class="keyword">function</span>(self) <span class="comment">-- pairs iterator</span>
+
+    <span class="keyword">local</span> count=0
+
+    <span class="keyword">return</span> <span class="keyword">function</span>() 
+
+      count=count+1
+
+      <span class="keyword">return</span> keys[count],values[keys[count]]
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="library">setmetatable</span>(newTable,{
+
+    __newindex=<span class="keyword">function</span>(self,key,value)
+
+      <span class="keyword">if</span> <span class="keyword">not</span> self[key] <span class="keyword">then</span> <span class="library">table.insert</span>(keys,key)
+
+      <span class="keyword">elseif</span> value==<span class="keyword">nil</span> <span class="keyword">then</span> <span class="comment">-- Handle item delete</span>
+
+        <span class="keyword">local</span> count=1
+
+        <span class="keyword">while</span> keys[count]~=key <span class="keyword">do</span> count = count + 1 <span class="keyword">end</span>
+
+        <span class="library">table.remove</span>(keys,count)
+
+      <span class="keyword">end</span>
+
+      values[key]=value <span class="comment">-- replace/create</span>
+
+    <span class="keyword">end</span>,
+
+    __index=<span class="keyword">function</span>(self,key) <span class="keyword">return</span> values[key] <span class="keyword">end</span>
+
+  })
+
+  <span class="keyword">for</span> x=1,<span class="library">table.getn</span>(arg) <span class="keyword">do</span>
+
+    <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(arg[x]) <span class="keyword">do</span> newTable[k]=v <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> newTable
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example Usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- arguments optional</span>
+
+test = phpTable({blue=<span class="string">"blue"</span>},{red=<span class="string">"r"</span>},{green=<span class="string">"g"</span>})
+
+
+
+test[<span class="string">'life'</span>]=<span class="string">'bling'</span>
+
+test[<span class="string">'alpha'</span>]=<span class="string">'blong'</span>
+
+test[<span class="string">'zeta'</span>]=<span class="string">'blast'</span>
+
+test[<span class="string">'gamma'</span>]=<span class="string">'blue'</span>
+
+test[<span class="string">'yak'</span>]=<span class="string">'orange'</span>
+
+test[<span class="string">'zeta'</span>]=<span class="keyword">nil</span> <span class="comment">-- delete zeta</span>
+
+
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> test:pairs() <span class="keyword">do</span>
+
+	<span class="library">print</span>(k,v)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The output:
+<p>
+<DL>
+<dt><dd><pre>
+
+blue    blue
+
+red     r
+
+green   g
+
+life    bling
+
+alpha   blong
+
+gamma   blue
+
+yak     orange
+
+</pre>
+</DL>
+<p>
+<H3>preg_replace</H3>
+Based on <a href="http://www.php.net/preg_replace">[PHP preg_replace]</a>
+<p>
+Example: <code>preg_replace("\\((.*?)\\)","", "  Obvious exits: n(closed) w(open) rift")</code>
+<p>
+The following preg_replace variants support using the wildcards <em>%n</em> in the replace.
+<p>
+1. Using Lua-style regular expressions:
+<p>
+<UL>
+<li> Dependencies: none
+<li> Compatibility: Lua 5.0 and 5.1
+</UL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> preg_replace(pat,with,p)
+
+  <span class="keyword">return</span> (<span class="library">string.gsub</span>(p,pat,with))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+2. Using PCRE or POSIX regular expressions:
+<p>
+<UL>
+<li> Dependencies: Lrexlib 2.0 <a href="http://lrexlib.luaforge.net/">[1]</a>, PCRE or POSIX regex libraries
+<li> Compatibility: Lua 5.1
+</UL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> preg_replace(pat,with,p)
+
+  <span class="keyword">return</span> (rex.gsub(p,pat,with))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Nutria</H3>
+<a href="http://gitorious.org/nutria/">[Nutria]</a> is a PHP Standard Library written in Lua.
+<p>
+<H3>serialize()</H3>
+<p>
+<a href="https://github.com/agladysh/lua-phpserialize">[lua-phpserialize]</a> module implements serialization of Lua tables to PHP serialize() format.
+<p>
+<H2>See Also</H2>
+<UL>
+<li> <a href="../wiki/MakingLuaLikeRuby.html" >MakingLuaLikeRuby</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MakingLuaLikePhp" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MakingLuaLikePhp" >history</a><br>Last edited June 6, 2011 12:36 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MakingLuaLikePhp" >(diff)</a>
+</body>
+</html>

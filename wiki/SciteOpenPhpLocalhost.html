@@ -1,0 +1,84 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Open Php Localhost</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteOpenPhpLocalhost&amp;body=1" title="List pages referring to SciteOpenPhpLocalhost">Scite Open Php Localhost</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+By <a href="../wiki/WalterCruz.html" >WalterCruz</a> 
+<p>
+When working with SciTE and PHP, soon I saw a necessity: Open my PHP files through the webserver, not just open the file as-is.
+<p>
+I try to write a bash script to do that, but I get bored of this and make it with PHP.
+<p>
+So, I began to read about Lua and I think "Why not?"
+<p>
+So, there is !
+<p>
+<pre class="code">
+<span class="keyword">function</span> openbrowser()
+
+	<span class="keyword">local</span> f = props[<span class="string">'FilePath'</span>]
+
+	<span class="keyword">local</span> s,e,path,file = <span class="library">string.find</span>(f,<span class="string">'^(/var/www/)(.*)'</span>)
+
+	<span class="keyword">if</span> path == <span class="string">'/var/www/'</span> <span class="keyword">then</span>
+
+		target = (<span class="string">"http://10.132.1.18/"</span> .. file)
+
+		firefox = (<span class="string">'mozilla-firefox '</span> .. target .. <span class="string">' &amp;'</span>)
+
+		<span class="library">print</span>(<span class="string">"Opening  "</span> .. target)
+
+		<span class="comment">--print(firefox)</span>
+
+		<span class="library">os.execute</span>(firefox)
+
+	<span class="keyword">else</span>
+
+		<span class="library">print</span>(<span class="string">"You must put your php files under /var/www in order to run them."</span>)
+
+	<span class="keyword">end</span>	
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+I saved this file as <code>localhost.lua</code>, loaded it with my Lua startup file and put theses lines on my SciTE User Config:
+<pre>
+
+command.go.subsystem.*.php=3
+
+command.go.*.php=openbrowser()
+
+</pre>
+<p>
+(On my machine, the webserver root is <code>/var/www</code>. Note that this can be different on your own computer).
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteOpenPhpLocalhost" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteOpenPhpLocalhost" >history</a><br>Last edited August 31, 2006 7:47 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteOpenPhpLocalhost" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Structure Packing</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=StructurePacking&amp;body=1" title="List pages referring to StructurePacking">Structure Packing</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here's various resources on packing and unpacking C structures.
+<p>
+<UL>
+<li> The Lua string library, including <a href="http://www.lua.org/manual/5.1/manual.html#pdf-string.byte">[string.byte]</a> and <a href="http://www.lua.org/manual/5.1/manual.html#pdf-string.char">[string.char]</a>, along with <a href="../wiki/BitwiseOperators.html" >BitwiseOperators</a>, provide very rudimentary functions for doing this.
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lpack">[lpack]</a> (5.0/5.1) - a library for packing and unpacking binary data, written in C.  (<a href="../wiki/LuizHenriqueDeFigueiredo.html" >LuizHenriqueDeFigueiredo</a>)
+<li> <a href="http://www.inf.puc-rio.br/~roberto/struct/">[struct]</a> (5.1/5.2) - another library for packing and unpacking binary data, written in C.  (<a href="../wiki/RobertoIerusalimschy.html" >RobertoIerusalimschy</a>)
+<UL>
+<li> <a href="/lists/lua-l/2009-10/msg00572.html">[2]</a> - extensions by Flemming Madsen
+<li> <a href="http://alien.luaforge.net/">[Alien]</a> "uses a slightly modified version of Roberto Ierusalimschy&#8217;s struct library that can unpack binary blobs (userdata) instead of just strings".  notes: <a href="/lists/lua-l/2009-10/msg00489.html">LuaList:2009-10/msg00489.html</a>
+<li> <a href="https://github.com/dubiousjim/luafiveq">[luafiveqplus]</a> includes a descedent of Roberto's library, including (most of) Flemming Madsen's extensions and a size function from Alien. It also ensures that unpack won't crash the program by overflowing Lua's C stack.
+</UL>
+<li> <a href="http://lunary.luaforge.net/index.html">[Lunary]</a> (5.1) - another library for packing and unpacking binary data, written in C.  (<a href="/lists/lua-l/2009-05/msg00455.html">[differences from other libraries]</a>)  (Jérôme Vuarand)
+<li> <a href="https://github.com/toxicfrog/vstruct/">[vstruct]</a> (5.1/5.2 &amp; luaJIT) - a library for packing and unpacking binary data, written entirely in Lua, using the string library. (Ben Kelly)
+</UL>
+<p>
+Notes/Examples:
+<p>
+<UL>
+<li> Comparison of above structure packing libraries - <a href="/lists/lua-l/2010-03/msg00292.html">LuaList:2010-03/msg00292.html</a> (Sam Roberts)
+<li> <a href="../wiki/ReadWriteFormat.html" >ReadWriteFormat</a> - simple pack/unpack implemented with Lua string library
+<li> <a href="../wiki/PortableNetworkGraphicsParser.html" >PortableNetworkGraphicsParser</a> / <a href="../wiki/ModuleCompressDeflateLua.html" >ModuleCompressDeflateLua</a> - examples of unpacking using Lua string library
+<li> the <a href="http://luajit.org/">[LuaJIT]</a> FFI allows defining structs in standard C syntax. They can be accessed just like table elements <a href="http://lua-users.org/lists/lua-l/2009-12/msg01089.html">[1]</a>.
+<li> struct was at least at one time considered for <a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a> (<a href="/lists/lua-l/2008-02/msg00720.html">LuaList:2008-02/msg00720.html</a>).
+</UL>
+<p>
+Other programming languages cross reference:
+<p>
+<UL>
+<li> Perl <a href="http://perldoc.perl.org/functions/unpack.html">[unpack]</a><a href="http://perldoc.perl.org/functions/pack.html">[pack]</a>, Python <a href="http://docs.python.org/library/struct.html">[struct library]</a>
+<li> <a href="http://en.wikipedia.org/wiki/Data_structure_alignment.html">[Wikipedia:Data structure alignment]</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=StructurePacking" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=StructurePacking" >history</a><br>Last edited June 1, 2013 6:14 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=StructurePacking" >(diff)</a>
+</body>
+</html>

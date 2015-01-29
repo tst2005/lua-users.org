@@ -1,0 +1,440 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Tables Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TablesTutorial&amp;body=1" title="List pages referring to TablesTutorial">Tables Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Tables are the only "container" type in Lua. They are associative arrays (<a href="https://en.wikipedia.org/wiki/Associative_array.html">[1]</a>), which means they store a set of key/value pairs. In a Key/Value pair you can store a value under a key and then later retrieve the value using that key.
+<p>
+<H2>Creating tables</H2>
+<p>
+Tables are created using <em>table constructors</em>, which are defined using curly brackets, e.g. <code> { } </code>. To define an empty table we can do the following.
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {}    <span class="comment">-- construct an empty table and assign it to variable "t"</span>
+
+&gt; <span class="library">print</span>(t)
+
+<span class="library">table</span>: 0035AE18
+
+</pre>
+
+</DL>
+Notice when the value of a table is displayed only the type and unique id of the object are displayed. To print out the contents of a table we must do so explicitly. We'll learn how to do this later.
+<p>
+<H2>Using tables</H2>
+<p>
+To access the value associated with the key in a table you can use the <code>table[key]</code> syntax:
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {}
+
+&gt; t[<span class="string">"foo"</span>] = 123 <span class="comment">-- assign the value 123 to the key "foo" in the table</span>
+
+&gt; t[3] = <span class="string">"bar"</span> <span class="comment">-- assign the value "bar" to the key 3 in the table</span>
+
+&gt; = t[<span class="string">"foo"</span>]
+
+123
+
+&gt; = t[3]
+
+bar
+
+</pre>
+
+</DL>
+<p>
+If there's no value associated with the key, it's not an error, instead the result will be nil:
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {}
+
+&gt; = t[<span class="string">"foo"</span>]
+
+<span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+<p>
+You can erase a key/value pair from a table by assigning nil to the key.
+<p>
+Any value can be used as a key (not just numbers and strings) just make sure it's not <code>nil</code> or NaN (Not a Number):
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {}
+
+&gt; k = {}
+
+&gt; f = <span class="keyword">function</span> () <span class="keyword">end</span>
+
+&gt; t[k] = 123
+
+&gt; t[f] = 456
+
+&gt; = t[k]
+
+123
+
+&gt; = t[f]
+
+456
+
+&gt; t[<span class="keyword">nil</span>] = 123
+
+stdin:1: <span class="library">table</span> index is <span class="keyword">nil</span>
+
+stack traceback:
+
+        stdin:1: <span class="keyword">in</span> main chunk
+
+        [C]: <span class="keyword">in</span> ?
+
+&gt; t[0/0] = 123
+
+stdin:1: <span class="library">table</span> index is NaN
+
+stack traceback:
+
+        stdin:1: <span class="keyword">in</span> main chunk
+
+        [C]: <span class="keyword">in</span> ?
+
+</pre>
+
+</DL>
+<p>
+But it's so common to use string constants as keys there's a special shortcut syntax for it:
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {}
+
+&gt; t.foo = 123 <span class="comment">-- same as t["foo"] (but not t[foo], which would use the variable foo as the key)</span>
+
+&gt; = t.foo
+
+123
+
+&gt; = t[<span class="string">"foo"</span>]
+
+123
+
+</pre>
+
+</DL>
+The shortcut syntax is only valid if the string consists of underscores, letters, and numbers, but shouldn't start with a number.
+<p>
+You can also add key/value associations right inside the {} syntax:
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {[<span class="string">"foo"</span>] = <span class="string">"bar"</span>, [123] = 456}
+
+&gt; = t.foo
+
+bar
+
+&gt; = t[123]
+
+456
+
+</pre>
+
+</DL>
+<p>
+There is also a syntax shortcut for string keys in {}, as long as the string conforms to the same rules as the <code>.</code> syntax:
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {foo = <span class="string">"bar"</span>} <span class="comment">-- same as ["foo"]="bar" (but not [foo]="bar" , that would use the variable foo)</span>
+
+&gt; = t[<span class="string">"foo"</span>]
+
+bar
+
+</pre>
+
+</DL>
+<p>
+To loop over all the key/value pairs in a table, use the <code>pairs</code> iterator:
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {foo = <span class="string">"bar"</span>, [123] = 456}
+
+&gt; <span class="keyword">for</span> key,value <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span> <span class="library">print</span>(key,value) <span class="keyword">end</span>
+
+foo bar
+
+123 456
+
+</pre>
+
+</DL>
+The order when looping with <code>pairs</code> is undefined. Just because you added one item after adding another doesn't mean that's the order they'll be in with <code>pairs</code>.
+<p>
+Inside a <code>pairs</code> loop, it's safe to reassign existing keys or remove them (by assigning nil to them), but not to add new keys (that had a nil value previously).
+<p>
+<H2>Tables as arrays</H2>
+<p>
+Firstly remember tables are still just key/value containers because Lua doesn't actually have an array type. But tables can be treated like arrays which is explained here:
+<p>
+Table constructors can contain a comma separated list of objects to create an "array":
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {<span class="string">"a"</span>, <span class="string">"b"</span>, <span class="string">"c"</span>}
+
+&gt; = t[1]
+
+a
+
+&gt; = t[3]
+
+c
+
+</pre>
+
+</DL>
+This is a syntax shortcut for:
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {[1]=<span class="string">"a"</span>, [2]=<span class="string">"b"</span>, [3]=<span class="string">"c"</span>}
+
+&gt; = t[1]
+
+a
+
+&gt; = t[3]
+
+c
+
+</pre>
+
+</DL>
+So it's still just a key/value association.
+<p>
+You can also mix the array syntax with the usual key=value syntax:
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {<span class="string">"a"</span>, <span class="string">"b"</span>, [123]=<span class="string">"foo"</span>, <span class="string">"c"</span>, name=<span class="string">"bar"</span>, <span class="string">"d"</span>, <span class="string">"e"</span>}
+
+&gt; <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span> <span class="library">print</span>(k,v) <span class="keyword">end</span>
+
+1       a
+
+2       b
+
+3       c
+
+4       d
+
+5       e
+
+123     foo
+
+name    bar
+
+</pre>
+
+</DL>
+<p>
+The first index is the number one, unlike most other languages that start with the number zero. The reason this was chosen is because it's often more intuitive. It was also chosen because it's just a key and not an offset from the beginning. Most languages implement actual array types.
+<p>
+You can get the "length" of an array using the <code>#</code> operator:
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {<span class="string">"a"</span>, <span class="string">"b"</span>, <span class="string">"c"</span>}
+
+&gt; = #t
+
+3
+
+</pre>
+
+</DL>
+<p>
+The <code>#</code> operator doesn't count all the items in the table (!). Instead it finds the last integer (non-fractional number) key. Because of how it's implemented its results are undefined if all the integer keys in the table aren't consecutive. Which is why it shouldn't be used for tables used as sparse arrays<a href="https://en.wikipedia.org/wiki/Sparse_array.html">[2]</a>).
+<p>
+There are two ways to add an item to the end of an array:
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {}
+
+&gt; <span class="library">table.insert</span>(t, 123)
+
+&gt; t[#t+1] = 456
+
+&gt; = t[1]
+
+123
+
+&gt; = t[2]
+
+456
+
+</pre>
+
+</DL>
+<p>
+<code>table.insert</code> takes an optional index parameter to insert into the middle of an array. It shifts up any other integer keys above the index:
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {<span class="string">"a"</span>, <span class="string">"c"</span>}
+
+&gt; <span class="library">table.insert</span>(t, 2, <span class="string">"b"</span>)
+
+&gt; = t[1], t[2], t[3]
+
+a b c
+
+</pre>
+
+</DL>
+<p>
+<code>table.remove</code> removes an item from an array, shifting down any remaining integer keys:
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {<span class="string">"a"</span>, <span class="string">"b"</span>, <span class="string">"c"</span>}
+
+&gt; <span class="library">table.remove</span>(t, 2)
+
+&gt; = t[1], t[2]
+
+a c
+
+</pre>
+
+</DL>
+<p>
+To loop over an array use <code>ipairs</code>. Unlike pairs it only gives you the consecutive integer keys from 1. It guarantees their order sequence. With <code>pairs</code> the number keys will not necessarily be given in the correct order!
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {<span class="string">"a"</span>, <span class="string">"b"</span>, <span class="string">"c"</span>}
+
+&gt; <span class="keyword">for</span> i, v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span> <span class="library">print</span>(i, v) <span class="keyword">end</span>
+
+1       a
+
+2       b
+
+3       c
+
+</pre>
+
+</DL>
+<p>
+To join together an array of strings there's <code>table.concat</code>. It takes optional separator, start, and end parameters. Here we only use the separator:
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {<span class="string">"a"</span>, <span class="string">"b"</span>, <span class="string">"c"</span>}
+
+&gt; = <span class="library">table.concat</span>(t, <span class="string">";"</span>)
+
+a;b;c
+
+</pre>
+
+</DL>
+<p>
+For a list of all the table.* functions and their complete documentation, see [<a href="http://www.lua.org/manual/5.2/manual.html#6.5">[3]</a>].
+<p>
+<H2>Table values are references</H2>
+<p>
+When you pass a table to a function or store it in a new variable, etc. a new copy of that table is not created. Tables do not act like numbers in these cases. Instead the variable or function becomes a reference to the original table. This is much like a pointer in the C Language. For example: 
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {}
+
+&gt; u = t
+
+&gt; u.foo = <span class="string">"bar"</span>
+
+&gt; = t.foo
+
+bar
+
+&gt; <span class="keyword">function</span> f(x) x[1] = 2 <span class="keyword">end</span>
+
+&gt; f(t)
+
+&gt; = u[1]
+
+2
+
+</pre>
+
+</DL>
+<p>
+Tables are freed from memory by the garbage collector after the last reference to them is gone. This does not always happen immediately however.  The garbage collector is designed to work correctly even if a table (directly or indirectly) contains a reference to itself.
+<p>
+A related thing to remember is that table comparison works by reference. Comparing tables using <code>==</code> will return <code>false</code> even if the two tables have the same contents. They must actually be references to the same table.
+<p>
+Finally; if you want to copy a table you'll have to do it manually. Lua offers no standard function for it mainly due to all the different ways you can copy a table.
+<p>
+<H2>Tables as unordered sets</H2>
+<p>
+Often people new to Lua will create an array to store a group of objects even if the order isn't necessary. The problem with this is that removal is slow because the computer needs to shift down other items. Checking if an item is in the array is slow; again because the computer must loop over all the items.
+<p>
+This can be solved by storing items in the keys and setting values to a dummy value (like <code>true</code>). Doing that will help you use a table like an unordered set with fast insertion, removal, and lookup.
+<p>
+The main differences are that there's no easy way to get the count (you have to use a loop), and you can't store the same item twice in the set.
+<p>
+So if you need to store a group of items it's best to consider both sets and arrays to see what fits your situation best.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> items = {}
+
+
+
+<span class="comment">-- add some items to the set</span>
+
+items[<span class="string">"foo"</span>] = <span class="keyword">true</span>
+
+items[123] = <span class="keyword">true</span>
+
+
+
+<span class="comment">-- is "foo" in the set?</span>
+
+<span class="keyword">if</span> items[<span class="string">"foo"</span>] <span class="keyword">then</span>
+
+  <span class="comment">-- do stuff</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- remove item from the set</span>
+
+items[123] = <span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TablesTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TablesTutorial" >history</a><br>Last edited September 7, 2014 5:47 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TablesTutorial" >(diff)</a>
+</body>
+</html>

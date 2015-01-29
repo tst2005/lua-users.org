@@ -1,0 +1,115 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Colon For Method Call</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ColonForMethodCall&amp;body=1" title="List pages referring to ColonForMethodCall">Colon For Method Call</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+In Lua, calls to instance methods typically use a colon ":", while access to class/factory methods or fields use a period ".":
+<p>
+<DL>
+<dt><dd><pre class="code">
+o:test()  <span class="comment">-- method call. equivalent to o.test(o)</span>
+
+o.test()  <span class="comment">-- regular function call. similar to just test()</span>
+
+o.x = 5   <span class="comment">-- field access</span>
+
+</pre>
+
+</DL>
+<p>
+Details on the behavior is discussed in PIL <a href="http://www.lua.org/pil/16.html">[1]</a>.
+<p>
+The two notations are unlike in various other programming languages, including other prototype-based languages such as <a href="../wiki/JavaScript.html" >JavaScript</a>, which only use the period:
+<p>
+<DL>
+<dt><dd><pre>
+
+// JavaScript example
+
+function print() { WScript.echo("value:" + this.x); }
+
+  
+
+// constructor
+
+function Test() {
+
+  this.x = 5;
+
+  this.print = print;
+
+}
+
+ 
+
+t = new Test();
+
+ 
+
+print();    // call as function
+
+t.print();  // call as method
+
+t2 = t.print
+
+t2();       // call as function
+
+ 
+
+// outputs:
+
+// value:undefined
+
+// value:5
+
+// value:undefined
+
+</pre>
+</DL>
+<p>
+It was noted by Rici that there's lots of magic going on to make that work in <a href="../wiki/JavaScript.html" >JavaScript</a>. Mispredicting what "this" will refer to in <a href="../wiki/JavaScript.html" >JavaScript</a> is probably #2 or #3 on the list of frequent bugs.
+<p>
+It can be said that accessing fields and performing method calls are semantically different and warrant the difference in notation provided in Lua.  Invoking a method is like passing a message <strong>to</strong> an object.  
+<p>
+See PIL <a href="http://www.lua.org/pil/16.4.html">[2]</a> for an example of using closures so that method calls may use the "." syntax.  Creating many such closures could be inefficient.  More info on this at <a href="../wiki/ObjectBenchmarkTests.html" >ObjectBenchmarkTests</a>.
+<p>
+<p>
+<DL>
+<dt><dd>Perhaps this could also be implemented with <code>setfenv</code>.  In any case, the fact that Lua has only one type of table index operation ("."), and that ":" is simply syntactic sugar, is a feature.  Unlike <a href="../wiki/JavaScript.html" >JavaScript</a>, Lua has powerful meta-mechanisms that can be used within the language itself;  multiple table access operations would complicate these signficiantly.  Also, it's not accurate to describe Lua as a "prototype-based language".  Lua has no object model out of the box.  You can implement a prototype or classic object model.  <em>--John Belmonte</em>
+</DL>
+<p>
+<p>
+<DL>
+<dt><dd>IMO ":" has it's place. How would I call a function stored in a table if I did NOT always want to give the table as first parameter? If you do this, implicit <em>self</em> or <em>this</em> parameter for functions in tables are a natural next. Hey wait, didn't we store ALL functions in tables, like for e._G? I'd rather have Lua not go down the road of OObsession...  <em>--Frank Hirsch</em>
+</DL>
+<p>
+See also the <a href="/lists/lua-l/2009-11/msg00708.html">[__methindex]</a> proposal, which distinguishes ':' and '.' with different metamethods.  It can rely on the fact that even though ':' is syntactic sugar for '.', they do produce different VM opcodes (the former generates a SELF opcode).
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ColonForMethodCall" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ColonForMethodCall" >history</a><br>Last edited June 19, 2010 8:43 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ColonForMethodCall" >(diff)</a>
+</body>
+</html>

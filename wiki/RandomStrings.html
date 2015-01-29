@@ -1,0 +1,119 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Random Strings</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=RandomStrings&amp;body=1" title="List pages referring to RandomStrings">Random Strings</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Generate random strings with defined char-sets using the Lua internal character classes. Idea from Adrian Sietsma.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> Chars = {}
+
+<span class="keyword">for</span> Loop = 0, 255 <span class="keyword">do</span>
+
+   Chars[Loop+1] = <span class="library">string.char</span>(Loop)
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> String = <span class="library">table.concat</span>(Chars)
+
+
+
+<span class="keyword">local</span> Built = {[<span class="string">'.'</span>] = Chars}
+
+
+
+<span class="keyword">local</span> AddLookup = <span class="keyword">function</span>(CharSet)
+
+   <span class="keyword">local</span> Substitute = <span class="library">string.gsub</span>(String, <span class="string">'[^'</span>..CharSet..<span class="string">']'</span>, <span class="string">''</span>)
+
+   <span class="keyword">local</span> Lookup = {}
+
+   <span class="keyword">for</span> Loop = 1, <span class="library">string.len</span>(Substitute) <span class="keyword">do</span>
+
+       Lookup[Loop] = <span class="library">string.sub</span>(Substitute, Loop, Loop)
+
+   <span class="keyword">end</span>
+
+   Built[CharSet] = Lookup
+
+
+
+   <span class="keyword">return</span> Lookup
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> <span class="library">string.random</span>(Length, CharSet)
+
+   <span class="comment">-- Length (number)</span>
+
+   <span class="comment">-- CharSet (string, optional); e.g. %l%d for lower case letters and digits</span>
+
+
+
+   <span class="keyword">local</span> CharSet = CharSet <span class="keyword">or</span> <span class="string">'.'</span>
+
+
+
+   <span class="keyword">if</span> CharSet == <span class="string">''</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="string">''</span>
+
+   <span class="keyword">else</span>
+
+      <span class="keyword">local</span> Result = {}
+
+      <span class="keyword">local</span> Lookup = Built[CharSet] <span class="keyword">or</span> AddLookup(CharSet)
+
+      <span class="keyword">local</span> Range = <span class="library">table.getn</span>(Lookup)
+
+
+
+      <span class="keyword">for</span> Loop = 1,Length <span class="keyword">do</span>
+
+         Result[Loop] = Lookup[<span class="library">math.random</span>(1, Range)]
+
+      <span class="keyword">end</span>
+
+
+
+      <span class="keyword">return</span> <span class="library">table.concat</span>(Result)
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=RandomStrings" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=RandomStrings" >history</a><br>Last edited January 6, 2007 4:20 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=RandomStrings" >(diff)</a>
+</body>
+</html>

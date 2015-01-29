@@ -1,0 +1,157 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Extending Identifier Characters</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ExtendingIdentifierCharacters&amp;body=1" title="List pages referring to ExtendingIdentifierCharacters">Extending Identifier Characters</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+After some discussion of how nice it might be if '?' and '!' were legitimate characters in Lua identifiers, I realized that it's possible to do simply by changing the locale, since Lua is locale-aware. It's only necessary to create a locale whose LC_CTYPE identifies '?' and '!' as <code>alpha</code>.
+<p>
+In general, there is a problem with distributing Lua programs which use a locale other than the <code>C</code> locale, because it makes the files locale-dependent. However, with a bit of hackery, it's possible to replace the various Lua functions which read files with functions which are locale-aware.
+<p>
+The following example only causes <code>require</code> to be locale aware, but that's the most difficult case; replace <code>loadfile</code> is quite a bit easier. It assumes that files start with a standard Unix "shebang" line which looks something like:
+<DL>
+<dt><dd><pre>
+
+#!/bin/env LC_CTYPE=pt_BR lua
+
+</pre>
+</DL>
+<p>
+The loader defined below checks for anything that looks like a LC_CTYPE definition in the shebang line, and sets the locale accordingly while parsing the file. This has not been tested very much, but it seemed useful enough to record.
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> pkg = <span class="library">require</span><span class="string">"package"</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> findfile(pname, pathtype)
+
+  <span class="keyword">local</span> path = pkg[pathtype]
+
+  <span class="keyword">local</span> fname = pname:gsub(<span class="string">"%."</span>, <span class="string">"/"</span>)
+
+  <span class="keyword">local</span> errs = {} 
+
+  <span class="keyword">for</span> seg <span class="keyword">in</span> path:gmatch<span class="string">"[^;]+"</span> <span class="keyword">do</span>
+
+    <span class="keyword">local</span> fname = seg:gsub(<span class="string">"%?"</span>, fname)
+
+    <span class="keyword">local</span> file, err = <span class="library">io.open</span>(fname)
+
+    <span class="keyword">if</span> file <span class="keyword">then</span>
+
+      <span class="keyword">return</span> file, fname
+
+    <span class="keyword">else</span>
+
+      errs[#errs+1] = (<span class="string">"\n\tno file '%s'"</span>):format(fname)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="library">table.concat</span>(errs)
+
+<span class="keyword">end</span>
+
+  
+
+<span class="keyword">local</span> yield = <span class="library">coroutine.yield</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> Reader(file)
+
+  <span class="keyword">return</span> <span class="library">coroutine.wrap</span>(<span class="keyword">function</span>()
+
+    <span class="keyword">local</span> data = file:read(1)
+
+    <span class="keyword">if</span> data ~= <span class="string">'#'</span> <span class="keyword">then</span>
+
+      yield(data)
+
+      yield(file:read<span class="string">"*a"</span>)
+
+    <span class="keyword">else</span>
+
+      file:seek(<span class="string">"set"</span>)
+
+      <span class="keyword">local</span> lines = file:lines() 
+
+      <span class="keyword">local</span> shebang = lines()
+
+      <span class="keyword">local</span> ctype = shebang:match<span class="string">"LC_CTYPE=(%S+)"</span>
+
+      <span class="keyword">if</span> ctype <span class="keyword">then</span> <span class="library">os.setlocale</span>(ctype, <span class="string">"ctype"</span>) <span class="keyword">end</span>
+
+      yield<span class="string">"\n"</span>
+
+      <span class="keyword">for</span> l <span class="keyword">in</span> lines <span class="keyword">do</span> yield(l..<span class="string">"\n"</span>) <span class="keyword">end</span>
+
+    <span class="keyword">end</span> 
+
+  <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+  
+
+<span class="keyword">local</span> <span class="keyword">function</span> myloader(pname)
+
+  <span class="keyword">local</span> file, fname = findfile(pname, <span class="string">"path"</span>)
+
+  <span class="keyword">if</span> file <span class="keyword">then</span>
+
+    <span class="keyword">local</span> locale = <span class="library">os.setlocale</span>(<span class="keyword">nil</span>, <span class="string">"ctype"</span>)
+
+    <span class="keyword">local</span> chunk, err = <span class="library">load</span>(Reader(file), <span class="string">"@"</span>..fname)
+
+    <span class="library">os.setlocale</span>(locale, <span class="string">"ctype"</span>)
+
+    file:close()
+
+    <span class="keyword">if</span> chunk <span class="keyword">then</span>
+
+      <span class="keyword">return</span> chunk
+
+    <span class="keyword">else</span>
+
+      <span class="library">error</span>((<span class="string">"error loading '%s' from '%s':\n\t%s"</span>):format(pname, fname, err), 0)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">else</span> <span class="keyword">return</span> fname <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+    
+
+pkg.loaders[2] = myloader
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ExtendingIdentifierCharacters" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ExtendingIdentifierCharacters" >history</a><br>Last edited July 13, 2007 5:10 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ExtendingIdentifierCharacters" >(diff)</a>
+</body>
+</html>

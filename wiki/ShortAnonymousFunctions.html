@@ -1,0 +1,287 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Short Anonymous Functions</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ShortAnonymousFunctions&amp;body=1" title="List pages referring to ShortAnonymousFunctions">Short Anonymous Functions</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Sometimes Lua's anonymous function syntax, <code>function() return ... end</code>, feels verbose for short functions, such as lambda functions in functional programming styles.  For example, in Lua a <code>map</code> function <a href="http://en.wikipedia.org/wiki/Map_(higher-order_function).html">[1]</a> function might be used as such:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> y = map(<span class="keyword">function</span>(p) <span class="keyword">return</span> translate[p] <span class="keyword">end</span>, x)
+
+</pre>
+
+</DL>
+<p>
+In some languages like Perl, this is written more succinctly as
+<p>
+<DL>
+<dt><dd><pre>
+
+my @y = map { $translate{$_} } @x;
+
+</pre>
+</DL>
+or even
+<DL>
+<dt><dd><pre>
+
+my @y = @translate{@x};
+
+</pre>
+</DL>
+<p>
+Here are some alternative approaches for Lua.
+<p>
+<H3>Pattern: Stringified Anonymous Functions</H3>
+<p>
+We can improve this in Lua with a utility function <code>fn</code> that creates an anonymous function from a shorter string representation.  It might be used like this:
+<p>
+<DL>
+<dt><dd><pre>
+
+local y = map(fn("L1[P1]", translate), x)
+
+</pre>
+</DL>
+<p>
+<code>fn</code> takes as arguments a string representation of an expression defining the return value of the anonymous function to create and a list of local variables that are referred to as <code>L1</code>, <code>L2</code>, <code>L3</code>, ..., <code>L9</code> in the expression.  The arguments of the anonymous function are referred to with <code>P1</code>, <code>P2</code>, <code>P3</code>, ..., <code>P9</code>.  <code>fn</code> can be defined in this way:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> fn(s, ...)
+
+  <span class="keyword">local</span> src = <span class="string">[[
+
+    local L1, L2, L3, L4, L5, L6, L7, L8, L9 = ...
+
+    return function(P1,P2,P3,P4,P5,P6,P7,P8,P9) return ]]</span> .. s .. <span class="string">[[ end
+
+  ]]</span>
+
+  <span class="keyword">return</span> <span class="library">loadstring</span>(src)(...)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Here's the rest of the code for running this example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> map(f, t)
+
+  <span class="keyword">local</span> t2 = {}
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span> t2[k] = f(v) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t2
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> translate = {[<span class="string">"hello"</span>] = <span class="string">"hola"</span>, [<span class="string">"bye"</span>] = <span class="string">"adiós"</span>, [<span class="string">"sir"</span>] = <span class="string">"señor"</span>}
+
+<span class="keyword">local</span> t = map(fn(<span class="string">"L1[P1]"</span>, translate), {<span class="string">"hello"</span>, <span class="string">"sir"</span>})
+
+<span class="library">print</span>(<span class="library">table.concat</span>(t, <span class="string">" "</span>)) <span class="comment">--&gt; hola señor</span>
+
+</pre>
+
+</DL>
+<p>
+Note, however, that it is inefficient if <code>fn</code> is called repeatedly (e.g. in a loop) on the same stringified expression since each call invokes <code>loadstring</code> (which involves code generation).  This can be improved via memoization (see <a href="../wiki/FuncTables.html" >FuncTables</a>) of <code>loadstring</code>.  This basic pattern (with memoization) was used in <a href="../wiki/CodeGeneration.html" >CodeGeneration</a>.
+<p>
+If your anonymous function has no local variables, then the syntax is shorter.  For example, <code>fn"P1 &gt; 0"</code> is a function that checks whether its argument is greater than zero.
+<p>
+Some may suggest supporting an arbitrary number of <code>Ln</code> and <code>Pn</code> variables; however, remember that this technique is only intended for short one-line expressions.
+<p>
+Also, in some cases one can move the string-&gt;function conversion into the map function to get
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> y = map(<span class="string">"P1 * 2"</span>, x)
+
+</pre>
+
+</DL>
+<p>
+Here is another syntax:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">getmetatable</span>(<span class="string">""</span>).__call =
+
+  <span class="keyword">function</span>(s, ...) <span class="keyword">return</span> <span class="library">assert</span>(<span class="library">loadstring</span>(<span class="string">"return "</span> .. s))()(...) <span class="keyword">end</span>
+
+(<span class="string">"function(x,y) print(x+y) end"</span>)(2,3)  <span class="comment">-- prints 5</span>
+
+</pre>
+
+</DL>
+<p>
+This technique here has also been called "string lambdas" [1], which have been implemented in Java<code></code>Script and Erlang:
+<p>
+<DL>
+<dt><dd>[1] <a href="http://debasishg.blogspot.com/2007/11/erlang-string-lambdas.html">http://debasishg.blogspot.com/2007/11/erlang-string-lambdas.html</a>
+</DL>
+<p>
+The approach has its uses but is less-than-ideal because lexical variables cannot be used directly inside the lambda.  (A possible solution to that is <a href="../wiki/StringInterpolation.html" >StringInterpolation</a>.)
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>, 2007-02
+<p>
+An implementation of string lambdas is available with the <a href="../wiki/PenlightLibraries.html" >PenlightLibraries</a>. Two forms are supported, the first similar to the one implemented by <a href="../wiki/MetaLua.html" >MetaLua</a> and the second resembling Scala lambdas:
+<p>
+<pre class="code">
+&gt; <span class="library">require</span> <span class="string">'pl'</span>
+
+&gt; L = utils.string_lambda
+
+&gt; = L<span class="string">'|x| x+2'</span> (1)
+
+3
+
+&gt; = L<span class="string">'_+2'</span> (0)
+
+2
+
+&gt; ls = List{<span class="string">'one'</span>,<span class="string">'two'</span>,<span class="string">'three'</span>}
+
+&gt; = ls:map(L<span class="string">'_:upper()'</span>)
+
+{ONE,TWO,THREE}
+
+</pre>
+
+<p>
+The results are cached using the Memoization pattern.  Originally, any function in Penlight expecting a function could be passed a string, and an attempt would be made to parse that string as a string lambda, but eventually we felt that this would introduce too much magic.  (This most definitely applies to any modification of string metatables to make them directly callable.)
+<p>
+Steve Donovan, 2012
+<p>
+<H2>Lua Source Filtering</H2>
+<p>
+The following approach does source filtering using only Lua, so it is fully self-contained:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">assert</span>(<span class="library">loadstring</span>(((<span class="string">[[--filtered
+
+function pass(f) f() end
+
+function fail(f)
+
+  if pcall(f) then error 'fail expected' end
+
+end
+
+pass &lt;&lt; x = 1 + 2 &gt;&gt;
+
+fail &lt;&lt; x = 1 + nil &gt;&gt;
+
+print 'DONE'
+
+]]</span>):gsub(<span class="string">'&lt;&lt;'</span>, <span class="string">'(function(a,b) '</span>):gsub(<span class="string">'&gt;&gt;'</span>, <span class="string">' end)'</span>))))()
+
+</pre>
+
+</DL>
+<p>
+It's important to have some text (e.g. "--") after "[[" on the first line to ensure the first line is counted in the line numbering in any error messages.  Also, the text on this line is displayed in error messages and so preferably should convey some meaning.
+<p>
+Here's what syntax and run-time errors then look like:
+<p>
+<DL>
+<dt><dd><pre>
+
+lua: src.lua:1: [string "--filtered..."]:4: 'then' expected near 'thenn'
+
+stack traceback:
+
+        [C]: in function 'assert'
+
+        src.lua:1: in main chunk
+
+        [C]: ?
+
+
+
+$ lua src.lua
+
+lua: [string "--filtered..."]:6: attempt to call global 'Pass' (a nil value)
+
+stack traceback:
+
+        [string "--filtered..."]:6: in main chunk
+
+        src.lua:9: in main chunk
+
+        [C]: ?
+
+</pre>
+</DL>
+<p>
+A disadvantage of this approach may be that syntax highlighters color the entire main code as a string (however, it colors fine under XEmacs).  You could work around that by doing a <code>loadfile</code> on an external file rather than a <code>loadstring</code>.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>Metalua</H2>
+<p>
+<a href="../wiki/MetaLua.html" >MetaLua</a> <a href="http://metalua.luaforge.net/">[2]</a> provides a syntax <code>|x,y| x*y</code> for <code>function(x,y) return x*y end</code>.
+<p>
+The Lambda Function Patch <a href="http://lua-users.org/lists/lua-l/2009-10/msg00496.html">[3]</a> provides the same syntax by patching the Lua parser.
+<p>
+<H2>do end patch</H2>
+<p>
+The "do patch" in <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a> makes <code>= do ... end</code> be syntactic sugar for <code>= function() ... end</code>. 
+<p>
+<H2>Risc<code></code>Lua</H2>
+<p>
+<a href="../wiki/RiscLua.html" >RiscLua</a> provides the syntactic sugar <code>\</code> for <code>function</code> and <code>=&gt;</code> for <code>return</code>. Thus
+<p>
+<pre>curry = \(f) =&gt; \(x) =&gt; \(y) =&gt; f(x,y) end end end</pre>
+<p>
+<H2>Concise Anonymous Functions patch</H2>
+<p>
+The Concise Anonymous Functions patch in <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a> makes <code>= [ ... ]</code> be syntactic sugar for <code>= function() ... end</code>, and <code>= [| ... ]</code> be short for <code>= function() return ... end</code> 
+<p>
+<H2>Placeholders</H2>
+<p>
+Placeholder expressions a la Boost (e.g. tablex.map(_1*_1,{1,2,3,4}) --&gt; {1,4,9,16}) are described in "Placeholder Expressions" in <a href="http://stevedonovan.github.com/Penlight/api/topics/07-functional.md.html#Placeholder_Expressions">[4]</a>, <a href="/lists/lua-l/2009-03/msg00452.html">LuaList:2009-03/msg00452.html</a> , and <a href="/lists/lua-l/2009-04/msg00069.html">LuaList:2009-04/msg00069.html</a> .
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2007-02/msg00064.html">LuaList:2007-02/msg00064.html</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ShortAnonymousFunctions" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ShortAnonymousFunctions" >history</a><br>Last edited July 4, 2012 9:37 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ShortAnonymousFunctions" >(diff)</a>
+</body>
+</html>

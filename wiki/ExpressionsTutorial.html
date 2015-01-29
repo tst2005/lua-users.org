@@ -1,0 +1,585 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Expressions Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ExpressionsTutorial&amp;body=1" title="List pages referring to ExpressionsTutorial">Expressions Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Expressions are evaluated in order to perform calculations which may assign values to variables or pass arguments to functions. Expressions are covered pretty well in section 2.5 of the Reference Manual.<a href="http://www.lua.org/manual/5.1/manual.html#2.5">[1]</a> Expressions are covered here for completeness and to offer more examples.
+<p>
+We'll use the <code>=</code> <em>expression</em> shorthand notation for this page. The values can easily be assigned to a variable, e.g.,
+<DL>
+<dt><dd><pre class="code">
+&gt; x = 7
+
+&gt; <span class="library">print</span>(x)
+
+7
+
+&gt; = 7
+
+7
+
+</pre>
+
+</DL>
+<p>
+<H2>Arithmetic expressions</H2>
+<p>
+Lua has the usual binary arithmetic operators.
+<DL>
+<dt><dd><pre class="code">
+&gt; = 2+3, 5-12, 2*7, 7/8
+
+5       -7      14      0.875
+
+&gt; = 5*(2-8.3)/77.7+99.1
+
+98.694594594595
+
+</pre>
+
+</DL>
+Unary negation:
+<DL>
+<dt><dd><pre class="code">
+&gt; = -(-10), -(10)
+
+10      -10
+
+</pre>
+
+</DL>
+Modulo (division remainder):
+<DL>
+<dt><dd><pre class="code">
+&gt; = 15%7, -4%3, 5.5%1
+
+1       2       0.5
+
+</pre>
+
+</DL>
+Power of:
+<DL>
+<dt><dd><pre class="code">
+&gt; = 7^2, 107^0, 2^8
+
+49      1       256
+
+</pre>
+
+</DL>
+<p>
+<H2>Relational expressions</H2>
+<p>
+Relational operators are supplied which return the boolean values <code>true</code> or <code>false</code>.
+<UL>
+<li> <code>==</code> equal to
+<li> <code>~=</code> not equal to
+<li> <code>&lt;</code> less than
+<li> <code>&gt;</code> greater than
+<li> <code>&lt;=</code> less than or equal to
+<li> <code>&gt;=</code> greater than or equal to
+</UL>
+<p>
+Examples:
+<DL>
+<dt><dd><pre class="code">
+&gt; = 1 == 1, 1 == 0
+
+<span class="keyword">true</span>    <span class="keyword">false</span>
+
+&gt; = 1 ~= 1, 1 ~= 0
+
+<span class="keyword">false</span>   <span class="keyword">true</span>
+
+&gt; = 3 &lt; 7, 7 &lt; 7, 8 &lt; 7
+
+<span class="keyword">true</span>	<span class="keyword">false</span>	<span class="keyword">false</span>
+
+&gt; = 3 &gt; 7, 7 &gt; 7, 8 &gt; 7
+
+<span class="keyword">false</span>	<span class="keyword">false</span>	<span class="keyword">true</span>
+
+&gt; = 3 &lt;= 7, 7 &lt;= 7, 8 &lt;= 7
+
+<span class="keyword">true</span>    <span class="keyword">true</span>    <span class="keyword">false</span>
+
+&gt; = 3 &gt;= 7, 7 &gt;= 7, 8 &gt;= 7
+
+<span class="keyword">false</span>   <span class="keyword">true</span>    <span class="keyword">true</span>
+
+</pre>
+
+</DL>
+These also work on strings and other types.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="string">"abc"</span> &lt; <span class="string">"def"</span>
+
+<span class="keyword">true</span>
+
+&gt; = <span class="string">"abc"</span> &gt; <span class="string">"def"</span>
+
+<span class="keyword">false</span>
+
+&gt; = <span class="string">"abc"</span> == <span class="string">"abc"</span>
+
+<span class="keyword">true</span>
+
+&gt; = <span class="string">"abc"</span> == <span class="string">"a"</span>..<span class="string">"bc"</span>
+
+<span class="keyword">true</span>
+
+</pre>
+
+</DL>
+Objects will not be equal if the types are different or refer to different objects.
+<DL>
+<dt><dd><pre class="code">
+&gt; = {} == <span class="string">"table"</span>
+
+<span class="keyword">false</span>
+
+&gt; = {} == {}  <span class="comment">-- two different tables are created here</span>
+
+<span class="keyword">false</span>
+
+&gt; t = {}
+
+&gt; t2 = t
+
+&gt; = t == t2   <span class="comment">-- we're referencing the same table here</span>
+
+<span class="keyword">true</span>
+
+</pre>
+
+</DL>
+Coercion does not work here, the types must be converted explicitly. See <a href="../wiki/NumbersTutorial.html" >NumbersTutorial</a> and <a href="../wiki/StringsTutorial.html" >StringsTutorial</a> for explanation of coercion.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="string">"10"</span> == 10
+
+<span class="keyword">false</span>
+
+&gt; = <span class="library">tonumber</span>(<span class="string">"10"</span>) == 10
+
+<span class="keyword">true</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Logical operators</H2>
+<p>
+Lua provides the logical operators <code>and</code>, <code>or</code> and <code>not</code>. In Lua both <code>nil</code> and the boolean value <code>false</code> represent false in a logical expression. Anything that is not false (either <code>nil</code> or <code>false</code>) is <code>true</code>. There are more notes on the implications of this at the end of this page.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="keyword">false</span>==<span class="keyword">nil</span>   <span class="comment">-- although they represent the same thing they are not equivalent</span>
+
+<span class="keyword">false</span>
+
+&gt; = <span class="keyword">true</span>==<span class="keyword">false</span>, <span class="keyword">true</span>~=<span class="keyword">false</span>
+
+<span class="keyword">false</span>   <span class="keyword">true</span>
+
+&gt; = 1==0
+
+<span class="keyword">false</span>
+
+&gt; = does_this_exist  <span class="comment">-- test to see if variable "does_this_exist" exists. no, false.</span>
+
+<span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>not</H3>
+<p>
+The keyword <code>not</code> inverts a logical expression value:
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="keyword">true</span>, <span class="keyword">false</span>, <span class="keyword">not</span> <span class="keyword">true</span>, <span class="keyword">not</span> <span class="keyword">false</span>
+
+<span class="keyword">true</span>    <span class="keyword">false</span>   <span class="keyword">false</span>   <span class="keyword">true</span>
+
+&gt; = <span class="keyword">not</span> <span class="keyword">nil</span>       <span class="comment">-- nil represents false</span>
+
+<span class="keyword">true</span>
+
+&gt; = <span class="keyword">not</span> <span class="keyword">not</span> <span class="keyword">true</span>  <span class="comment">-- true is not not true!</span>
+
+<span class="keyword">true</span>
+
+&gt; = <span class="keyword">not</span> <span class="string">"foo"</span>     <span class="comment">-- anything not false or nil is true</span>
+
+<span class="keyword">false</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>and</H3>
+<p>
+The binary operator <code>and</code> does <em>not necessarily</em> return a boolean value <code>true</code> or <code>false</code> to the logical expression <em>x and y</em>. In some languages the <code>and</code> operator returns a boolean dependent on the two inputs. Rather in Lua, it returns the first argument if its value is <code>false</code> or <code>nil</code>, and the second argument if the first argument is not <code>false</code> or <code>nil</code>. So, a boolean is only returned if the first argument is <code>false</code> or the second argument is a boolean.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="keyword">false</span> <span class="keyword">and</span> <span class="keyword">true</span>  <span class="comment">-- false is returned because it is the first argument</span>
+
+<span class="keyword">false</span>
+
+&gt; = <span class="keyword">nil</span> <span class="keyword">and</span> <span class="keyword">true</span>    <span class="comment">-- as above</span>
+
+<span class="keyword">nil</span>
+
+&gt; = <span class="keyword">nil</span> <span class="keyword">and</span> <span class="keyword">false</span>
+
+<span class="keyword">nil</span>
+
+&gt; = <span class="keyword">nil</span> <span class="keyword">and</span> <span class="string">"hello"</span>, <span class="keyword">false</span> <span class="keyword">and</span> <span class="string">"hello"</span>
+
+<span class="keyword">nil</span>     <span class="keyword">false</span>
+
+</pre>
+
+</DL>
+All of the above expressions return the first argument. All of the following expressions return the second argument, as the first is true.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="keyword">true</span> <span class="keyword">and</span> <span class="keyword">false</span>
+
+<span class="keyword">false</span>
+
+&gt; = <span class="keyword">true</span> <span class="keyword">and</span> <span class="keyword">true</span>
+
+<span class="keyword">true</span>
+
+&gt; = 1 <span class="keyword">and</span> <span class="string">"hello"</span>, <span class="string">"hello"</span> <span class="keyword">and</span> <span class="string">"there"</span>
+
+hello   there
+
+&gt; = <span class="keyword">true</span> <span class="keyword">and</span> <span class="keyword">nil</span>
+
+<span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+As you can see the logical expressions are still evaluated correctly but we have some interesting behaviour because of the values returned.
+<p>
+<H3>or</H3>
+<p>
+The <code>or</code> binary operator also does <em>not necessarily</em> return a boolean value (see notes for <code>and</code> above). If the first argument is not <code>false</code> or <code>nil</code> it is returned, otherwise the second argument is returned. So, a boolean is only returned if the first argument is <code>true</code> or the second argument is a boolean.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="keyword">true</span> <span class="keyword">or</span> <span class="keyword">false</span>
+
+<span class="keyword">true</span>
+
+&gt; = <span class="keyword">true</span> <span class="keyword">or</span> <span class="keyword">nil</span>
+
+<span class="keyword">true</span>
+
+&gt; = <span class="string">"hello"</span> <span class="keyword">or</span> <span class="string">"there"</span>, 1 <span class="keyword">or</span> 0
+
+hello   1
+
+</pre>
+
+</DL>
+All of the above expressions return the first argument. All of the following expressions return the second argument, as the first is <code>false</code> or <code>nil</code>.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="keyword">false</span> <span class="keyword">or</span> <span class="keyword">true</span>
+
+<span class="keyword">true</span>
+
+&gt; = <span class="keyword">nil</span> <span class="keyword">or</span> <span class="keyword">true</span>
+
+<span class="keyword">true</span>
+
+&gt; = <span class="keyword">nil</span> <span class="keyword">or</span> <span class="string">"hello"</span>
+
+hello
+
+</pre>
+
+</DL>
+<p>
+This can be a very useful property. For example, setting default values in a function:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">function</span> foo(x)
+
+&gt;&gt;  <span class="keyword">local</span> value = x <span class="keyword">or</span> <span class="string">"default"</span>  <span class="comment">-- if argument x is false or nil, value becomes "default"</span>
+
+&gt;&gt;  <span class="library">print</span>(value, x)
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt;
+
+&gt; foo()       <span class="comment">-- no arguments, so x is nil</span>
+
+default <span class="keyword">nil</span>
+
+&gt; foo(1)
+
+1       1
+
+&gt; foo(<span class="keyword">true</span>)
+
+<span class="keyword">true</span>    <span class="keyword">true</span>
+
+&gt; foo(<span class="string">"hello"</span>)
+
+hello   hello
+
+</pre>
+
+</DL>
+<p>
+<H2>Ternary operators</H2>
+<p>
+Ternary operators <a href="http://wombat.doc.ic.ac.uk/foldoc/foldoc.cgi?query=ternary">[2]</a> are a useful feature in C. e.g.
+<DL>
+<dt><dd><pre class="code">
+int value = x&gt;3 ? 1 : 0;
+
+</pre>
+
+</DL>
+<p>
+This behaviour can be partially emulated in Lua using the logical operators <code>and</code> and <code>or</code>. The C form:
+<DL>
+<dt><dd><pre class="code">
+value = test ? x : y;</pre>
+
+</DL>
+roughly translates to the following Lua:
+<DL>
+<dt><dd><pre class="code">
+value = test <span class="keyword">and</span> x <span class="keyword">or</span> y</pre>
+
+</DL>
+<p>
+E.g.
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">print</span>( 3&gt;1 <span class="keyword">and</span> 1 <span class="keyword">or</span> 0 )
+
+1
+
+&gt; <span class="library">print</span>( 3&lt;1 <span class="keyword">and</span> 1 <span class="keyword">or</span> 0 )
+
+0
+
+&gt; <span class="library">print</span>( 3&lt;1 <span class="keyword">and</span> <span class="string">"True"</span> <span class="keyword">or</span> <span class="string">"False"</span> )
+
+False
+
+&gt; <span class="library">print</span>( 3&gt;1 <span class="keyword">and</span> <span class="keyword">true</span> <span class="keyword">or</span> <span class="string">"false"</span> )
+
+<span class="keyword">true</span>
+
+</pre>
+
+</DL>
+<p>
+This can be used for short hand to fill a hash:
+<DL>
+<dt><dd><pre class="code">
+&gt; t = {}
+
+&gt; t[1] = 12;
+
+&gt; t[2] = 13;
+
+&gt; <span class="keyword">for</span> i=1, 3 <span class="keyword">do</span>
+
+&gt;&gt;	t[i] = (t[i] <span class="keyword">or</span> 0) + 1
+
+&gt;<span class="keyword">end</span>
+
+
+
+&gt; <span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+&gt;&gt;	<span class="library">print</span>(k, v);
+
+&gt; <span class="keyword">end</span>
+
+1	13
+
+2	14
+
+3	1
+
+</pre>
+
+</DL>
+<p>
+However, there is a caveat: This only works when the first return value is not <code>nil</code> or <code>false</code>. 
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">print</span>( 3&gt;1 <span class="keyword">and</span> 1 <span class="keyword">or</span> <span class="string">"False"</span> )        <span class="comment">-- works</span>
+
+1
+
+&gt; <span class="library">print</span>( 3&gt;1 <span class="keyword">and</span> <span class="keyword">false</span> <span class="keyword">or</span> <span class="string">"oops"</span> )     <span class="comment">-- failed, should return false</span>
+
+oops
+
+&gt; <span class="library">print</span>( 3&gt;1 <span class="keyword">and</span> <span class="keyword">nil</span> <span class="keyword">or</span> <span class="string">"oops"</span> )       <span class="comment">-- failed, should return nil</span>
+
+oops
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H2>Note on test expressions and nil</H2>
+<p>
+An important point to note is that the value <code>0</code> is not a false test condition in Lua. In some languages, for example C, a test of:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">if</span> (0)
+
+  printf(<span class="string">"true"</span>);
+
+<span class="keyword">else</span>
+
+  printf(<span class="string">"false"</span>);
+
+</pre>
+
+</DL>
+would display "false". 
+In Lua,
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">if</span> 0 <span class="keyword">then</span>
+
+&gt;&gt;  <span class="library">print</span>(<span class="string">"true"</span>)
+
+&gt;&gt; <span class="keyword">else</span>
+
+&gt;&gt;  <span class="library">print</span>(<span class="string">"false"</span>)
+
+&gt;&gt; <span class="keyword">end</span>
+
+<span class="keyword">true</span>
+
+</pre>
+
+</DL>
+prints "<strong>true</strong>"! You should use <code>false</code>, or <code>nil</code> in place of 0:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">if</span> <span class="keyword">false</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"true"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"false"</span>) <span class="keyword">end</span>
+
+<span class="keyword">false</span>
+
+&gt; <span class="keyword">if</span> <span class="keyword">nil</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"true"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"false"</span>) <span class="keyword">end</span>
+
+<span class="keyword">false</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Why?</H3>
+<p>
+The reason for this is historical. Lua did not support boolean types (i.e. <code>true</code> and <code>false</code>) before version 5.0. Previous to version 5.0 a value of <code>nil</code> represented false. Now, both <code>nil</code> and <code>false</code> will act as a false condition in a test expression. E.g.,
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">if</span> <span class="keyword">nil</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"true"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"false"</span>) <span class="keyword">end</span>
+
+<span class="keyword">false</span>
+
+&gt; <span class="keyword">if</span> 1 <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"true"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"false"</span>) <span class="keyword">end</span>
+
+<span class="keyword">true</span>
+
+&gt; <span class="keyword">if</span> 0 <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"true"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"false"</span>) <span class="keyword">end</span>
+
+<span class="keyword">true</span>
+
+&gt; <span class="keyword">if</span> 1==2 <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"true"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"false"</span>) <span class="keyword">end</span>
+
+<span class="keyword">false</span>
+
+</pre>
+
+</DL>
+<p>
+Another point to note is that <code>true</code> and <code>false</code> are not numerical values, e.g., 1 and 0 as they are in some languages.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="keyword">true</span>, <span class="keyword">false</span>
+
+<span class="keyword">true</span>    <span class="keyword">false</span>
+
+&gt; = 1 + <span class="keyword">true</span>
+
+stdin:1: attempt to perform arithmetic on a boolean value
+
+stack traceback:
+
+        stdin:1: <span class="keyword">in</span> main chunk
+
+        [C]: ?
+
+</pre>
+
+</DL>
+<p>
+Also, <code>nil</code> is coerced into a boolean value when used with a logical operator:
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="keyword">not</span> <span class="keyword">nil</span>
+
+<span class="keyword">true</span>
+
+&gt; = <span class="keyword">not</span> 1
+
+<span class="keyword">false</span>
+
+&gt; = <span class="keyword">not</span> 0
+
+<span class="keyword">false</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ExpressionsTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ExpressionsTutorial" >history</a><br>Last edited March 9, 2012 1:52 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ExpressionsTutorial" >(diff)</a>
+</body>
+</html>

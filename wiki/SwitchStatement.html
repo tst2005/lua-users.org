@@ -1,0 +1,865 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Switch Statement</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SwitchStatement&amp;body=1" title="List pages referring to SwitchStatement">Switch Statement</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>The problem</H3>
+<p>
+Lua lacks a C-style <code>switch</code><a href="http://en.wikipedia.org/wiki/Switch_statement.html">[1]</a> statement.  This issue has come up a number of times on the mailing list.  There are ways to emulate the same effect as discussed here.
+<p>
+The first question to ask is why we might want a switch statement rather than a comparison chain as such:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> is_canadian = <span class="keyword">false</span>
+
+<span class="keyword">function</span> sayit(letters)
+
+  <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(letters) <span class="keyword">do</span>
+
+    <span class="keyword">if</span>     v == <span class="string">"a"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"aah"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"b"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"bee"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"c"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"see"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"d"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"dee"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"e"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"eee"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"f"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"eff"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"g"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"gee"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"h"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"aych"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"i"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"eye"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"j"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"jay"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"k"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"kay"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"l"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"el"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"m"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"em"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"n"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"en"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"o"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"ooh"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"p"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"pee"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"q"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"queue"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"r"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"arr"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"s"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"ess"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"t"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"tee"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"u"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"you"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"v"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"vee"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"w"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"doubleyou"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"x"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"ex"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"y"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"why"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"z"</span> <span class="keyword">then</span> <span class="library">print</span>(is_canadian <span class="keyword">and</span> <span class="string">"zed"</span> <span class="keyword">or</span> <span class="string">"zee"</span>)
+
+    <span class="keyword">elseif</span> v == <span class="string">"?"</span> <span class="keyword">then</span> <span class="library">print</span>(is_canadian <span class="keyword">and</span> <span class="string">"eh"</span> <span class="keyword">or</span> <span class="string">""</span>)
+
+    <span class="keyword">else</span>                 <span class="library">print</span>(<span class="string">"blah"</span>)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+sayit{<span class="string">'h'</span>,<span class="string">'e'</span>,<span class="string">'l'</span>,<span class="string">'l'</span>,<span class="string">'o'</span>,<span class="string">'?'</span>}
+
+</pre>
+
+</DL>
+<p>
+When there are many tests as such, the comparison chain is not always the most efficient.  If the number of elements in <code>letters</code> is <em>M</em> and the number of tests is <em>N</em>, then the complexity is <em>O(M*N)</em>, or potentially quadratic.  A more minor concern is the syntax redundancy of having "<code>v ==</code>" for each test.  These concerns (minor as they may be) have been noted elsewhere as well 
+(<a href="http://www.python.org/dev/peps/pep-3103/">[Python PEP 3103]</a>).
+<p>
+If we rewrite this as a lookup table, the code can run in linear-time, <em>O(M)</em>, and without the redundancy so that the logic is easier to modify at whim:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> t = {
+
+    a = <span class="string">"aah"</span>,
+
+    b = <span class="string">"bee"</span>,
+
+    c = <span class="string">"see"</span>,
+
+    d = <span class="string">"dee"</span>,
+
+    e = <span class="string">"eee"</span>,
+
+    f = <span class="string">"eff"</span>,
+
+    g = <span class="string">"gee"</span>,
+
+    h = <span class="string">"aych"</span>,
+
+    i = <span class="string">"eye"</span>,
+
+    j = <span class="string">"jay"</span>,
+
+    k = <span class="string">"kay"</span>,
+
+    l = <span class="string">"el"</span>,
+
+    m = <span class="string">"em"</span>,
+
+    n = <span class="string">"en"</span>,
+
+    o = <span class="string">"ooh"</span>,
+
+    p = <span class="string">"pee"</span>,
+
+    q = <span class="string">"queue"</span>,
+
+    r = <span class="string">"arr"</span>,
+
+    s = <span class="string">"ess"</span>,
+
+    t = <span class="string">"tee"</span>,
+
+    u = <span class="string">"you"</span>,
+
+    v = <span class="string">"vee"</span>,
+
+    w = <span class="string">"doubleyou"</span>,
+
+    x = <span class="string">"ex"</span>,
+
+    y = <span class="string">"why"</span>,
+
+    z = <span class="keyword">function</span>() <span class="keyword">return</span> is_canadian <span class="keyword">and</span> <span class="string">"zed"</span> <span class="keyword">or</span> <span class="string">"zee"</span> <span class="keyword">end</span>,
+
+    [<span class="string">'?'</span>] = <span class="keyword">function</span>() <span class="keyword">return</span> is_canadian <span class="keyword">and</span> <span class="string">"eh"</span> <span class="keyword">or</span> <span class="string">""</span> <span class="keyword">end</span>
+
+  }
+
+  <span class="keyword">function</span> sayit(letters)
+
+    <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(letters) <span class="keyword">do</span>
+
+      <span class="keyword">local</span> s = <span class="library">type</span>(t[v]) == <span class="string">"function"</span> <span class="keyword">and</span> t[v]() <span class="keyword">or</span> t[v] <span class="keyword">or</span> <span class="string">"blah"</span>
+
+      <span class="library">print</span>(s)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+sayit{<span class="string">'h'</span>,<span class="string">'e'</span>,<span class="string">'l'</span>,<span class="string">'l'</span>,<span class="string">'o'</span>,<span class="string">'?'</span>}
+
+</pre>
+
+</DL>
+<p>
+C compilers can optimize the switch statement in a roughly similar way via what is called a jump table, at least under suitable conditions.<a href="http://www.devx.com/amd/Article/21314">[2]</a>
+<p>
+Note how the table construction was placed outside the block to avoid recreating the table for each use (table constructions cause heap allocations).  This improves performance but has the side-effect of moving the lookup table further from its usage.  We might address that with this minor change:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> t
+
+  <span class="keyword">function</span> sayit(letters)
+
+    t = t <span class="keyword">or</span> {a = <span class="string">"ahh"</span>, .....}
+
+    <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(letters) <span class="keyword">do</span>
+
+      <span class="keyword">local</span> s = <span class="library">type</span>(t[v]) == <span class="string">"function"</span> <span class="keyword">and</span> t[v]() <span class="keyword">or</span> t[v] <span class="keyword">or</span> <span class="string">"blah"</span>
+
+      <span class="library">print</span>(s)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+sayit{<span class="string">'h'</span>,<span class="string">'e'</span>,<span class="string">'l'</span>,<span class="string">'l'</span>,<span class="string">'o'</span>,<span class="string">'?'</span>}
+
+</pre>
+
+</DL>
+<p>
+The above is a practical solution that is the basis for the more elaborate approaches given below.  Some are the below solutions are more for syntactic sugar or proof-of-concept rather than recommended practices.
+<p>
+<H3>Simple Table of functions</H3>
+<p>
+A simple version of a <code>switch</code> statement can be implemented using a table to map the case value to an action. This is very efficient in Lua since tables are hashed by key value which avoids repetitive <code>if &lt;case&gt; then ... elseif ... end</code> statements. 
+<DL>
+<dt><dd><pre class="code">
+action = {
+
+  [1] = <span class="keyword">function</span> (x) <span class="library">print</span>(1) <span class="keyword">end</span>,
+
+  [2] = <span class="keyword">function</span> (x) z = 5 <span class="keyword">end</span>,
+
+  [<span class="string">"nop"</span>] = <span class="keyword">function</span> (x) <span class="library">print</span>(<span class="library">math.random</span>()) <span class="keyword">end</span>,
+
+  [<span class="string">"my name"</span>] = <span class="keyword">function</span> (x) <span class="library">print</span>(<span class="string">"fred"</span>) <span class="keyword">end</span>,
+
+}
+
+</pre>
+
+</DL>
+Usage (Note, that in the following example you can also pass parameters to the function called) :-
+<DL>
+<dt><dd><pre class="code">
+action[case](params)
+
+</pre>
+
+</DL>
+This is pseudocode for the above:
+<DL>
+<dt><dd><pre>
+
+switch (caseVariable) 
+
+  case 1: print(1)
+
+  case 2: z=5
+
+  case "nop": print(math.random())
+
+  case "my name": print("fred")
+
+end
+
+</pre>
+</DL>
+<p>
+<H3>Case method</H3>
+<p>
+This version uses the function <code>switch(table)</code> to add a method <code>case(table,caseVariable)</code> to a table passed to it. 
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> switch(t)
+
+  t.case = <span class="keyword">function</span> (self,x)
+
+    <span class="keyword">local</span> f=self[x] <span class="keyword">or</span> self.default
+
+    <span class="keyword">if</span> f <span class="keyword">then</span>
+
+      <span class="keyword">if</span> <span class="library">type</span>(f)==<span class="string">"function"</span> <span class="keyword">then</span>
+
+        f(x,self)
+
+      <span class="keyword">else</span>
+
+        <span class="library">error</span>(<span class="string">"case "</span>..<span class="library">tostring</span>(x)..<span class="string">" not a function"</span>)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+Usage:
+<DL>
+<dt><dd><pre class="code">
+a = switch {
+
+  [1] = <span class="keyword">function</span> (x) <span class="library">print</span>(x,10) <span class="keyword">end</span>,
+
+  [2] = <span class="keyword">function</span> (x) <span class="library">print</span>(x,20) <span class="keyword">end</span>,
+
+  default = <span class="keyword">function</span> (x) <span class="library">print</span>(x,0) <span class="keyword">end</span>,
+
+}
+
+
+
+a:case(2)  <span class="comment">-- ie. call case 2 </span>
+
+a:case(9)
+
+</pre>
+
+</DL>
+<p>
+<H3>Caseof method table</H3>
+<p>
+Here's yet another implementation of a "switch" statement. This one is based on Luiz Henrique de Figueiredo's switch statement presented in a list message dated Dec 8 1998, but the object/method relationship has been flipped around to achieve a more traditional syntax in actual use.  Nil case variables are also handled - there's an optional clause specifically for them (something I wanted), or they can fallback to the default clause.  (easily changed)  Return values from the case statement functions are also supported.
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> switch(c)
+
+  <span class="keyword">local</span> swtbl = {
+
+    casevar = c,
+
+    caseof = <span class="keyword">function</span> (self, code)
+
+      <span class="keyword">local</span> f
+
+      <span class="keyword">if</span> (self.casevar) <span class="keyword">then</span>
+
+        f = code[self.casevar] <span class="keyword">or</span> code.default
+
+      <span class="keyword">else</span>
+
+        f = code.missing <span class="keyword">or</span> code.default
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> f <span class="keyword">then</span>
+
+        <span class="keyword">if</span> <span class="library">type</span>(f)==<span class="string">"function"</span> <span class="keyword">then</span>
+
+          <span class="keyword">return</span> f(self.casevar,self)
+
+        <span class="keyword">else</span>
+
+          <span class="library">error</span>(<span class="string">"case "</span>..<span class="library">tostring</span>(self.casevar)..<span class="string">" not a function"</span>)
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  }
+
+  <span class="keyword">return</span> swtbl
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+Here's sample usage:
+<DL>
+<dt><dd><pre class="code">
+c = 1
+
+switch(c) : caseof {
+
+    [1]   = <span class="keyword">function</span> (x) <span class="library">print</span>(x,<span class="string">"one"</span>) <span class="keyword">end</span>,
+
+    [2]   = <span class="keyword">function</span> (x) <span class="library">print</span>(x,<span class="string">"two"</span>) <span class="keyword">end</span>,
+
+    [3]   = 12345, <span class="comment">-- this is an invalid case stmt</span>
+
+  default = <span class="keyword">function</span> (x) <span class="library">print</span>(x,<span class="string">"default"</span>) <span class="keyword">end</span>,
+
+  missing = <span class="keyword">function</span> (x) <span class="library">print</span>(x,<span class="string">"missing"</span>) <span class="keyword">end</span>,
+
+}
+
+
+
+<span class="comment">-- also test the return value</span>
+
+<span class="comment">-- sort of like the way C's ternary "?" is often used</span>
+
+<span class="comment">-- but perhaps more like LISP's "cond"</span>
+
+<span class="comment">--</span>
+
+<span class="library">print</span>(<span class="string">"expect to see 468:  "</span>.. 123 +
+
+  switch(2):caseof{
+
+    [1] = <span class="keyword">function</span>(x) <span class="keyword">return</span> 234 <span class="keyword">end</span>,
+
+    [2] = <span class="keyword">function</span>(x) <span class="keyword">return</span> 345 <span class="keyword">end</span>
+
+  })
+
+</pre>
+
+</DL>
+<p>
+<H3>Switch returns function instead of table</H3>
+<p>
+Yet another implementation of an even more "C-like" switch statement. Based on Dave code above. Return values from the case statement functions are also supported.
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> switch(case)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(codetable)
+
+    <span class="keyword">local</span> f
+
+    f = codetable[case] <span class="keyword">or</span> codetable.default
+
+    <span class="keyword">if</span> f <span class="keyword">then</span>
+
+      <span class="keyword">if</span> <span class="library">type</span>(f)==<span class="string">"function"</span> <span class="keyword">then</span>
+
+        <span class="keyword">return</span> f(case)
+
+      <span class="keyword">else</span>
+
+        <span class="library">error</span>(<span class="string">"case "</span>..<span class="library">tostring</span>(case)..<span class="string">" not a function"</span>)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+Example usage:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> case = 1,4 <span class="keyword">do</span>
+
+  switch(case) {
+
+    [1] = <span class="keyword">function</span>() <span class="library">print</span>(<span class="string">"one"</span>) <span class="keyword">end</span>,
+
+    [2] = <span class="library">print</span>,
+
+    default = <span class="keyword">function</span>(x) <span class="library">print</span>(<span class="string">"default"</span>,x) <span class="keyword">end</span>,
+
+  }
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<em>Note that this works, but trashes the gc with a function closure each time the switch is used (as do most of the examples on this page). Still, i like the way it works. Just don't use it in real life ;-)</em> --<a href="../wiki/PeterPrade.html" >PeterPrade</a>
+<p>
+<H3>Switch returns callable table instead of function</H3>
+<p>
+This one has the exact same syntax as the one above, but is written much more succinctly, as well as differentiates between the default case and a string containing the word 'default'.
+<DL>
+<dt><dd><pre class="code">
+Default, Nil = {}, <span class="keyword">function</span> () <span class="keyword">end</span> <span class="comment">-- for uniqueness</span>
+
+<span class="keyword">function</span> switch (i)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({ i }, {
+
+    __call = <span class="keyword">function</span> (t, cases)
+
+      <span class="keyword">local</span> item = #t == 0 <span class="keyword">and</span> Nil <span class="keyword">or</span> t[1]
+
+      <span class="keyword">return</span> (cases[item] <span class="keyword">or</span> cases[Default] <span class="keyword">or</span> Nil)(item)
+
+    <span class="keyword">end</span>
+
+  })
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<code>Nil</code> here is an empty function because it will generate a unique value, and satisfy the <a href="http://en.wikipedia.org/wiki/Nilpotent.html">[nilpotence]</a> requirement in the <code>return</code> statement call, while still being having a value of <code>true</code> to allow its use in the <code>and or</code> ternary. In Lua 5.2, however, a function might not create a new value if one is present, which will raise problems if you somehow end up using <code>switch</code> to compare functions. Should it ever come to this, a solution would be to define <code>Nil</code> with yet another table: <code>setmetatable({}, { __call = function () end })</code>.
+<p>
+A case-insensitive variant can be made by adding <code>if type(item) == "string" then item = string.lower(item) end</code>, provided all the keys of the table are done the same way. Ranges could potentially be represented by an __index function metatable on the cases table, but that would break the illusion: <code>switch (case) (setmetatable({}, { __index = rangefunc }))</code>.
+<p>
+Example usage:
+<DL>
+<dt><dd><pre class="code">
+switch(case) {
+
+  [1] = <span class="keyword">function</span> () <span class="library">print</span><span class="string">"number 1!"</span> <span class="keyword">end</span>,
+
+  [2] = <span class="library">math.sin</span>,
+
+  [<span class="keyword">false</span>] = <span class="keyword">function</span> (a) <span class="keyword">return</span> <span class="keyword">function</span> (b) <span class="keyword">return</span> (a <span class="keyword">or</span> b) <span class="keyword">and</span> <span class="keyword">not</span> (a <span class="keyword">and</span> b) <span class="keyword">end</span> <span class="keyword">end</span>,
+
+  Default = <span class="keyword">function</span> (x) <span class="library">print</span><span class="string">"Look, Mom, I can differentiate types!"</span> <span class="keyword">end</span>, <span class="comment">-- ["Default"] ;)</span>
+
+  [Default] = <span class="library">print</span>,
+
+  [Nil] = <span class="keyword">function</span> () <span class="library">print</span><span class="string">"I must've left it in my other jeans."</span> <span class="keyword">end</span>,
+
+}
+
+</pre>
+
+</DL>
+I can't say anything for its resource usage, however, especially compared to other examples here.
+<p>
+<H3>Using vararg function to build case list</H3>
+<p>
+In the interest of more 'stupid Lua tricks', here's yet another implementation:
+(Edit: It is necessary that the default functionality is put last in the ... parameter)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> switch(n, ...)
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> {...} <span class="keyword">do</span>
+
+    <span class="keyword">if</span> v[1] == n <span class="keyword">or</span> v[1] == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> v[2]()
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> case(n,f)
+
+  <span class="keyword">return</span> {n,f}
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> default(f)
+
+  <span class="keyword">return</span> {<span class="keyword">nil</span>,f}
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+Example usage:
+<DL>
+<dt><dd><pre class="code">
+switch( action,
+
+  case( 1, <span class="keyword">function</span>() <span class="library">print</span>(<span class="string">"one"</span>)     <span class="keyword">end</span>),
+
+  case( 2, <span class="keyword">function</span>() <span class="library">print</span>(<span class="string">"two"</span>)     <span class="keyword">end</span>),
+
+  case( 3, <span class="keyword">function</span>() <span class="library">print</span>(<span class="string">"three"</span>)   <span class="keyword">end</span>),
+
+  default( <span class="keyword">function</span>() <span class="library">print</span>(<span class="string">"default"</span>) <span class="keyword">end</span>)
+
+  )
+
+</pre>
+
+</DL>
+<p>
+<H3>Case expression types other than just matching a value</H3>
+Here's one from TheGreyKnight<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TheGreyKnight" >?</a>, which can handle cases representing ranges, lists and default actions. It also supports mismatch cases and fall-through (ie, continue with the next statement). The part that checks for the "-fall" suffix could probably be made more efficient, but I think this version is easier to read. The functions which are used as the bodies of the cases are passed a single parameter, which is the final form of the switch expression (a feature I've longed for in switches for ages)
+The supporting functions contain(x, valueList) and range(x, numberPair) merely test whether or not x is a value in the table valueList or a number in the closed range specified by the two elements of numberPair.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> switch(term, cases)
+
+  <span class="library">assert</span>(<span class="library">type</span>(cases) == <span class="string">"table"</span>)
+
+  <span class="keyword">local</span> casetype, caseparm, casebody
+
+  <span class="keyword">for</span> i,case <span class="keyword">in</span> <span class="library">ipairs</span>(cases) <span class="keyword">do</span>
+
+    <span class="library">assert</span>(<span class="library">type</span>(case) == <span class="string">"table"</span> <span class="keyword">and</span> count(case) == 3)
+
+    casetype,caseparm,casebody = case[1],case[2],case[3]
+
+    <span class="library">assert</span>(<span class="library">type</span>(casetype) == <span class="string">"string"</span> <span class="keyword">and</span> <span class="library">type</span>(casebody) == <span class="string">"function"</span>)
+
+    <span class="keyword">if</span>
+
+        (casetype == <span class="string">"default"</span>)
+
+      <span class="keyword">or</span>  ((casetype == <span class="string">"eq"</span> <span class="keyword">or</span> casetype==<span class="string">""</span>) <span class="keyword">and</span> caseparm == term)
+
+      <span class="keyword">or</span>  ((casetype == <span class="string">"!eq"</span> <span class="keyword">or</span> casetype==<span class="string">"!"</span>) <span class="keyword">and</span> <span class="keyword">not</span> caseparm == term)
+
+      <span class="keyword">or</span>  (casetype == <span class="string">"in"</span> <span class="keyword">and</span> contain(term, caseparm))
+
+      <span class="keyword">or</span>  (casetype == <span class="string">"!in"</span> <span class="keyword">and</span> <span class="keyword">not</span> contain(term, caseparm))
+
+      <span class="keyword">or</span>  (casetype == <span class="string">"range"</span> <span class="keyword">and</span> range(term, caseparm))
+
+      <span class="keyword">or</span>  (casetype == <span class="string">"!range"</span> <span class="keyword">and</span> <span class="keyword">not</span> range(term, caseparm))
+
+    <span class="keyword">then</span>
+
+      <span class="keyword">return</span> casebody(term)
+
+    <span class="keyword">else</span> <span class="keyword">if</span>
+
+        (casetype == <span class="string">"default-fall"</span>)
+
+      <span class="keyword">or</span>  ((casetype == <span class="string">"eq-fall"</span> <span class="keyword">or</span> casetype == <span class="string">"fall"</span>) <span class="keyword">and</span> caseparm == term)
+
+      <span class="keyword">or</span>  ((casetype == <span class="string">"!eq-fall"</span> <span class="keyword">or</span> casetype == <span class="string">"!-fall"</span>) <span class="keyword">and</span> <span class="keyword">not</span> caseparm == term)
+
+      <span class="keyword">or</span>  (casetype == <span class="string">"in-fall"</span> <span class="keyword">and</span> contain(term, caseparm))
+
+      <span class="keyword">or</span>  (casetype == <span class="string">"!in-fall"</span> <span class="keyword">and</span> <span class="keyword">not</span> contain(term, caseparm))
+
+      <span class="keyword">or</span>  (casetype == <span class="string">"range-fall"</span> <span class="keyword">and</span> range(term, caseparm))
+
+      <span class="keyword">or</span>  (casetype == <span class="string">"!range-fall"</span> <span class="keyword">and</span> <span class="keyword">not</span> range(term, caseparm))
+
+    <span class="keyword">then</span>
+
+      casebody(term)
+
+    <span class="keyword">end</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+Example Usage:
+<DL>
+<dt><dd><pre class="code">
+switch( <span class="library">string.lower</span>(slotname), {
+
+  {<span class="string">""</span>, <span class="string">"sk"</span>, <span class="keyword">function</span>(_)
+
+    PLAYER.sk = PLAYER.sk+1
+
+  <span class="keyword">end</span> },
+
+  {<span class="string">"in"</span>, {<span class="string">"str"</span>,<span class="string">"int"</span>,<span class="string">"agl"</span>,<span class="string">"cha"</span>,<span class="string">"lck"</span>,<span class="string">"con"</span>,<span class="string">"mhp"</span>,<span class="string">"mpp"</span>}, <span class="keyword">function</span>(_)
+
+    PLAYER.st[_] = PLAYER.st[_]+1
+
+  <span class="keyword">end</span> },
+
+  {<span class="string">"default"</span>, <span class="string">""</span>, <span class="keyword">function</span>(_)<span class="keyword">end</span>} <span class="comment">--ie, do nothing</span>
+
+})
+
+</pre>
+
+</DL>
+<p>
+<H2>Another form</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> switch (self, value, tbl, default)
+
+    <span class="keyword">local</span> f = tbl[value] <span class="keyword">or</span> default
+
+    <span class="library">assert</span>(f~=<span class="keyword">nil</span>)
+
+    <span class="keyword">if</span> <span class="library">type</span>(f) ~= <span class="string">"function"</span> <span class="keyword">then</span> f = tbl[f] <span class="keyword">end</span>
+
+    <span class="library">assert</span>(f~=<span class="keyword">nil</span> <span class="keyword">and</span> <span class="library">type</span>(f) == <span class="string">"function"</span>)
+
+    <span class="keyword">return</span> f(self,value)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+It avoids repeating functions, since if tbl's entry is a string/number, it follows this value as the case to seek for.
+I would call this <em>multiple case statements</em>.
+Example usage:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> tbl = {hello = <span class="keyword">function</span>(name,value) <span class="library">print</span>(value .. <span class="string">" "</span> .. name .. <span class="string">"!"</span>) <span class="keyword">end</span>,
+
+bonjour = <span class="string">"hello"</span>, [<span class="string">"Guten Tag"</span>] = <span class="string">"hello"</span>}
+
+
+
+switch(<span class="string">"Steven"</span>,<span class="string">"hello"</span>,tbl,<span class="keyword">nil</span>) <span class="comment">-- prints 'hello Steven!'</span>
+
+switch(<span class="string">"Jean"</span>,<span class="string">"bonjour"</span>,tbl,<span class="keyword">nil</span>) <span class="comment">-- prints 'bonjour Jean!'</span>
+
+switch(<span class="string">"Mark"</span>,<span class="string">"gracias"</span>,tbl,<span class="keyword">function</span>(name,val) <span class="library">print</span>(<span class="string">"sorry "</span> .. name .. <span class="string">"!"</span>) <span class="keyword">end</span>) <span class="comment">-- prints 'sorry Mark!'</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>A Case Statement implemented with Token Filter Macros</H2>
+My feeling is that <code>switch</code> is the wrong model, but that we should look at Pascal's <code>case</code> statement as more appropriate inspiration. Here are some possible forms:
+<p>
+<pre class="code">
+    case (k)
+
+      is 10,11: <span class="keyword">return</span> 1
+
+      is 12: <span class="keyword">return</span> 2
+
+      is 13 .. 16: <span class="keyword">return</span> 3	  
+
+      <span class="keyword">else</span> <span class="keyword">return</span> 4
+
+    endcase
+
+    ......
+
+    case(s)
+
+        matches <span class="string">'^hell'</span>: <span class="keyword">return</span> 5
+
+        matches <span class="string">'(%d+)%s+(%d+)'</span>,result:
+
+            <span class="keyword">return</span> <span class="library">tonumber</span>(result[1])+<span class="library">tonumber</span>(result[2])
+
+        <span class="keyword">else</span> <span class="keyword">return</span> 0
+
+    endcase
+
+</pre>
+
+<p>
+You can provide a number of values after <code>is</code>, and even provide a range of values. <code>matches</code> is string-specific, and can take an extra parameter which is filled with the resulting captures.
+<p>
+This <code>case</code> statement is a little bit of syntactical sugar over a chain of <code>elseif</code> statements, so its efficiency is the same.
+<p>
+This is implementable using token filter macros (see <a href="../wiki/LuaMacros.html" >LuaMacros</a>; the source contains an example implementation), so people can get a feeling for its use in practice. Unfortunately, there is a gotcha; Lua complains of a malformed number if there is no whitespace around <code>..</code>. Also <code>result</code> has to be global.
+<p>
+<H2>Metalua's pattern matching</H2>
+<p>
+<a href="../wiki/MetaLua.html" >MetaLua</a> comes with an extension that performs structural pattern matching, of which switch/case is just a special case. The example above would read:
+<p>
+<pre class="code">
+    -{ extension <span class="string">'match'</span> } <span class="comment">-- load the syntax extension module</span>
+
+    match k with
+
+    | 10 | 11              -&gt; <span class="keyword">return</span> 1
+
+    | 12                   -&gt; <span class="keyword">return</span> 2
+
+    | i <span class="keyword">if</span> 13&lt;=i <span class="keyword">and</span> i&lt;=16 -&gt; <span class="keyword">return</span> i-10 <span class="comment">-- was 3 originally, but it'd a shame not to use bindings!</span>
+
+    | _                    -&gt; <span class="keyword">return</span> 4
+
+    <span class="keyword">end</span>
+
+</pre>
+
+<p>
+No special handling currently exists for regular expressions string matching, although it can be worked around by guards. Proper support can be added quite easily, and will likely be included in a future release.
+<p>
+Relevant resources:
+<p>
+* Step-by-step tutorial about implementing a pattern matching extension<a href="http://metalua.luaforge.net/metalua-manual.html#htoc73">[3]</a>, and the corresponding sources<a href="http://metalua.luaforge.net/src/samples/tutorial-match.lua.html">[4]</a>.
+<p>
+* The latest optimized implementation<a href="http://metalua.luaforge.net/src/lib/ext-syntax/match.lua.html">[5]</a>
+<p>
+<H2>Object Oriented Approach</H2>
+You can find full code in <a href="../wiki/SwitchObject.html" >SwitchObject</a>.
+<p>
+<pre class="code">
+<span class="keyword">local</span> fn = <span class="keyword">function</span>(a, b) <span class="library">print</span>(<span class="library">tostring</span>(a) .. <span class="string">' in '</span> .. <span class="library">tostring</span>(b)) <span class="keyword">end</span>
+
+<span class="keyword">local</span> casefn = <span class="keyword">function</span>(a)
+
+	<span class="keyword">if</span> <span class="library">type</span>(a) == <span class="string">'number'</span> <span class="keyword">then</span>
+
+		<span class="keyword">return</span> (a &gt; 10)
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> s = switch()
+
+s:case(0, fn)
+
+s:case({1,2,3,4}, fn)
+
+s:case(casefn, fn)
+
+s:case({<span class="string">'banana'</span>, <span class="string">'kiwi'</span>, <span class="string">'coconut'</span>}, fn)
+
+s:default(fn)
+
+
+
+s:test(<span class="string">'kiwi'</span>) <span class="comment">-- this does the actual job</span>
+
+</pre>
+
+<p>
+<H2>Comments</H2>
+<p>
+<em>I don't get it.  I'm a hard core C/C++ programmer but not once have I longed for <code>switch</code> in Lua.  Why not take this to its extreme and just have Lua parse a real C switch statement?  Anyone who can achieve that will learn why it wasn't necessary in the first place.  --Troublemaker</em>
+<p>
+How about to avoid: a) a linear search through options, b) to avoid creating garbage every time the case is used, and c) because the if-elseif-else solution is ugly. The condition is repeated N times which obscures and complicates the code. A simple switch on numbers could jump quickly to the code to be executed and doesn't have to generate a closure or a table every time as in the code below.
+<p>
+<em>Actually, I've never used this code as a <code>switch</code> statement. I thought it made good example code for Lua's features and I may use it one day, but I never have! :-) I think its because you have the associative arrays/tables to map values, so you can design around having to need a switch statement. The times when I do think about needing a switch is when I'm switching on value type. --Alsopuzzled</em>
+<p>
+<em>I've never really needed a <code>switch</code> in Lua either, but these examples made me bend my brain trying to see why they work. Lua's flexibility continues to amaze me. I'm now that much closer to the <a href="../wiki/ZenOfLua.html" >ZenOfLua</a>. --Initiate</em> 
+<p>
+<em>The issues with these implementations are that they either can't access local variables or they create not just one closure but one closure per switch-branch plus a table. As such, they aren't particular good as substitutes for a <code>switch</code> statement. That being said, I haven't been suffering too much pain related to the lack of a switch statement in Lua. --<a href="../wiki/MarkHamburg.html" >MarkHamburg</a></em>
+<p>
+<em>The lookup table example is a perfectly practical and readable solution that doesn't suffer from those problems at all. It's even mentioned in the page that examples beyond that point are mostly non-practical thought experiments -- Colin Hunt</em>
+<p>
+<em>I am using LUA for scripting my self created web server module. It's terribly fast (and much much faster than my previous PHP version). In here, a switch statement would really be great to case through all GET["subfunction"] possibilities. The only reason is that the only thinkable alternative (if-elseif) is ugly. The other alternatives are as previously indicated very beautiful, world-opening, but a terrible waste of resources. --Scippie</em>
+<p>
+<em>Edit: Maybe I was wrong about the "terrible waste of resources". This is what scripting is all about and the language is made to be handled this way. --Scippie</em>
+<p>
+<em>You don't need a switch statement, if you can just map with a table or use elseifs. The real problem starts when you want to use fallthrough. I am currently working with a database and I need to be able to update it. Since it needs to be updated one step at a time, you jump to the place that updates to the next version and then fall-through until you arrive at the newest version. For that, though, you need either computed goto or a switch statement. Which Lua both lacks. --Xandaros</em>
+<p>
+"@Xandrous There is a goto now"
+<hr>The above code was pulled from lua-l or donated by Lua users. Thanks to LHF, DaveBollinger<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DaveBollinger" >?</a>, <a href="../wiki/EricTetz.html" >EricTetz</a>, <a href="../wiki/PeterPrade.html" >PeterPrade</a>.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SwitchStatement" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SwitchStatement" >history</a><br>Last edited August 9, 2014 12:32 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SwitchStatement" >(diff)</a>
+</body>
+</html>

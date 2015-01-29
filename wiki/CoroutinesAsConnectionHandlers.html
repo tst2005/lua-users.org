@@ -1,0 +1,191 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Coroutines As Connection Handlers</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CoroutinesAsConnectionHandlers&amp;body=1" title="List pages referring to CoroutinesAsConnectionHandlers">Coroutines As Connection Handlers</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This shows the basic scaffolding one might use for handling multiple sockets (e.g. TCP or otherwise) via coroutines.  (The actual socket code is omitted for brevity.)  To avoid writing this scaffolding you might alternately use the Copas library as shown in <a href="../wiki/CopasExample.html" >CopasExample</a>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> read()
+
+    <span class="keyword">return</span> <span class="library">coroutine.yield</span>()
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> write_socket(socket, data)
+
+    <span class="library">print</span>(<span class="string">"i'm writing to socket "</span> .. socket .. <span class="string">": "</span> .. data)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> connection_handler(socket)
+
+    write_socket(socket, <span class="string">"hi!"</span>)
+
+    <span class="keyword">local</span> input = read()
+
+    write_socket(socket, <span class="string">"the input was: "</span> .. input)
+
+    <span class="keyword">local</span> input = read()
+
+    write_socket(socket, <span class="string">"even more input was: "</span> .. input)
+
+    <span class="keyword">if</span> socket == 2 <span class="keyword">then</span>
+
+       <span class="library">error</span>(<span class="string">"example error in socket 2"</span>)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> create_connection_handler(socket)
+
+    <span class="keyword">local</span> handler = <span class="library">coroutine.create</span>(connection_handler)
+
+    <span class="library">coroutine.resume</span>(handler, socket)
+
+    <span class="keyword">return</span> handler
+
+<span class="keyword">end</span>
+
+
+
+connections = {}
+
+
+
+<span class="keyword">function</span> accept_connection(socket)
+
+    <span class="library">print</span>(<span class="string">"accepted socket "</span> .. socket)
+
+    connections[socket] = create_connection_handler(socket)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> close_connection(socket)
+
+    connections[socket] = <span class="keyword">nil</span>
+
+    <span class="comment">-- close your socket here</span>
+
+    <span class="library">print</span>(<span class="string">"socket "</span> .. socket .. <span class="string">" closed"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> handle_socket_data(socket, data)
+
+    <span class="keyword">local</span> ok, msg = <span class="library">coroutine.resume</span>(connections[socket], data)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> ok <span class="keyword">then</span>
+
+        <span class="library">print</span>(<span class="string">"the handler for socket "</span> .. socket .. <span class="string">" failed: "</span> .. msg)
+
+        close_connection(socket)
+
+    <span class="keyword">elseif</span> ok <span class="keyword">and</span> <span class="library">coroutine.status</span>(connections[socket]) == <span class="string">"dead"</span> <span class="keyword">then</span>
+
+        <span class="library">print</span>(<span class="string">"the handler for socket "</span> .. socket .. <span class="string">" finished"</span>)
+
+        close_connection(socket)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- In a real application, these will be created after you </span>
+
+<span class="comment">-- accept()ed a new connection</span>
+
+accept_connection(1)
+
+accept_connection(2)
+
+accept_connection(3)
+
+
+
+<span class="comment">-- In a real application, you'll use some dispatcher to read </span>
+
+<span class="comment">-- data from sockets and then call handle_socket_data.</span>
+
+
+
+<span class="comment">-- Data on socket 1</span>
+
+handle_socket_data(1, <span class="string">"here is some data"</span>)
+
+
+
+<span class="comment">-- Data on socket 2</span>
+
+handle_socket_data(2, <span class="string">"here is data for socket 2"</span>)
+
+
+
+<span class="comment">-- More Data on socket 1</span>
+
+handle_socket_data(1, <span class="string">"wow. more data"</span>)
+
+
+
+<span class="comment">-- hm. socket 3 was closed by the user</span>
+
+close_connection(3)
+
+
+
+<span class="comment">-- Data on socket 2</span>
+
+handle_socket_data(2, <span class="string">"ok. enough :)"</span>)
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/CopasExample.html" >CopasExample</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CoroutinesAsConnectionHandlers" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CoroutinesAsConnectionHandlers" >history</a><br>Last edited January 10, 2007 4:08 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CoroutinesAsConnectionHandlers" >(diff)</a>
+</body>
+</html>

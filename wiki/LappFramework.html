@@ -1,0 +1,472 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lapp Framework</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LappFramework&amp;body=1" title="List pages referring to LappFramework">Lapp Framework</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Making Simple Command-Line Scripts Easier</H3>
+<p>
+Original source is at <a href="http://mysite.mweb.co.za/residents/sdonovan/lapp.zip">http://mysite.mweb.co.za/residents/sdonovan/lapp.zip</a>; now in <a href="../wiki/PenlightLibraries.html" >PenlightLibraries</a>, see write up at <a href="http://stevedonovan.github.com/Penlight/api/topics/08-additional.md.html#Command_line_Programs_with_Lapp">[1]</a>.
+<p>
+Lapp is a small and focused Lua module which aims to make standard command-line parsing easier and intuitive. It implements the standard GNU style, i.e. short flags with one letter start with '-', and there may be an additional long flag which starts with '--'. Generally options which take an argument expect to find it as the next parameter (e.g. 'gcc test.c -o test') but single short options taking a numerical parameter can dispense with the space (e.g. 'head -n4 test.c')
+<p>
+As far as possible, Lapp will convert parameters into their equivalent Lua types, i.e. convert numbers and convert filenames into file objects. If any conversion fails, or a required parameter is missing, an error will be issued and the usage text will be written out.  So there are two necessary tasks, supplying the flag and option names and associating them with a type.
+<p>
+For any non-trivial script, even for personal consumption, it's necessary to supply usage text. The novelty of Lapp is that it starts from that point and defines a loose format for usage strings which can specify the names and types of the parameters.
+<p>
+An example will make this clearer:
+<p>
+<pre class="code">
+<span class="comment">-- scale.lua</span>
+
+  <span class="library">require</span> <span class="string">'lapp'</span>
+
+  <span class="keyword">local</span> args = lapp <span class="string">[[
+
+  Does some calculations
+
+    -o,--offset (default 0.0)  Offset to add to scaled number
+
+    -s,--scale  (number)  Scaling factor
+
+     &lt;number&gt; (number)  Number to be scaled
+
+  ]]</span>
+
+
+
+  <span class="library">print</span>(args.offset + args.scale * args.number)
+
+</pre>
+
+<p>
+Here is a command-line session using this script:
+<pre>
+
+  D:\dev\lua\lapp&gt;lua scale.lua
+
+  scale.lua:missing required parameter: scale
+
+
+
+  Does some calculations
+
+   -o,--offset (default 0.0)  Offset to add to scaled number
+
+   -s,--scale  (number)  Scaling factor
+
+    &lt;number&gt; (number )  Number to be scaled
+
+
+
+  D:\dev\lua\lapp&gt;lua scale.lua -s 2.2 10
+
+  22
+
+
+
+  D:\dev\lua\lapp&gt;lua scale.lua -s 2.2 x10
+
+  scale.lua:unable to convert to number: x10
+
+
+
+  ....(usage as before)
+
+</pre>
+<p>
+There are two kinds of lines in Lapp usage strings which are meaningful; option and parameter lines. An option line gives the short option, optionally followed by the corresponding long option.  A type specifier in parentheses may follow.  Similarly, a parameter line starts with '&lt;' PARAMETER '&gt;', followed by a type specifier.  Type specifiers are either of the form '(default ' VALUE ')' or '(' TYPE ')'; the default specifier means that the parameter or option has a default value and is <em>not required</em>.  TYPE is one of 'string','number','file-in' or 'file-out'; VALUE is a number, one of ('stdin','stdout','stderr') or a token. The rest of the line is not parsed and can be used for explanatory text.
+<p>
+This script shows the relation between the specified parameter names and the fields in the output table.
+<p>
+<pre class="code">
+  <span class="comment">-- simple.lua</span>
+
+  <span class="keyword">local</span> args = <span class="library">require</span> (<span class="string">'lapp'</span>) <span class="string">[[
+
+  Various flags and option types
+
+    -p          A simple optional flag, defaults to false
+
+    -q,--quiet  A simple flag with long name
+
+    -o  (string)  A required option with argument
+
+    &lt;input&gt; (default stdin)  Optional input file parameter
+
+  ]]</span>
+
+
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(args) <span class="keyword">do</span>
+
+      <span class="library">print</span>(k,v)
+
+  <span class="keyword">end</span>
+
+</pre>
+
+<p>
+I've just dumped out all values of the <code>args</code> table; note that <code>args.quiet</code> has become true, because it's specified; <code>args.p</code> defaults to <code>false</code>. If there is a long name for an option, that will be used in preference as a field name. A type or default specifier is not necessary for 
+simple flags, since the default type is <code>boolean</code>.
+<p>
+The parameter <code>input</code> has been set to an open read-only file object - we know it must be a read-only file since that is the type of the default value.  The field <code>input_name</code> is automatically generated, since it's often useful to have access to the original filename.
+<p>
+<pre>
+
+  D:\dev\lua\lapp&gt;simple -o test -q simple.lua
+
+  p       false
+
+  input   file (781C1BD8)
+
+  quiet   true
+
+  o       test
+
+  input_name      simple.lua
+
+  D:\dev\lua\lapp&gt;simple -o test simple.lua one two three
+
+  1       one
+
+  2       two
+
+  3       three
+
+  p       false
+
+  quiet   false
+
+
+
+  input   file (781C1BD8)
+
+  o       test
+
+  input_name      simple.lua
+
+</pre>
+<p>
+Notice that any extra parameters supplied will be put in the result table with integer indices, i.e. <code>args[i]</code> where <code>i</code> goes from 1 to <code>#args</code>.
+<p>
+Files don't really have to be closed explicitly for short scripts with a quick well-defined mission, since the result of garbage-collecting file objects is to close them.
+<p>
+<H3>Enforcing a Range for a Parameter</H3>
+<p>
+The type specifier can also be of the form '(' MIN '..' MAX ')'.
+<p>
+<pre class="code">
+  <span class="library">require</span> <span class="string">'lapp'</span>
+
+  <span class="keyword">local</span> args = lapp <span class="string">[[
+
+  Setting ranges
+
+    &lt;x&gt; (1..10)  A number from 1 to 10
+
+    &lt;y&gt; (-5..1e6) Bigger range
+
+  ]]</span>
+
+
+
+  <span class="library">print</span>(args.x,args.y)
+
+</pre>
+
+<p>
+Here the meaning is that the value is greater or equal to MIN and less or equal to MAX; there is no provision for forcing a parameter to be a whole number.
+<p>
+You may also define custom types that can be used in the type specifier:
+<p>
+<pre class="code">
+    <span class="library">require</span> (<span class="string">'lapp'</span>)
+
+
+
+    lapp.add_type(<span class="string">'integer'</span>,<span class="string">'number'</span>,
+
+        <span class="keyword">function</span>(x)
+
+            lapp.assert(<span class="library">math.ceil</span>(x) == x, <span class="string">'not an integer!'</span>)
+
+        <span class="keyword">end</span>
+
+    )
+
+
+
+    <span class="keyword">local</span> args =  lapp <span class="string">[[
+
+        &lt;ival&gt; (integer) Process PID
+
+    ]]</span>
+
+
+
+    <span class="library">print</span>(args.ival)
+
+</pre>
+
+<p>
+<code>lapp.add_type</code> takes three parameters, a type name, a converter and a constraint function. The constraint function is expected to throw an assertion if some condition is not true; we use <code>lapp.assert</code> because it fails in the standard way for a command-line script.  The converter argument can either be a type name known to Lapp, or a function which takes a string and generates a value.
+<H3>'varargs' Parameter Arrays</H3>
+<p>
+<pre class="code">
+    <span class="library">require</span> <span class="string">'lapp'</span>
+
+    <span class="keyword">local</span> args = lapp <span class="string">[[
+
+    Summing numbers
+
+        &lt;numbers...&gt; (number) A list of numbers to be summed
+
+    ]]</span>
+
+
+
+    <span class="keyword">local</span> sum = 0
+
+    <span class="keyword">for</span> i,x <span class="keyword">in</span> <span class="library">ipairs</span>(args.numbers) <span class="keyword">do</span>
+
+        sum = sum + x
+
+    <span class="keyword">end</span>
+
+    <span class="library">print</span> (<span class="string">'sum is '</span>..sum)
+
+</pre>
+
+<p>
+The parameter <code>number</code> has a trailing '...', which indicates that this parameter is a 'varargs' parameter. It <em>must</em> be the last parameter, and <code>args.number</code> will be an array.
+<p>
+Consider this implementation of the <code>head</code> utility from Unix-like OSs:
+<p>
+<pre class="code">
+    <span class="comment">-- implements a BSD-style head</span>
+
+    <span class="comment">-- (see http://www.manpagez.com/man/1/head/osx-10.3.php)</span>
+
+
+
+    <span class="library">require</span> (<span class="string">'lapp'</span>)
+
+
+
+    <span class="keyword">local</span> args = lapp <span class="string">[[
+
+    Print the first few lines of specified files
+
+       -n         (default 10)    Number of lines to print
+
+       &lt;files...&gt; (default stdin) Files to print
+
+    ]]</span>
+
+
+
+    <span class="comment">-- by default, lapp converts file arguments to an actual Lua file object.</span>
+
+    <span class="comment">-- But the actual filename is always available as &lt;file&gt;_name.</span>
+
+    <span class="comment">-- In this case, 'files' is a varargs array, so that 'files_name' is</span>
+
+    <span class="comment">-- also an array.</span>
+
+    <span class="keyword">local</span> nline = args.n
+
+    <span class="keyword">local</span> nfile = #args.files
+
+    <span class="keyword">for</span> i = 1,nfile <span class="keyword">do</span>
+
+        <span class="keyword">local</span> file = args.files[i]
+
+        <span class="keyword">if</span> nfile &gt; 1 <span class="keyword">then</span>
+
+            <span class="library">print</span>(<span class="string">'==&gt; '</span>..args.files_name[i]..<span class="string">' &lt;=='</span>)
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">local</span> n = 0
+
+        <span class="keyword">for</span> line <span class="keyword">in</span> file:lines() <span class="keyword">do</span>
+
+            <span class="library">print</span>(line)
+
+            n = n + 1
+
+            <span class="keyword">if</span> n == nline <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+</pre>
+
+<p>
+Note how we have access to all the filenames, because the auto-generated field <code>files_name</code> is also an array!
+<p>
+(This is probably not a very considerate script, since Lapp will open all the files provided, and only close them at the end of the script. See the <code>xhead.lua</code> example for another implementation.)
+<p>
+Flags and options may also be declared as vararg arrays, and can occur anywhere. Bear in mind that short options can be combined (like 'tar -xzf'), so it's perfectly legal to have '-vvv'. But normally the value of <code>args.v</code> is just a simple <code>true</code>.
+<p>
+<pre class="code">
+    <span class="keyword">local</span> args = <span class="library">require</span> (<span class="string">'lapp'</span>) <span class="string">[[
+
+       -v...  Verbosity level; can be -v, -vv or -vvv
+
+    ]]</span>
+
+    vlevel = <span class="keyword">not</span> args.v[1] <span class="keyword">and</span> 0 <span class="keyword">or</span> #args.v
+
+    <span class="library">print</span>(vlevel)
+
+</pre>
+
+<p>
+The <code>vlevel</code> assigment is a bit of Lua voodoo, so consider the cases:
+<p>
+<UL>
+<li> No -v flag, v is just { false }.  <code>not args.v[1]</code> is <code>true</code>, so <code>vlevel</code> becomes 0.
+<li> One -v flags, v is { true }
+<li> Two -v flags, v is { true, true }
+<li> Three -v flags, v is { true, true, true }
+</UL>
+<p>
+<p>
+<p>
+<H3>Defining a Parameter Callback</H3>
+<p>
+If a script implements <code>lapp.callback</code>, then Lapp will call it after each argument is parsed. The callback is passed the parameter name, the raw unparsed value, and the result table. It is called immediately after assignment of the value, so the corresponding field is available.
+<p>
+<pre class="code">
+    <span class="library">require</span> (<span class="string">'lapp'</span>)
+
+
+
+    <span class="keyword">function</span> lapp.callback(parm,arg,args)
+
+        <span class="library">print</span>(<span class="string">'+'</span>,parm,arg)
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">local</span> args = lapp <span class="string">[[
+
+    Testing parameter handling
+
+        -p               Plain flag (defaults to false)
+
+        -q,--quiet       Plain flag with GNU-style optional long name
+
+        -o  (string)     Required string option
+
+        -n  (number)     Required number option
+
+        -s (default 1.0) Option that takes a number, but will default
+
+        &lt;start&gt; (number) Required number argument
+
+        &lt;input&gt; (default stdin)  A parameter which is an input file
+
+        &lt;output&gt; (default stdout) One that is an output file
+
+    ]]</span>
+
+    <span class="library">print</span> <span class="string">'args'</span>
+
+    <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(args) <span class="keyword">do</span>
+
+        <span class="library">print</span>(k,v)
+
+    <span class="keyword">end</span>
+
+</pre>
+
+<p>
+This produces the following output:
+<p>
+<pre>
+
+    D:\dev\lua\lapp&gt;args -o name -n 2 10 args.lua
+
+    +       o       name
+
+    +       n       2
+
+    +       start   10
+
+    +       input   args.lua
+
+    args
+
+    p       false
+
+    s       1
+
+    input_name      args.lua
+
+    quiet   false
+
+    output  file (781C1B98)
+
+    start   10
+
+    input   file (781C1BD8)
+
+    o       name
+
+    n       2
+
+</pre>
+<p>
+Why is a callback useful? There are cases where you would like to take action immediately on parsing an argument.
+<p>
+<H2>Feedback</H2>
+<p>
+Very interesting idea!  Perhaps this will lead to clones for other programming languages :)  At any rate, thanks for this approach and writing the code.
+<p>
+One minor suggestion in lapp.lua -- something like 'local typespec' before line 178 of lapp.lua.  This sort of change might make 'strict' happier.
+<p>
+<H2>Licensing</H2>
+<p>
+Lapp is available under the same licence as Lua.
+<p>
+Copyright, <a href="../wiki/SteveDonovan.html" >SteveDonovan</a>, 2009
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/CommandLineParsing.html" >CommandLineParsing</a>
+</UL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LappFramework" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LappFramework" >history</a><br>Last edited February 28, 2014 5:43 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LappFramework" >(diff)</a>
+</body>
+</html>

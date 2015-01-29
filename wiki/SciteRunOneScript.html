@@ -1,0 +1,145 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Run One Script</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteRunOneScript&amp;body=1" title="List pages referring to SciteRunOneScript">Scite Run One Script</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Select a script from a list and run it</H3>
+<p>
+The following script requires <a href="../wiki/SciteExtMan.html" >SciteExtMan</a>. It uses the userlist mechanism
+of SciTE to display a list of script names. The user can then select one
+script and run it. This is useful for scripts that are not run often, and
+besides, this reduces the height of the Tools and the buffer tab menu. It
+fails silently if <code>extman</code> is not present.
+<p>
+The code below demonstrates how a user can select one of two recreational
+scripts (<a href="../wiki/SciteElizaClassic.html" >SciteElizaClassic</a> and <a href="../wiki/SciteTicTacToe.html" >SciteTicTacToe</a>.) To customize the code,
+simply put the appropriate information into the table <code>AppList</code>.
+<p>
+<em>Note:</em> Currently, <a href="../wiki/SciteExtMan.html" >SciteExtMan</a> does not use the id parameter in order
+to differentiate between more than one userlists, so if you need more
+than one userlist, you will need to make some modifications to <code>extman</code>.
+<p>
+<hr><pre class="code">
+<span class="comment">-----------------------------------------------------------------------</span>
+
+<span class="comment">-- for global scripts; switch to "SciteUserHome" for per-user scripts</span>
+
+<span class="comment">-----------------------------------------------------------------------</span>
+
+<span class="keyword">function</span> loadscript(scriptfile)
+
+  <span class="library">require</span>(props[<span class="string">"SciteDefaultHome"</span>]..<span class="string">"/script/"</span>..scriptfile)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-----------------------------------------------------------------------</span>
+
+<span class="comment">-- run selected scripts, silently fails if no extman</span>
+
+<span class="comment">-----------------------------------------------------------------------</span>
+
+<span class="comment">-- [[</span>
+
+<span class="keyword">if</span> scite_Command <span class="keyword">then</span>
+
+scite_Command(<span class="string">'Run A Script|ChooseAScript|Ctrl+9'</span>)
+
+<span class="keyword">local</span> AppList = {
+
+  {<span class="string">"Tic Tac Toe"</span>, <span class="string">"SciTE_TicTacToe2.lua"</span>, <span class="string">"TicTacToe"</span>},
+
+  {<span class="string">"Classic Eliza"</span>, <span class="string">"SciTE_Classic_Eliza2.lua"</span>, <span class="string">"ClassicEliza"</span>},
+
+}
+
+<span class="keyword">function</span> ChooseAScript()
+
+  <span class="keyword">local</span> list = {}
+
+  <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(AppList) <span class="keyword">do</span> list[i] = v[1] <span class="keyword">end</span>
+
+  <span class="keyword">if</span> scite_UserListShow <span class="keyword">then</span>
+
+    scite_UserListShow(list, 1, RunSelectedScript)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> RunSelectedScript(str)
+
+  <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(AppList) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> str == v[1] <span class="keyword">then</span>
+
+      loadscript(v[2]) <span class="comment">-- change this to suit your environment</span>
+
+      <span class="keyword">if</span> <span class="library">type</span>(<span class="library">_G</span>[v[3]]) == <span class="string">"function"</span> <span class="keyword">then</span> <span class="library">_G</span>[v[3]]() <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">--]]</span>
+
+</pre>
+
+<p>
+<em>--khman</em>
+<p>
+<hr>This script works great.  However, when I recently switched to SciTE version 1.74, it stopped working properly.  Was able to get it working again by changing the line:
+<p>
+<pre class="code">
+  <span class="library">require</span>(props[<span class="string">"SciteDefaultHome"</span>]..<span class="string">"/script/"</span>..scriptfile)
+
+</pre>
+
+<p>
+to:
+<p>
+<pre class="code">
+  <span class="library">dofile</span>(props[<span class="string">"SciteDefaultHome"</span>]..<span class="string">"\\scitelua\\"</span>..scriptfile)
+
+</pre>
+
+<p>
+Note: on Linux the / is used.  If you're on Windows, use \\ in it's place as I have.
+<p>
+Am wondering if anyone else is having this problem and if this is the best solution or if another command would be better in place of dofile.  Any opinions?
+<p>
+I've found it a very useful script though.  Thanks to the author for sharing it.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteRunOneScript" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteRunOneScript" >history</a><br>Last edited August 31, 2007 6:49 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteRunOneScript" >(diff)</a>
+</body>
+</html>

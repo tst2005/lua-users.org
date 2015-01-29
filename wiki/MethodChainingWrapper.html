@@ -1,0 +1,917 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Method Chaining Wrapper</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MethodChainingWrapper&amp;body=1" title="List pages referring to MethodChainingWrapper">Method Chaining Wrapper</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+At times we would like to add custom methods to built-in types like strings and functions, particularly when using method chaining <a href="http://martinfowler.com/dslwip/MethodChaining.html">[1]</a><a href="http://en.wikipedia.org/wiki/Method_chaining.html">[2]</a>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+(<span class="string">"  test  "</span>):trim():repeatchars(2):upper() <span class="comment">--&gt; "TTEESSTT"</span>
+
+
+
+(<span class="keyword">function</span>(x,y) <span class="keyword">return</span> x*y <span class="keyword">end</span>):curry(2) <span class="comment">--&gt; (function(y) return 2*y end)</span>
+
+</pre>
+
+</DL>
+<p>
+We can do this with the debug library (<code>debug.setmetatable</code>) <a href="/lists/lua-l/2009-03/msg00482.html">[5]</a>.  The downside is that each built-in type has a single, common metatable.  Modifying this metatable causes a global side-effect, which is a potential source of conflict between independently maintained modules in a program.  Functions in the debug library are often discouraged in regular code for good reason.  Many people avoid injecting into these global metatables, while others find it too convenient to avoid <a href="http://penlight.luaforge.net/penlight.html#T4">[3]</a><a href="/lists/lua-l/2008-09/msg00214.html">[6]</a>[<a href="../wiki/ExtensionProposal.html" >ExtensionProposal</a>].  Some have even asked why objects of built-in types don't have their own metatables <a href="/lists/lua-l/2009-03/msg00500.html">[7]</a>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+...
+
+<span class="library">debug.setmetatable</span>(<span class="string">""</span>, string_mt)
+
+<span class="library">debug.setmetatable</span>(<span class="keyword">function</span>()<span class="keyword">end</span>, function_mt)
+
+</pre>
+
+</DL>
+<p>
+We could instead use just standalone functions:
+<p>
+<DL>
+<dt><dd><pre class="code">
+(repeatchars(trim(<span class="string">"test"</span>), 2)):upper()
+
+
+
+curry(<span class="keyword">function</span>(x,y) <span class="keyword">return</span> x*y <span class="keyword">end</span>, 2)
+
+</pre>
+
+</DL>
+<p>
+This is the simplest solution.  Simple solutions are often good ones.  Nevertheless, there can be a certain level of discordance with some operations being method calls and some being standalone global functions, along with the reordering that results.
+<p>
+One solution to avoid touching the global metatables is to wrap the object inside our own class, perform operations on the wrapper in a method call chain, and unwrap the objects.
+<p>
+Examples would look like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+S<span class="string">"  test  "</span>:trim():repeatchars(2):upper()() <span class="comment">--&gt; TTEESSTT</span>
+
+
+
+S<span class="string">"  TEST  "</span>:trim():lower():find(<span class="string">'e'</span>)() <span class="comment">--&gt; 2 2</span>
+
+</pre>
+
+</DL>
+<p>
+The <code>S</code> function wraps the given object into a wrapper object.  A chain of method calls on the wrapper object operate on the wrapped object in-place.  Finally, the wrapper object is unwrapped with a function call <code>()</code>.
+<p>
+For functions that return a single value, an alternative way to unpack is to the use the unary minus:
+<p>
+<DL>
+<dt><dd><pre class="code">
+-S<span class="string">"  test  "</span>:trim():repeatchars(2):upper() <span class="comment">--&gt; TTEESSTT</span>
+
+</pre>
+
+</DL>
+<p>
+To define <code>S</code> in terms of a table of string functions <code>stringx</code>, we can use this code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> stringx = {}
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(<span class="library">string</span>) <span class="keyword">do</span> stringx[k] = v <span class="keyword">end</span>
+
+<span class="keyword">function</span> stringx.trim(self)
+
+  <span class="keyword">return</span> self:match(<span class="string">'^%s*(%S*)%s*$'</span>)
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> stringx.repeatchars(self, n)
+
+  <span class="keyword">local</span> ts = {}
+
+  <span class="keyword">for</span> i=1,#self <span class="keyword">do</span>
+
+    <span class="keyword">local</span> c = self:sub(i,i)
+
+    <span class="keyword">for</span> i=1,n <span class="keyword">do</span> ts[#ts+1] = c <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">table.concat</span>(ts)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> S = buildchainwrapbuilder(stringx)
+
+</pre>
+
+</DL>
+<p>
+The <code>buildchainwrapbuilder</code> function is general and implements our design pattern:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- (c) 2009 David Manura. Licensed under the same terms as Lua (MIT license).</span>
+
+<span class="comment">-- version 20090430</span>
+
+<span class="keyword">local</span> <span class="library">select</span> = <span class="library">select</span>
+
+<span class="keyword">local</span> <span class="library">setmetatable</span> = <span class="library">setmetatable</span>
+
+<span class="keyword">local</span> <span class="library">unpack</span> = <span class="library">unpack</span>
+
+<span class="keyword">local</span> <span class="library">rawget</span> = <span class="library">rawget</span>
+
+
+
+<span class="comment">-- http://lua-users.org/wiki/CodeGeneration</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> memoize(func)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({}, {
+
+    __index = <span class="keyword">function</span>(self, k) <span class="keyword">local</span> v = func(k); self[k] = v; <span class="keyword">return</span> v <span class="keyword">end</span>,
+
+    __call = <span class="keyword">function</span>(self, k) <span class="keyword">return</span> self[k] <span class="keyword">end</span>
+
+  })
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- unique IDs (avoid name clashes with wrapped object)</span>
+
+<span class="keyword">local</span> N = {}
+
+<span class="keyword">local</span> VALS = memoize(<span class="keyword">function</span>() <span class="keyword">return</span> {} <span class="keyword">end</span>)
+
+<span class="keyword">local</span> VAL = VALS[1]
+
+<span class="keyword">local</span> PREV = {}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> mypack(ow, ...)
+
+  <span class="keyword">local</span> n = <span class="library">select</span>(<span class="string">'#'</span>, ...)
+
+  <span class="keyword">for</span> i=1,n <span class="keyword">do</span> ow[VALS[i]] = <span class="library">select</span>(i, ...) <span class="keyword">end</span>
+
+  <span class="keyword">for</span> i=n+1,ow[N] <span class="keyword">do</span> ow[VALS[i]] = <span class="keyword">nil</span> <span class="keyword">end</span>
+
+  ow[N] = n
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> myunpack(ow, i)
+
+  i = i <span class="keyword">or</span> 1
+
+  <span class="keyword">if</span> i &lt;= ow[N] <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="library">rawget</span>(ow, VALS[i]), myunpack(ow, i+1)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> buildchainwrapbuilder(t)
+
+  <span class="keyword">local</span> mt = {}
+
+  <span class="keyword">function</span> mt:__index(k)
+
+    <span class="keyword">local</span> val = <span class="library">rawget</span>(self, VAL)
+
+    self[PREV] = val <span class="comment">-- store in case of method call</span>
+
+    mypack(self, t[k])
+
+    <span class="keyword">return</span> self
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> mt:__call(...)
+
+    <span class="keyword">if</span> (...) == self <span class="keyword">then</span> <span class="comment">-- method call</span>
+
+      <span class="keyword">local</span> val = <span class="library">rawget</span>(self, VAL)
+
+      <span class="keyword">local</span> prev = <span class="library">rawget</span>(self, PREV)
+
+      self[PREV] = <span class="keyword">nil</span>
+
+      mypack(self, val(prev, <span class="library">select</span>(2,...)))
+
+      <span class="keyword">return</span> self
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">return</span> myunpack(self, 1, self[N])
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> mt:__unm() <span class="keyword">return</span> <span class="library">rawget</span>(self, VAL) <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> build(o)
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>({[VAL]=o,[N]=1}, mt)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> build
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> chainwrap(o, t)
+
+  <span class="keyword">return</span> buildchainwrapbuilder(t)(o)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Test suite:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- simple examples</span>
+
+<span class="library">assert</span>(-S<span class="string">"AA"</span>:lower() == <span class="string">"aa"</span>)
+
+<span class="library">assert</span>(-S<span class="string">"AB"</span>:lower():reverse() == <span class="string">"ba"</span>)
+
+<span class="library">assert</span>(-S<span class="string">"  test  "</span>:trim():repeatchars(2):upper() == <span class="string">"TTEESSTT"</span>)
+
+<span class="library">assert</span>(S<span class="string">"  test  "</span>:trim():repeatchars(2):upper()() == <span class="string">"TTEESSTT"</span>)
+
+
+
+<span class="comment">-- basics</span>
+
+<span class="library">assert</span>(S<span class="string">""</span>() == <span class="string">""</span>)
+
+<span class="library">assert</span>(S<span class="string">"a"</span>() == <span class="string">"a"</span>)
+
+<span class="library">assert</span>(-S<span class="string">"a"</span> == <span class="string">"a"</span>)
+
+<span class="library">assert</span>(S(<span class="keyword">nil</span>)() == <span class="keyword">nil</span>)
+
+<span class="library">assert</span>(S<span class="string">"a"</span>:byte()() == 97)
+
+<span class="keyword">local</span> a,b,c = S<span class="string">"TEST"</span>:lower():find(<span class="string">'e'</span>)()
+
+<span class="library">assert</span>(a==2 <span class="keyword">and</span> b==2 <span class="keyword">and</span> c==<span class="keyword">nil</span>)
+
+<span class="library">assert</span>(-S<span class="string">"TEST"</span>:lower():find(<span class="string">'e'</span>) == 2)
+
+
+
+<span class="comment">-- potentially tricky cases</span>
+
+<span class="library">assert</span>(S<span class="string">""</span>.__index() == <span class="keyword">nil</span>)
+
+<span class="library">assert</span>(S<span class="string">""</span>.__call() == <span class="keyword">nil</span>)
+
+<span class="library">assert</span>(S<span class="string">""</span>[1]() == <span class="keyword">nil</span>)
+
+stringx[1] = <span class="string">'c'</span>
+
+<span class="library">assert</span>(S<span class="string">"a"</span>[1]() == <span class="string">'c'</span>)
+
+<span class="library">assert</span>(S<span class="string">"a"</span>[1]:upper()() == <span class="string">'C'</span>)
+
+stringx[1] = <span class="string">'d'</span>
+
+<span class="library">assert</span>(S<span class="string">"a"</span>[1]() == <span class="string">'d'</span>) <span class="comment">-- uncached</span>
+
+<span class="library">assert</span>(S<span class="string">"a"</span>.lower() == <span class="library">string.lower</span>)
+
+
+
+<span class="comment">-- improve error messages?</span>
+
+<span class="comment">--assert(S(nil):z() == nil)</span>
+
+
+
+<span class="library">print</span> <span class="string">'DONE'</span>
+
+</pre>
+
+</DL>
+<p>
+The above implementation has these qualities and assumptions:
+<p>
+<UL>
+<li> The wrapper does not expose most of the wrapped object's metamethods.  It's not clear there is a need for this and that it can be implemented correctly.  Operators don't follow the method chaining style, apart from the <code>__call</code> and <code>__index</code> operators, which also form the two halves of the method call.  Operators like <code>__len</code> are not definable in 5.1 tables.  True <a href="../wiki/LuaVirtualization.html" >LuaVirtualization</a> is not possible.
+<li> Special care is taken to avoid unintentionally exposing names through the wrapper object and thereby overriding names in the wrapped object.  This imposes some overhead that can be avoided with less care or additional table allocation.
+<li> Still, the unpacking operation in the wrapper overrides any similarly named operation in the wrapped object.  Currently, we use the <code>__call</code> operator <code>()</code> to unpack, which is the only operator allowing multiple return values.  The code also supports unary minus as an alternative, which has the limitation of returning a single value (usual case) but perhaps has nicer syntax qualities (S and <code>-</code> together).
+<li> Calling and indexing on the wrapper mutate the identity of the wrapped object with the return value of the operation (i.e. side-effects).
+<li> Reads from the function table used by the wrapper are not cached (an earlier implementation did have this property).
+<li> Building the builder has some additional overhead (fixed cost) to allow the builder to allocate only one table per object (incremental cost).
+</UL>
+<p>
+There are alternative ways we could have expressed the chaining:
+<p>
+<DL>
+<dt><dd><pre class="code">
+S{<span class="string">"  test  "</span>, <span class="string">"trim"</span>, {<span class="string">"repeatchars"</span>,2}, <span class="string">"upper"</span>}
+
+
+
+S(<span class="string">"  test  "</span>, <span class="string">"trim | repeatchars(2) | upper"</span>)
+
+</pre>
+
+</DL>
+<p>
+but this looks less conventional.  (Note: the second argument in the last line is point-free <a href="http://en.wikipedia.org/wiki/Tacit_programming.html">[4]</a>.)
+<p>
+<H2>Method Chaining Wrapper Take #2 - Object at End of Chain</H2>
+<p>
+We could instead express the call chain like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+chain(stringx):trim():repeatchars(5):upper()(<span class="string">'  test   '</span>)
+
+</pre>
+
+</DL>
+<p>
+where the object operated on is placed at the very end.  This reduces the chance of forgetting to unpack, and it allows separation and reuse:
+<p>
+<DL>
+<dt><dd><pre class="code">
+f = chain(stringx):trim():repeatchars(5):upper()
+
+<span class="library">print</span> ( f(<span class="string">'  test  '</span>) )
+
+<span class="library">print</span> ( f(<span class="string">'  again  '</span>) )
+
+</pre>
+
+</DL>
+<p>
+There's various ways to implement this (functional, <a href="../wiki/CodeGeneration.html" >CodeGeneration</a>, and VM).  Here we take the latter approach.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- method call chaining, take #2</span>
+
+<span class="comment">-- (c) 2009 David Manura. Licensed under the same terms as Lua (MIT license).</span>
+
+<span class="comment">-- version 20090501</span>
+
+
+
+<span class="comment">-- unique IDs to avoid name conflict</span>
+
+<span class="keyword">local</span> OPS = {}
+
+<span class="keyword">local</span> INDEX = {}
+
+<span class="keyword">local</span> METHOD = {}
+
+
+
+<span class="comment">-- table insert, allowing trailing nils</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> myinsert(t, v)
+
+  <span class="keyword">local</span> n = t.n + 1; t.n = n
+
+  t[n] = v
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> eval(ops, x)
+
+  <span class="comment">--print('DEBUG:', unpack(ops,1,ops.n))</span>
+
+  <span class="keyword">local</span> t = ops.t
+
+
+
+  <span class="keyword">local</span> self = x
+
+  <span class="keyword">local</span> prev
+
+  <span class="keyword">local</span> n = ops.n
+
+  <span class="keyword">local</span> i=1; <span class="keyword">while</span> i &lt;= n <span class="keyword">do</span>
+
+    <span class="keyword">if</span> ops[i] == INDEX <span class="keyword">then</span>
+
+      <span class="keyword">local</span> k = ops[i+1]
+
+      prev = x  <span class="comment">-- save in case of method call</span>
+
+      x = t[k]
+
+      i = i + 2
+
+    <span class="keyword">elseif</span> ops[i] == METHOD <span class="keyword">then</span>
+
+      <span class="keyword">local</span> narg = ops[i+1]
+
+      x = x(prev, <span class="library">unpack</span>(ops, i+2, i+1+narg))
+
+      i = i + 2 + narg
+
+    <span class="keyword">else</span>
+
+      <span class="library">assert</span>(<span class="keyword">false</span>)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> x
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> mt = {}
+
+<span class="keyword">function</span> mt:__index(k)
+
+  <span class="keyword">local</span> ops = self[OPS]
+
+  myinsert(ops, INDEX)
+
+  myinsert(ops, k)
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> mt:__call(x, ...)
+
+  <span class="keyword">local</span> ops = self[OPS]
+
+  <span class="keyword">if</span> x == self <span class="keyword">then</span> <span class="comment">-- method call</span>
+
+    myinsert(ops, METHOD)
+
+    <span class="keyword">local</span> n = <span class="library">select</span>(<span class="string">'#'</span>, ...)
+
+    myinsert(ops, n)
+
+    <span class="keyword">for</span> i=1,n <span class="keyword">do</span>
+
+      myinsert(ops, (<span class="library">select</span>(i, ...)))
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> self
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">return</span> eval(ops, x)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> chain(t)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({[OPS]={n=0,t=t}}, mt)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Rudimentary test code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> stringx = {}
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(<span class="library">string</span>) <span class="keyword">do</span> stringx[k] = v <span class="keyword">end</span>
+
+<span class="keyword">function</span> stringx.trim(self)
+
+  <span class="keyword">return</span> self:match(<span class="string">'^%s*(%S*)%s*$'</span>)
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> stringx.repeatchars(self, n)
+
+  <span class="keyword">local</span> ts = {}
+
+  <span class="keyword">for</span> i=1,#self <span class="keyword">do</span>
+
+    <span class="keyword">local</span> c = self:sub(i,i)
+
+    <span class="keyword">for</span> i=1,n <span class="keyword">do</span> ts[#ts+1] = c <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">table.concat</span>(ts)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> C = chain
+
+<span class="library">assert</span>(C(stringx):trim():repeatchars(2):upper()(<span class="string">"  test  "</span>) == <span class="string">'TTEESSTT'</span>)
+
+<span class="keyword">local</span> f = C(stringx):trim():repeatchars(2):upper()
+
+<span class="library">assert</span>(f<span class="string">"  test  "</span> == <span class="string">'TTEESSTT'</span>)
+
+<span class="library">assert</span>(f<span class="string">"  again  "</span> == <span class="string">'AAGGAAIINN'</span>)
+
+<span class="library">print</span> <span class="string">'DONE'</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Method Chaining Wrapper Take #3 - Lexical injecting with scope-aware metatable</H2>
+<p>
+An alternate idea is to modify the string metatable so that the extensions to the string methods are only visible within a lexical scope.  The following is not perfect (e.g. nested functions), but it is a start.  Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- test example libraries</span>
+
+<span class="keyword">local</span> stringx = {}
+
+<span class="keyword">function</span> stringx.trim(self)  <span class="keyword">return</span> self:match(<span class="string">'^%s*(%S*)%s*$'</span>) <span class="keyword">end</span>
+
+<span class="keyword">local</span> stringxx = {}
+
+<span class="keyword">function</span> stringxx.trim(self) <span class="keyword">return</span> self:match(<span class="string">'^%s?(.-)%s?$'</span>) <span class="keyword">end</span>
+
+
+
+<span class="comment">-- test example</span>
+
+<span class="keyword">function</span> test2(s)
+
+  <span class="library">assert</span>(s.trim == <span class="keyword">nil</span>)
+
+  scoped_string_methods(stringxx)
+
+  <span class="library">assert</span>(s:trim() == <span class="string">' 123 '</span>)
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> test(s)
+
+  scoped_string_methods(stringx)
+
+  <span class="library">assert</span>(s:trim() == <span class="string">'123'</span>)
+
+  test2(s)
+
+  <span class="library">assert</span>(s:trim() == <span class="string">'123'</span>)
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> s = <span class="string">'  123  '</span>
+
+<span class="library">assert</span>(s.trim == <span class="keyword">nil</span>)
+
+test(s)
+
+<span class="library">assert</span>(s.trim == <span class="keyword">nil</span>)
+
+<span class="library">print</span> <span class="string">'DONE'</span>
+
+</pre>
+
+</DL>
+<p>
+The function <code>scoped_string_methods</code> assigns the given function table to the scope of the currently executing function.  All string indexing within the scope goes through that given table.
+<p>
+The above uses this framework code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- framework</span>
+
+<span class="keyword">local</span> mt = <span class="library">debug.getmetatable</span>(<span class="string">''</span>)
+
+<span class="keyword">local</span> scope = {}
+
+<span class="keyword">function</span> mt.__index(s, k)
+
+  <span class="keyword">local</span> f = <span class="library">debug.getinfo</span>(2, <span class="string">'f'</span>).func
+
+  <span class="keyword">return</span> scope[f] <span class="keyword">and</span> scope[f][k] <span class="keyword">or</span> <span class="library">string</span>[k]
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> scoped_string_methods(t)
+
+  <span class="keyword">local</span> f = <span class="library">debug.getinfo</span>(2, <span class="string">'f'</span>).func
+
+  scope[f] = t
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Method Chaining Wrapper Take #4 - Lexical injecting with Metalua</H2>
+<p>
+We can do something similar to the above more robustly via <a href="../wiki/MetaLua.html" >MetaLua</a>.  An example is below. 
+<p>
+<DL>
+<dt><dd><pre class="code">
+-{extension <span class="string">"lexicalindex"</span>}
+
+
+
+<span class="comment">-- test example libraries</span>
+
+<span class="keyword">local</span> stringx = {}
+
+<span class="keyword">function</span> stringx.trim(self)  <span class="keyword">return</span> self:match(<span class="string">'^%s*(%S*)%s*$'</span>) <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> f(o,k)
+
+  <span class="keyword">if</span> <span class="library">type</span>(o) == <span class="string">'string'</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> stringx[k] <span class="keyword">or</span> <span class="library">string</span>[k]
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> o[k]
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> test(s)
+
+  <span class="library">assert</span>(s.trim == <span class="keyword">nil</span>)
+
+  lexicalindex f
+
+  <span class="library">assert</span>(s.trim ~= <span class="keyword">nil</span>)
+
+  <span class="library">assert</span>(s:trim():upper() == <span class="string">'TEST'</span>)
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> s = <span class="string">'  test  '</span>
+
+<span class="library">assert</span>(s.trim == <span class="keyword">nil</span>)
+
+test(s)
+
+<span class="library">assert</span>(s.trim == <span class="keyword">nil</span>)
+
+
+
+<span class="library">print</span> <span class="string">'DONE'</span>
+
+</pre>
+
+</DL>
+<p>
+The syntax extension introduces a new keyword <code>lexicalindex</code> that specifies a function to be called whenever a value is to be indexed inside the current scope.
+<p>
+Here is what the corresponding plain Lua source looks like:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--- $ ./build/bin/metalua -S vs.lua</span>
+
+<span class="comment">--- Source From "@vs.lua": ---</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> __li_invoke (__li_index, o, name, ...)
+
+   <span class="keyword">return</span> __li_index (o, name) (o, ...)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> stringx = { }
+
+
+
+<span class="keyword">function</span> stringx:trim ()
+
+   <span class="keyword">return</span> self:match <span class="string">"^%s*(%S*)%s*$"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> f (o, k)
+
+   <span class="keyword">if</span> <span class="library">type</span> (o) == <span class="string">"string"</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> stringx[k] <span class="keyword">or</span> <span class="library">string</span>[k]
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> o[k]
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> test (s)
+
+   <span class="library">assert</span> (s.trim == <span class="keyword">nil</span>)
+
+   <span class="keyword">local</span> __li_index = f
+
+   <span class="library">assert</span> (__li_index (s, <span class="string">"trim"</span>) ~= <span class="keyword">nil</span>)
+
+   <span class="library">assert</span> (__li_invoke (__li_index, __li_invoke (__li_index, s, <span class="string">"trim"</span>), <span class="string">"upper"</span>
+
+) == <span class="string">"TEST"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> s = <span class="string">"  test  "</span>
+
+
+
+<span class="library">assert</span> (s.trim == <span class="keyword">nil</span>)
+
+
+
+test (s)
+
+
+
+<span class="library">assert</span> (s.trim == <span class="keyword">nil</span>)
+
+
+
+<span class="library">print</span> <span class="string">"DONE"</span>
+
+</pre>
+
+</DL>
+<p>
+The <code>lexicalindex</code> Metalua extension is implemented as
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- lexical index in scope iff depth &gt; 0</span>
+
+<span class="keyword">local</span> depth = 0
+
+
+
+<span class="comment">-- transform indexing expressions</span>
+
+mlp.expr.transformers:add(<span class="keyword">function</span>(ast)
+
+  <span class="keyword">if</span> depth &gt; 0 <span class="keyword">then</span>
+
+    <span class="keyword">if</span> ast.tag == <span class="string">'Index'</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> +{__li_index(-{ast[1]}, -{ast[2]})}
+
+    <span class="keyword">elseif</span> ast.tag == <span class="string">'Invoke'</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> `Call{`Id<span class="string">'__li_invoke'</span>, `Id<span class="string">'__li_index'</span>, <span class="library">unpack</span>(ast)}
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>)
+
+
+
+<span class="comment">-- monitor scoping depth</span>
+
+mlp.block.transformers:add(<span class="keyword">function</span>(ast)
+
+  <span class="keyword">for</span> _,ast2 <span class="keyword">in</span> <span class="library">ipairs</span>(ast) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> ast2.is_lexicalindex <span class="keyword">then</span>
+
+      depth = depth - 1; <span class="keyword">break</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>)
+
+
+
+<span class="comment">-- handle new "lexicalindex" statement</span>
+
+mlp.lexer:add<span class="string">'lexicalindex'</span>
+
+mlp.stat:add{<span class="string">'lexicalindex'</span>, mlp.expr, builder=<span class="keyword">function</span>(x)
+
+  <span class="keyword">local</span> e = <span class="library">unpack</span>(x)
+
+  <span class="keyword">local</span> ast_out = +{stat: <span class="keyword">local</span> __li_index = -{e}}
+
+  ast_out.is_lexicalindex = <span class="keyword">true</span>
+
+  depth = depth + 1
+
+  <span class="keyword">return</span> ast_out
+
+<span class="keyword">end</span>}
+
+
+
+<span class="comment">-- utility function</span>
+
+<span class="comment">-- (note: o must be indexed exactly once to preserve behavior</span>
+
+<span class="keyword">return</span> +{block:
+
+  <span class="keyword">local</span> <span class="keyword">function</span> __li_invoke(__li_index, o, name, ...)
+
+    <span class="keyword">return</span> __li_index(o, name)(o, ...)
+
+  <span class="keyword">end</span>
+
+}
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2009-05/msg00001.html">LuaList:2009-05/msg00001.html</a>
+<li> <a href="http://mirven.github.com/underscore.lua/">[Underscore.lua]</a> uses a similar pattern
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MethodChainingWrapper" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MethodChainingWrapper" >history</a><br>Last edited December 9, 2009 12:38 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MethodChainingWrapper" >(diff)</a>
+</body>
+</html>

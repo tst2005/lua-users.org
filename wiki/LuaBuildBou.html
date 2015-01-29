@@ -1,0 +1,415 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Build Bou</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaBuildBou&amp;body=1" title="List pages referring to LuaBuildBou">Lua Build Bou</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Bou is a Lua-based build system using Lua as a DSL.
+<p>
+Bou has grown up and been renamed <code>lake</code>; see <a href="http://github.com/stevedonovan/Lake">[1]</a>.
+<p>
+<H2>Bou: A Lua-based Build System</H2>
+<p>
+I first got interested in build tools implemented as embedded DSLS (Domain Specific Languages) by Martin Fowler's article on Rake <a href="http://martinfowler.com/articles/rake.html">[2]</a>. Build languages like make or nant are classic DSLs, although the term 'little language' <a href="http://c2.com/cgi/wiki?LittleLanguage">[3]</a> has been around a lot longer and in fact is an important part of the Unix development philosophy of specialized tools that do one thing well. 
+<p>
+Rake is an embedded DSL because it is hosted within a big language. That offers big benefits to both developer and user; the developer doesn't have to muck around reinventing a high-level programming language, and the user has the comfort and power of a tested programming language. It's easy to do unusual things without having to extend the language. Consider <code>make</code>; its power comes from having all those zillions of Unix commands floating around - it is much less powerful in non-POSIX environments. And one usually gets a bizarre mixture of make and shell script which is (shall we say) less than straightforward to maintain. <code>nant</code> is certainly cleaner, and one can write custom tasks in CLI languages, but one still has to 'drop out of the DSL' (as Fowler puts it) to do non-trivial things. XML is excellent for specifying hierarchical data, but not so good as a syntax for programming.
+<p>
+I've always considered Lua to be a good language for embedded DSL applications, which leads to Bou. Bou (pronounced like 'beau') is a build system based on pure Lua - the only external dependency is on the <a href="../wiki/LuaFileSystem.html" >LuaFileSystem</a> (lfs). It is deliberately similar to <code>make</code> in philosophy and uses the same language of targets, rules and dependencies. However, it brings two powerful things to the party; the ability to use arbitrary Lua code and a great deal of canned knowledge about some common compile tools.
+<p>
+The English language is rapidly running out as a resource for good open-source project names - 'lake' would have been perfect, but alas there's already a build system called that! 'bou' is Afrikaans for 'build'; you put your targets and rules in a 'boufile'.
+<p>
+<H3>Building Simple Programs</H3>
+<p>
+Consider an old friend:
+<p>
+<DL>
+<dt><dd><pre>
+
+#include &lt;stdio.h&gt;
+
+int main(int argc, char**argv)
+
+{
+
+        printf("Hello, World - %d parms passed\n",argc);
+
+        return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+Writing a makefile for the canonical "Hello, World!" program is overkill, but the equivalent boufile is very straightforward:
+<p>
+<DL>
+<dt><dd><pre class="code">
+c.program <span class="string">'hello'</span>
+
+</pre>
+
+</DL>
+<p>
+Alternatively, you can get Bou to deduce that you have a C program, and say this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+program <span class="string">'hello.c'</span>
+
+</pre>
+
+</DL>
+<p>
+Executing Bou will give the following output:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; bou
+
+gcc -c -O1 -DNDEBUG  hello.c
+
+gcc hello.o  -o hello.exe
+
+
+
+&gt; bou
+
+bou: up to date
+
+</pre>
+</DL>
+<p>
+Which is not in itself very impressive. But this simple boufile gives you features for free: it already knows about 'clean', knows how to use the Microsoft command-line compiler (at least on Windows), and knows how to make a debug build:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; bou clean
+
+removing
+
+1       hello.exe
+
+2       hello.o
+
+
+
+&gt; bou CC=cl
+
+cl /nologo -c /O1 /DNDEBUG  hello.c
+
+hello.c
+
+link /nologo hello.obj  /OUT:hello.exe
+
+
+
+&gt; bou CC=cl DEBUG=1
+
+cl /nologo -c /Zi /DDEBUG  hello.c
+
+hello.c
+
+link /nologo hello.obj  /OUT:hello.exe
+
+</pre> 
+</DL>
+<p>
+Observe that it was not necessary to invoke 'bou clean' before doing a debug build, because Bou is intelligent enough to know that the build has changed. This is done using a <em>specfile</em>:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; cat boufile.spec
+
+link /nologo $(DEPENDS)  /OUT:$(TARGET)
+
+cl /nologo -c /Zi /DDEBUG  $(INPUT)
+
+</pre>
+</DL>
+<p>
+By comparing the existing specfile to the commands generated, Bou can deduce that the commands have changed, and therefore require rebuilding.
+<p>
+For such a simple case, you can do without a boufile entirely, and let Bou deduce the tool needed to compile and run the file you specify:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; del hello.exe
+
+
+
+&gt; bou hello.c 10 20 30
+
+gcc hello.o  -o hello.exe
+
+ hello.exe 10 20 30
+
+Hello, World - 4 parms passed
+
+</pre>
+</DL>
+<p>
+Notice that <code>hello.o</code> was not regenerated!
+<p>
+<H3>Simple Programs with Dependencies</H3>
+<p>
+Consider a program with two files, <code>one.c</code> and <code>two.c</code>, which is called <code>first</code>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+c.program {<span class="string">'first'</span>,src=<span class="string">'one,two'</span>}
+
+</pre>
+
+</DL>
+<p>
+Running Bou, we get:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; bou
+
+gcc -c -O1 -DNDEBUG  one.c
+
+gcc -c -O1 -DNDEBUG  two.c
+
+gcc one.o two.o  -o first.exe
+
+</pre>
+</DL>
+<p>
+This is not a very realistic situation - in practice, the source files will at least depend on some header files, and you will need to specify libraries. To specify more optional parameters, we use a common table idiom for passing 'named' parameters - note the curly braces:
+<p>
+<DL>
+<dt><dd><pre class="code">
+c.program{<span class="string">'first'</span>,src=<span class="string">'one,two'</span>,
+
+   compile_deps=<span class="string">'common.h'</span>,libs=<span class="string">'user32,kernel32'</span>}
+
+</pre>
+
+</DL>
+<p>
+We will now link properly against the required libraries, and if <code>common.h</code> changes, the source files will be recompiled:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; bou
+
+gcc -c -O1 -DNDEBUG  one.c
+
+gcc -c -O1 -DNDEBUG  two.c
+
+gcc one.o two.o  -luser32 -lkernel32  -o first.exe
+
+
+
+&gt; bou CC=cl
+
+cl /nologo -c /O1 /DNDEBUG  one.c
+
+one.c
+
+cl /nologo -c /O1 /DNDEBUG  two.c
+
+two.c
+
+link /nologo one.obj two.obj  user32.lib kernel32.lib  /OUT:first.exe
+
+</pre>
+</DL>
+<p>
+<code>libs</code> gives Bou a list of libraries; it then decides how to format this list in the way appropriate for the particular tool. Other parameters include <code>incdefs</code>, for setting a list of include paths, and <code>defines</code>, for defining macros.
+<p>
+<H2>Explicit Dependencies</H2>
+<p>
+It is possible to say <code>src='*.c'</code>, but this doesn't handle the fact that each source file has individual dependencies.
+<p>
+One very common format for expressing dependencies is the 'deps' format emitted by tools like GCC, suitable for inclusion into a makefile.  Bou can process such a format explicitly. Consider the following boufile:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- bonzo.bou</span>
+
+cpp.defaults = {defines = <span class="string">'SIMPLE'</span>,libs = <span class="string">'user32'</span>}
+
+cpp.program {<span class="string">'bonzo'</span>,rules=<span class="string">[[
+
+cppfile.o: cppfile.cpp cpp/inc.h c/common.h
+
+cfile.o: cfile.c c/inc.h c/common.h
+
+clib.o: c/clib.c c/inc.h
+
+]]</span>}
+
+</pre>
+
+</DL>
+<p>
+The <code>rules</code> parameter can be set to a filename, but if the string contains newlines it's assumed to be verbatim. Bou will do three things from this specification: 
+<p>
+* generate targets based on the implicit rules it knows
+* extract the include paths
+* construct the dependency list for each target
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; bou -f bonzo.bou
+
+g++ -c -O1 -DNDEBUG -DSIMPLE  -Icpp -Ic   cppfile.cpp
+
+gcc -c -O1 -DNDEBUG -Ic   cfile.c
+
+gcc -c -O1 -DNDEBUG -Ic   c/clib.c
+
+g++ cppfile.o cfile.o clib.o  -luser32  -o bonzo.exe
+
+</pre>
+</DL>
+<p>
+Notice how global library and defines settings can be set using <code>cpp.defaults</code>.
+<p>
+<H2>Running Tests</H2>
+<p>
+Consider the common task of needing to build and run a number of test programs. These may require compilation (like C/C++) or can be directly interpreted. A boufile for a directory containing both C and Lua test programs could look like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+target(<span class="string">'all'</span>,<span class="string">'c,lua'</span>)
+
+target(<span class="string">'c'</span>,forall_results(<span class="string">'*.c'</span>,go))
+
+target(<span class="string">'lua'</span>,forall_results(<span class="string">'*.lua'</span>,go))
+
+</pre>
+
+</DL>
+<p>
+The first target 'all' explicitly depends on the targets 'c' and 'lua'; the dependencies for 'c' are the result of generating program build-and-run targets for all C files in this directory, individually handled by <code>go()</code>. <code>forall_results()</code> is rather like <code>map</code>, except that it can take a wildcard instead of an explicit list and can collect multiple results from each invocation of the function.
+<p>
+<H2>Some Minimal Documentation</H2>
+<p>
+The <code>rule</code> function is passed the input extension, the output extension, and a command to turn the input into the output file; the standard variables <code>INPUT</code> and <code>TARGET</code> are set for you. Rather than setting a global rule, it returns a <em>rule set</em> to which you add target names. In this example, <code>progs 'one'</code> is short for <code>progs:add_target 'one'</code>. <code>rule:add_target</code> also has a second argument which can be used to pass explicit dependencies.
+<p>
+<DL>
+<dt><dd><pre class="code">
+progs = rule(<span class="string">'.c'</span>,<span class="string">'.o'</span>,<span class="string">'gcc -c $(INPUT)'</span>)
+
+progs <span class="string">'one'</span>
+
+progs <span class="string">'two'</span>
+
+</pre>
+
+</DL>
+<p>
+The <code>target</code> function takes three arguments, a name, any dependencies, and a command to be executed. The dependencies can be a list (a string will be converted automatically) or a set of dependencies, using <code>depends</code>. If the dependencies argument is nil, then the target is unconditional. The command can either be a Lua function, or a string, in which case it is interpreted as a command to be run using the shell.
+<p>
+The <code>depends</code> function is useful for <em>defered</em> calculation of dependencies. Here is a target which depends on the results of two target sets, which are only populated later:
+<p>
+<DL>
+<dt><dd><pre class="code">
+progs = rule(<span class="string">'.c'</span>,<span class="string">'.o'</span>,<span class="string">'gcc -c $(INPUT)'</span>)
+
+files = rule(<span class="string">'.gif'</span>,<span class="string">'.jpg'</span>,<span class="string">'convert $(INPUT) $(TARGET)'</span>)
+
+target(<span class="string">'all'</span>,depends(progs,files),<span class="keyword">function</span>()
+
+	<span class="library">print</span> <span class="string">'yes'</span>
+
+<span class="keyword">end</span>)
+
+progs <span class="string">'one'</span>
+
+progs <span class="string">'two'</span>
+
+files <span class="string">'pool'</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Boufiles As Programs</H2>
+<p>
+At the height of the XML craze, it would have been natural to encode build rules something like this:
+<p>
+<DL>
+<dt><dd><pre>
+
+&lt;program name="first" compile_deps="common.h" libs="user32,kerner32"&gt;
+
+one, two
+
+&lt;/program&gt;
+
+</pre>
+</DL>
+<p>
+This is also a tool-agnostic notation, but it is not a very good <em>programming</em> notation. By making the build language a subset of a real programming language, doing non-standard extra things doesn't require 'jumping out of the DSL'.
+<p>
+Bou has a way to go before it can handle all the tasks expected of a build environment, including support for installation. But hopefully it is a good starting base, and also I hope it shows that Lua is excellently suited to this kind of 'little language' application.
+<p>
+<H2>Getting and Installing Bou</H2>
+<p>
+<a href="http://mysite.mweb.co.za/residents/sdonovan/lua/bou.zip">[4]</a> contains <code>bou.lua</code> and some small example projects. Unzip this somewhere, and make sure that you have <code>lfs</code> on your package cpath.  <code>lua bou.lua -f hello.bou</code> should now work; if no boufile is provided it will look for <code>boufile</code> in the current directory.  Then create a batch file
+<p>
+<DL>
+<dt><dd><pre>
+
+@lua &lt;path-to-bou.lua&gt; %*
+
+</pre>
+</DL>
+<p>
+or script file, depending on your religion:
+<p>
+<DL>
+<dt><dd><pre>
+
+#!/bin/bash
+
+lua &lt;path-to-bou.lua&gt;  "$@"
+
+</pre>
+</DL>
+<p>
+(The <code>"$@"</code> ensures that quoted parameters will be passed properly.)
+<p>
+<H2>Author</H2>
+<p>
+<a href="../wiki/SteveDonovan.html" >SteveDonovan</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaBuildBou" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaBuildBou" >history</a><br>Last edited October 14, 2010 1:21 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaBuildBou" >(diff)</a>
+</body>
+</html>

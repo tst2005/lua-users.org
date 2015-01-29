@@ -1,0 +1,207 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Shootout Echo</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ShootoutEcho&amp;body=1" title="List pages referring to ShootoutEcho">Shootout Echo</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+How to get the posix and socket shared libraries loaded into the Lua interpreter is a local issue.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- 2003-09 (Lua 5.0)</span>
+
+<span class="comment">-- lua -lposix -lsocket echo.lua [number]</span>
+
+
+
+data = <span class="string">'Hello there sailor\n'</span>
+
+dlen = <span class="library">string.len</span>(data)
+
+
+
+<span class="comment">-- this documents the ways a tcp receive() can go wrong.  it should</span>
+
+<span class="comment">-- not be called if the 2nd result of calling receive() == nil, but it</span>
+
+<span class="comment">-- guards against the possibility even so.</span>
+
+<span class="keyword">function</span> socket_receive_error(err)
+
+   <span class="keyword">if</span> err == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+      <span class="library">print</span><span class="string">'socket_receive_error(): err == nil, oops!'</span>
+
+   <span class="keyword">elseif</span> err == <span class="string">'closed'</span> <span class="keyword">then</span>
+
+      <span class="library">print</span><span class="string">'&lt;socket&gt;:receive(): connection closed'</span>
+
+      <span class="keyword">return</span>
+
+   <span class="keyword">elseif</span> err == <span class="string">'timeout'</span> <span class="keyword">then</span>
+
+      <span class="library">print</span><span class="string">'&lt;socket&gt;:receive(): connection timed out'</span>
+
+   <span class="keyword">else</span>
+
+      <span class="library">error</span>(<span class="string">'&lt;socket&gt;:receive(): error: '</span>..err)
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> server_sock()
+
+   <span class="keyword">local</span> server,err = socket.bind(<span class="string">'127.0.0.1'</span>,0)
+
+   <span class="library">assert</span>(server,err)
+
+   <span class="keyword">return</span> server
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> get_port(sock)
+
+   <span class="keyword">local</span> _,port = sock:getsockname()
+
+   <span class="keyword">return</span> port
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> client_sock(port)
+
+   <span class="keyword">local</span> client,err = socket.connect(<span class="string">'127.0.0.1'</span>,port)
+
+   <span class="library">assert</span>(client,err)
+
+   <span class="keyword">return</span> client
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> echo_client(n,port)
+
+   <span class="keyword">local</span> s = client_sock(port)
+
+   <span class="keyword">for</span> i=1,n <span class="keyword">do</span>
+
+      s:send(data)
+
+      <span class="keyword">local</span> d,err = s:receive(dlen)
+
+      <span class="keyword">if</span> err <span class="keyword">then</span>
+
+         socket_receive_error(err)
+
+         <span class="keyword">break</span>
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> d ~= data <span class="keyword">then</span> <span class="library">error</span>(<span class="string">'server reply: '</span>..d) <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+   s:close()
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> echo_server(n)
+
+   <span class="keyword">local</span> ssock = server_sock()
+
+   <span class="keyword">local</span> pid = posix.fork()
+
+   <span class="keyword">if</span> pid == 0 <span class="keyword">then</span>
+
+      echo_client(n,get_port(ssock)) <span class="comment">-- child is client</span>
+
+   <span class="keyword">else</span>
+
+      <span class="keyword">local</span> n = 0
+
+      <span class="keyword">local</span> client,err = ssock:accept()
+
+      <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+         <span class="keyword">local</span> data,err = client:receive(dlen)
+
+         <span class="keyword">if</span> err <span class="keyword">then</span>
+
+            socket_receive_error(err)
+
+            <span class="keyword">break</span>
+
+         <span class="keyword">end</span>
+
+         n = n + <span class="library">string.len</span>(data)
+
+         client:send(data)
+
+      <span class="keyword">end</span>
+
+      <span class="library">print</span>(<span class="string">'server received '</span>..n..<span class="string">' bytes'</span>)
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- insist on a proper argument if one's present, no silent corrections</span>
+
+<span class="keyword">if</span> arg <span class="keyword">and</span> arg[1] <span class="keyword">then</span>
+
+   n = <span class="library">tonumber</span>(arg[1])
+
+   <span class="keyword">if</span> <span class="keyword">not</span> n <span class="keyword">then</span> <span class="library">error</span>(<span class="string">'arg must be a number'</span>) <span class="keyword">end</span>
+
+<span class="keyword">else</span>
+
+   n = 1
+
+<span class="keyword">end</span>
+
+echo_server(n)
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/SteveElkins.html" >SteveElkins</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ShootoutEcho" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ShootoutEcho" >history</a><br>Last edited October 25, 2008 3:50 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ShootoutEcho" >(diff)</a>
+</body>
+</html>

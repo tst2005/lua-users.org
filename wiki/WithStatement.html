@@ -1,0 +1,544 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: With Statement</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=WithStatement&amp;body=1" title="List pages referring to WithStatement">With Statement</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Abstract</H2>
+<p>
+In several object oriented languages a with statement is implemented.
+<p>
+The structure like "with ... as" has a simple solution with a temporary variable, when one assigns the scope to the temporary variable and uses it whenever is needed.
+<p>
+The more complicated case, when "with" is used in order to extend the scope implicitly, like in the following example:
+<p>
+<DL>
+<dt><dd><pre>
+
+with (obj) {
+
+some_method();
+
+}
+
+</pre>
+</DL>
+<p>
+Lua doesn't provide such a structure by design. A simple solution is presented on this page.
+<p>
+<H2>Method</H2>
+<p>
+A basic library in lua provides enough instruments to implement something like "with" statement.
+<p>
+There's two functions to operate with environment: setfenv() and getfenv(), as well as a table  _G exists.
+<p>
+"with" structure in common sense extends a scope with the provided object. It is possible with metadata manipulations (see getmetatable() and setmetatable()).
+<p>
+Lets see how to get such a thing in a Lua.
+<p>
+<H2>Solution</H2>
+<p>
+The subject structure can be implemented with the following function:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> with(env)
+
+	<span class="keyword">local</span> oldenv = <span class="library">getfenv</span>(2);
+
+	<span class="library">setfenv</span>(2, env);
+
+	<span class="keyword">return</span> <span class="keyword">function</span>() <span class="library">setfenv</span>(2, oldenv) <span class="keyword">end</span>;
+
+<span class="keyword">end</span>;
+
+</pre>
+
+</DL>
+<p>
+The return value is a function to restore the initial environment. Then, an outline of the structure will be:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> endwith = with (env)
+
+	...
+
+	any_method();
+
+	...
+
+endwith();
+
+</pre>
+
+</DL>
+<p>
+The main drawback of the method here is that we have no access to a variables from the initial scope. There're two simple ways to overcome the problem.
+<p>
+<H3>Save a global scope into a variable</H3>
+<p>
+A slightly modified function:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> with(env)
+
+	<span class="keyword">local</span> oldenv = <span class="library">getfenv</span>(2);
+
+	<span class="library">setfenv</span>(2, env);
+
+	<span class="keyword">return</span>
+
+		<span class="keyword">function</span>() <span class="library">setfenv</span>(2, oldenv) <span class="keyword">end</span>,
+
+		<span class="library">_G</span>;
+
+<span class="keyword">end</span>;
+
+</pre>
+
+</DL>
+<p>
+Now the global scope is available:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> endwith, <span class="library">_G</span> = with (env)
+
+	...
+
+	any_method();
+
+	...
+
+	<span class="library">_G</span>.print(<span class="string">"a function from a global scope"</span>);
+
+	...
+
+endwith();
+
+</pre>
+
+</DL>
+<p>
+<H3>Extend an object scope with _G</H3>
+<p>
+Another solution extends a specified scope with a _G:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> with(env)
+
+	<span class="keyword">local</span> oldenv = <span class="library">getfenv</span>(2);
+
+	<span class="keyword">local</span> mt = <span class="library">getmetatable</span>(env) <span class="keyword">or</span> {};
+
+	mt.__index = <span class="library">_G</span>;
+
+	<span class="library">setmetatable</span>(env, mt);
+
+	<span class="library">setfenv</span>(2, env);
+
+	<span class="keyword">return</span>
+
+		<span class="keyword">function</span>() <span class="library">setfenv</span>(2, oldenv) <span class="keyword">end</span>,
+
+		<span class="library">_G</span>;
+
+<span class="keyword">end</span>;
+
+</pre>
+
+</DL>
+<p>
+Here the second return value may be omitted.
+<p>
+A global scope is available implicitly, like in othe languages:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> endwith = with (env)
+
+	...
+
+	any_method();
+
+	...
+
+	<span class="library">print</span>(<span class="string">"a function from a global scope"</span>);
+
+	...
+
+endwith();
+
+</pre>
+
+</DL>
+<p>
+<H2>Test</H2>
+<p>
+And a final test code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- tiny environment with the only function</span>
+
+Test = { output = <span class="keyword">function</span>() <span class="library">print</span>(<span class="string">"\tTest.output()"</span>) <span class="keyword">end</span> };
+
+
+
+<span class="comment">-- function for environment test</span>
+
+<span class="keyword">function</span> output() <span class="library">print</span>(<span class="string">"Top-level output()"</span>) <span class="keyword">end</span>;
+
+
+
+<span class="comment">-- the tricky with function</span>
+
+<span class="keyword">function</span> with(env)
+
+	<span class="keyword">local</span> oldenv = <span class="library">getfenv</span>(2);
+
+	<span class="keyword">local</span> mt = <span class="library">getmetatable</span>(env) <span class="keyword">or</span> {};
+
+	mt.__index = <span class="library">_G</span>;
+
+	<span class="library">setmetatable</span>(env, mt);
+
+	<span class="library">setfenv</span>(2, env);
+
+	<span class="keyword">return</span>
+
+		<span class="keyword">function</span>() <span class="library">setfenv</span>(2, oldenv) <span class="keyword">end</span>,
+
+		<span class="library">_G</span>;
+
+<span class="keyword">end</span>;
+
+
+
+<span class="keyword">function</span> main()
+
+	output();
+
+	<span class="comment">--[[ ***
+
+	local function output()
+
+		print("*** the substituted function!");
+
+	end;
+
+	--]]</span>
+
+	<span class="keyword">local</span> endwith, <span class="library">_G</span> = with(Test);
+
+		<span class="comment">--[[ global environment still in _G table ]]</span>
+
+		<span class="library">_G</span>.print(<span class="string">"\texplicit print() invocation"</span>);
+
+		<span class="comment">--[[ implicit invocation ]]</span>
+
+		<span class="library">print</span>(<span class="string">"\timplicit print() invocation"</span>);
+
+		<span class="comment">--[[ call output here ]]</span>
+
+		output();
+
+	endwith();
+
+	<span class="comment">--[[ environment restored outside of "with" ]]</span>
+
+	output();
+
+<span class="keyword">end</span>;
+
+
+
+main();
+
+</pre>
+
+</DL>
+<p>
+You can uncomment the function marked with "***" for fun. It reveals a limitation, that one must keep in mind.
+<p>
+--IgorBogomazov<a href="/cgi-bin/wiki.pl?action=edit&amp;id=IgorBogomazov" >?</a>
+<p>
+<H2>Lua 5.2</H2>
+<p>
+<a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a> replaces <code>getfenv</code> and <code>setfenv</code> with <code>_ENV</code>, allowing <code>with</code> to be implemented as follows.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> with(...)
+
+  <span class="keyword">local</span> envs = {...}
+
+  <span class="keyword">local</span> f = (<span class="library">type</span>(envs[#envs]) == <span class="string">'function'</span>) <span class="keyword">and</span> <span class="library">table.remove</span>(envs)
+
+  <span class="keyword">local</span> env
+
+  <span class="keyword">if</span> #envs == 1 <span class="keyword">then</span>
+
+    env = envs[1]
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">local</span> mt = {}
+
+    <span class="keyword">function</span> mt.__index(t, k)
+
+      <span class="keyword">for</span> i=1,#envs <span class="keyword">do</span>
+
+        <span class="keyword">local</span> v = <span class="library">rawget</span>(envs[i], k)
+
+        <span class="keyword">if</span> v ~= <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> v <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    env = <span class="library">setmetatable</span>({}, mt)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> f <span class="keyword">then</span>
+
+    <span class="keyword">return</span> f(env)
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">return</span> env
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- test</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> print2(...) <span class="library">print</span>(<span class="string">'printing'</span>, ...) <span class="keyword">end</span>
+
+
+
+<span class="library">print</span> <span class="string">'one'</span>
+
+with({<span class="library">print</span>=print2}, _ENV, <span class="keyword">function</span>(_ENV)
+
+  <span class="library">print</span>(<span class="string">'two'</span>, <span class="library">math.sqrt</span>(4))
+
+<span class="keyword">end</span>)
+
+<span class="library">print</span> <span class="string">'three'</span>
+
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> _ENV = with({<span class="library">print</span>=print2}, _ENV)
+
+  <span class="library">print</span>(<span class="string">'four'</span>, <span class="library">math.sqrt</span>(4))
+
+<span class="keyword">end</span>
+
+<span class="library">print</span> <span class="string">'five'</span>
+
+</pre>
+
+<dt><dd>--<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+<H2>A dynamically scoped approach</H2>
+<p>
+Instead of using a do...end block to limit the scope of
+a 'with' statement, which does lexical scoping, one could 
+explicitly switch it on or off, as in the following example.
+<p>
+<DL>
+<dt><dd><pre class="code">
+with(<span class="library">math</span>,<span class="library">string</span>,<span class="library">table</span>)
+
+<span class="library">print</span>(<span class="string">"sin(1) = "</span>..sin(1))  <span class="comment">--&gt; 0.8414709848079</span>
+
+<span class="library">print</span>(format(<span class="string">"The answer is %d"</span>,42)) <span class="comment">--&gt; The answer is 42</span>
+
+<span class="library">print</span>(concat({<span class="string">"with"</span>,<span class="string">"table"</span>,<span class="string">"library"</span>},<span class="string">" "</span>)) <span class="comment">--&gt; with table library</span>
+
+without(<span class="library">string</span>)
+
+<span class="library">print</span>(<span class="library">pcall</span>(format,<span class="string">"The answer is %d"</span>,42))
+
+<span class="comment">--&gt; false	attempt to call a nil value</span>
+
+</pre>
+
+</DL>
+<p>
+The way in which this sort of 'with' statement works, is by chaining
+the __index fields of the metatables for _ENV, math, string and table.
+Here is the code.
+<p>
+<DL>
+<dt><dd><pre class="code">
+with = <span class="keyword">function</span>(...)
+
+   <span class="keyword">local</span> ENV = _ENV
+
+   <span class="keyword">local</span> mt = <span class="library">getmetatable</span>(ENV)
+
+   <span class="keyword">for</span> k=1,<span class="library">select</span>(<span class="string">'#'</span>,...) <span class="keyword">do</span>
+
+      <span class="keyword">local</span> tbl=<span class="library">select</span>(k,...)
+
+      <span class="keyword">local</span> tblmt = <span class="library">getmetatable</span>(tbl)
+
+      <span class="keyword">if</span> <span class="keyword">not</span> mt <span class="keyword">then</span> <span class="library">setmetatable</span>(ENV,{__index=tbl})
+
+      <span class="keyword">elseif</span> <span class="keyword">not</span> tblmt <span class="keyword">then</span> 
+
+         <span class="library">setmetatable</span>(tbl,{__index=mt.__index}); mt.__index=tbl;
+
+      <span class="keyword">elseif</span> tbl~=mt.__index <span class="keyword">then</span>
+
+         <span class="library">error</span>(<span class="string">"bad argument to 'with': metatable already in use"</span>)
+
+      <span class="keyword">end</span>
+
+      ENV, mt = tbl, tblmt
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The arguments appearing in the same 'with' statement are inserted
+in oder of decreasing priority.  When 'concat' is not found in 
+_ENV, math is searched; not in math, then string; not in string, 
+then table. 
+<p>
+However, the most recent 'with' statement takes precedence over
+all previous ones.
+<p>
+Note that, because of the "fallback" nature of metamethods, _ENV
+itself is always searched first.
+<p>
+The 'without' statement simply looks for the table in the chain, 
+removes it, and rejoins the rest of the chain.  
+<p>
+<DL>
+<dt><dd><pre class="code">
+without = <span class="keyword">function</span>(...)
+
+   <span class="keyword">for</span> k=1,<span class="library">select</span>(<span class="string">'#'</span>,...) <span class="keyword">do</span>
+
+      <span class="keyword">local</span> mt = <span class="library">getmetatable</span>(_ENV)
+
+      <span class="keyword">if</span> mt==<span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+      <span class="keyword">local</span> tbl=<span class="library">select</span>(k,...)
+
+      <span class="keyword">local</span> tblmt = <span class="library">getmetatable</span>(tbl)
+
+      <span class="keyword">while</span> mt <span class="keyword">do</span>
+
+         <span class="keyword">local</span> index = mt.__index
+
+         <span class="keyword">if</span> index == <span class="keyword">nil</span> <span class="keyword">then</span> mt=<span class="keyword">nil</span> 
+
+         <span class="keyword">elseif</span> index == tbl <span class="keyword">then</span>
+
+            mt.__index = (tblmt <span class="keyword">and</span> tblmt.__index) <span class="keyword">or</span> <span class="keyword">nil</span>; mt=<span class="keyword">nil</span>
+
+         <span class="keyword">else</span> mt=<span class="library">getmetatable</span>(index)
+
+         <span class="keyword">end</span>  
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+A side effect of this form of 'with' is that it implies an
+object hierarchy. After 'with(math,string,table)', for example
+'math.sort' would be recognized until such time as 'without(table)'
+is executed.
+<p>
+It is also possible to insert a table in the chain directly
+below any table that is already in, or to remove a table from 
+the 'with' chain only if it has lower priority than another 
+table, thus: 
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>  
+
+<span class="keyword">local</span> with, without = with, without
+
+with_this = <span class="keyword">function</span>(_ENV,...) with(...) <span class="keyword">end</span>
+
+without_this = <span class="keyword">function</span>(_ENV,...) without(...) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+with_this(<span class="library">table</span>,<span class="library">string</span>)     <span class="comment">-- string comes below table</span>
+
+without_this(<span class="library">table</span>,<span class="library">string</span>)  <span class="comment">-- string is disabled only if it</span>
+
+                            <span class="comment">-- is below table</span>
+
+</pre>
+
+</DL>
+<p>
+It is important to make upvalues for 'with' and 'without',
+otherwise they will not be found inside the functions since
+_ENV is being redefined.
+<p>
+<DL>
+<dt><dd>--<a href="../wiki/DirkLaurie.html" >DirkLaurie</a>
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/TableScope.html" >TableScope</a> - related discussion
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=WithStatement" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=WithStatement" >history</a><br>Last edited February 26, 2013 6:37 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=WithStatement" >(diff)</a>
+</body>
+</html>

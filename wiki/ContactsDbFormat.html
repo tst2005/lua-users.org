@@ -1,0 +1,249 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Contacts Db Format</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ContactsDbFormat&amp;body=1" title="List pages referring to ContactsDbFormat">Contacts Db Format</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Plua code to dump records for examination:
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- contacts.lua                                                                                    </span>
+
+
+
+<span class="comment">-- number of header bytes before the first field</span>
+
+skip = 17
+
+
+
+f,n = <span class="library">io.open</span>(<span class="string">"db:/ContactsDB-PAdd"</span>, <span class="string">"r"</span>)
+
+
+
+<span class="comment">-- just look at one specific record, to make things simpler for investigation</span>
+
+<span class="keyword">for</span> i = 1,1 <span class="keyword">do</span>
+
+  <span class="library">print</span>(<span class="string">"start"</span>)
+
+
+
+  <span class="comment">-- open the record and get the record length</span>
+
+  l = f:openrec(i)
+
+  <span class="keyword">if</span> <span class="keyword">not</span>(l == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+    <span class="comment">-- read header</span>
+
+    s = f:read(skip)
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 1))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 2))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 3))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 4))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 5))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 6))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 7))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 8))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 9))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 10))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 11))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 12))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 13))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 14))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 15))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 16))
+
+    <span class="library">print</span>(<span class="library">string.byte</span>(s, 17))    
+
+    <span class="library">print</span>(<span class="string">"fields"</span>)
+
+    <span class="comment">-- read fields in remaining record after header</span>
+
+    s = f:read(l-skip)
+
+    <span class="comment">-- fields are all nul-terminated ASCII.  Get them.</span>
+
+    <span class="comment">-- This fixed string should be replaced with one that contains 1 S for each field in the header</span>
+
+    t = bin.unpack( <span class="string">"SSSSSSSSSSSSSSSSSSSSS"</span>, s)
+
+    <span class="comment">-- There seems to be some other byte information after the fields, at least in some cases.</span>
+
+    <span class="comment">-- No idea currently what that contains.</span>
+
+    <span class="library">table.foreach</span>(t, <span class="library">print</span>)
+
+  <span class="keyword">end</span>
+
+  f:closerec()
+
+<span class="keyword">end</span>
+
+f:close()
+
+
+
+</pre>
+
+</DL>
+<p>
+Header bytes (Lau-compatible 1-based offset)
+<UL>
+<li> 1 - labels
+<UL>
+<li> phone7 label: 4
+<li> unknown: 4
+</UL>
+<li> 2 - labels
+<UL>
+<li> phone5 label: 4
+<li> phone6 label: 4
+</UL>
+<li> 3 - labels
+<UL>
+<li> phone3 label: 4
+<li> phone4 label: 4
+</UL>
+<li> 4 - labels
+<UL>
+<li> phone1 label: 4
+<li> phone2 label: 4
+</UL>
+<li> 5 - labels
+<UL>
+<li> address3 label: 4
+<li> unknown: 4
+</UL>
+<li> 6 - labels
+<UL>
+<li> address1 label: 4
+<li> address2 label: 4
+</UL>
+<li> 7 - unknown
+<li> 8 - labels
+<UL>
+<li> im1 label: 4
+<li> im2 label: 4
+</UL>
+<li> 9 - bitfield - the appropriate bit is set if the corresponding field is present
+<UL>
+<li> city: 1
+<li> state: 1
+<li> zipcode: 1
+<li> country: 1
+<li> unknown: 4
+</UL>
+<li> 10 - bitfield - the appropriate bit is set if the corresponding field is present
+<UL>
+<li> custom3: 1
+<li> custom4: 1
+<li> custom5: 1
+<li> custom6: 1
+<li> custom7: 1
+<li> custom8: 1
+<li> custom9: 1
+<li> address1: 1
+</UL>
+<li> 11 - bitfield - the appropriate bit is set if the corresponding field is present
+<UL>
+<li> phone5: 1
+<li> phone6: 1
+<li> phone7: 1
+<li> im1: 1
+<li> im2: 1
+<li> url: 1
+<li> custom1: 1
+<li> custom2: 1
+</UL>
+<li> 12 - bitfield - the appropriate bit is set if the corresponding field is present
+<UL>
+<li> lastname: 1
+<li> firstname: 1
+<li> company: 1
+<li> title: 1
+<li> phone1: 1
+<li> phone2: 1
+<li> phone3: 1
+<li> phone4: 1
+</UL>
+<li> 13 - unknown
+<li> 14 - unknown
+<li> 15 - bitfield - the appropriate bit is set if the corresponding field is present
+<UL>
+<li> zipcode3: 1
+<li> country3: 1
+<li> note: 1
+<li> birthday: 2 - both bits set if there's a birthday set, don't know why
+<li> birthday_reminder: 1 - birthday reminder has a number associated with it, don't know where it is
+<li> unknown: 2
+</UL>
+<li> 16 - bitfield - the appropriate bit is set if the corresponding field is present
+<UL>
+<li> address2: 1
+<li> city2: 1
+<li> state2: 1
+<li> zipcode2: 1
+<li> country2: 1
+<li> address3: 1
+<li> city3: 1
+<li> state3: 1
+</UL>
+<li> 17 - unknown
+</UL>
+<p>
+<H3>Phone labels</H3>
+Each label has 4 bits, containing a number that tells which label to use:  0 for work, 1 for home, 2 for fax, 3 for other, 4 for email, 5 for main, 6 for pager, 7 for mobile.  To read the labels, get the label in the upper bits with "floor(byte / 16)" and the label in the lower bits with "byte - (byte / 16)".  To write the labels, "byte = lower + upper * 16".
+<p>
+<H3>Address labels</H3>
+Each label has 4 bits, containing a number that tells which label to use: 0 for work, 1 for home, 2 for other.  Read and write the labels as with phone labels.
+<p>
+<H3>IM labels</H3>
+Each label has 4 bits, containing a number that tells which label to use: 0 for IM, 1 for AIM, 2 for MSN, 3 for Yahoo, 4 for AOL ICQ.  Read and write the labels as with phone labels.
+<p>
+Confirmation of the above in <a href="http://www.handheld-basic.com/forum/viewtopic.php?t=4576">[HB++ Community forums]</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ContactsDbFormat" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ContactsDbFormat" >history</a><br>Last edited October 23, 2007 8:58 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ContactsDbFormat" >(diff)</a>
+</body>
+</html>

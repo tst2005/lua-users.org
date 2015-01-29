@@ -1,0 +1,181 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Process String</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteProcessString&amp;body=1" title="List pages referring to SciteProcessString">Scite Process String</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This script incrementally finds a C string (style 6 per C/C++ property file) and optionally adds wrapper characters around the string so that locale translation can be utilized.
+<p>
+<hr><pre class="code">
+<span class="keyword">function</span> SciteProcessString()
+
+  <span class="keyword">local</span> StringStyle = 6         <span class="comment">-- constant: language style for strings</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> StyleAt(pos) <span class="keyword">return</span> <span class="library">math.mod</span>(editor.StyleAt[pos], 128) <span class="keyword">end</span>
+
+  <span class="keyword">local</span> i = editor.CurrentPos
+
+  <span class="keyword">while</span> i &lt; editor.Length <span class="keyword">do</span>
+
+    <span class="keyword">local</span> sprev, style = StyleAt(i-1), StyleAt(i)
+
+    <span class="keyword">if</span> sprev ~= StringStyle <span class="keyword">and</span> style == StringStyle <span class="keyword">then</span>
+
+      <span class="keyword">local</span> inserted = <span class="keyword">false</span>
+
+      <span class="comment">------------------------------------------------------------</span>
+
+      <span class="comment">-- insert _( if not present</span>
+
+      <span class="comment">------------------------------------------------------------</span>
+
+      editor:GotoPos(i)
+
+      <span class="keyword">if</span> i &gt;= 2 <span class="keyword">and</span> editor:textrange(i-2, i) ~= <span class="string">"_("</span> <span class="keyword">then</span>
+
+        editor:BeginUndoAction()
+
+        inserted = <span class="keyword">true</span>
+
+        editor:AddText(<span class="string">"_("</span>)
+
+        i = i + 2
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">while</span> i &lt; editor.Length <span class="keyword">and</span> StyleAt(i) == StringStyle <span class="keyword">do</span> i = i + 1 <span class="keyword">end</span>
+
+      <span class="comment">------------------------------------------------------------</span>
+
+      <span class="comment">-- insert ) if _( inserted</span>
+
+      <span class="comment">------------------------------------------------------------</span>
+
+      editor:GotoPos(i)
+
+      <span class="keyword">if</span> inserted <span class="keyword">then</span>
+
+        editor:AddText(<span class="string">")"</span>)
+
+        editor:EndUndoAction()
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">break</span>
+
+    <span class="keyword">end</span>
+
+    i = i + 1
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<hr>Here is a version that performs the operation in two phases. In phase one, the script looks for a string. In phase two, the script performs the operation on the string. The user can then choose not to perform the phase two operation on a particular string by moving the caret after a string is found in phase one. This enables the operation to be selectively performed. With some practice, this can be done quickly.
+<p>
+<hr><pre class="code">
+<span class="keyword">function</span> SciteProcessString()
+
+  <span class="keyword">local</span> StringStyle = 6         <span class="comment">-- constant: language style for strings</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> StyleAt(pos) <span class="keyword">return</span> <span class="library">math.mod</span>(editor.StyleAt[pos], 128) <span class="keyword">end</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> StrStart(pos)
+
+    <span class="keyword">local</span> sprev, style = StyleAt(pos-1), StyleAt(pos)
+
+    <span class="keyword">if</span> sprev ~= StringStyle <span class="keyword">and</span> style == StringStyle <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> i = editor.CurrentPos
+
+  <span class="keyword">if</span> StrStart(i) <span class="keyword">then</span>
+
+    <span class="keyword">local</span> inserted = <span class="keyword">false</span>
+
+    <span class="comment">------------------------------------------------------------</span>
+
+    <span class="comment">-- insert _( if not present</span>
+
+    <span class="comment">------------------------------------------------------------</span>
+
+    editor:GotoPos(i)
+
+    <span class="keyword">if</span> i &gt;= 2 <span class="keyword">and</span> editor:textrange(i-2, i) ~= <span class="string">"_("</span> <span class="keyword">then</span>
+
+      editor:BeginUndoAction()
+
+      inserted = <span class="keyword">true</span>
+
+      editor:AddText(<span class="string">"_("</span>)
+
+      i = i + 2
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">while</span> i &lt; editor.Length <span class="keyword">and</span> StyleAt(i) == StringStyle <span class="keyword">do</span> i = i + 1 <span class="keyword">end</span>
+
+    <span class="comment">------------------------------------------------------------</span>
+
+    <span class="comment">-- insert ) if _( inserted</span>
+
+    <span class="comment">------------------------------------------------------------</span>
+
+    editor:GotoPos(i)
+
+    <span class="keyword">if</span> inserted <span class="keyword">then</span>
+
+      editor:AddText(<span class="string">")"</span>)
+
+      editor:EndUndoAction()
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">while</span> i &lt; editor.Length <span class="keyword">do</span>
+
+      <span class="keyword">if</span> StrStart(i) <span class="keyword">then</span> editor:GotoPos(i) <span class="keyword">break</span> <span class="keyword">end</span>
+
+      i = i + 1
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteProcessString" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteProcessString" >history</a><br>Last edited August 31, 2006 7:45 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteProcessString" >(diff)</a>
+</body>
+</html>

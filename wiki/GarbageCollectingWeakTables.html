@@ -1,0 +1,210 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Garbage Collecting Weak Tables</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=GarbageCollectingWeakTables&amp;body=1" title="List pages referring to GarbageCollectingWeakTables">Garbage Collecting Weak Tables</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em> Extracted from a long posting I made to Lua-L explaining why weak tables are not a viable solution to a particular problem, because the key might be reachable from the value.</em>
+<p>
+The problem with weak tables is that they establish a contingency relationship between key and value which is not known to the garbage collection algorithm.
+<p>
+Suppose <code>w</code> is a weak-keyed table, and I do the following:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> t = {}
+
+  w[t] = t
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Now, <code>t</code> will never be garbage collected even though it is obviously
+garbage-collectable immediately. Here's why:
+<p>
+Although <code>w</code>'s keys are weak, its values are strong. So the garbage collectormarks all the values. Then, later, it checks the keys. However, the key <code>t</code>
+is marked, so it is retained. Result: <code>t</code> is never garbage collected.
+<p>
+More generally, if a weak key is reachable from its own value, the key will
+never be collected.
+<p>
+Whether this is an error or not is a matter of opinion. On the one hand,
+the intention of a weak table is to establish a contingency relationship:
+<p>
+<DL>
+<dt><dd><pre class="code">
+weak[k] = v
+
+</pre>
+
+</DL>
+<p>
+means "<code>v</code> is reachable through <code>weak</code> if <code>k</code> is reachable."
+<p>
+If it were not for table iteration, that would be the end of the story, but
+you could theoretically iterate through the table; it is therefore not
+precisely correct to say that the only path through <code>weak</code> to <code>v</code> is via <code>k</code>.
+<p>
+However, I discard this argument on the grounds that normally <code>v</code> will
+disappear from the table if <code>k</code> becomes unreachable. My personal preference
+(possibly compulsively theoretical) is that the iteration path should not
+be available for weak-keyed tables. But I digress.
+<p>
+There is a fix for this problem but it is ugly. The best algorithm I have
+come up with -- after almost a year of thinking about it off and on -- is
+to give *every* object an extra pointer to a contingency list. When garbage
+collecting a weak-keyed table (actually, the same argument applies to
+weak-valued tables but the contingency relationship is reversed), instead
+of marking all the values, the garbage collector has to construct a linked
+list of contingencies, roughly the following in pseudo code (Lua syntax but
+of course this would have to be in C)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> mark_weak_keyed_table(weak)
+
+  <span class="keyword">for</span> k, v <span class="keyword">in</span> weak
+
+    <span class="keyword">if</span> marked(k) <span class="keyword">then</span>
+
+      mark(v)
+
+    <span class="keyword">else</span>
+
+      k.contingency = {obj = v, <span class="library">next</span> = k.contingency)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Now, when an object is marked, we need:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> mark(obj)
+
+  <span class="keyword">local</span> other = obj.contingency
+
+  <span class="keyword">while</span> other <span class="keyword">do</span>
+
+    mark(other.obj)
+
+    other = other.next
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- mark everything obj references</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The problem with this is two-fold. First, the garbage collector needs a
+potentially large amount of available memory to store the contingency
+linked lists and second, any object can have an arbitrary number of
+references, which could explode the mark stack.
+<p>
+There are a number of approaches to solving the second problem; the easiest
+one is to chain contingency lists, which requires that every object have
+both a contingency-list-pointer and a next-contingency-list pointer.
+<p>
+One solution to the first problem is to allocate the contingency objects
+when we think they might be necessary rather than at garbage collection.
+Every element in a weak table is a potential contingency, so the simple
+solution is to add an additional link pointer to every key-val pair in
+every partially weak table. (But in reality it has to be every table
+because Lua allows tables to be made weak at any time.)
+<p>
+This is reasonable because only the link field is necessary (the contingent
+object is already part of the key-val) and because there is usually lots of
+slack in a Lua hash element as a result of alignment constraints. There
+only needs to be a bit indicating whether it is the key or the val which is
+the contingent object.
+<p>
+An alternative is to keep all contingency information in a fixed-size
+storage area. A fixed-size hash table could be used to maintain contingency
+list head pointers, and a fixed-size vector to maintain contingency (obj,
+next) pairs. If the garbage collector runs out of space in this structure,
+it just ignores weak links for the remainder of the garbage collection, and allocates more space for the contingency structures the next time.
+<p>
+All of this will have an impact both on mark speed and storage. So the question is, is it worth it?
+<p>
+I ran into this problem even before Lua implemented weak tables, when I was
+trying to write code that would take advantage of them. Unfortunately, the
+code I was writing was almost guaranteed to create circular references
+between weak keys and corresponding values, and I realised that it was
+unworkable with the proposed implementation. Specifically, I was trying to
+make persistent function closures. The easy solution was to keep the
+uncompiled text of the function and use the function itself as a key to
+extract the text. However, in Lua function objects are closures, not simply
+functions; before a closure can be serialised, it is necessary to serialise
+all its upvalues. Furthermore, it is necessary to somehow maintain object
+identity. All of that meant keeping a weak table keyed by closure whose
+value was a complex structure including the actual upvalues. Now, a
+recursive function has itself as an upvalue and I realised that recursive
+functions would never be garbage collected.
+<p>
+On the one hand, I think that it is a necessary change. The existing
+algorithm is flawed in a way which might bite people unexpectedly. It is
+not in general easy to know whether a key is reachable from a value, and it
+is this sort of analysis that garbage collection is supposed to avoid. On
+the other hand, the situations in which the problem will occur are probably
+rare in most people's code, and the extra overhead and complexity are
+definitely factors.
+<p>
+--<a href="../wiki/RiciLake.html" >RiciLake</a>
+<p>
+Presently when tables are marked as weak in both the keys and the values,
+the entry is collected when <strong>either</strong> the key or the value is unreachable.
+Could a new option, the entry collected when <strong>both</strong> the key and value are 
+unreachable, without tracing either of them, address the recursive function 
+problem described above? It seems like it would address the general problem
+of eliminating the contingency relationship between key and value. -- <a href="../wiki/DougCurrie.html" >DougCurrie</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="http://www.inf.puc-rio.br/~roberto/docs/ry08-06.pdf">["Eliminating Cycles in Weak Tables" by Barros &amp; Ierusalimschy]</a>
+<li> <a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a> - ephemeron support planned in Lua 5.2
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=GarbageCollectingWeakTables" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=GarbageCollectingWeakTables" >history</a><br>Last edited December 28, 2008 12:47 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=GarbageCollectingWeakTables" >(diff)</a>
+</body>
+</html>

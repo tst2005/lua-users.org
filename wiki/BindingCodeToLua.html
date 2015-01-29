@@ -1,0 +1,451 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Binding Code To Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BindingCodeToLua&amp;body=1" title="List pages referring to BindingCodeToLua">Binding Code To Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua can be embedded and extended<a href="http://www.lua.org/about.html">[1]</a> with code or applications written in other languages.  Code and values in another language can be exposed to Lua and vice-versa.  The following lists low and high level solutions for binding between Lua and other languages.
+<p>
+<H2>Lua C API</H2>
+<p>
+The most direct method to bind to Lua is with the Lua C API.  The C API consists of two parts: the <em>basic API</em> (lua.h) provides the primitive functions for all interactions between C and Lua, while the <em>auxiliary library</em> (lauxlib.h) provides higher-level functions for some common tasks.<a href="http://www.lua.org/manual/5.1/manual.html#4">[2]</a>
+<p>
+<UL>
+<li> <a href="http://www.lua.org/manual/5.1/manual.html#3">[The Lua 5.1 Reference Manual: The Application Program Interface]</a> (5.1) describes Lua's native C API for calling Lua from C and vice-versa.
+</UL>
+<p>
+<UL>
+<li> See also Lua book <a href="http://www.inf.puc-rio.br/~roberto/pil2/">[PIL2]</a>. Or read about the C API online in the 1st edition of PIL: <a href="http://www.lua.org/pil/index.html#P4">[PIL1 - The C API]</a>
+</UL>
+<p>
+<H3>Enabling API checking</H3>
+<p>
+By default, the Lua C API does almost no sanity checking of arguments passed to it. Passing incorrect stack indexes, for example, can result in segfaults or random data corruption.  You should always enable API checking in any debug build. You can do this by compiling with the option <code>-DLUA_USE_APICHECK</code>. <code>luaconf.h</code> uses this C macro to define <code>luai_apicheck</code> to call <code>assert()</code> in various places (you can also edit this definition to do something possibly more useful).
+<p>
+<H3>Example</H3>
+<p>
+Some examples of using the C API can be found by examining the source code of Lua's own standard libraries (<code>src/*lib.c</code>}.  For example, the math library (<code>math.*</code>) is implemented in the file <code>src/lmathlib.c</code>.  The basic form of this file is outlined below.  First we import various headers, including the C API (lua.h) and the axillary library (lauxlib.h):
+<p>
+<DL>
+<dt><dd><pre>
+
+#define LUA_LIB
+
+#include "lua.h"
+
+#include "lauxlib.h"
+
+</pre>
+</DL>
+<p>
+Then various Lua functions implemented in C are defined.  These all have the same signature, and arguments are passed via Lua's own stack.  For example, the sin function is defined as follows. <code>luaL_check_number()</code> is used to check the correct type of the <code>sin</code> function argument. <code>lua_pushnumber()</code> is used to return the sine calculated. Note, the return value of the <code>math_sin()</code> function is the number of values returned (lua functions can return many values). 
+<p>
+<DL>
+<dt><dd><pre>
+
+static int math_sin (lua_State *L) {
+
+  lua_pushnumber(L, sin(luaL_checknumber(L, 1)));
+
+  return 1;
+
+}
+
+</pre>
+</DL>
+<p>
+These functions are registered into Lua by building a table of function pointers and names and then calling <code>luaL_register()</code>.  Constants <code>pi</code> and <code>huge</code> are set separately.  This registration code is placed in a function named <code>luaopen_math()</code>, which can be called statically (e.g. from linit.c) or dynamically (via Lua's shared library loading mechanism via <code>require</code>).
+<p>
+<DL>
+<dt><dd><pre>
+
+static const luaL_reg mathlib[] = {
+
+{"abs",   math_abs},
+
+{"cos",   math_cos},
+
+{"sin",   math_sin},
+
+... etc...rest of table not included, but make sure you finish of with:
+
+{NULL, NULL}
+
+};
+
+
+
+/*
+
+** Open math library
+
+*/
+
+LUALIB_API int luaopen_math (lua_State *L) {
+
+  luaL_register(L, LUA_MATHLIBNAME, mathlib);
+
+  lua_pushnumber(L, PI);
+
+  lua_setfield(L, -2, "pi");
+
+  lua_pushnumber(L, HUGE_VAL);
+
+  lua_setfield(L, -2, "huge");
+
+  return 1;
+
+}
+
+</pre>
+</DL>
+<p>
+<H2>Binding C/C++ with Lua</H2>
+<p>
+<H3>C</H3>
+<p>
+<UL>
+<li> <a href="https://github.com/orangeduck/LuaAutoC">[LuaAutoC]</a> (5.2) - Automatically wrap C functions and structs at runtime.
+<li> <a href="https://github.com/Neopallium/LuaNativeObjects">[LuaNativeObjects]</a> (5.1) - A C bindings generator written in Lua.  It turns C structs into objects.
+<li> <a href="/files/wiki_insecure/users/luapi/">[luapi]</a> (5.0) - a C API over the official Lua API.
+<li> <a href="http://sourceforge.net/projects/calua">[CaLua]</a> (5.0) - A way to bind C functions and structures to Lua, and work with C pointers, arrays and functions in Lua. (uses x86 assembly)
+</UL>
+<p>
+<H3>C Foreign Function Interfaces (FFI)</H3>
+<p>
+<UL>
+<li> <a href="http://luaforge.net/projects/alien/">[Alien]</a> (5.1) - a foreign function interface (FFI) for Lua. An <a href="http://en.wikipedia.org/wiki/Foreign_function_interface.html">[FFI]</a> lets Lua code call C functions directly without having to write C "glue", so you can use Alien to write C extensions purely in Lua.  (Wraps libffi)
+<li> <a href="http://cinvoke.teegra.net/lua.html">[C/Invoke for Lua]</a> (5.1) - Use <a href="https://bitbucket.org/bogen/cinvoke/">[C/Invoke]</a> from Lua to call C libraries  (DLLs, .so files) directly, like Microsoft's P/Invoke and Python's ctypes.  (Similar to Alien)
+<li> <a href="http://luajit.org/ext_ffi.html">[The LuaJIT FFI]</a> allows calling external C functions and using C data structures from Lua code. It parses plain C declarations and supports C99 plus some GCC/MSVC/C++ extensions.
+<li> <a href="https://github.com/jmckaskill/luaffi">[luaffi]</a> (5.1) - an implementation of LuaJIT FFI for Lua.
+</UL>
+<p>
+<H3>C Inline</H3>
+<p>
+<UL>
+<li> <a href="http://luaforge.net/projects/lua-tcc/">[lua-tcc]</a> (5.1) - Simple interface to TCC, a fast runtime C compiler by Fabrice Bellard, it allows a Lua script to compile C code and register it at runtime as Lua-callable C funcions.  Intentionally limited to avoid TCC's bug with multi-environments, that would be too tempting in Lua.
+<li> <a href="http://luatcc.luaforge.net/">[Luatcc]</a> (5.1) - another, more complete, Lua binding for libtcc, which is the core library of the <a href="http://en.wikipedia.org/wiki/Tiny_C_Compiler.html">[Tiny C Compiler]</a>. It allows compiling and loading C code directly from Lua, includes the ability to load C modules directly from C source.
+<li> <a href="../wiki/InlineCee.html" >InlineCee</a> provides a similar approach, invoking other compilers out-of-process.
+</UL>
+<p>
+<H3>C++</H3>
+<p>
+Various C++ or C++ template bindings have been developed to simplify the process in C++:
+<p>
+<UL>
+<li> <a href="http://cpplua.sf.net/">[CppLua]</a> (5.0 &amp; 5.1) - a C++ wrapper of the Lua API; handles class member functions.
+<li> <a href="https://github.com/davidsiaw/luacppinterface/">[LuaCppInterface]</a> (5.2) - a C++ wrapper of the Lua API. Uses TMP to make calling/passing functions, handling coroutines and filling tables easy and type-safe.
+<li> <a href="https://github.com/Rapptz/sol/">[sol]</a> (5.2) - a C++11 easy to use and type safe wrapper of the Lua API.
+<li> <a href="http://www.stackedboxes.org/~lmb/diluculum">[Diluculum]</a> (5.1) - A library that intends to make the coexistence of C++ and Lua more harmonious.
+<li> <a href="https://github.com/Tomaka17/luawrapper">[Tomaka17's lua wrapper]</a> (5.2) - Simple bindings for Lua using C++11 supporting class and function registration, custom member functions, multiple return values, tables and more.
+<li> <a href="http://luabind.sf.net/">[Luabind]</a> (5.1 &amp; <a href="http://article.gmane.org/gmane.comp.lang.lua.luabind/2982">[5.2]</a>) - a template-based binding of C++ classes and functions which uses the Boost library. The library seems to be abandoned by the <a href="http://github.com/luabind/luabind">[original authors]</a>, but some more or less actively maintained <a href="http://github.com/luabind/luabind/network/members">[forks]</a> exist, e.g. <a href="http://github.com/rpavlik/luabind">[3]</a> or <a href="http://github.com/fhoefling/luaponte">[4]</a>.
+<li> <a href="https://github.com/vinniefalco/LuaBridge">[LuaBridge]</a> (5.1 &amp; 5.2) - lightweight, dependency-free, template-based library for exporting C++ classes/functions to Lua environments.
+<li> <a href="http://code.google.com/p/slb/">[SLB]</a> (5.2) - Simple Lua Binder, a cross platform, small, easy to integrate, template-based library. Very similar to Luabind or boost-python but SLB doesn't require boost or any other dependency.         
+<li> <a href="/files/wiki_insecure/users/lpalozzi/luna.tar.gz">[Luna]</a> (4.0), <a href="../wiki/LunaWrapper.html" >LunaWrapper</a> (5.1) and <a href="../wiki/LunaFive.html" >LunaFive</a>(5.2) - clean, template-based method of binding a C++ class to Lua. See also <a href="http://www.lua.org/notes/ltn005.html">[LTN5]</a> and <a href="../wiki/SimplerCppBinding.html" >SimplerCppBinding</a>.
+<li> <a href="http://sourceforge.net/projects/mluabind/">[MLuaBind]</a> (5.1) - a template-based binding of C++ classes and functions which uses the Loki library.
+<li> <a href="http://www.uberengine.com/projects/pages/multi_script.html">[MultiScript]</a> (5.1) - a simple library that demonstrates Lua independent C++ interface to bind C++ classes and functions.
+<li> <a href="http://oolua.org">[OOLua]</a> (5.1, 5.2 &amp; 5.3 work2) - Cross platform template generator binding which has no dependencies.
+<li> <a href="http://github.com/jeremyong/Selene">[Selene]</a> (5.2) - Dead simple and intuitive C++11 bindings supporting class registration and functions.
+<li> <a href="http://www.sweetsoftware.co.nz/lua_overview.php">[Sweet Lua]</a> (5.1) - a template-based binding of C++ classes and functions. <em>(MSVC)</em>
+<li> <a href="http://luaforge.net/projects/lux/">[lux]</a> - emits functions at compile time via C++ templates and argument overloading
+<li> <a href="http://lubyk.org/en/project311.html">[dub]</a> - Creates bindings to Lua by using Doxygen to parse C++ headers. Supports many advanced features (namespaces, type casting, natural public member read/write, template resolution, etc).
+<li> <a href="https://github.com/syntheticpp/nlua">[nlua]</a> - 'namespace lua' binding of C/C++ functions, table-like usage, templated based (no boost)
+<li> <a href="https://bitbucket.org/alexames/luawrapper">[LuaWrapper]</a> - A single header library that provides type-safe and intuitive functions such as luaW_to&lt;T&gt; and luaW_push&lt;T&gt; for arbitrary types, to make managing C++ classes with Lua simple. 
+<li> <a href="http://code.google.com/p/luna-gen">[luna-gen]</a> - Automatic lua binding-code generator. Fully-featured, fast compilation and execution speed, human-readable output codes, and no boost dependency.
+<li> <a href="http://code.google.com/p/lutok">[Lutok]</a> - Lightweight C++ API for Lua. Lutok provides provides thin C++ wrappers around the Lua C API to ease the interaction between C++ and Lua. These wrappers make intensive use of RAII to prevent resource leakage, expose C++-friendly data types, report errors by means of exceptions and ensure that the Lua stack is always left untouched in the face of errors. The library also provides a small subset of miscellaneous utility functions built on top of the wrappers.
+<li> <a href="https://code.google.com/p/lualite/">[lualite]</a> - Very lightweight library for creating Lua bindings. Boost is not a dependency.
+<li> <a href="https://github.com/aphenriques/integral">[integral]</a> - C++ library with no dependencies for creating Lua bindings.
+<li> <a href="https://github.com/SteveKChiu/lua-intf">[lua-intf]</a> (5.1 &amp; 5.2) - Pure C++11 API and binding for Lua (headers only), supports lua stack API, a higher level API that can refer lua object just like a C++ class object, and can also export C++ class and functions for lua script. The export binding supports custom C++ type, multiple return values, C++ shared pointer, in/out arguments, and can also make argument optional or with default value. The new version also comes with an optional Qt data type mapping (QString, QVariant, QByteArray, etc...).
+<li> <a href="https://github.com/AdUki/LuaState">[LuaState]</a> (5.1 &amp; 5.2) - C++11 template library (clang, gcc and VS 12) no boost.  Made to be really easy to use and as fast as possible. Lambda based bindings from Lua to C++.
+</UL>
+<p>
+<p>
+<strong>See also:</strong>
+<UL>
+<li> <a href="../wiki/DoItYourselfCppBinding.html" >DoItYourselfCppBinding</a> - provides a few simple code fragments for helping Lua and C++ work together
+<li> <a href="../wiki/LuaGenPlusPlus.html" >LuaGenPlusPlus</a> - luagen++, a C++ header file to generate efficient sequences of Lua C API calls at compile-time via template metaprogramming techniques
+<li> <a href="../wiki/CppStreamChunkReader.html" >CppStreamChunkReader</a> - lua_load chunk reader for any C++ std::istream (function)
+<li> <a href="../wiki/CppConvenientLuaWrapperClass.html" >CppConvenientLuaWrapperClass</a>
+<li> <a href="../wiki/CppObjectBinding.html" >CppObjectBinding</a>
+<li> <a href="../wiki/ExtractingWxClasses.html" >ExtractingWxClasses</a>
+<li> <a href="http://realmensch.org/blog/fun-lua-bindings">[A comparison of LuaBind, SWIG, OOLua, and toLua++]</a> - One developer's attempt to find a good binding framework for use in a memory-constrained environment.
+</UL>
+<p>
+<H3>Calling Lua from C/C++</H3>
+These frameworks and articles are one-way bindings: to call Lua functions from C/C++ passing arguments and getting return values.
+<UL>
+<li> <a href="http://www.lua.org/pil/25.3.html">[A Generic Call Function]</a> (5.0) - from PiL uses a format string to call a global function with a variable number of arguments.
+<li> <a href="https://github.com/prapin/LuaGenericCall">[LuaGenericCall]</a> (5.1) - uses code snippets and printf/scanf like format strings to support many types and features.
+<li> <a href="https://github.com/prapin/LuaClassBasedCall">[LuaClassBasedCall]</a> (5.1) - uses code snippets along with C++ constructor overloads and templates, supports nearly all C++ types.
+<li> <a href="http://sourceforge.net/projects/lua-icxx">[lua_icxx]</a> (5.1) - embeds a Lua interpreter in a C++ application, using an OO API. See also <a href="../wiki/SimpleLuaIcxxExample.html" >SimpleLuaIcxxExample</a>.
+<li> <a href="../wiki/SimpleLuaApiExample.html" >SimpleLuaApiExample</a> - example using the C API: the C program loads/runs a Lua script file, sets Lua variables and retrieves return value.
+<li> <a href="../wiki/CppLuaDataPassing.html" >CppLuaDataPassing</a> - another more advanced example using regular C API to run a Lua script file with arguments.
+<li> <a href="../wiki/GettingValuesFromLua.html" >GettingValuesFromLua</a> - explanation of how to get return values from <code>lua_dostring</code>.
+<li> <a href="../wiki/CallingLuaFromCpp.html" >CallingLuaFromCpp</a> - example to use the <code>Luna</code> binding (see above) to call Lua from C++.
+</UL>
+<p>
+<H3>Embedding Lua in C++</H3>
+<p>
+These frameworks are a little broader than the previous ones: they allow your C++ program full interaction with a Lua interpreter, but leave the task of extending Lua to other binding systems (SWIG, tolua++, and others).
+<UL>
+<li> <a href="http://www.sf.net/projects/lua-icxx">[lua_icxx]</a>: (pronounced "lua-ix") Lua interpreter for C++; call Lua functions and User Data (class) methods, use tables, create function sandboxes, use multiple return values, evaluate expressions and scripts, and more. The missing link for use of bindings like SWIG and tolua++. 
+</UL>
+<p>
+<H3>Automatic binding generators</H3>
+<p>
+<UL>
+<li> <a href="http://www.tecgraf.puc-rio.br/~celes/tolua/">[toLua]</a> (5.2) - If there is a lot of information to bind then automating the process using a binding generator can help. <em>toLua</em> is one such tool. A package file is prepared, which is a cleaned up version of the C/C++ interface. Another advantage of this technique is that less work may be required between Lua versions if the Lua C API changes significantly.
+<li> <a href="http://www.codenix.com/~tolua/">[tolua++]</a> (5.1) - an extended version of tolua, with some extra features oriented to c++. See also <a href="../wiki/CompilingToluappWithoutScons.html" >CompilingToluappWithoutScons</a> (compiling tolua++ without SCons).
+</UL>
+<p>
+<UL>
+<li> <a href="http://www.thomasandamy.com/projects/CPB/">[CPB]</a> (5.0) - A simple, fast, and powerful binding library for the Lua scripting language. It takes the information from the compilers symbols and generates binding code directly from it. <em>(MSVC)</em>
+</UL>
+<p>
+<UL>
+<li> <a href="http://www.swig.org/">[SWIG]</a> (5.0/5.1) - Simplified Wrapper and Interface Generator, it can generate bindings between your C/C++ code and a variety of scripting languages (Python, Perl, Tcl/Tk, Ruby, ...), including Lua. A big advantage might be that *one* interface file, similar to that used in tolua/tolua++, is used for bindings to all languages supported by SWIG.  See also the SWIG docs pertaining to Lua <a href="http://www.swig.org/Doc1.3/Lua.html">[5]</a>.
+</UL>
+<p>
+<UL>
+<li> <a href="http://code.google.com/p/luna-gen">[luna-gen]</a> - lua binding-code generator that supports features such as properties, inheritance (both from lua and c++), namespace, enum, type-checking, c++ exception handling, adopt-policy, g++ and MSVS, operator overloading, user-configurable custum string and number/enum types and so on. Fast compilation and execution speed (much faster than luabind and SWIG), human-readable output codes, no boost dependency.
+</UL>
+<p>
+<UL>
+<li> <a href="http://lubyk.org/en/project311.html">[dub]</a> - Uses Doxygen to parse C++ headers. Supports features such as properties, inheritance, type casting, Lua wrapping, enum, exception handling, operators, custom type binding, C++ template resolution, C++ callbacks with error handling, overloaded methods with runtime type resolution, etc. The generated code is optimized to be as fast as possible (return value optimization, inline objects, etc).
+</UL>
+<p>
+<H3>Proxy wrapper for DLL</H3>
+<p>
+Function information can be exported from dynamically linked libraries. 
+<a href="http://www.drizzle.com/~scottb/gdc/">[FuBi]</a> describes a method to call these functions from script (or RPC).  This functionality can be used from Lua <a href="http://lua-users.org/lists/lua-l/2001-08/msg00309.html">[6]</a>.
+<p>
+<H3>Miscellaneous</H3>
+<p>
+<UL>
+<li> <a href="http://wxcode.sourceforge.net/components/wxscript/">[wxScript]</a> (5.0) - A set of abstract classes to add script-interpreter support to your wxWidgets applications/libraries.
+</UL>
+<p>
+<H2>Other languages</H2>
+<p>
+<H3>Ada</H3>
+<p>
+<UL>
+<li> <a href="http://www.cyberdanx.co.uk/ada95/lua.html">[Lua-Ada]</a> (5.0) - Lua binding to Ada 95. <em>(link broken)</em>
+<li> <a href="http://coreland.ath.cx/code/lua-ada">[lua-ada]</a> (5.1) - Ada bindings to the Lua language (public domain)
+</UL>
+<p>
+<H3>Bash Shell</H3>
+<p>
+The luabash tool is a dynamically loadable module for the bash shell that provides a bridge between the bash shell and the lua scripting language. This enables complex embedded code segments to be replaced with efficient lua code and the speed of shell scripts to be increased without the drastic need to rewrite existing code.
+<p>
+<H3>Basic</H3>
+<p>
+<UL>
+<li> <a href="http://www.freebasic.net/">[FreeBASIC]</a> - A open-source BASIC compiler that comes with the Lua headers and libraries.
+<li> <a href="http://rzserv2.fhnon.de/~lg016586/PBLua/">[PBLua]</a> (5.0.2) - a Purebasic library wrapping Lua 5.0.2. <em>(deprecated)</em>
+<li> <a href="http://mark0.net/code-powerblua-e.html">[PowerBLua]</a> (5.0) - PowerBASIC include &amp; source for wrapping Lua (work in progress).
+<li> <a href="http://lua-users.org/wiki/BlitzMax.html">[BlitzMax]</a> (5.1.2) - a <a href="../wiki/BlitzMax.html" >BlitzMax</a> module wrapping Lua 5.1.2 (<em>note: the link currently points into this wiki (which is usually a bad idea in this list) but this will change as soon as the package has its own web site</em>)
+</UL>
+<p>
+<H3>COBOL</H3>
+<p>
+<UL>
+<li> <a href="http://opencobol.add1tocobol.com/#can-opencobol-interface-with-lua">[OpenCOBOL]</a> (5.1) - Using Lua with OpenCOBOL 1.1
+<li> <a href="http://opencobol.add1tocobol.com/oclua.html">[OCLua]</a> - Generated documentation from the OpenCOBOL interface source code
+</UL>
+<p>
+<H3>D</H3>
+<p>
+<UL>
+<li> <a href="https://github.com/JakobOvrum/LuaD">[LuaD]</a> (5.1) - Lua bindings and high-level interfaces for the D programming language.
+<li> <a href="http://code.google.com/p/dlua/">[DLua]</a> (5.1) - Lua bindings for the D programming language.
+</UL>
+<p>
+<H3>Erlang</H3>
+<p>
+<UL>
+<li> <a href="http://gitorious.org/erlua">[erlua]</a> (5.1) - aims to enable seamless interoperability between Erlang and Lua.
+<li> <a href="http://github.com/raycmorgan/erl-lua">[erl-lua]</a> (5.1) - an Erlang linked-in driver that allows embedding Lua into the Erlang VM.
+<li> <a href="http://github.com/cooldaemon/erluna">[erluna]</a> (5.1) - Lua bindings for Erlang.
+</UL>
+<p>
+<H3>Fortran</H3>
+<p>
+<UL>
+<li> <a href="https://bitbucket.org/haraldkl/aotus">[Aotus]</a> (5.2) - aims to enable seamless usage of Lua scripts for configuration of Fortran applications, uses the ISO-C-Binding.
+<li> <a href="https://github.com/MaikBeckmann/f2k3-lua/tree/simple">[f2k3-lua]</a> - Interaction with Lua via the Fortran 2003 ISO-C-Binding.
+</UL>
+<p>
+<H3>Go</H3>
+<p>
+<UL>
+<li> <a href="https://github.com/aarzilli/golua/">[golua]</a> (5.1) - Lua bindings for Go.
+<li> <a href="https://github.com/stevedonovan/luar/">[luar]</a> (5.1) - a reflection layer on top of golua API providing a simplified way to publish go functions to a Lua VM..
+</UL>
+<p>
+<H3>Haskell</H3>
+<p>
+<UL>
+<li> <a href="http://hackage.haskell.org/cgi-bin/hackage-scripts/package/hslua">[HsLua]</a> (5.1) - Scripting.Lua binding for Haskell.
+</UL>
+<p>
+<H3>Java</H3>
+<p>
+<UL>
+<li> <a href="http://www.keplerproject.org/luajava/">[LuaJava]</a> (5.1) - allows scripts written in Lua to manipulate components developed in Java (JNI to native Lua) and vice-versa.
+<li> <a href="http://code.google.com/p/jnlua/">[JNLua]</a> (5.2, 5.1) - another Java JNI &lt;-&gt; Lua bridge. Includes JSR 223 (Scripting for the Java Platform) provider.
+<li> <a href="http://github.com/dafrito/jna-lua">[jna-lua]</a> - Java JNA &lt;-&gt; native Lua bridge.
+</UL>
+<p>
+<H3>LabVIEW</H3>
+<p>
+<UL>
+<li> <a href="http://luaview.esi-cit.com">[LuaVIEW]</a> (5.0, 5.1) - embedding Lua into National Instruments LabVIEW.
+</UL>
+<p>
+<H3>Objective-C</H3>
+<p>
+<UL>
+<li> <a href="http://luaforge.net/projects/luaobjc/">[LuaObjCBridge]</a> (5.1) - calling Lua from Objective-C and vice-versa (MacOS X Cocoa).
+<li> <a href="http://gusmueller.com/lua/">[LuaCore]</a> (5.1) - a LuaObjCBridge-based framework, makes it easy to setup and run Lua scripts.
+<li> <a href="http://playcontrol.net/opensource/LuaCocoa/">[LuaCocoa]</a> (5.1) - spiritual successor to LuaObjCBridge/LuaCore<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaCore" >?</a>, bridge between Lua &amp; Obj-C, and uses Apple's BridgeSupport<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BridgeSupport" >?</a> to fill in remaining non-ObjC areas (e.g. structs, C functions, inline functions) to access all APIs on the platform. Also includes a command line tool suitable for writing AppleScript<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AppleScript" >?</a> in Lua via ScriptingBridge<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ScriptingBridge" >?</a>. (Mac OS X).
+<li> <a href="http://github.com/probablycorey/wax">[iPhone Wax]</a> (5.1) - a bridge between Lua and all the Objective-C/Cocoa<code></code>Touch classes.
+<li> <a href="http://olua.sourceforge.net/">[Objective Lua]</a> (5.1) - brings Objective-C-like syntax to Lua.
+<li> <a href="https://gist.github.com/2211379">[TLC]</a> (LuaJIT 2) - A lightweight (Under 400 lines, pure Lua) bridge that exposes Objective-C objects&amp;methods to Lua.
+</UL>
+<p>
+<H3>OCaml</H3>
+<p>
+<UL>
+<li> <a href="http://ocaml-lua.forge.ocamlcore.org/">[ocaml-lua]</a> (5.1.x) - calling Lua from OCaml and vice-versa (tested only in Linux, should work with OS X).
+</UL>
+<p>
+<H3>Pascal</H3>
+<UL>
+<li> <a href="https://sourceforge.net/projects/luapascal/?source=navbar">[Pascal bindings]</a> (5.1 to 5.3) - Aims to keep up-to-date Pascal bindings for the Lua library, both for Delphi and Freepascal.
+<li> <a href="http://luapascal.luaforge.net/">[LuaPascal]</a> (5.1) - Integrates Lua and Object Pascal languages. Allows Lua to manipulate components developed in Pascal/Delphi.
+<li> <a href="http://sourceforge.net/projects/lua4delphi">[Lua4Delphi]</a> (5.1) - Delphi and VCL Lua interface and Util functions.
+<li> <a href="../wiki/LuaDelphi.html" >LuaDelphi</a> (5.1) - calling Lua from Delphi/Pascal.
+<li> <a href="http://www.spreendigital.de/blog/2009/09/28/lua-5-1-for-delphi-2010/">[Lua 5.1 for Delphi 2010]</a> (5.1) - Delphi 2009 and Delphi 2010 Lua interface with OOP callback functions.
+<li> <a href="http://www.lua4delphi.com/">[Lua4Delphi]</a> (5.1) - for Delphi 2010 and XE.
+<li> <a href="http://assoc.pagespro-orange.fr/thallium-software/thlua.en.html">[THlua]</a> (5.0) - Lua distribution for Delphi/Kylix/Free<code></code>Pascal. Includes header files, samples, some utils. For Windows, there are also <a href="../wiki/LuaBinaries.html" >LuaBinaries</a> and project files for Visual Studio 6.  Last updated in 2003.
+<li> <a href="http://www.matrix44.de/lua/">[Delphi-Lua]</a> (5.0) - calling Lua from Delphi/Pascal.
+<li> <a href="http://www.noeska.com/dlua/downloads.aspx">[DLua]</a> (5.0) - calling Lua from Delphi/Pascal.
+<li> <a href="http://www.freepascal.org">[Free Pascal]</a> Pascal units lua, lualib, lauxlib corresponding closely to the usual C API and axiliary library.  See <a href="../wiki/LuaInFreePascal.html" >LuaInFreePascal</a>.
+</UL>
+<p>
+<H3>Perl</H3>
+<p>
+<UL>
+<li> <a href="http://thomaslauer.com/comp/Calling_Perl_from_Lua">[LuaPerl]</a> (5.1) - calling Perl (5.8 and 5.10 streams) from Lua.
+<li> <a href="http://search.cpan.org/dist/Inline-Lua/lib/Inline/Lua.pm">[Inline::Lua]</a> (5.1) - calling Lua from Perl (inline).
+<li> <a href="http://search.cpan.org/~mfowler/Data-Lua-0.01/lib/Data/Lua.pm">[Data::Lua]</a> (5.1) - parse variables out of Lua code. Relies on Inline::Lua.
+<li> <a href="http://search.cpan.org/~perrad/re-engine-Lua/Lua.pm">[re::engine::Lua]</a> (5.1) - supplies the Lua regular expression dialect for Perl.
+</UL>
+<p>
+<H3>PHP</H3>
+<p>
+<UL>
+<li> <a href="http://pecl.php.net/package/lua">[LuaPhpExtension]</a> (5.1) - PHP extension which allows embedding the Lua interpreter in a PHP application.
+<li> <a href="http://gitorious.org/nutria/">[Nutria]</a> (5.1) - PHP Standard Library written in Lua.
+</UL>
+<p>
+<H3>Python</H3>
+<p>
+<UL>
+<li> <a href="../wiki/LunaticPython.html" >LunaticPython</a> <a href="http://labix.org/lunatic-python">[7]</a> (5.1) - Lua/Python two-way bridge. Allows embedding of Lua interpreter in Python programs, and embedding of Python interpreter in Lua programs.
+<li> <a href="http://pypi.python.org/pypi/lupa">[Lupa]</a> (LuaJIT2) - Embedded Lua in Python. Allows two-way communication between Python and Lua code and tries to adhere to common behaviour on both sides.
+</UL>
+<p>
+<H3>Ruby</H3>
+<p>
+<UL>
+<li> <a href="http://rubyluabridge.rubyforge.org">[RubyLuaBridge]</a> (5.1) - calling Lua from Ruby (calling Ruby from Lua is planned)
+<li> <a href="http://raa.ruby-lang.org/project/rub-lua5">[rub-lua5]</a> (5.0) - calling Lua from Ruby.
+</UL>
+<p>
+<H3>Tcl</H3>
+<UL>
+<li> <a href="http://www.tset.de/ltcltk.html">[ltcltk]</a> (5.1) - a binding of Tcl and Tk for Lua.
+<li> <a href="http://angg.twu.net/LUA/luatclbridge.c.html">[LuaTclBridge]</a> (5.0) - a Lua&lt;-&gt;Tcl bridge.
+<li> <a href="http://www.equi4.com/wikis/lua/20">[TcLux]</a> (4.0) - Tcl extension which embeds Lua into Tcl.
+<li> See also <a href="http://wiki.tcl.tk/2255">[Lua]</a> on Tcl.tk wiki.
+</UL>
+<p>
+<H2>Frameworks</H2>
+<p>
+<H3>CORBA</H3>
+<p>
+<UL>
+<li> <a href="http://oil.luaforge.net/">[OiL]</a> (5.1) - ORB in Lua (<a href="http://en.wikipedia.org/wiki/Common_Object_Request_Broker_Architecture.html">[CORBA]</a>)
+</UL>
+<p>
+<H3>Windows COM</H3>
+<p>
+<UL>
+<li> <a href="../wiki/LuaCom.html" >LuaCom</a> - (5.1/5.0) Lua interface to Microsoft's Component Object Model (COM).  Calling COM objects from Lua and implementing COM objects in Lua.
+</UL>
+<p>
+<H3>Windows .NET</H3>
+<p>
+<UL>
+<li> <a href="http://developer.berlios.de/projects/dotlua">[dotLua]</a> (5.0) - A .NET/CLI library, wrapping the Lua API.
+<li> <a href="../wiki/LuaInterface.html" >LuaInterface</a> <a href="http://www.lua.inf.puc-rio.br/luanet/luainterface/">[8]</a> (5.1) - a library for integration between the Lua language and Microsoft .NET platform's Common Language Runtime (CLR). Lua scripts can use it to instantiate CLR objects, access properties, call methods, and even handle events with Lua functions.
+<li> <a href="http://www.codeplex.com/luanetinterface">[LuaNETInterface]</a> <a href="http://www.voyagegames.com/blog/2008/03/09/LuaNETInterface.aspx">[9]</a> (5.1) - a modification of <a href="../wiki/LuaInterface.html" >LuaInterface</a> to provide definition of Lua functions using attributes and loaded into the Lua engine using reflection.
+<li> <a href="http://nlua.org/">[NLua]</a> (5.2) - a fork of <a href="../wiki/LuaInterface.html" >LuaInterface</a> which is active as of 2014
+</UL>
+<p>
+<H3>Firefox</H3>
+<p>
+<UL>
+<li> <a href="http://code.google.com/p/mshine/">[Moonshine]</a> - embedded Lua environment for the Firefox web browser.  Allows Firefox extensions to be developed in Lua rather than Java<code></code>Script.  Implemented as an extension (XPI), written in XUL, Java<code></code>Script, and C++.
+</UL>
+<p>
+<H3>XML-RPC / SOAP</H3>
+<p>
+<UL>
+<li> See <a href="../wiki/LuaXml.html" >LuaXml</a>.
+</UL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/BindingEnumsToLua.html" >BindingEnumsToLua</a> - a technique for synchronizing C enums with a Lua API
+<li> <a href="../wiki/EasyManualLibraryLoad.html" >EasyManualLibraryLoad</a> - greatly simplifies manual loading (GetProcAddress<a href="/cgi-bin/wiki.pl?action=edit&amp;id=GetProcAddress" >?</a> or dlsym) of Lua 5.1 shared library (.dll or .so)
+<li> <a href="../wiki/BindingWithMetatableAndClosures.html" >BindingWithMetatableAndClosures</a>
+<li> <a href="../wiki/BindingWithMembersAndMethods.html" >BindingWithMembersAndMethods</a>
+<li> <a href="../wiki/StringReplace.html" >StringReplace</a>
+<li> <a href="../wiki/UserDataExample.html" >UserDataExample</a>
+<li> <a href="../wiki/UserDataWithPointerExample.html" >UserDataWithPointerExample</a>
+<li> <a href="../wiki/UserDataEnvironmentExamples.html" >UserDataEnvironmentExamples</a>
+<li> <a href="../wiki/EnvironmentTables.html" >EnvironmentTables</a>
+<li> <a href="../wiki/BoundScalarGlobalsOne.html" >BoundScalarGlobalsOne</a>/<a href="../wiki/BoundScalarGlobalsTwo.html" >BoundScalarGlobalsTwo</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BindingCodeToLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BindingCodeToLua" >history</a><br>Last edited September 12, 2014 4:53 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BindingCodeToLua" >(diff)</a>
+</body>
+</html>

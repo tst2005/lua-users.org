@@ -1,0 +1,302 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Json Modules</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=JsonModules&amp;body=1" title="List pages referring to JsonModules">Json Modules</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+JSON (<a href="../wiki/JavaScript.html" >JavaScript</a> Object Notation) is a format for serializing data based on the format for <a href="../wiki/JavaScript.html" >JavaScript</a> data structures. For more informations about JSON in general see <a href="http://www.json.org/">http://www.json.org/</a> and <a href="http://en.wikipedia.org/wiki/JSON.html">[the Wikipedia article on JSON]</a>.
+<p>
+<H2>A comparison of JSON modules</H2>
+<p>
+Since some modules were only called "json" initials were added to create unique names:
+<p>
+<UL>
+<li> <strong>cmj-JSON4Lua</strong> (version 0.9.5):
+<UL>
+<li> <a href="http://json.luaforge.net/">http://json.luaforge.net/</a>
+<li> Pure Lua.
+<li> MIT/X11 license (since version 0.9.3, GNU GPL before that).
+</UL>
+<li> <strong>dkjson</strong> (version 2.1):
+<UL>
+<li> <a href="http://dkolf.de/src/dkjson-lua.fsl/">http://dkolf.de/src/dkjson-lua.fsl/</a>
+<li> Pure Lua, optional <a href="../wiki/LuaPeg.html" >LuaPeg</a> support (used LPeg 0.10 at the time of testing).
+<li> MIT/X11 license.
+</UL>
+<li> <strong>Fleece</strong> (version 0.3.1):
+<UL>
+<li> <a href="http://www.eonblast.com/fleece/">http://www.eonblast.com/fleece/</a>
+<li> Encoding only.
+<li> C-module.
+<li> Public license with non-commercial restriction.
+</UL>
+<li> <strong>jf-JSON</strong> (version 4)
+<UL>
+<li> <a href="http://regex.info/blog/lua/json">http://regex.info/blog/lua/json</a>
+<li> Pure Lua.
+<li> Creative Commons Attribution 3.0 Unported License. 
+</UL>
+<li> <strong>Lua-Yajl</strong> (version 2.0):
+<UL>
+<li> <a href="http://github.com/brimworks/lua-yajl">http://github.com/brimworks/lua-yajl</a>
+<li> C-module, requires <a href="http://lloyd.github.com/yajl/">[Yajl]</a> (used version 2.0.1 at the time of testing).
+<li> Can be used for streaming by writing handlers that deal with JSON on the fly.
+<li> Lua-Yail uses the MIT/X11 license, Yajl itself uses the ISC license.
+</UL>
+<li> <strong>mp-CJSON</strong> / <strong>Lua CJSON</strong> (version 1.0.2):
+<UL>
+<li> <a href="http://www.kyne.com.au/~mark/software/lua-cjson.php">http://www.kyne.com.au/~mark/software/lua-cjson.php</a>
+<li> C-module.
+<li> MIT/X11 license.
+</UL>
+<li> <strong>nm-luajsonlib</strong> / <strong>LuaJSON C Library</strong> (version 1.2):
+<UL>
+<li> <a href="http://luaforge.net/projects/luajsonlib/">http://luaforge.net/projects/luajsonlib/</a>
+<li> C-module.
+<li> Public domain.
+</UL>
+<li> <strong>sb-Json</strong> (2007 version):
+<UL>
+<li> <a href="http://www.chipmunkav.com/downloads/Json.lua">http://www.chipmunkav.com/downloads/Json.lua</a>
+<li> Pure Lua.
+<li> MIT/X11 license with the added sentence "If you find this software useful please give www.chipmunkav.com a mention."
+</UL>
+<li> <strong>th-LuaJSON</strong> (version 1.2.1):
+<UL>
+<li> <a href="http://luaforge.net/projects/luajson/">http://luaforge.net/projects/luajson/</a>
+<li> Implemented in Lua, depends on the C-module <a href="../wiki/LuaPeg.html" >LuaPeg</a> (used LPeg 0.10 at the time of testing).
+<li> MIT/X11 license.
+</UL>
+</UL>
+<p>
+This comparison was initially started by <a href="../wiki/DavidKolf.html" >DavidKolf</a>, author of dkjson, so it might be biased.
+<p>
+For comparison the default options were used. I (<a href="../wiki/DavidKolf.html" >DavidKolf</a>) expect a module to be JSON-compliant with the default settings. An exception was made for Fleece, most of this comparison wouldn't make sense for anything other than the option "E4".
+<p>
+The <a href="http://chiselapp.com/user/dhkolf/repository/dkjson/artifact/6e01b4a9976d7d84c88f30dfa4058c002aaec61d">[feature/compliance tests]</a> and the <a href="http://chiselapp.com/user/dhkolf/repository/dkjson/artifact/8fd268fdf5fe5b318a70e70240c08a65846946a0">[speed test]</a> can be found in the repository for dkjson.
+<p>
+<H3>Further JSON implementations</H3>
+<p>
+JSON implementations that are not included in this comparison (yet):
+<UL>
+<li> <a href="http://www.wowace.com/addons/libjson-1-0/">http://www.wowace.com/addons/libjson-1-0/</a> (WoW addon)
+<li> <a href="http://prosody.im/source/browse/index.cgi/file/cd1b73582711/util/json.lua">http://prosody.im/source/browse/index.cgi/file/cd1b73582711/util/json.lua</a> (part of Prosody IM)
+<li> <a href="http://luci.subsignal.org/trac/browser/luci/branches/luci-0.10/libs/json/luasrc/json.lua">http://luci.subsignal.org/trac/browser/luci/branches/luci-0.10/libs/json/luasrc/json.lua</a> (part of the "Lua Configuration Interface")
+<li> <a href="https://github.com/mbalmer/luajson">https://github.com/mbalmer/luajson</a> (part of the arcapos point of sale system)
+<li> <a href="http://www.public-software-group.org/json_for_lua">http://www.public-software-group.org/json_for_lua</a> (part of the WebMCP framework)
+</UL>
+<p>
+<H3>Major bugs</H3>
+<UL>
+<li> <strong>Fleece</strong>:
+<UL>
+<li> Encoding +/-math.huge (Infinity) freezes the program (endless loop).
+<li> Encoding UTF-8 codes for codepoints &gt;= 128 cancels further output.
+<li> Reference cycles cause segmentation faults.
+</UL>
+<li> <strong>nm-luajsonlib</strong>:
+<UL>
+<li> Reference cycles cause segmentation faults.
+</UL>
+</UL>
+<p>
+<H3>Escaped characters when encoding</H3>
+<p>
+According to <a href="http://tools.ietf.org/html/rfc4627">[RFC 4627]</a> all characters in the range 0 to 31 plus \\ and \" have to be escaped.  However, it is recommended to also escape the Unicode characters U+2028 and U+2029 in order to <a href="http://timelessrepo.com/json-isnt-a-javascript-subset">[generate valid JavaScript as well]</a>.  The <a href="https://github.com/douglascrockford/JSON-js">[original JSON implementation]</a> went even further and escaped most control characters and undefined codepoints in the BMP.
+<p>
+<UL>
+<li> <strong>cmj-JSON4Lua</strong>: \\, \", \n, \t plus \' which isn't a valid JSON escape code. JSON files containing this would not load in the original implementation.
+<li> <strong>dkjson</strong>: All characters in the range 0 to 31, \\, \", 127 and the other Unicode control characters that are escaped by the original implementation.
+<li> <strong>Fleece</strong> (with the E4 option): All characters in the range 0 to 31, \\, \", \/, 127. All characters above 127 cancel further output.
+<li> <strong>jf-JSON</strong>: All characters in the range 0 to 31, \\, \".
+<li> <strong>Lua-Yajl</strong>: All characters in the range 0 to 31, \\, \".
+<li> <strong>mp-CJSON</strong>: All characters in the range 0 to 31, \\, \", \/, 127.
+<li> <strong>nm-luajsonlib</strong>: All characters in the range 0 to 31, \\, \". All characters above 127 insert broken escapes.
+<li> <strong>sb-Json</strong>: All characters in the range 0 to 31, \\, \", \/, 127.
+<li> <strong>th-LuaJSON</strong>: All characters in the range 0 to 31, \\, \", \/. \u000b (11) is escaped as \v, which isn't valid JSON code and would not load in the original implementation.
+</UL>
+<p>
+<H3>Support for unicode escape sequences \uXXXX when decoding</H3>
+<UL>
+<li> <strong>cmj-JSON4Lua</strong>: no support
+<li> <strong>dkjson</strong>: full support from 0 to 0x10ffff, correctly converts <a href="http://en.wikipedia.org/wiki/UTF-16.html">[UTF-16]</a> surrogate pairs to <a href="http://en.wikipedia.org/wiki/UTF-8.html">[UTF-8]</a>.
+<li> <strong>jf-JSON</strong>: full support from 0 to 0x10ffff, correctly converts UTF-16 surrogate pairs to UTF-8.
+<li> <strong>Lua-Yajl</strong>: full support from 0 to 0x10ffff, correctly converts UTF-16 surrogate pairs to UTF-8.
+<li> <strong>mp-CJSON</strong>: full support from 0 to 0x10ffff, correctly converts UTF-16 surrogate pairs to UTF-8.
+<li> <strong>nm-luajsonlib</strong>: support in the range 0 to 0xffff, but doesn't convert UTF-16 surrogate pairs, so 0x10000 to 0x10ffff would be encoded as <a href="http://en.wikipedia.org/wiki/CESU-8.html">[CESU-8]</a> instead of UTF-8.
+<li> <strong>sb-Json</strong>: support in the range 0 to 0xff, creates 8-bit encoding (latin1 or similar).
+<li> <strong>th-LuaJSON</strong>: support in the range 0 to 0xffff, but doesn't convert UTF-16 surrogate pairs, so 0x10000 to 0x10ffff would be encoded as CESU-8 instead of UTF-8.
+</UL>
+<p>
+<H3>Other bugs</H3>
+<UL>
+<li> <strong>cmj-JSON4Lua</strong>:
+<UL>
+<li> Decoding an empty array raises an error.
+<li> Decoding a number with a plus sign in the exponential part raises an error ("1e+2").
+</UL>
+</UL>
+<p>
+<H3>Edge cases for encoding</H3>
+<p>
+JSON cannot represent every Lua structure. This section lists the behavior for some cases. You shouldn't feed any data like this to any JSON module but it's still interesting how the modules handle this. A module must not hang or crash and it should not produce invalid JSON output. (Raising Lua errors is a valid way to deal with such data).
+<p>
+<strong>Mixed tables</strong>
+<pre class="code">
+{[1] = 1, a = 2}
+
+</pre>
+
+<UL>
+<li> <strong>cmj-JSON4Lua</strong>: integer keys are converted to strings.
+<li> <strong>dkjson</strong>: integer keys are converted to strings.
+<li> <strong>Fleece</strong>: integer keys are encoded as numbers (invalid JSON).
+<li> <strong>jf-JSON</strong>: raises an error.
+<li> <strong>Lua-Yajl</strong>: integer keys are converted to strings.
+<li> <strong>mp-CJSON</strong>: integer keys are converted to strings.
+<li> <strong>nm-luajsonlib</strong>: encoded as an array including only the integer keys up to the Lua length (#-operator).
+<li> <strong>sb-Json</strong>: integer keys are converted to strings.
+<li> <strong>th-LuaJSON</strong>: integer keys are converted to strings.
+</UL>
+<p>
+<p>
+<strong>Sparse arrays</strong>
+<pre class="code">
+{[1000] = <span class="string">"test"</span>}
+
+</pre>
+
+<UL>
+<li> <strong>cmj-JSON4Lua</strong>: encoded as a big array.
+<li> <strong>dkjson</strong>: encoded as an object with string keys.
+<li> <strong>Fleece</strong>: encoded as an object with integer keys (invalid JSON).
+<li> <strong>jf-JSON</strong>: encoded as a a big array.
+<li> <strong>Lua-Yajl</strong>: encoded as a big array.
+<li> <strong>mp-CJSON</strong>: raises an error for excessively sparse arrays and converts other sparse arrays to an object with string keys. Behaviour is runtime configurable.
+<li> <strong>nm-luajsonlib</strong>: if the Lua length is 0, the table is encoded as an object with integer keys (invalid JSON). Otherwise only elements up to Lua length (#-operator) are encoded.
+<li> <strong>sb-Json</strong>: encoded as a big array.
+<li> <strong>th-LuaJSON</strong>: encoded as an object with string keys.
+</UL>
+<p>
+<strong>Handling of NaN and Inf</strong>
+<pre class="code">
+nan = <span class="library">math.huge</span> * 0
+
+inf = <span class="library">math.huge</span>
+
+</pre>
+
+<UL>
+<li> <strong>cmj-JSON4Lua</strong>: raw tostring() output (invalid JSON).
+<li> <strong>dkjson</strong>: 'null' (like in the original JSON-implementation).
+<li> <strong>Fleece</strong>: NaN is 0.0000, freezes on +/-Inf.
+<li> <strong>jf-JSON</strong>: NaN is 'null', Inf is 1e+9999 (the encode_pretty function still outputs raw tostring()).
+<li> <strong>Lua-Yajl</strong>: NaN is -0, Inf is 1e+666.
+<li> <strong>mp-CJSON</strong>: raises invalid JSON error by default, but runtime configurable ('null' or Nan/Inf).
+<li> <strong>nm-luajsonlib</strong>: 'null' (like in the original JSON-implementation).
+<li> <strong>sb-Json</strong>: raw tostring() output (invalid JSON).
+<li> <strong>th-LuaJSON</strong>: <a href="../wiki/JavaScript.html" >JavaScript</a> constants: NaN is 'NaN', Inf is 'Infinity' (this is valid <a href="../wiki/JavaScript.html" >JavaScript</a>, but invalid JSON).
+</UL>
+<p>
+<strong>Protection against reference cycles when encoding</strong>
+<pre class="code">
+a = {}
+
+a.a = a
+
+</pre>
+
+<UL>
+<li> <strong>cmj-JSON4Lua</strong>: no, endless loop.
+<li> <strong>dkjson</strong>: yes, raises an error.
+<li> <strong>Fleece</strong>: no, segmentation fault.
+<li> <strong>jf-JSON</strong>: yes, raises an error.
+<li> <strong>Lua-Yajl</strong>: yes, raises an error.
+<li> <strong>mp-CJSON</strong>: yes, raises an error. limit is runtime configurable.
+<li> <strong>nm-luajsonlib</strong>: no, segmentation fault.
+<li> <strong>sb-Json</strong>: no, endless loop.
+<li> <strong>th-LuaJSON</strong>: yes, raises an error.
+</UL>
+<p>
+<strong>Handling of empty arrays</strong>
+<pre class="code">
+<span class="keyword">local</span> json_str = <span class="string">"{'items':[],'properties':{}}"</span>
+
+<span class="library">assert</span>(json_str == json.encode(json.decode(json_str))
+
+</pre>
+
+<p>
+<UL>
+<li> <strong>cmj-JSON4Lua</strong>: does not work correctly (empty arrays are encoded as simple empty tables)
+<li> <strong>dkjson</strong>: works correctly (uses a "type field" on the metatable)
+<li> <strong>Fleece</strong>: not tested
+<li> <strong>jf-JSON</strong>: not tested
+<li> <strong>Lua-Yajl</strong>: does not work correctly (empty tables are encoded as empty arrays, always)
+<li> <strong>mp-CJSON</strong>: does not work correctly (empty tables are encoded as empty objects, always)
+<li> <strong>nm-luajsonlib</strong>: not tested
+<li> <strong>sb-Json</strong>: not tested
+<li> <strong>th-LuaJSON</strong>: (v1.3) works (assigns a special metatable to arrays)
+</UL>
+<p>
+<p>
+<H3>Encoding speed</H3>
+<UL>
+<li> <strong>cmj-JSON4Lua</strong>: 12s
+<li> <strong>dkjson</strong>: 16s
+<li> <strong>Fleece</strong>: 0.5s
+<li> <strong>jf-JSON</strong>: 20s
+<li> <strong>Lua-Yajl</strong>: 5.9s
+<li> <strong>mp-CJSON</strong>: 1s
+<li> <strong>nm-luajsonlib</strong>: 5s
+<li> <strong>sb-Json</strong>: 22s
+<li> <strong>th-LuaJSON</strong>: 30s
+</UL>
+<p>
+<H3>Decoding speed</H3>
+<UL>
+<li> <strong>cmj-JSON4Lua</strong>: 47s
+<li> <strong>dkjson</strong>: 28s without LPeg, 8s with LPeg
+<li> <strong>jf-JSON</strong>: 30s
+<li> <strong>Lua-Yajl</strong>: 4s
+<li> <strong>mp-CJSON</strong>: 2s
+<li> <strong>nm-luajsonlib</strong>: 3s
+<li> <strong>sb-Json</strong>: 122s
+<li> <strong>th-LuaJSON</strong>: 9s (version 1.2.2 takes 347s)
+</UL>
+<p>
+For the speed tests a table was encoded or decoded 100000 times. The values are not precise and might differ when using other data, but they should give a general orientation.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="http://json.luaforge.net/">[JSONRPC4Lua]</a> (5.0/5.1) - JSON-RPC-over-http client (or server in a CGILua environment) for Lua.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=JsonModules" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=JsonModules" >history</a><br>Last edited August 26, 2014 12:43 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=JsonModules" >(diff)</a>
+</body>
+</html>

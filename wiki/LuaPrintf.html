@@ -1,0 +1,204 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Printf</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaPrintf&amp;body=1" title="List pages referring to LuaPrintf">Lua Printf</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The page demonstrates how to partially emulate the C <code>printf</code> string formatting function in Lua.
+<p>
+<H3>In Lua</H3>
+<p>
+It's easy to write formatted text in Lua using <code>io.write()</code>, <code>print()</code> and <code>string.format()</code>. <code>io.write</code> is similar to <code>print</code> except <code>io.write</code> does not follow each output with a new line. The C function <code>printf()</code> can be emulated as:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">io.write</span>(<span class="library">string.format</span>(<span class="string">"Hello from %s on %s\n"</span>,_VERSION,<span class="library">os.date</span>()))
+
+Hello from Lua 5.1 on Mon Jan  1 22:11:56 2007
+
+</pre>
+
+</DL>
+<p>
+Or, this can be wrapped in a function as:
+<p>
+<DL>
+<dt><dd><pre class="code">
+printf = <span class="keyword">function</span>(s,...)
+
+           <span class="keyword">return</span> <span class="library">io.write</span>(s:format(...))
+
+         <span class="keyword">end</span> <span class="comment">-- function</span>
+
+</pre>
+
+</DL>
+<p>
+and then used as
+<p>
+<DL>
+<dt><dd><pre class="code">
+printf(<span class="string">"Hello from %s on %s\n"</span>,_VERSION,date())
+
+</pre>
+
+</DL>
+<p>
+In the above example the format string and the variable argument list from <code>printf()</code> are passed to <code>string.format()</code>. <code>write()</code> prints the resulting formatted string. [*1]
+<p>
+It is interesting to note how the Lua 5.1 syntax for string methods forces the separate treatment of the first argument. This makes sense, because it has a quite separate role from the others.
+<p>
+Note that Lua's <code>string.format</code> function doesn't support the full C format specification <a href="http://www.lua.org/manual/5.1/manual.html#pdf-string.format">[1]</a>, so this function is not a drop-in replacement.  If you want the full capabilities of the C format specification, you might want to do the <code>printf</code> call in C code and call that from Lua.  Alternately, you may using the C string functions to emulate the behavior you need entirely in Lua (more work).
+<p>
+<H3>In C</H3>
+<p>
+The above example could be coded in C as follows.  This also optimizes by capturing the two standard library functions as upvalues, rather than looking them up each time (although looking them up each time has the advantage of being more dynamic).  You may just want to use the Lua version though.
+<p>
+<DL>
+<dt><dd><pre>
+
+static int l_printf (lua_State *L) {
+
+  lua_pushvalue(L, lua_upvalueindex(2));
+
+  lua_insert(L, 1);
+
+  lua_call(L, lua_gettop(L) - 1, 1);
+
+  lua_pushvalue(L, lua_upvalueindex(1));
+
+  lua_pushvalue(L, -2);
+
+  lua_call(L, 1, 0);
+
+  return 0;
+
+}
+
+
+
+int luaopen_printf (lua_State *L) {
+
+  lua_getglobal(L, "io");
+
+  lua_getglobal(L, "string");
+
+  lua_pushliteral(L, "write");
+
+  lua_gettable(L, -3);
+
+  lua_pushliteral(L, "format");
+
+  lua_gettable(L, -3);
+
+  lua_pushcclosure(L, l_printf, 2);
+
+  /* With 5.1, I'd probably just return 1 at this point */
+
+  lua_setglobal(L, "printf");
+
+  return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+A C function <code>l_printf</code> is registered with Lua as <code>printf</code>. When <code>l_printf</code> is called from Lua, <code>format()</code> is called with the given arguments, then <code>write()</code> is called with the result of <code>format</code> and finally the number of results returned.
+<p>
+<hr>-- Thanks to lhf for the examples.
+<p>
+Footnotes
+<p>
+[*1] The Lua 4 versions were
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> printf(...)
+
+  write(call(format,arg))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+static int l_printf (lua_State *l)
+
+{
+
+    lua_getglobal(L,"format");
+
+    lua_insert(L,1);
+
+    lua_call(L,lua_gettop(L)-1,LUA_MULTRET);
+
+    lua_getglobal(L,"write");
+
+    lua_insert(L,1);
+
+    lua_call(L,lua_gettop(L)-1,LUA_MULTRET);
+
+    return lua_gettop(L);
+
+}
+
+
+
+lua_register(L,"printf",l_printf);
+
+</pre>
+</DL>
+<p>
+<p>
+<p>
+<p>
+<hr>-- Sirmabus: September 13, 2009 -
+An improvement to the Lua code above is to use a <code>pcall()</code> wrapper to catch errors and point back to the offending <code>printf()</code>.
+Otherwise it's difficult to know exactly where the error came from.
+<p>
+<pre class="code">
+<span class="keyword">function</span> printf(...)
+
+   <span class="keyword">local</span> <span class="keyword">function</span> wrapper(...) <span class="library">io.write</span>(<span class="library">string.format</span>(...)) <span class="keyword">end</span>
+
+   <span class="keyword">local</span> status, result = <span class="library">pcall</span>(wrapper, ...)
+
+   <span class="keyword">if</span> <span class="keyword">not</span> status <span class="keyword">then</span> <span class="library">error</span>(result, 2) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaPrintf" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaPrintf" >history</a><br>Last edited September 14, 2009 12:13 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaPrintf" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Runtime Syntax</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=RuntimeSyntax&amp;body=1" title="List pages referring to RuntimeSyntax">Runtime Syntax</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This utility module automates the run-time simulation of what resembles syntax extensions.  It's somewhat of a hack, intended mostly as a proof of concept, and not well tested.  For a truer implementation of this type of thing, see <a href="../wiki/MetaLua.html" >MetaLua</a>.
+<p>
+Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Define syntax</span>
+
+<span class="keyword">local</span> S = <span class="library">require</span> <span class="string">"runtimesyntax"</span>
+
+S[<span class="string">"insert (x) .into (t)"</span>] = <span class="keyword">function</span>(x,t)
+
+  <span class="library">table.insert</span>(t, x)
+
+<span class="keyword">end</span>
+
+S[<span class="string">"increment (t) .by (n)"</span>] = <span class="keyword">function</span>(t,n)
+
+  <span class="keyword">for</span> i <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span> t[i] = t[i] + n <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+S[<span class="string">"check (a) '&gt;' (b) '&lt;' (c)"</span>] = <span class="keyword">function</span>(a,b,c)
+
+  <span class="keyword">local</span> ok = a &gt; b <span class="keyword">and</span> a &lt; c
+
+  <span class="library">print</span>(<span class="library">string.format</span>(<span class="string">"checking %f &lt; %f &lt; %f"</span>, b, a, c),
+
+    <span class="string">"..."</span>, ok <span class="keyword">and</span> <span class="string">"pass"</span> <span class="keyword">or</span> <span class="string">"fail"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- using it</span>
+
+<span class="keyword">local</span> t = {}
+
+insert (5) .into (t)
+
+insert (6) .into (t)
+
+increment (t) .by (10)
+
+<span class="library">assert</span>(t[1] == 15 <span class="keyword">and</span> t[2] == 16)
+
+check (#t) <span class="string">'&gt;'</span> (1) <span class="string">'&lt;'</span> (3)
+
+<span class="library">print</span> <span class="string">'done'</span>
+
+
+
+<span class="comment">-- This cases "syntax error: missing  (c) at @insert.lua:?:25"</span>
+
+check (#t) <span class="string">'&gt;'</span> (1) <span class="string">'&lt;'</span>
+
+</pre>
+
+</DL>
+<p>
+Implementation:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- runtimesyntax.lua</span>
+
+<span class="comment">-- runtime simulatation of syntax extensions in Lua.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- WARNING: not well tested.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- (c) 2009 David Manura</span>
+
+<span class="comment">-- Licensed under the same terms as Lua (MIT license).</span>
+
+
+
+
+
+<span class="comment">-- Detect incomplete syntax (optional)</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> wrap(o, syntax, pos)
+
+  <span class="keyword">if</span> syntax:match<span class="string">'^%s*$'</span> <span class="keyword">then</span> <span class="keyword">return</span> o <span class="keyword">end</span>
+
+  <span class="comment">-- http://lua-users.org/wiki/HiddenFeatures</span>
+
+  <span class="keyword">local</span> ud = <span class="library">newproxy</span>(<span class="keyword">true</span>)
+
+  <span class="keyword">local</span> mt = <span class="library">getmetatable</span>(ud)
+
+  mt.__call = <span class="library">type</span>(o) == <span class="string">'function'</span> <span class="keyword">and</span>
+
+                 <span class="keyword">function</span>(_, ...) <span class="keyword">return</span> o(...) <span class="keyword">end</span> <span class="keyword">or</span> <span class="keyword">nil</span>
+
+  mt.__index = <span class="library">type</span>(o) == <span class="string">'table'</span> <span class="keyword">and</span> <span class="library">getmetatable</span>(o).__index <span class="keyword">or</span> <span class="keyword">nil</span>
+
+  mt.__gc = <span class="keyword">function</span>()
+
+    <span class="library">io.stderr</span>:write(<span class="string">"syntax error: missing "</span>, syntax, <span class="string">" at "</span>, pos, <span class="string">"\n"</span>)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> ud
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> clear(o)
+
+  <span class="keyword">if</span> <span class="library">type</span>(o) == <span class="string">'userdata'</span> <span class="keyword">then</span>
+
+    <span class="library">getmetatable</span>(o).__gc = <span class="keyword">nil</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Build function for rest of syntax.</span>
+
+<span class="comment">--   syntax - syntax string</span>
+
+<span class="comment">--   vars - arguments passed to function</span>
+
+<span class="comment">--          (with n count field to support nils)</span>
+
+<span class="comment">--   f - function to call after building, passing</span>
+
+<span class="comment">--        unpacked vars</span>
+
+<span class="comment">--   oprev - previous function or userdata this syntax</span>
+
+<span class="comment">--        is appended to</span>
+
+<span class="comment">--   pos - string indicating position in source</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> make(syntax, vars, f, oprev, pos)
+
+  <span class="keyword">local</span> var, moresyntax = syntax:match(<span class="string">"^%s*%(%s*(%w+)%s*%)(.*)"</span>)
+
+  <span class="keyword">if</span> var <span class="keyword">then</span>
+
+    <span class="keyword">local</span> o
+
+    o = wrap(<span class="keyword">function</span>(vara)
+
+      clear(oprev)
+
+      vars[vars.n+1] = vara
+
+      vars.n = vars.n + 1
+
+      <span class="keyword">return</span> make(moresyntax, vars, f, o, pos)
+
+    <span class="keyword">end</span>, moresyntax, pos)
+
+    <span class="keyword">return</span> o
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> prep, moresyntax = syntax:match(<span class="string">"^%s*%.(%w+)%s*(.*)"</span>)
+
+  <span class="keyword">if</span> prep <span class="keyword">then</span>
+
+    <span class="keyword">local</span> o
+
+    <span class="keyword">local</span> mt = {}
+
+    <span class="keyword">function</span> mt:__index(prepa)
+
+      clear(oprev)
+
+      <span class="keyword">if</span> prep ~= prepa <span class="keyword">then</span>
+
+        <span class="library">error</span>(<span class="library">string.format</span>(<span class="string">"syntax error: expecting (%s) got (%s)"</span>,
+
+          prep, <span class="library">tostring</span>(prepa)))
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> make(moresyntax, vars, f, o, pos)
+
+    <span class="keyword">end</span>
+
+    o = wrap(<span class="library">setmetatable</span>({}, mt), moresyntax, pos)
+
+    <span class="keyword">return</span> o
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> prep, moresyntax = syntax:match(<span class="string">"^%s*'([^']+)'(.*)"</span>)
+
+  <span class="keyword">if</span> prep <span class="keyword">then</span>
+
+    <span class="keyword">local</span> o
+
+    o = wrap(<span class="keyword">function</span>(prepa)
+
+      clear(oprev)
+
+      <span class="keyword">if</span> prep ~= prepa <span class="keyword">then</span>
+
+        <span class="library">error</span>(<span class="library">string.format</span>(<span class="string">"syntax error: expecting (%s) got (%s)"</span>,
+
+          prep, <span class="library">tostring</span>(prepa)))
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> make(moresyntax, vars, f, o, pos)
+
+    <span class="keyword">end</span>, moresyntax, pos)
+
+    <span class="keyword">return</span> o
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> syntax:match<span class="string">'^%s*$'</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> f(<span class="library">unpack</span>(vars, 1, vars.n)), <span class="keyword">true</span>
+
+  <span class="keyword">end</span>
+
+  <span class="library">error</span>(<span class="string">"unrecognized:"</span> .. syntax)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> M = {}
+
+<span class="keyword">local</span> M_mt = {}
+
+<span class="keyword">function</span> M_mt:__newindex(syntax, f)
+
+  <span class="keyword">local</span> w, moresyntax = syntax:match(<span class="string">"^%s*(%w+)(.*)"</span>)
+
+  <span class="keyword">if</span> w <span class="keyword">then</span>
+
+    <span class="library">_G</span>[w] = <span class="keyword">function</span>(...)
+
+      <span class="keyword">local</span> info = <span class="library">debug.getinfo</span>(2)
+
+      <span class="keyword">local</span> pos = (info.source <span class="keyword">or</span> <span class="string">'?'</span>) .. <span class="string">':'</span> ..
+
+                  (info.name <span class="keyword">or</span> <span class="string">'?'</span>) .. <span class="string">':'</span> ..
+
+                  (info.currentline <span class="keyword">or</span> <span class="string">'?'</span>)
+
+      <span class="keyword">return</span> make(moresyntax, {n=0}, f, <span class="keyword">nil</span>, pos)(...)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="library">setmetatable</span>(M, M_mt)
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="http://www.martinfowler.com/bliki/FluentInterface.html">[Fluent Interface]</a> by Martin Fowler
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=RuntimeSyntax" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=RuntimeSyntax" >history</a><br>Last edited May 2, 2009 1:35 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=RuntimeSyntax" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Pit Lib Directory Stuff</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PitLibDirectoryStuff&amp;body=1" title="List pages referring to PitLibDirectoryStuff">Pit Lib Directory Stuff</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here are some directory traversal functions as part of <a href="../wiki/PetersStdLib.html" >PetersStdLib</a>.
+Note that they are Win32-only so far and need the little C-Function at the end to work.
+(though it should be easy to provide functions for any other OS you like)
+It might also be a good idea to use the posix-library for this.
+(see also: <a href="../wiki/StandardLibraryProposal.html" >StandardLibraryProposal</a>)
+<p>
+<H2>Directory Code</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- dofile for every lua file in folder</span>
+
+<span class="keyword">function</span> dodirectory(directory, mask)
+
+  mask = mask <span class="keyword">or</span> <span class="string">"*.lua"</span> <span class="comment">-- default extension is lua</span>
+
+  <span class="keyword">local</span> list = External_ReadDirectory(directory..<span class="string">"\\"</span>..mask)
+
+  <span class="keyword">local</span> i=1
+
+  sort(list)
+
+  <span class="keyword">while</span> list[i] <span class="keyword">do</span>
+
+    <span class="library">dofile</span>(directory..<span class="string">"\\"</span>..list[i])
+
+    i=i+1
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- user function for every file in (current) folder</span>
+
+<span class="comment">-- example: fordirectory(print) or fordirectory(dofile, "*.lua") </span>
+
+<span class="comment">--          or fordirectory(execute, "*.bat", "C:\\")</span>
+
+<span class="keyword">function</span> fordirectory(f, mask, directory)
+
+  <span class="keyword">local</span> prefix = <span class="string">""</span> <span class="comment">-- default folder is current folder</span>
+
+  <span class="keyword">if</span> directory <span class="keyword">then</span> prefix = directory..<span class="string">"\\"</span> <span class="keyword">end</span>
+
+  mask = mask <span class="keyword">or</span> <span class="string">"*.*"</span>  <span class="comment">-- default mask is "all files with extension"</span>
+
+  <span class="keyword">local</span> list = External_ReadDirectory(prefix..mask)
+
+  <span class="keyword">local</span> i=1
+
+  sort(list)
+
+  <span class="keyword">while</span> list[i] <span class="keyword">do</span>
+
+    f(prefix..list[i])
+
+    i=i+1
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Here is Dirk Ringes implementation of the Read-Directory function that i used for these functions in the stdlib:
+<p>
+<DL>
+<dt><dd><pre>
+
+#include "io.h"
+
+
+
+static int External_ReadDirectory(lua_State* pLuaState)
+
+{
+
+  const char *mask;
+
+  struct _finddata_t c_file;
+
+  long hFile;
+
+  int i = 1;
+
+
+
+  if(lua_isstring(pLuaState, 1))
+
+    mask = lua_tostring(pLuaState, 1);
+
+  else
+
+    mask = "*.*";
+
+
+
+  lua_newtable(pLuaState);
+
+
+
+  hFile = _findfirst(mask, &amp;c_file);
+
+  if(hFile != -1)
+
+  {
+
+    lua_pushstring(pLuaState, c_file.name);
+
+    lua_rawseti(pLuaState, -2, i);
+
+ 
+
+    while(_findnext(hFile, &amp;c_file) == 0)
+
+    {
+
+      i ++;
+
+
+
+      lua_pushstring(pLuaState, c_file.name);
+
+      lua_rawseti(pLuaState, -2, i);
+
+    }
+
+
+
+    _findclose(hFile);
+
+  }
+
+
+
+  return 1;
+
+}
+
+</pre>
+</DL>
+<p>
+See also <a href="../wiki/LuaRecipes.html" >LuaRecipes</a> for more detailed info on accessing file/directory listings from Lua.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PitLibDirectoryStuff" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PitLibDirectoryStuff" >history</a><br>Last edited April 8, 2007 1:36 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PitLibDirectoryStuff" >(diff)</a>
+</body>
+</html>

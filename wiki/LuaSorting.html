@@ -1,0 +1,494 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Sorting</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaSorting&amp;body=1" title="List pages referring to LuaSorting">Lua Sorting</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The <code>table</code> library provides an in-place sort function, based on the <em>quicksort algorithm</em> <a href="http://en.wikipedia.org/wiki/Quicksort.html">[wikipedia]</a>. However, it is possible to write <code>sort</code> in pure Lua without much penalty, as given here.
+<p>
+The algorithm used is <em>Shell sort</em> (named after its inventor, Donald Shell) <a href="http://en.wikipedia.org/wiki/Shell_sort.html">[wikipedia]</a>, and the gap sequence comes from Robert Sedgewick (see <a href="http://www.research.att.com/~njas/sequences/A036569">[A036569]</a> in <a href="http://www.research.att.com/~njas/sequences/Seis.html">[the on-line encylopedia of integer sequences]</a> for a reference to Sedgewick's paper). I used Shell sort rather than quicksort because it's usually about as fast, and the code is much simpler. The gap sequence should be adequate up to at least 10 million elements.
+<p>
+Also see <a href="../wiki/LazySort.html" >LazySort</a> for another perspective on sorting in Lua.
+<p>
+For efficiency, there are three versions of the sorter; the top-level function selects one of them as appropriate. There are specialized versions for the <code>&lt;</code> operator and the <code>&gt;</code> operator, and a general implementation which takes any comparison function as with <code>table.sort</code>. Note that, as with <code>table.sort</code> the comparison function should return <code>false</code> if its parameters are equal, although in the case of Shell sort it is not as critical.
+<p>
+Sample timings are found below.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- shellsort.lua</span>
+
+<span class="comment">-- Written by Rici Lake. The author disclaims all copyright and offers no warranty.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- This module returns a single function (not a table) whose interface is upwards-</span>
+
+<span class="comment">-- compatible with the interface to table.sort:</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- array = shellsort(array, before, n)</span>
+
+<span class="comment">-- array is an array of comparable elements to be sorted in place</span>
+
+<span class="comment">-- before is a function of two arguments which returns true if its first argument</span>
+
+<span class="comment">--    should be before the second argument in the second result. It must define</span>
+
+<span class="comment">--    a total order on the elements of array.</span>
+
+<span class="comment">--      Alternatively, before can be one of the strings "&lt;" or "&gt;", in which case</span>
+
+<span class="comment">--    the comparison will be done with the indicated operator.</span>
+
+<span class="comment">--    If before is omitted, the default value is "&lt;"</span>
+
+<span class="comment">-- n is the number of elements in the array. If it is omitted, #array will be used.</span>
+
+<span class="comment">-- For convenience, shellsort returns its first argument.</span>
+
+
+
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> incs = { 1391376,
+
+                 463792, 198768, 86961, 33936,
+
+                 13776, 4592, 1968, 861, 336, 
+
+                 112, 48, 21, 7, 3, 1 }
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> ssup(t, n)
+
+    <span class="keyword">for</span> _, h <span class="keyword">in</span> <span class="library">ipairs</span>(incs) <span class="keyword">do</span>
+
+      <span class="keyword">for</span> i = h + 1, n <span class="keyword">do</span>
+
+        <span class="keyword">local</span> v = t[i]
+
+        <span class="keyword">for</span> j = i - h, 1, -h <span class="keyword">do</span>
+
+          <span class="keyword">local</span> testval = t[j]
+
+          <span class="keyword">if</span> <span class="keyword">not</span> (v &lt; testval) <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+          t[i] = testval; i = j
+
+        <span class="keyword">end</span>
+
+        t[i] = v
+
+      <span class="keyword">end</span> 
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> t
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> ssdown(t, n)
+
+    <span class="keyword">for</span> _, h <span class="keyword">in</span> <span class="library">ipairs</span>(incs) <span class="keyword">do</span>
+
+      <span class="keyword">for</span> i = h + 1, n <span class="keyword">do</span>
+
+        <span class="keyword">local</span> v = t[i]
+
+        <span class="keyword">for</span> j = i - h, 1, -h <span class="keyword">do</span>
+
+          <span class="keyword">local</span> testval = t[j]
+
+          <span class="keyword">if</span> <span class="keyword">not</span> (v &gt; testval) <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+          t[i] = testval; i = j
+
+        <span class="keyword">end</span>
+
+        t[i] = v
+
+      <span class="keyword">end</span> 
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> t
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> ssgeneral(t, n, before)
+
+    <span class="keyword">for</span> _, h <span class="keyword">in</span> <span class="library">ipairs</span>(incs) <span class="keyword">do</span>
+
+      <span class="keyword">for</span> i = h + 1, n <span class="keyword">do</span>
+
+        <span class="keyword">local</span> v = t[i]
+
+        <span class="keyword">for</span> j = i - h, 1, -h <span class="keyword">do</span>
+
+          <span class="keyword">local</span> testval = t[j]
+
+          <span class="keyword">if</span> <span class="keyword">not</span> before(v, testval) <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+          t[i] = testval; i = j
+
+        <span class="keyword">end</span>
+
+        t[i] = v
+
+      <span class="keyword">end</span> 
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> t
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">function</span> shellsort(t, before, n)
+
+    n = n <span class="keyword">or</span> #t
+
+    <span class="keyword">if</span> <span class="keyword">not</span> before <span class="keyword">or</span> before == <span class="string">"&lt;"</span> <span class="keyword">then</span> <span class="keyword">return</span> ssup(t, n)
+
+    <span class="keyword">elseif</span> before == <span class="string">"&gt;"</span> <span class="keyword">then</span> <span class="keyword">return</span> ssdown(t, n)
+
+    <span class="keyword">else</span> <span class="keyword">return</span> ssgeneral(t, n, before)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> shellsort
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+A simple test (and not very good benchmark) harness:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> gt(a, b) <span class="keyword">return</span> a &gt; b <span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> lt(a, b) <span class="keyword">return</span> a &lt; b <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> builtinsort(t, before)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> before <span class="keyword">or</span> before == <span class="string">"&lt;"</span> <span class="keyword">then</span> <span class="library">table.sort</span>(t)
+
+  <span class="keyword">elseif</span> before == <span class="string">"&gt;"</span> <span class="keyword">then</span> <span class="library">table.sort</span>(t, gt)
+
+  <span class="keyword">else</span> <span class="library">table.sort</span>(t, before)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> algo, sort = <span class="string">"Shell sort"</span>, shellsort
+
+<span class="keyword">if</span> <span class="keyword">not</span> <span class="library">tonumber</span>(arg[1]) <span class="keyword">then</span>
+
+  <span class="keyword">if</span> arg[1] == <span class="string">"builtin"</span> <span class="keyword">then</span>
+
+    algo, sort = <span class="string">"table.sort"</span>, builtinsort
+
+  <span class="keyword">elseif</span> arg[1] == <span class="string">"shell"</span> <span class="keyword">then</span>
+
+    algo, sort = <span class="string">"Shell sort"</span>, <span class="library">require</span><span class="string">"shellsort"</span>
+
+  <span class="keyword">else</span> <span class="library">error</span><span class="string">"Only shell and builtin are implemented"</span>
+
+  <span class="keyword">end</span>
+
+  <span class="library">table.remove</span>(arg, 1)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> a = {}
+
+<span class="keyword">local</span> range = 100
+
+<span class="keyword">for</span> i = 1, <span class="library">tonumber</span>(arg[1]) <span class="keyword">or</span> 10000 <span class="keyword">do</span> a[i] = <span class="library">math.random</span>(1, range) <span class="keyword">end</span>
+
+<span class="keyword">local</span> before = arg[2] <span class="keyword">and</span>
+
+        ( arg[2]:match<span class="string">"^[&lt;&gt;]$"</span>
+
+          <span class="keyword">or</span> arg[2] <span class="keyword">and</span> <span class="library">assert</span>(<span class="library">loadstring</span>(<span class="string">"return function(a, b) return "</span>..arg[2]..<span class="string">" end"</span>))()
+
+        )
+
+      <span class="keyword">or</span> <span class="string">"&lt;"</span>
+
+
+
+<span class="keyword">local</span> now = <span class="library">os.clock</span>()
+
+sort(a, before)
+
+<span class="keyword">local</span> took = <span class="library">os.clock</span>() - now
+
+<span class="library">io.write</span>((<span class="string">"%-12s with %i values: %7.3f seconds, comparison: %s"</span>):format(algo, #a, took, arg[2] <span class="keyword">or</span> <span class="string">"&lt;"</span>))
+
+
+
+<span class="comment">-- Validate</span>
+
+before = ({[<span class="string">"&lt;"</span>] = lt, [<span class="string">"&gt;"</span>] = gt})[before] <span class="keyword">or</span> before
+
+<span class="keyword">for</span> i = 1, #a-1 <span class="keyword">do</span>
+
+  <span class="keyword">if</span> before(a[i+1], a[i]) <span class="keyword">then</span> <span class="library">print</span>((<span class="string">"\t****Failed at %i\n"</span>):format(i)); <span class="keyword">return</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="library">print</span><span class="string">"\tOrder checked"</span>
+
+</pre>
+
+</DL>
+<p>
+The results show that <code>shellsort</code> is competitive with <code>table.sort</code> despite being pure Lua; in case where <code>table.sort</code> has an optimized implementation (less than comparison), <code>shellsort</code> is about 75% slower, but it is faster in the case where it has an optimized implementation (greater than comparison) and roughly the same on a sort where the comparison function dominates the timing:
+<p>
+<DL>
+<dt><dd><pre>
+
+# (luafast is compiled with aligned doubles):
+
+
+
+rlake@freeb:~/lualib$ for count in 1e5 2e5 5e5 1e6; do
+
+&gt;  for comp in "&lt;" "&gt;" "(a-50)^2&lt;(b-50)^2"; do echo
+
+&gt;    for algo in shell builtin; do
+
+&gt;      luafast testsort.lua $algo $count $comp
+
+&gt;    done           
+
+&gt;  done     
+
+&gt;done
+
+
+
+Shell sort   with 100000 values:   0.352 seconds, comparison: &lt; Order checked
+
+table.sort   with 100000 values:   0.195 seconds, comparison: &lt; Order checked
+
+
+
+Shell sort   with 100000 values:   0.352 seconds, comparison: &gt; Order checked
+
+table.sort   with 100000 values:   0.430 seconds, comparison: &gt; Order checked
+
+
+
+Shell sort   with 100000 values:   0.914 seconds, comparison: (a-50)^2&lt;(b-50)^2 Order checked
+
+table.sort   with 100000 values:   0.805 seconds, comparison: (a-50)^2&lt;(b-50)^2 Order checked
+
+
+
+Shell sort   with 200000 values:   0.734 seconds, comparison: &lt; Order checked
+
+table.sort   with 200000 values:   0.414 seconds, comparison: &lt; Order checked
+
+
+
+Shell sort   with 200000 values:   0.758 seconds, comparison: &gt; Order checked
+
+table.sort   with 200000 values:   0.906 seconds, comparison: &gt; Order checked
+
+
+
+Shell sort   with 200000 values:   1.891 seconds, comparison: (a-50)^2&lt;(b-50)^2 Order checked
+
+table.sort   with 200000 values:   1.758 seconds, comparison: (a-50)^2&lt;(b-50)^2 Order checked
+
+
+
+Shell sort   with 500000 values:   1.961 seconds, comparison: &lt; Order checked
+
+table.sort   with 500000 values:   1.062 seconds, comparison: &lt; Order checked
+
+
+
+Shell sort   with 500000 values:   1.938 seconds, comparison: &gt; Order checked
+
+table.sort   with 500000 values:   2.352 seconds, comparison: &gt; Order checked
+
+
+
+Shell sort   with 500000 values:   5.031 seconds, comparison: (a-50)^2&lt;(b-50)^2 Order checked
+
+table.sort   with 500000 values:   5.000 seconds, comparison: (a-50)^2&lt;(b-50)^2 Order checked
+
+
+
+Shell sort   with 1000000 values:   4.320 seconds, comparison: &lt;        Order checked
+
+table.sort   with 1000000 values:   2.391 seconds, comparison: &lt;        Order checked
+
+
+
+Shell sort   with 1000000 values:   4.500 seconds, comparison: &gt;        Order checked
+
+table.sort   with 1000000 values:   6.062 seconds, comparison: &gt;        Order checked
+
+
+
+Shell sort   with 1000000 values:  12.305 seconds, comparison: (a-50)^2&lt;(b-50)^2        Order checked
+
+table.sort   with 1000000 values:  12.359 seconds, comparison: (a-50)^2&lt;(b-50)^2        Order checked
+
+</pre>
+</DL>
+<p>
+<H3>Comments</H3>
+<p>
+<DL>
+<dt><dd>Here's a metaprogramming implementation: --<a href="../wiki/DavidManura.html" >DavidManura</a>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> incs = { 1391376,
+
+                 463792, 198768, 86961, 33936,
+
+                 13776, 4592, 1968, 861, 336, 
+
+                 112, 48, 21, 7, 3, 1 }
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> make_sorter(compare)
+
+    <span class="keyword">local</span> src = <span class="string">[[
+
+      local incs = ...
+
+        return function(t, n, before)
+
+        for _, h in ipairs(incs) do
+
+          for i = h + 1, n do
+
+            local a = t[i]
+
+            for j = i - h, 1, -h do
+
+              local b = t[j]
+
+              if not (]]</span> .. compare .. <span class="string">[[) then break end
+
+              t[i] = b; i = j
+
+            end
+
+            t[i] = a
+
+          end 
+
+        end
+
+        return t
+
+      end
+
+    ]]</span>
+
+    <span class="keyword">return</span> <span class="library">assert</span>(<span class="library">loadstring</span>(src))(incs)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> sorters = {}
+
+  <span class="keyword">local</span> aliases = {[<span class="string">"&lt;"</span>] = <span class="string">"a&lt;b"</span>, [<span class="string">"&gt;"</span>] = <span class="string">"a&gt;b"</span>}
+
+
+
+  <span class="keyword">function</span> shellsort(t, before, n)
+
+    before = aliases[before] <span class="keyword">or</span> before <span class="keyword">or</span> <span class="string">"a&lt;b"</span>
+
+    n = n <span class="keyword">or</span> #t
+
+    <span class="keyword">local</span> beforesrc = <span class="library">type</span>(before) == <span class="string">"function"</span> <span class="keyword">and</span> <span class="string">"before(a,b)"</span> <span class="keyword">or</span> before
+
+    <span class="keyword">local</span> sorter = sorters[beforesrc]
+
+    <span class="keyword">if</span> <span class="keyword">not</span> sorter <span class="keyword">then</span>
+
+      sorter = make_sorter(beforesrc)
+
+      sorters[beforesrc] = sorter
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> sorter(t, n, before)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> shellsort
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaSorting" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaSorting" >history</a><br>Last edited April 19, 2012 2:26 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaSorting" >(diff)</a>
+</body>
+</html>

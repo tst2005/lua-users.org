@@ -1,0 +1,70 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Recipes</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaRecipes&amp;body=1" title="List pages referring to LuaRecipes">Lua Recipes</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here's various ways to do things.
+<p>
+<H3>Getting a list of files or directories</H3>
+<p>
+The standard version of Lua does not itself contain a portable method to obtain a list of files or directories from your file system.  The reason is that, for portability, Lua restricts itself to ANSI C, which itself does not provide this capability.  These capabilities are, however, often available through the operating system (e.g. <code>readdir</code> on POSIX, <code>_findfirst / _findnext</code> on VC/Windows, or <code>FindFirstFile/FindNextFile</code> on plain Win32 (kernel32.dll)).  These can be accessed through extension libraries or even <code>os.execute</code> calls to the shell.
+<p>
+There are a few Lua extension libraries that provide similar functions.  The <a href="../wiki/ExtensionProposal.html" >ExtensionProposal</a> API has Windows and POSIX implementations of <code>os.dir</code>.  As of version 1.2, <a href="../wiki/LuaFileSystem.html" >LuaFileSystem</a> <a href="http://www.keplerproject.org/luafilesystem/">[1]</a> has an <code>lfs.dir</code> function.  There is a <code>readdir</code> in lua-fs <a href="http://www.steve.org.uk/Software/lua-fs/">[2]</a>, but that uses the POSIX <code>readdir</code> at the time of this writing (2007).  See also <a href="../wiki/PitLibDirectoryStuff.html" >PitLibDirectoryStuff</a>.
+<p>
+Some less-than portable hacks are possible via the OS shell--<code>os.execute</code> call.  See the <code>io.readDir</code> function for UNIX in stdlib <a href="http://luaforge.net/projects/stdlib/">[3]</a>.  This approach is somewhat inefficient as it involves process creation.
+<p>
+It would also be possible to use the POSIX <code>readdir</code> on non-POSIX systems through an emulation function.  There are Win32 emulations of the POSIX <code>readdir</code> and friends <a href="http://www.two-sdg.demon.co.uk/curbralan/code/dirent/dirent.html">[4]</a> <a href="http://forums.microsoft.com/MSDN/ShowPost.aspx?PostID=157555&amp;SiteID=1">[5]</a>.  See also <code>mingwex/direct.c</code> in mingw-runtime <a href="http://sourceforge.net/project/showfiles.php?group_id=2435">[6]</a>.
+<p>
+Another option is to use Python's <code>os.listdir()</code> via Lunatic Python <a href="http://labix.org/lunatic-python">[7]</a> as shown below.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"python"</span>
+
+pg = python.globals()
+
+pos = pg.import(<span class="string">"os"</span>)
+
+x = pos.listdir(<span class="string">"."</span>)
+
+<span class="library">print</span>(x)
+
+</pre>
+
+</DL>
+<p>
+<em>Lua 5.1.</em>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<hr>Note: Some content was moved to <a href="../wiki/MakingLuaLikePhp.html" >MakingLuaLikePhp</a>.
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaRecipes" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaRecipes" >history</a><br>Last edited September 26, 2010 3:21 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaRecipes" >(diff)</a>
+</body>
+</html>

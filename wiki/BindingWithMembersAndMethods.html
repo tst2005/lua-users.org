@@ -1,0 +1,769 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Binding With Members And Methods</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BindingWithMembersAndMethods&amp;body=1" title="List pages referring to BindingWithMembersAndMethods">Binding With Members And Methods</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Description</H3>
+<p>
+This is an example of how to make a Lua binding with <em>index</em>
+and <em>newindex</em> events to access members of a C structure.
+<p>
+The <em>newindex</em> event handler function has a lookup table in an upvalue
+with a list of all the members that can be set.
+For each member that can be set, the lookup table contains the offset of the member in the structure,
+and a pointer a glue function to set that type of member.
+We only have to write one glue function for each type of member: <code>double</code>, <code>int</code>, <code>char*</code>.
+This way we can use the same set <code>int</code> glue function for all the <code>int</code>s in this structure,
+or any other structure exposed to Lua.
+<p>
+The <em>index</em> event handler function is similar.
+It has a lookup table for all the members that you can get,
+but it also has a second lookup for all the method functions.
+<p>
+<H3>C code</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+// CStructToLua.cpp : Defines the entry point for the console application.
+
+//
+
+
+
+#include "stdafx.h"
+
+
+
+
+
+#include &lt;stdio.h&gt;
+
+#include &lt;stdlib.h&gt;
+
+#include &lt;stddef.h&gt;
+
+#include &lt;string.h&gt;
+
+
+
+extern "C" {
+
+#include "lua.h"
+
+#include "lauxlib.h"
+
+#include "lualib.h"
+
+}
+
+/*
+
+==============================================================================
+
+  Example Lua bindings with members and methods
+
+==============================================================================
+
+*/
+
+
+
+static int get_int (lua_State *L, void *v)
+
+{
+
+  lua_pushnumber(L, *(int*)v);
+
+  return 1;
+
+}
+
+
+
+static int set_int (lua_State *L, void *v)
+
+{
+
+  *(int*)v = luaL_checkint(L, 3);
+
+  return 0;
+
+}
+
+
+
+static int get_number (lua_State *L, void *v)
+
+{
+
+  lua_pushnumber(L, *(lua_Number*)v);
+
+  return 1;
+
+}
+
+
+
+static int set_number (lua_State *L, void *v)
+
+{
+
+  *(lua_Number*)v = luaL_checknumber(L, 3);
+
+  return 0;
+
+}
+
+
+
+static int get_string (lua_State *L, void *v)
+
+{
+
+  lua_pushstring(L, (char*)v );
+
+  return 1;
+
+}
+
+
+
+typedef int (*Xet_func) (lua_State *L, void *v);
+
+
+
+/* member info for get and set handlers */
+
+typedef const struct{
+
+  const char *name;  /* member name */
+
+  Xet_func func;     /* get or set function for type of member */
+
+  size_t offset;     /* offset of member within your_t */
+
+}  Xet_reg_pre;
+
+
+
+typedef Xet_reg_pre * Xet_reg;
+
+
+
+static void Xet_add (lua_State *L, Xet_reg l)
+
+{
+
+  for (; l-&gt;name; l++) {
+
+    lua_pushstring(L, l-&gt;name);
+
+    lua_pushlightuserdata(L, (void*)l);
+
+    lua_settable(L, -3);
+
+  }
+
+}
+
+
+
+static int Xet_call (lua_State *L)
+
+{
+
+  /* for get: stack has userdata, index, lightuserdata */
+
+  /* for set: stack has userdata, index, value, lightuserdata */
+
+  Xet_reg m = (Xet_reg)lua_touserdata(L, -1);  /* member info */
+
+  lua_pop(L, 1);                               /* drop lightuserdata */
+
+  luaL_checktype(L, 1, LUA_TUSERDATA);
+
+  return m-&gt;func(L, (void *)((char *)lua_touserdata(L, 1) + m-&gt;offset));
+
+}
+
+
+
+static int index_handler (lua_State *L)
+
+{
+
+  /* stack has userdata, index */
+
+  lua_pushvalue(L, 2);                     /* dup index */
+
+  lua_rawget(L, lua_upvalueindex(1));      /* lookup member by name */
+
+  if (!lua_islightuserdata(L, -1)) {
+
+    lua_pop(L, 1);                         /* drop value */
+
+    lua_pushvalue(L, 2);                   /* dup index */
+
+    lua_gettable(L, lua_upvalueindex(2));  /* else try methods */
+
+    if (lua_isnil(L, -1))                  /* invalid member */
+
+      luaL_error(L, "cannot get member '%s'", lua_tostring(L, 2));
+
+    return 1;
+
+  }
+
+  return Xet_call(L);                      /* call get function */
+
+}
+
+
+
+static int newindex_handler (lua_State *L)
+
+{
+
+  /* stack has userdata, index, value */
+
+  lua_pushvalue(L, 2);                     /* dup index */
+
+  lua_rawget(L, lua_upvalueindex(1));      /* lookup member by name */
+
+  if (!lua_islightuserdata(L, -1))         /* invalid member */
+
+    luaL_error(L, "cannot set member '%s'", lua_tostring(L, 2));
+
+  return Xet_call(L);                      /* call set function */
+
+}
+
+
+
+/*
+
+==============================================================================
+
+  Your structure and custom methods
+
+==============================================================================
+
+*/
+
+
+
+#define YOUR_T "YourClass"
+
+
+
+typedef struct {
+
+  int    id;
+
+  char   name[16];
+
+  int    age;
+
+  double x,y;
+
+} your_t;
+
+
+
+
+
+static your_t *check_your_t (lua_State *L, int index)
+
+{
+
+  your_t *yd;
+
+  luaL_checktype(L, index, LUA_TUSERDATA);
+
+  yd = (your_t *)luaL_checkudata(L, index, YOUR_T);
+
+  if (yd == NULL) luaL_typerror(L, index, YOUR_T);
+
+  return yd;
+
+}
+
+
+
+static your_t *push_your_t (lua_State *L)
+
+{
+
+  your_t *yd = (your_t*)lua_newuserdata(L, sizeof(your_t));
+
+  luaL_getmetatable(L, YOUR_T);
+
+  lua_setmetatable(L, -2);
+
+  return yd;
+
+}
+
+
+
+static int id_counter;
+
+
+
+static int your_create (lua_State *L)
+
+{
+
+  your_t *yd;
+
+  unsigned int  name_len;
+
+  const char *name = luaL_checklstring(L, 1, &amp;name_len);
+
+  if( name_len &gt; 15 ) luaL_error(L, "name too long"); /* die */
+
+  yd = push_your_t(L);
+
+  strcpy( yd-&gt;name, name );
+
+  yd-&gt;age = luaL_checkint(L, 2);
+
+  yd-&gt;x   = luaL_checknumber(L, 3);
+
+  yd-&gt;y   = luaL_checknumber(L, 4);
+
+  yd-&gt;id  = ++id_counter;
+
+  return 1;
+
+}
+
+
+
+static int your_destroy (lua_State *L)
+
+{
+
+  your_t *yd = (your_t*)lua_touserdata(L,1);
+
+  printf("Goodbye %s:%d at (%lf,%lf)\n", yd-&gt;name, yd-&gt;id, yd-&gt;x, yd-&gt;y);
+
+  return 0;
+
+}
+
+
+
+static int your_position (lua_State *L)
+
+{
+
+  your_t *yd = check_your_t(L, 1);
+
+  double   x = yd-&gt;x;
+
+  double   y = yd-&gt;y;
+
+  if( lua_gettop(L) &gt; 1 ) {
+
+    yd-&gt;x = luaL_checknumber(L, 2);
+
+    yd-&gt;y = luaL_checknumber(L, 3);
+
+  }
+
+  lua_pushnumber(L,x);
+
+  lua_pushnumber(L,y);
+
+  return 2;
+
+}
+
+
+
+static int test (lua_State *L)
+
+{
+
+  int n = luaL_checknumber(L, 1);
+
+  lua_pushnumber(L, 66);
+
+  lua_pushnumber(L, 67);
+
+  lua_pushnumber(L, 68);
+
+  return n;
+
+}
+
+
+
+
+
+static const luaL_reg your_meta_methods[] = {
+
+{"__gc", your_destroy },
+
+{0,0}
+
+};
+
+
+
+static const luaL_reg your_methods[] = {
+
+{"create",   your_create},
+
+{"position", your_position},
+
+{"test",     test},
+
+{0,0}
+
+};
+
+
+
+static const Xet_reg_pre your_getters[] = {
+
+{"id",   get_int,    offsetof(your_t,id)   },
+
+{"name", get_string, offsetof(your_t,name) },
+
+{"age",  get_int,    offsetof(your_t,age)  },
+
+{"x",    get_number, offsetof(your_t,x)    },
+
+{"y",    get_number, offsetof(your_t,y)    },
+
+{0,0}
+
+};
+
+
+
+static const Xet_reg_pre your_setters[] = {
+
+{"age",  set_int,    offsetof(your_t,age)  },
+
+{"x",    set_number, offsetof(your_t,x)    },
+
+{"y",    set_number, offsetof(your_t,y)    },
+
+{0,0}
+
+};
+
+
+
+
+
+int your_register (lua_State *L)
+
+{
+
+  int metatable, methods;
+
+
+
+  /* create methods table, &amp; add it to the table of globals */
+
+  luaL_openlib(L, YOUR_T, your_methods, 0);
+
+  methods = lua_gettop(L);
+
+
+
+  /* create metatable for your_t, &amp; add it to the registry */
+
+  luaL_newmetatable(L, YOUR_T);
+
+  luaL_openlib(L, 0, your_meta_methods, 0);  /* fill metatable */
+
+  metatable = lua_gettop(L);
+
+
+
+  lua_pushliteral(L, "__metatable");
+
+  lua_pushvalue(L, methods);    /* dup methods table*/
+
+  lua_rawset(L, metatable);     /* hide metatable:
+
+                                   metatable.__metatable = methods */
+
+  lua_pushliteral(L, "__index");
+
+  lua_pushvalue(L, metatable);  /* upvalue index 1 */
+
+  Xet_add(L, your_getters);     /* fill metatable with getters */
+
+  lua_pushvalue(L, methods);    /* upvalue index 2 */
+
+  lua_pushcclosure(L, index_handler, 2);
+
+  lua_rawset(L, metatable);     /* metatable.__index = index_handler */
+
+
+
+  lua_pushliteral(L, "__newindex");
+
+  lua_newtable(L);              /* table for members you can set */
+
+  Xet_add(L, your_setters);     /* fill with setters */
+
+  lua_pushcclosure(L, newindex_handler, 1);
+
+  lua_rawset(L, metatable);     /* metatable.__newindex = newindex_handler */
+
+
+
+  lua_pop(L, 1);                /* drop metatable */
+
+  return 1;                     /* return methods on the stack */
+
+}
+
+
+
+
+
+int main(int argc, char *argv[])
+
+{
+
+  lua_State *L = lua_open();
+
+
+
+  luaopen_base(L);
+
+  luaopen_table(L);
+
+  //luaopen_io(L);
+
+  luaopen_string(L);
+
+  luaopen_math(L);
+
+  luaopen_debug(L);
+
+
+
+  your_register(L);
+
+
+
+	luaL_dofile(L, "test.lua");
+
+  //if(argc&gt;1) lua_dofile(L, argv[1]);
+
+
+
+  lua_close(L);
+
+  return 0;
+
+}
+
+
+
+</pre>
+</DL>
+<p>
+<H3>Compiling the Code</H3>
+<p>
+This code can be compiled for Lua 5.0 as follows:
+<p>
+<DL>
+<dt><dd><pre>
+
+gcc member.c  -L/usr/local/lib/ -llua -llualib
+
+</pre>
+</DL>
+<p>
+<H3>Lua Test Code</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(<span class="string">'= YourClass ='</span>,YourClass)
+
+<span class="keyword">for</span> n,v <span class="keyword">in</span> YourClass <span class="keyword">do</span> <span class="library">print</span>(n,v) <span class="keyword">end</span>
+
+
+
+b = YourClass.create(<span class="string">'bill'</span>, 99, 34,65)
+
+f = YourClass.create(<span class="string">'fish'</span>, 44, 16.7,19.25)
+
+
+
+<span class="keyword">local</span> member_names = {<span class="string">'id'</span>,<span class="string">'name'</span>,<span class="string">'age'</span>,<span class="string">'x'</span>,<span class="string">'y'</span>}
+
+
+
+<span class="keyword">function</span> dump(ud)
+
+  <span class="keyword">for</span> _,n <span class="keyword">in</span> <span class="library">pairs</span>(member_names) <span class="keyword">do</span> <span class="library">print</span>(n, ud[n]) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span><span class="string">'*** b ***'</span>
+
+dump(b)
+
+
+
+<span class="library">print</span><span class="string">'*** f ***'</span>
+
+dump(f)
+
+
+
+<span class="library">print</span>(<span class="string">'b.name ='</span>, b.name, <span class="string">'pos = '</span>, b.x, b.y)
+
+b.age = 88
+
+b.x = 40
+
+b.y = 50
+
+
+
+<span class="library">print</span><span class="string">'*** modified b ***'</span>
+
+dump(b)
+
+
+
+<span class="library">debug.debug</span>()
+
+</pre>
+
+</DL>
+<p>
+<H3>Test Code Output</H3>
+<DL>
+<dt><dd><pre>
+
+$ ./a member.lua
+
+= YourClass =   table: 0xa044f00
+
+test    function: 0xa044f60
+
+create  function: 0xa044f28
+
+position        function: 0xa045240
+
+*** b ***
+
+id      1
+
+name    bill
+
+age     99
+
+x       34
+
+y       65
+
+*** f ***
+
+id      2
+
+name    fish
+
+age     44
+
+x       16.7
+
+y       19.25
+
+b.name =        bill    pos =   34      65
+
+*** modified b ***
+
+id      1
+
+name    bill
+
+age     88
+
+x       40
+
+y       50
+
+lua_debug&gt; print(b.age, b:position())
+
+88      40      50
+
+lua_debug&gt; b.age = 99
+
+lua_debug&gt; b.name = 'rat'
+
+[string "b.name = 'rat'..."]:1: cannot set member 'name'
+
+lua_debug&gt; print(b.cow)
+
+[string "print(b.cow)..."]:1: cannot get member 'cow'
+
+lua_debug&gt; b.fish = 9
+
+[string "b.fish = 9..."]:1: cannot set member 'fish'
+
+lua_debug&gt; dump(b)
+
+id      1
+
+name    bill
+
+age     99
+
+x       40
+
+y       50
+
+lua_debug&gt; cont
+
+Goodbye fish:2 at (16.700000,19.250000)
+
+Goodbye bill:1 at (40.000000,50.000000)
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BindingWithMembersAndMethods" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BindingWithMembersAndMethods" >history</a><br>Last edited August 5, 2008 3:09 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BindingWithMembersAndMethods" >(diff)</a>
+</body>
+</html>

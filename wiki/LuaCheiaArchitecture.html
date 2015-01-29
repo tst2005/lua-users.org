@@ -1,0 +1,57 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Cheia Architecture</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaCheiaArchitecture&amp;body=1" title="List pages referring to LuaCheiaArchitecture">Lua Cheia Architecture</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em>ideas collected from the lua-l. --<a href="../wiki/MartinSpernau.html" >MartinSpernau</a></em>
+<H3><a href="../wiki/LuaCheia.html" >LuaCheia</a> Core</H3>
+<a href="../wiki/BjornDeMeyer.html" >BjornDeMeyer</a> proposed a three level Architecture:
+<UL>
+<li> First level would be a standard Lua interpreter with only a single module added (let's call it ModuleLuaCheia<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ModuleLuaCheia" >?</a>)
+<li> Second level would be the moduleLuaCheia, which 
+</UL><DL>
+<DL>
+<dt><dd>a) enums all available Modules
+<dt><dd>b) handles loading of the various Modules transparently (<a href="../wiki/LuaBinaryModules.html" >LuaBinaryModules</a>, Script Modules, whatever)
+</DL>
+</DL><UL>
+<li> Third level are the actual Modules
+</UL>
+<em>the Second Level would the ideal place to customize the behavior of <a href="../wiki/LuaCheia.html" >LuaCheia</a>. Here one could add security related features (trusted Module?) etc.</em>
+<p>
+<H3>Handling of static linking vs. dynamic linking</H3>
+<UL>
+<li> The second level (ModuleLuaCheia<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ModuleLuaCheia" >?</a>) enumerates all available Modules. These could be statically linked (always available) or dynamically linked (on demand). In the later case, moduleLuaCheia needs to be able to 'scan' its installation folder for available Modules.
+</UL><DL>
+<dt><dd>- <em>scanning the folder would be non-ansi, but it is not really needed. you can just try to load the appropriate dll (or lua script, or any combination in any order). Of course it will be an error if you can't find any matching file. You can't "enumerate" all available modules in this way, but i guess this is a feature that is not of much use anyway ;)</em>
+<dt><dd>- <em>the reason was to have a 'query' function that can return info about available modules w/o loading them. a) available? b) version? etc. The scanning will be done by a special <a href="../wiki/LuaCheia.html" >LuaCheia</a> Module, containing fs functions (which will not be ANSI C, but portable)</em> --<a href="../wiki/MartinSpernau.html" >MartinSpernau</a>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaCheiaArchitecture" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaCheiaArchitecture" >history</a><br>Last edited February 18, 2003 5:50 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaCheiaArchitecture" >(diff)</a>
+</body>
+</html>

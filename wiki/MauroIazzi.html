@@ -1,0 +1,325 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Mauro Iazzi</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MauroIazzi&amp;body=1" title="List pages referring to MauroIazzi">Mauro Iazzi</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<a href="mailto:mauro.iazzi@gmail.com">mailto:mauro.iazzi@gmail.com</a>
+<p>
+<H3>Ex API</H3>
+<p>
+As for the <a href="../wiki/ExtensionProposal.html" >ExtensionProposal</a>, I have some thoughts that came while reimplementing. It is useless to have two separate implementations of the API so I just put the code <a href="/files/wiki_insecure/users/iax/ex">[here]</a> so you can see it if you want. It is POSIX.1-2001 conforming, but i'm not sure of other standards (surely not previous POSIX).
+<p>
+<em>The proposal is the API, not the implementation.  My implementations are intended simply as reference implementations.  So, you needn't say /re/implementing.  :)  I don't believe it is useless to have multiple implementations of the same API.  -Mark</em>
+<p>
+<em>Provided you go on mantaining, your code probably is simply better than mine. Anyway the proposed changes are to the API... --mi</em>
+<p>
+I implemented these as simple as possible, probably same way as Mark's: <pre>
+
+ * getenv,
+
+ * setenv,
+
+ * environ,
+
+ * chdir,
+
+ * mkdir (setting perms to 0777, plus implied umask),
+
+ * currentdir
+
+</pre>
+<p>
+Anyway the interface is the same so Mark's code is surely better. Some other functions are not even replicated as I did not need them.
+<p>
+"lock" works as Mark's but it can accept a mode of 'u' to unlock:
+<p>
+<pre class="code">
+<span class="keyword">function</span> ex.unlock = <span class="keyword">function</span> (file, offset, length)
+
+  <span class="keyword">return</span> ex.lock(file, <span class="string">'u'</span>, offset, length)
+
+<span class="keyword">end</span>
+
+</pre>
+
+It's a matter of taste, I guess.
+<p>
+<em>I don't see why ex can't allow a "u" mode string to the lock function.  The reference implementations already allow it.  In fact, there may as well be only the lock function.  -Mark</em>
+<p>
+<em>Didn't know, so it's the same this too. --mi</em>
+<p>
+I added a getid function:
+<pre class="code">
+  <span class="keyword">local</span> uid, euid, gid, egid = ex.getid()
+
+</pre>
+
+<p>
+<em>what about this, could be useful --mi</em>
+<p>
+I had some problems with optimization, so I implemented "opendir", "closedir" and "readdir" which are just wrappers around the corresponding POSIX functions.
+<p>
+<pre class="code">
+<span class="keyword">local</span> d = <span class="library">assert</span>(ex.opendir(name))
+
+  <span class="keyword">for</span> filename <span class="keyword">in</span> ex.readdir, d <span class="keyword">do</span>
+
+    <span class="library">print</span>(filename)
+
+    <span class="comment">--- you can even break out of the loop</span>
+
+    <span class="keyword">if</span> (<span class="library">string.match</span>(filename, pattern)) <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+ex.closedir(d)
+
+</pre>
+
+<p>
+Mark's ex.dir can be emulated by these ones like this:
+<p>
+<pre class="code">
+<span class="keyword">function</span> ex.dir (name)
+
+  <span class="keyword">local</span> d = <span class="library">assert</span>(ex.opendir(name))
+
+  <span class="keyword">return</span> <span class="keyword">function</span> ()
+
+    <span class="keyword">local</span> f = ex.readdir(d)
+
+    <span class="keyword">if</span> (f)==<span class="keyword">nil</span> <span class="keyword">then</span> ex.closedir(d) <span class="keyword">end</span>
+
+    <span class="keyword">return</span> f
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">for</span> fn <span class="keyword">in</span> ex.dir(name) <span class="keyword">do</span>
+
+  <span class="library">print</span>(fn)
+
+  <span class="comment">-- you cannot break or dir will remain open until collected</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+I think this is quite more flexible, because you can iterate lots of times over a directory and can break out of the loop and close the dir, so that if you are searching a file in a *HUGE* dir and find it as first you can save much time. You can even reuse the directory using "rewinddir" I wrapped. The implementation is also very simple like that, and uses one C function for one Lua function.
+<p>
+<pre class="code">
+<span class="keyword">local</span> d = <span class="library">assert</span>(ex.opendir(name))
+
+<span class="keyword">local</span> name = <span class="string">"first"</span>
+
+<span class="keyword">while</span> name ~= <span class="string">"last"</span> <span class="keyword">do</span>
+
+  ex.rewinddir(d)
+
+  <span class="keyword">for</span> filename <span class="keyword">in</span> ex.readdir, d <span class="keyword">do</span>
+
+    <span class="library">print</span>(filename)
+
+    <span class="comment">--- you can even break out of the loop</span>
+
+    <span class="keyword">if</span> (filename == name) <span class="keyword">then</span> 
+
+      <span class="keyword">local</span> f = <span class="library">assert</span>(<span class="library">io.open</span>(filename))
+
+      name = f:read(<span class="string">'*l'</span>)
+
+      f:close()
+
+      <span class="keyword">break</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+ex.closedir(d)
+
+</pre>
+
+<p>
+moreover readdir just returns the filename, but I implemented a fstat (and lstat) which returns some information on the file.
+<p>
+I exported stat and lstat. They too are just wrappers. I think it is simpler to divide functions like that and the names are more intuitive instead of having "dirent".
+<p>
+<em>So, the reason that ex does not simply export an open/read/close style API for directory iteration is that the most common use case by far is iteration in a loop.  If one really needs to partially iterate many, many directories (in which case collection may not be happening fast enough), then you can still do this with os.dir(), although it's not quite documented in the API.  -Mark</em>
+<p>
+<em>Ok, I didn.t know. So I assume it would be ok to implement some of the API in Lua itself, is it? --mi</em>
+<p>
+<pre class="code">
+d,ds,di = <span class="library">assert</span>(<span class="library">os.dir</span>(name))
+
+<span class="keyword">for</span> entry <span class="keyword">in</span> d,ds,di <span class="keyword">do</span>
+
+  <span class="keyword">if</span> name==entry.name <span class="keyword">then</span>
+
+    <span class="keyword">break</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+d.getmetatable().__gc(d)
+
+</pre>
+
+<p>
+<em>I just fear that if this goes in the API requirement it would constrain a lot the implementation... I, for example, stick to the iterator function, opaque data model that is used for normal tables (for k, v in next, t do ... end). My iterator is a simple function and have no individual metatable, so I cannot provide a way to make this code work. On the other hand the API should actually specify a way to explicitly close the directory... I have no clue. --mi</em>
+<p>
+<em>That said, I don't think it's a bad thing to have opendir/readdir/closedir.  It's also not bad to have stat and lstat.  However, you still need to implement ex.dir and ex.dirent.  dirent probably is a poor name however, but while stat may be more intuitive (at least to UNIX programmers), I don't want to confuse ex with POSIX.  Do you have a better suggestion for the name of this function?  -Mark</em>
+<p>
+<em>I agree, my naming was indeed strictly based on POSIX, as it was for me only. I think a ex.fileinfo would perfectly fit the Lua naming style. As by the fstat - lstat difference, do you have any idea? --mi</em>
+<p>
+<em>Please note that if what you really want is a POSIX API, then you should use lhf's POSIX wrapper <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lposix">http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lposix</a> instead of ex.  -Mark</em>
+<p>
+''eheh, but it seems that he left the burden on this proposal, as I find following the link to 5.1 implementation: <a href="http://lua-users.org/lists/lua-l/2006-10/msg00499.html">http://lua-users.org/lists/lua-l/2006-10/msg00499.html</a> BTW I completely agree that this should not be just a wrapper over POSIX and endorse the name changing, for one.
+--mi''
+<p>
+Then "spawn": here's the big change. I defined it to be simple to implement, basically. It uses the arguments like this Lua code:
+<p>
+<pre class="code">
+<span class="keyword">function</span> lua_spawn(t)
+
+  <span class="keyword">if</span> <span class="library">type</span>(t)==<span class="string">'string'</span> <span class="keyword">then</span> t = { t } <span class="keyword">end</span>
+
+  <span class="library">assert</span>(<span class="library">type</span>(t)==<span class="string">'table'</span>) <span class="comment">-- "spawn must receive a table or a string"</span>
+
+  <span class="keyword">local</span> argv = t.argv <span class="keyword">or</span> t
+
+  <span class="keyword">local</span> argc = #argv
+
+  <span class="keyword">local</span> command = t.command <span class="keyword">or</span> argv[1] <span class="keyword">or</span> <span class="library">error</span><span class="string">'command not given'</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> argv <span class="keyword">then</span> argv = { command } <span class="keyword">end</span>
+
+  <span class="keyword">local</span> env = t.env <span class="keyword">or</span> ( <span class="library">type</span>(t.env)==<span class="keyword">nil</span> <span class="keyword">and</span> ex.environ() <span class="keyword">or</span> {} )
+
+  <span class="keyword">if</span> t.stdin <span class="keyword">then</span> set_redirect_to(redirections, t.stdin) <span class="keyword">end</span>
+
+  <span class="keyword">if</span> t.stderr <span class="keyword">then</span> set_redirect_to(redirections, t.stderr) <span class="keyword">end</span>
+
+  <span class="keyword">if</span> t.stdout <span class="keyword">then</span> set_redirect_to(redirections, t.stdout) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> posix_spawn(command, argv, argc, env, redirections)
+
+<span class="keyword">end</span>
+
+</pre>
+
+It is used like (it uses argv instead of args):
+<pre class="code">
+proc = ex.spawn<span class="string">"/bin/echo"</span>
+
+proc = ex.spawn{<span class="string">"/bin/echo"</span>, <span class="string">"hello"</span>, <span class="string">"world"</span>}
+
+proc = ex.spawn{command=<span class="string">"/bin/echo"</span>, <span class="string">"echo"</span>, <span class="string">"hello"</span>, <span class="string">"world"</span>} <span class="comment">--big difference</span>
+
+proc = ex.spawn{argv = {<span class="string">"lua"</span>, <span class="string">"-e"</span>, <span class="string">'print"Hello world\n"'</span>}} <span class="comment">-- equivalent to Mark's example</span>
+
+proc = ex.spawn{<span class="string">"lua"</span>, <span class="string">"-e"</span>, <span class="string">'print"Hello world\n"'</span>}
+
+proc = ex.spawn{<span class="string">"lua"</span>, <span class="string">"-e"</span>, <span class="string">'print"Hello world\n"'</span>, env=ex.environ()}
+
+proc = ex.spawn{<span class="string">"/usr/bin/lua"</span>, <span class="string">"-e"</span>, <span class="string">'print"Hello world\n"'</span>, env=<span class="keyword">false</span>} <span class="comment">-- this uses a void env</span>
+
+proc = ex.spawn{<span class="string">"/usr/bin/lua"</span>, <span class="string">"-e"</span>, <span class="string">'print"Hello world\n"'</span>, env=<span class="string">"equivalent"</span>} <span class="comment">-- this uses a void env</span>
+
+proc = ex.spawn{command=<span class="string">'/usr/bin/vim'</span>, <span class="string">"ex"</span>, <span class="string">"ex.c"</span>} <span class="comment">-- starts vim in "ex" mode</span>
+
+proc = ex.spawn{command=<span class="string">'/bin/busybox'</span>, argv = {<span class="string">"ls"</span>, <span class="string">"ex.c"</span> }} <span class="comment">-- ls ex.c</span>
+
+proc = ex.spawn{command=<span class="string">'/bin/busybox'</span>, argv = {<span class="string">"cp"</span>, <span class="string">"ex.c"</span>, <span class="string">'ex2.c'</span>}} <span class="comment">-- cp ex.c ex2.c, same binary</span>
+
+proc = ex.spawn{<span class="string">"echo"</span>, <span class="string">"hello"</span>, <span class="string">"world"</span>, env={ PATH=<span class="string">"/bin"</span> } }
+
+proc = ex.spawn{<span class="string">"echo"</span>, <span class="string">"hello"</span>, <span class="string">"world"</span>, env={ <span class="string">"PATH=/bin"</span> } } <span class="comment">-- same as before</span>
+
+</pre>
+
+Notice that if you void the env the PATH search will not work.
+<p>
+<em>Why argv instead of args?  -Mark</em>
+<p>
+<em>Because I'm stupid and did not remember your name when I wrote this. And never minded changing. This was meant for me only and I show it just as a test of how the API spec was interpreted by me. It's not a "reference implementation for changing your API" or something as pretending as that... Just plain code, writing which I thought some things. Most of which were simply wrong, you see :) --mi</em>
+<p>
+The PID userdata can then be consumed by waitpid(pid), which is also a method:
+<pre class="code">
+ex.waitpid(pid)
+
+pid:waitpid()
+
+</pre>
+
+and returns two values, the representing if the process exited, was killed or (other option I do not remember), the other is respectively exit code, signal which killed or (... I must see again what I wrote).
+<p>
+<em>Why waitpid instead of wait?  It should be fine to have wait() return both the exit code and a second return value with extra information.  -Mark</em>
+<p>
+<em>I sticked to POSIX names, and wanted to make clear this does not work as yours. It returns the exit code as second parameter, so it's not compatible. If the other information is returned, it should be the second return value and not the first to adhere to your API --mi</em>
+<p>
+This seems quite easy to use and mainly differs from Mark's in that env can be both the calling environ or voided, and that specifying BOTH command AND argv must be done with an additional argv[1] string. This is acceptable, I think, because if you require so much control over the spawn arguments you can double check that and probably would appreciate having the option to call the program by path with a different 0th argument (vim pays attention to that, for example)
+<p>
+<em>I'm not sure what you mean when you say the environment can be "voided".  Do you mean an empty environment, or an inherited one?  ex already allows both. Also note that the ex API does in fact support zeroth arguments, with or without 'args':</em>
+<p>
+''True for the env, I misread the proposal, I'm sorry. As for the zeroth argument I find a little counter-intuitive that the presence of a command field in the argument changes how the args list is interpreted. Specifically I compared:
+<pre class="code">
+<span class="library">os.spawn</span>{<span class="string">"echo"</span>, <span class="string">"hello"</span>, <span class="string">"world"</span>}
+
+<span class="library">os.spawn</span>{command=<span class="string">"/bin/echo"</span>, [0]=<span class="string">"echo"</span>, <span class="string">"hello"</span>, <span class="string">"world"</span>}
+
+</pre>
+
+I interpret this as making two changes to the statement (I mean this is my perception when I think the change). Why is it useful to have the command field if it does not add anything to what I can do when I don't use the [0]= thing? It looks just like it is a commodity, which seems not something which should go into the API itself as it can be implemented by anyone on top of it. Also it means that the same args table could be used in both syntaxes without having to shift. It could be useful if (like me) you use this to automate processing of a lot of files.
+--mi''
+<p>
+<pre class="code">
+<span class="library">os.spawn</span>{command=<span class="string">"/bin/echo"</span>, [0]=<span class="string">"echo"</span>, <span class="string">"hello"</span>, <span class="string">"world"</span>}
+
+<span class="library">os.spawn</span>{command=<span class="string">"/usr/bin/vim"</span>, [0]=<span class="string">"ex"</span>, <span class="string">"ex.c"</span>}
+
+<span class="library">os.spawn</span>{command=<span class="string">"/bin/busybox"</span>, args={[0]=<span class="string">"ls"</span>, <span class="string">"ex.c"</span>}}
+
+<span class="library">os.spawn</span>{command=<span class="string">"/bin/busybox"</span>, args={[0]=<span class="string">"cp"</span>, <span class="string">"ex.c"</span>, <span class="string">"ex2.c"</span>}}
+
+</pre>
+
+<p>
+<em>-Mark</em>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MauroIazzi" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MauroIazzi" >history</a><br>Last edited July 11, 2007 11:40 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MauroIazzi" >(diff)</a>
+</body>
+</html>

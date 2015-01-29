@@ -1,0 +1,308 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Classes And Methods Example</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ClassesAndMethodsExample&amp;body=1" title="List pages referring to ClassesAndMethodsExample">Classes And Methods Example</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Class and Methods implementation for Lua</H2>
+<p>
+After the initial euphoria of having discovered Lua, one of the greatest scripting languages ever, passed I started to play around with classes and methods.  I looked at various implementations and found Christian Lindig's (lindig |at| cs.uni-sb.de) to be the neatest way. I noted, however, that there was room for improvement to make it more dummy proof.  To Christian Lindig's code I added the ability to easily add class constructors without dealing with obj directly. 
+<p>
+<p>
+How to use INC_Class.lua
+<p>
+The following code shows an example of the class constructor and inheritance features.  Notice how class cTiger inherits from cAnimal by :
+<p>
+<DL>
+<dt><dd><pre class="code">
+cTiger = setclass(<span class="string">"Tiger"</span>, cAnimal)
+
+</pre>
+
+</DL>
+<p>
+and notice that if you have a method for the class called 'init', the code will automatically execute when you call class:new()
+<p>
+<p>
+<H3>Example code:</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span>(<span class="string">"INC_Class.lua"</span>)
+
+
+
+<span class="comment">--===========================</span>
+
+
+
+cAnimal=setclass(<span class="string">"Animal"</span>)
+
+
+
+<span class="keyword">function</span> cAnimal.methods:init(action, cutename) 
+
+	self.superaction = action
+
+	self.supercutename = cutename
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--==========================</span>
+
+
+
+cTiger=setclass(<span class="string">"Tiger"</span>, cAnimal)
+
+
+
+<span class="keyword">function</span> cTiger.methods:init(cutename) 
+
+	self:init_super(<span class="string">"HUNT (Tiger)"</span>, <span class="string">"Zoo Animal (Tiger)"</span>)
+
+	self.action = <span class="string">"ROAR FOR ME!!"</span>
+
+	self.cutename = cutename
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--==========================</span>
+
+
+
+Tiger1 = cAnimal:new(<span class="string">"HUNT"</span>, <span class="string">"Zoo Animal"</span>)
+
+Tiger2 = cTiger:new(<span class="string">"Mr Grumpy"</span>)
+
+Tiger3 = cTiger:new(<span class="string">"Mr Hungry"</span>)
+
+
+
+<span class="library">print</span>(<span class="string">"CLASSNAME FOR TIGER1 = "</span>, Tiger1:classname())   
+
+<span class="library">print</span>(<span class="string">"CLASSNAME FOR TIGER2 = "</span>, Tiger2:classname()) 
+
+<span class="library">print</span>(<span class="string">"CLASSNAME FOR TIGER3 = "</span>, Tiger3:classname()) 
+
+<span class="library">print</span>(<span class="string">"==============="</span>)
+
+<span class="library">print</span>(<span class="string">"SUPER ACTION"</span>,Tiger1.superaction)
+
+<span class="library">print</span>(<span class="string">"SUPER CUTENAME"</span>,Tiger1.supercutename)
+
+<span class="library">print</span>(<span class="string">"ACTION        "</span>,Tiger1.action)
+
+<span class="library">print</span>(<span class="string">"CUTENAME"</span>,Tiger1.cutename)
+
+<span class="library">print</span>(<span class="string">"==============="</span>)
+
+<span class="library">print</span>(<span class="string">"SUPER ACTION"</span>,Tiger2.superaction)
+
+<span class="library">print</span>(<span class="string">"SUPER CUTENAME"</span>,Tiger2.supercutename)
+
+<span class="library">print</span>(<span class="string">"ACTION        "</span>,Tiger2.action)
+
+<span class="library">print</span>(<span class="string">"CUTENAME"</span>,Tiger2.cutename)
+
+<span class="library">print</span>(<span class="string">"==============="</span>)
+
+<span class="library">print</span>(<span class="string">"SUPER ACTION"</span>,Tiger3.superaction)
+
+<span class="library">print</span>(<span class="string">"SUPER CUTENAME"</span>,Tiger3.supercutename)
+
+<span class="library">print</span>(<span class="string">"ACTION        "</span>,Tiger3.action)
+
+<span class="library">print</span>(<span class="string">"CUTENAME"</span>,Tiger3.cutename)
+
+</pre>
+
+</DL>
+<p>
+<H2>Class Implementation</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-----------------------------------------------------</span>
+
+<span class="comment">---- SETCLASS CLONES THE BASIC OBJECT CLASS TO CREATE NEW CLASSES</span>
+
+<span class="comment">-----------------------------------------------------</span>
+
+<span class="comment">-- Supports INHERITANCE </span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Sam Lie, 17 May 2004 </span>
+
+<span class="comment">-- Modified Code from Christian Lindig - lindig (at) cs.uni-sb.de</span>
+
+<span class="comment">---------------------------------------------------------------</span>
+
+
+
+<span class="comment">-- EVERYTHING INHERITS FROM THIS BASIC OBJECT CLASS</span>
+
+BaseObject = {
+
+  super   = <span class="keyword">nil</span>,
+
+  name    = <span class="string">"Object"</span>,
+
+  new     =
+
+    <span class="keyword">function</span>(class)
+
+      <span class="keyword">local</span> obj  = {class = class}
+
+      <span class="keyword">local</span> meta = {
+
+        __index = <span class="keyword">function</span>(self,key) <span class="keyword">return</span> class.methods[key] <span class="keyword">end</span> 
+
+      }            
+
+      <span class="library">setmetatable</span>(obj,meta)
+
+      <span class="keyword">return</span> obj
+
+    <span class="keyword">end</span>,
+
+  methods = {classname = <span class="keyword">function</span>(self) <span class="keyword">return</span>(self.class.name) <span class="keyword">end</span>},
+
+  data    = {}
+
+}
+
+
+
+<span class="keyword">function</span> setclass(name, super)
+
+  <span class="keyword">if</span> (super == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+    super = BaseObject
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> class = {
+
+    super = super; 
+
+    name  = name; 
+
+    new   =
+
+      <span class="keyword">function</span>(self, ...) 
+
+        <span class="keyword">local</span> obj = super.new(self, <span class="string">"___CREATE_ONLY___"</span>);
+
+          <span class="comment">-- check if calling function init</span>
+
+          <span class="comment">-- pass arguments into init function</span>
+
+        <span class="keyword">if</span> (super.methods.init) <span class="keyword">then</span>
+
+          obj.init_super = super.methods.init
+
+        <span class="keyword">end</span>
+
+
+
+	<span class="keyword">if</span> (self.methods.init) <span class="keyword">then</span>
+
+            <span class="keyword">if</span> (<span class="library">tostring</span>(arg[1]) ~= <span class="string">"___CREATE_ONLY___"</span>) <span class="keyword">then</span>
+
+              obj.init = self.methods.init
+
+              <span class="keyword">if</span> obj.init <span class="keyword">then</span>
+
+                obj:init(<span class="library">unpack</span>(arg))
+
+              <span class="keyword">end</span>
+
+            <span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+
+
+        <span class="keyword">return</span> obj
+
+      <span class="keyword">end</span>,  
+
+    methods = {}
+
+  }
+
+    
+
+  <span class="comment">-- if class slot unavailable, check super class</span>
+
+  <span class="comment">-- if applied to argument, pass it to the class method new        </span>
+
+  <span class="library">setmetatable</span>(class, {
+
+    __index = <span class="keyword">function</span>(self,key) <span class="keyword">return</span> self.super[key] <span class="keyword">end</span>,
+
+    __call  = <span class="keyword">function</span>(self,...) <span class="keyword">return</span> self.new(self,<span class="library">unpack</span>(arg)) <span class="keyword">end</span> 
+
+  })
+
+
+
+  <span class="comment">-- if instance method unavailable, check method slot in super class    </span>
+
+  <span class="library">setmetatable</span>(class.methods, {
+
+    __index = <span class="keyword">function</span>(self,key) <span class="keyword">return</span> class.super.methods[key] <span class="keyword">end</span>
+
+  })
+
+  <span class="keyword">return</span> class
+
+<span class="keyword">end</span>    
+
+</pre>
+
+</DL>
+<p>
+<p>
+dontspamme_sam_lie2000@yahoo.com, 17 May 2004
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/ObjectOrientedProgramming.html" >ObjectOrientedProgramming</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ClassesAndMethodsExample" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ClassesAndMethodsExample" >history</a><br>Last edited December 26, 2009 1:21 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ClassesAndMethodsExample" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Wsapi</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaWsapi&amp;body=1" title="List pages referring to LuaWsapi">Lua Wsapi</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+How to get apache and lua wsapi to work
+<p>
+(at least on a Ubuntu server)
+<p>
+Andrew Armstrong 2011
+andrewa@archonix.co.uk
+<p>
+v0.1
+<p>
+<p>
+<p>
+1) Install some basic pre-requisites:
+<p>
+apt-get install libreadline-dev build-essential unzip 
+<p>
+2) Install Apache and Fast cgi:
+<p>
+apt-get install apache2 libfcgi libfcgi-dev libapache2-mod-fcgid
+<p>
+3) Install <a href="../wiki/LuaRocks.html" >LuaRocks</a>
+<p>
+apt-get install luarocks
+<p>
+4) With <a href="../wiki/LuaRocks.html" >LuaRocks</a> install:
+<p>
+luarocks install wsapi-fcgi CFLAGS=-fPIC
+<p>
+luarocks install cgilua
+<p>
+5) Enable apache module
+<p>
+a2enmod fcgid
+<p>
+6) Edit your site:
+<p>
+sudo gedit /etc/apache2/sites-enabled/000-default
+<p>
+The /var/www entry should look something like this when you are finished:
+<p>
+<DL>
+<dt><dd>&lt;Directory /var/www/&gt;
+<DL>
+<dt><dd>Options FollowSymLinks<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FollowSymLinks" >?</a> MultiViews<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MultiViews" >?</a>
+<dt><dd># Indexes
+<dt><dd>AllowOverride<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AllowOverride" >?</a> All
+<dt><dd>Order allow,deny
+<dt><dd>allow from all                     
+</DL>
+<dt><dd>
+
+<DL>
+<dt><dd>&lt;IfModule<a href="/cgi-bin/wiki.pl?action=edit&amp;id=IfModule" >?</a> mod_fcgid.c&gt;
+<dt><dd>AddHandler<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AddHandler" >?</a> fcgid-script .lua
+<dt><dd>AddHandler<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AddHandler" >?</a> fcgid-script .lp
+<dt><dd>FCGIwrapper "/usr/local/bin/cgilua.fcgi" .lp
+<dt><dd>FCGIwrapper "/usr/local/bin/cgilua.fcgi" .lua 
+<dt><dd>&lt;/IfModule<a href="/cgi-bin/wiki.pl?action=edit&amp;id=IfModule" >?</a>&gt;
+</DL>
+<dt><dd>&lt;/Directory&gt;
+</DL>
+<p>
+9) Modify your /var/www .htaccess file:
+<p>
+Options +ExecCGI
+DirectoryIndex<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DirectoryIndex" >?</a> index.lp
+<p>
+10) If you use MySQL, install mysql development headers:
+<p>
+apt-get install libmysqlclient-dev
+<p>
+<p>
+11) Then.... Install the luasql module, you need the include dir:
+<p>
+luarocks install luasql-mysql MYSQL_INCDIR=/usr/include/mysql CFLAGS=-fPIC
+<p>
+<p>
+<p>
+<p>
+<p>
+<p>
+<p>
+<p>
+<p>
+<p>
+<p>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaWsapi" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaWsapi" >history</a><br>Last edited May 4, 2011 4:49 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaWsapi" >(diff)</a>
+</body>
+</html>

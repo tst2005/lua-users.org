@@ -1,0 +1,289 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Read Write Format</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ReadWriteFormat&amp;body=1" title="List pages referring to ReadWriteFormat">Read Write Format</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Lists of Integers</H2>
+It is often necessary to pack a list of integers into a binary string of data, 
+for example for reading/writing binary files or to implement communication protocols.
+There are plenty of ways to do this. This implementation has only the pretension to be 
+relatively easy to use.
+<p>
+This function fails for negative singed values i.e. -86000 !
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- This format function packs a list of integers into a binary string.</span>
+
+<span class="comment">-- The sizes of the integers can be specified, both little and big endian</span>
+
+<span class="comment">-- ordering are supported. The format parameter is a string composed of </span>
+
+<span class="comment">-- ASCII digit numbers, the size in bytes of the corresponding value.</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--   write_format(true, "421", 0x12345678, 0x432931, 0x61) returns "xV41)a",</span>
+
+<span class="comment">--     a 7 bytes string whose characters are in hex: 78 56 34 12 31 29 61</span>
+
+<span class="keyword">function</span> write_format(little_endian, format, ...)
+
+  <span class="keyword">local</span> res = <span class="string">''</span>
+
+  <span class="keyword">local</span> values = {...}
+
+  <span class="keyword">for</span> i=1,#format <span class="keyword">do</span>
+
+    <span class="keyword">local</span> size = <span class="library">tonumber</span>(format:sub(i,i))
+
+    <span class="keyword">local</span> value = values[i]
+
+    <span class="keyword">local</span> str = <span class="string">""</span>
+
+    <span class="keyword">for</span> j=1,size <span class="keyword">do</span>
+
+      str = str .. <span class="library">string.char</span>(value % 256)
+
+      value = <span class="library">math.floor</span>(value / 256)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> little_endian <span class="keyword">then</span>
+
+      str = <span class="library">string.reverse</span>(str)
+
+    <span class="keyword">end</span>
+
+    res = res .. str
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> res
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- This format function does the inverse of write_format. It unpacks a binary</span>
+
+<span class="comment">-- string into a list of integers of specified size, supporting big and little </span>
+
+<span class="comment">-- endian ordering. Example:</span>
+
+<span class="comment">--   read_format(true, "421", "xV4.1)a") returns 0x12345678, 0x2931 and 0x61.</span>
+
+<span class="keyword">function</span> read_format(little_endian, format, str)
+
+  <span class="keyword">local</span> idx = 0
+
+  <span class="keyword">local</span> res = {}
+
+  <span class="keyword">for</span> i=1,#format <span class="keyword">do</span>
+
+    <span class="keyword">local</span> size = <span class="library">tonumber</span>(format:sub(i,i))
+
+    <span class="keyword">local</span> val = str:sub(idx+1,idx+size)
+
+    <span class="keyword">local</span> value = 0
+
+    idx = idx + size
+
+    <span class="keyword">if</span> little_endian <span class="keyword">then</span>
+
+      val = <span class="library">string.reverse</span>(val)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">for</span> j=1,size <span class="keyword">do</span>
+
+      value = value * 256 + val:byte(j)
+
+    <span class="keyword">end</span>
+
+    res[i] = value
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">unpack</span>(res)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>More Integers</H2>
+<p>
+This functions fail for negative singed values i.e. -86000 !
+<p>
+Another way to read and write integers, written by Tom N Harris.
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Read an integer in LSB order.</span>
+
+<span class="keyword">function</span> stringtonumber(str)
+
+  <span class="keyword">local</span> <span class="keyword">function</span> _b2n(exp, num, digit, ...)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> digit <span class="keyword">then</span> <span class="keyword">return</span> num <span class="keyword">end</span>
+
+    <span class="keyword">return</span> _b2n(exp*256, num + digit*exp, ...)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> _b2n(256, <span class="library">string.byte</span>(str, 1, -1))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Read an integer in MSB order.</span>
+
+<span class="keyword">function</span> stringtonumber(str)
+
+  <span class="keyword">local</span> <span class="keyword">function</span> _b2n(num, digit, ...)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> digit <span class="keyword">then</span> <span class="keyword">return</span> num <span class="keyword">end</span>
+
+    <span class="keyword">return</span> _b2n(num*256 + digit, ...)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> _b2n(0, <span class="library">string.byte</span>(str, 1, -1))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Write an integer in LSB order using width bytes.</span>
+
+<span class="keyword">function</span> numbertobytes(num, width)
+
+  <span class="keyword">local</span> <span class="keyword">function</span> _n2b(width, num, rem)
+
+    rem = rem * 256
+
+    <span class="keyword">if</span> width == 0 <span class="keyword">then</span> <span class="keyword">return</span> rem <span class="keyword">end</span>
+
+    <span class="keyword">return</span> rem, _n2b(width-1, <span class="library">math.modf</span>(num/256))
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">string.char</span>(_n2b(width-1, <span class="library">math.modf</span>(num/256)))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Write an integer in MSB order using width bytes.</span>
+
+<span class="keyword">function</span> numbertobytes(num, width)
+
+  <span class="keyword">local</span> <span class="keyword">function</span> _n2b(t, width, num, rem)
+
+    <span class="keyword">if</span> width == 0 <span class="keyword">then</span> <span class="keyword">return</span> <span class="library">table.concat</span>(t) <span class="keyword">end</span>
+
+    <span class="library">table.insert</span>(t, 1, <span class="library">string.char</span>(rem * 256))
+
+    <span class="keyword">return</span> _n2b(t, width-1, <span class="library">math.modf</span>(num/256))
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> _n2b({}, width, <span class="library">math.modf</span>(num/256))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Bitfields</H2>
+A function that unpacks the bits in a number to booleans.
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> unpackbits(bits, width)
+
+  <span class="keyword">local</span> fl = {}
+
+  <span class="keyword">local</span> num,rem = flags
+
+  <span class="keyword">for</span> i = 1,width <span class="keyword">do</span>
+
+    num,rem = <span class="library">math.modf</span>(num/2)
+
+    fl[#fl+1] = rem&gt;=0.5
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">unpack</span>(fl)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Floating-Point</H2>
+Convert an IEEE-754 float in MSB order.
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> convertfloat(str)
+
+  <span class="comment">-- Change to b4,b3,b2,b1 to unpack an LSB float</span>
+
+  <span class="keyword">local</span> b1,b2,b3,b4 = <span class="library">string.byte</span>(str, 1, 4)
+
+  <span class="keyword">local</span> exponent = (b1 % 128) * 2 + <span class="library">math.floor</span>(b2 / 128)
+
+  <span class="keyword">if</span> exponent == 0 <span class="keyword">then</span> <span class="keyword">return</span> 0 <span class="keyword">end</span>
+
+  <span class="keyword">local</span> sign = (b1 &gt; 127) <span class="keyword">and</span> -1 <span class="keyword">or</span> 1
+
+  <span class="keyword">local</span> mantissa = ((b2 % 128) * 256 + b3) * 256 + b4
+
+  mantissa = (<span class="library">math.ldexp</span>(mantissa, -23) + 1) * sign
+
+  <span class="keyword">return</span> <span class="library">math.ldexp</span>(mantissa, exponent - 127)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H2>Libraries</H2>
+There are C libraries for packing and unpacking binary data. They can handle integers of sizes from 8 to 32 bits, signed or unsigned, IEEE-754 floating point, plus strings in several forms, etc.  See <a href="../wiki/StructurePacking.html" >StructurePacking</a>.
+<p>
+<em>Original citation, Sirmabus: September 13, 2009</em>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ReadWriteFormat" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ReadWriteFormat" >history</a><br>Last edited September 18, 2013 1:02 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ReadWriteFormat" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,781 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Interpolating Search</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=InterpolatingSearch&amp;body=1" title="List pages referring to InterpolatingSearch">Interpolating Search</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+When searching for a value in a sorted array, the to preferring search algorithm is the binary search. In certain cases although we can be a lot faster using an interpolating search mechanism. tables optimal for a interpolating search are { 1,2,3,4,5,6,7,8,9,10 }, where as tables looking like { 1,1,1,1,1,1,1,1,1,2,10 } and searching it for the value 2 will use a alot more time than the binary search. So it depends on the scenario, but if used right one can be 3 times as fast as the binary search. I wrote an extra function for searching a reversed table, since it was the better option rather to changing all the variables and the &lt; check.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--[[
+
+   Interpolating Search v 0.2
+
+   
+
+   LUA 5.1 compatible
+
+   
+
+   Can only search for values of type number
+
+   
+
+   table.intsearch( table, value [, compval ] ), for searching a normal sorted table
+
+   table.intsearchrev( table, value [, compval ] ), for searching a reversed sorted table
+
+   
+
+   If the  value is found:
+
+      it returns a table holding all the matching indices (e.g. { startindice,endindice } )
+
+      endindice may be the same as startindice if only one matching indice was found
+
+   If compval is given:
+
+      then it must be a function that takes one value and returns a second value2,
+
+      to be compared with the searched value, e.g.:
+
+      compvalue = function( value ) return value[1] end
+
+   Return value:
+
+      on success: a table holding matching indices (e.g. { startindice,endindice } )
+
+      on failure: nil
+
+]]</span><span class="comment">--</span>
+
+<span class="keyword">do</span>
+
+   <span class="comment">-- Avoid heap allocs for performance</span>
+
+   <span class="keyword">local</span> default_fcompval = <span class="keyword">function</span>( value ) <span class="keyword">return</span> value <span class="keyword">end</span>
+
+   <span class="keyword">function</span> <span class="library">table.intsearch</span>( t,value,fcompval )
+
+      <span class="comment">-- Initialise functions</span>
+
+      <span class="keyword">local</span> fcompval = fcompval <span class="keyword">or</span> default_fcompval
+
+      <span class="comment">-- Inistialise numbers</span>
+
+      <span class="keyword">local</span> ilow,ihigh = 1,#t
+
+      <span class="comment">-- return on empty table</span>
+
+      <span class="keyword">if</span> <span class="keyword">not</span> t[ilow] <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+      <span class="comment">-- get values of indices</span>
+
+      <span class="keyword">local</span> _ilow,_ihigh = fcompval( t[ilow] ),fcompval( t[ihigh] )
+
+      <span class="comment">-- make sure slope cannot become 0</span>
+
+      <span class="keyword">while</span> _ilow <span class="keyword">and</span> _ilow &lt; _ihigh <span class="keyword">do</span>
+
+         <span class="comment">-- get interpolated position</span>
+
+         <span class="keyword">local</span> pos = <span class="library">math.floor</span>( (value-_ilow)*(ihigh-ilow)/(_ihigh-_ilow) ) + ilow
+
+         <span class="comment">-- check for out of range</span>
+
+         <span class="keyword">if</span> pos &lt; ilow <span class="keyword">or</span> pos &gt; ihigh <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+         <span class="comment">-- get compare value</span>
+
+         <span class="keyword">local</span> compval = fcompval( t[pos] )
+
+         <span class="keyword">if</span> value == compval <span class="keyword">then</span>
+
+            <span class="comment">-- insert found position</span>
+
+            <span class="keyword">local</span> tfound,num = { pos,pos },pos-1
+
+            <span class="comment">-- get all values that match</span>
+
+            <span class="keyword">while</span> value == fcompval( t[num] ) <span class="keyword">do</span>
+
+               tfound[1],num = num,num-1
+
+            <span class="keyword">end</span>
+
+            num = pos+1
+
+            <span class="keyword">while</span> value == fcompval( t[num] ) <span class="keyword">do</span>
+
+               tfound[2],num = num,num+1
+
+            <span class="keyword">end</span>
+
+            <span class="keyword">return</span> tfound
+
+         <span class="comment">-- keep searching,</span>
+
+         <span class="comment">-- left part of the table</span>
+
+         <span class="keyword">elseif</span> value &lt; compval <span class="keyword">then</span>
+
+            ihigh = pos-1
+
+         <span class="keyword">else</span>
+
+            ilow = pos+1
+
+         <span class="keyword">end</span>
+
+         _ilow,_ihigh = fcompval( t[ilow] ),fcompval( t[ihigh] )
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> value == fcompval( t[ilow] ) <span class="keyword">then</span>
+
+         <span class="comment">-- only add values --&gt; of ilow</span>
+
+         <span class="keyword">local</span> tfound,num = { ilow,ilow },ilow+1
+
+         <span class="keyword">while</span> value == fcompval( t[num] ) <span class="keyword">do</span>
+
+            tfound[2],num = num,num+1
+
+         <span class="keyword">end</span>
+
+         <span class="keyword">return</span> tfound         
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+   <span class="comment">-- Interpolated search on a reversed table</span>
+
+   <span class="keyword">function</span> <span class="library">table.intsearchrev</span>( t,value,fcompval )
+
+      <span class="comment">-- Initialise functions</span>
+
+      <span class="keyword">local</span> fcompval = fcompval <span class="keyword">or</span> default_fcompval
+
+      <span class="comment">-- Inistialise numbers</span>
+
+      <span class="keyword">local</span> ilow,ihigh = 1,#t
+
+      <span class="keyword">if</span> <span class="keyword">not</span> t[ilow] <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+      <span class="keyword">local</span> _ilow,_ihigh = fcompval( t[ilow] ),fcompval( t[ihigh] )
+
+      <span class="keyword">while</span> _ilow <span class="keyword">and</span> _ilow &gt; _ihigh <span class="keyword">do</span>
+
+         <span class="comment">-- get interpolated position</span>
+
+         <span class="keyword">local</span> pos = <span class="library">math.floor</span>( (_ihigh-value)*(ihigh-ilow)/(_ihigh-_ilow) ) + ilow
+
+         <span class="comment">-- check for out of range</span>
+
+         <span class="keyword">if</span> pos &lt; ilow <span class="keyword">or</span> pos &gt; ihigh <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+         <span class="keyword">local</span> compval = fcompval( t[pos] )
+
+         <span class="keyword">if</span> value == compval <span class="keyword">then</span>
+
+            <span class="comment">-- insert found position</span>
+
+            <span class="keyword">local</span> tfound,num = { pos,pos },pos-1
+
+            <span class="comment">-- get all values that match</span>
+
+            <span class="keyword">while</span> value == fcompval( t[num] ) <span class="keyword">do</span>
+
+               tfound[1],num = num,num-1
+
+            <span class="keyword">end</span>
+
+            num = pos+1
+
+            <span class="keyword">while</span> value == fcompval( t[num] ) <span class="keyword">do</span>
+
+               tfound[2],num = num,num+1
+
+            <span class="keyword">end</span>
+
+            <span class="keyword">return</span> tfound
+
+            <span class="comment">-- keep searching,</span>
+
+            <span class="comment">-- left part of the table</span>
+
+         <span class="keyword">elseif</span> value &gt; compval <span class="keyword">then</span>
+
+            ihigh = pos-1
+
+         <span class="keyword">else</span>
+
+            ilow = pos+1
+
+         <span class="keyword">end</span>
+
+         _ilow,_ihigh = fcompval( t[ilow] ),fcompval( t[ihigh] )
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> value == fcompval( t[ilow] ) <span class="keyword">then</span>
+
+         <span class="comment">-- only add values --&gt; of ilow</span>
+
+         <span class="keyword">local</span> tfound,num = { ilow,ilow },ilow+1
+
+         <span class="keyword">while</span> value == fcompval( t[num] ) <span class="keyword">do</span>
+
+            tfound[2],num = num,num+1
+
+         <span class="keyword">end</span>
+
+         <span class="keyword">return</span> tfound         
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- CHILLCODE</span>
+
+</pre>
+
+</DL>
+Testsuit:
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- test: table size 0</span>
+
+t = {}
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 5); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+
+
+<span class="comment">-- test: table size 1</span>
+
+t = {5}
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 4); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 5); <span class="library">assert</span>(v[1] == 1)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 6); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+
+
+<span class="comment">-- test: table size 2</span>
+
+t = {4,6}
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 3); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 4); <span class="library">assert</span>(v[1] == 1)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 5); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 6); <span class="library">assert</span>(v[1] == 2)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 7); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+
+
+<span class="comment">-- test: typical, with duplicate</span>
+
+t = {0,2,4,4,6,8,10}
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 0); <span class="library">assert</span>(v[1] == 1)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 10); <span class="library">assert</span>(v[1] == 7)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 4); <span class="library">assert</span>(v[1] == 3 <span class="keyword">and</span> v[2] == 4)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 5); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 11); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, -1); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+
+
+<span class="comment">-- test: identical</span>
+
+t = {1,1,1,1,1,1,1,1,1,1}
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 1); <span class="library">assert</span>(v[1] == 1 <span class="keyword">and</span> v[2] == 10)
+
+
+
+<span class="comment">-- test: fcomp</span>
+
+t = {10,52,34,44,86,38}
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 6, <span class="keyword">function</span>(v) <span class="keyword">return</span> v % 10 <span class="keyword">end</span>); <span class="library">assert</span>(v[1] == 5)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearch</span>(t, 4, <span class="keyword">function</span>(v) <span class="keyword">return</span> v % 10 <span class="keyword">end</span>); <span class="library">assert</span>(v[1] == 3 <span class="keyword">and</span> v[2] == 4)
+
+
+
+<span class="comment">-- test: reverse</span>
+
+t = {10,8,6,4,4,2,0}
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchrev</span>(t, 6); <span class="library">assert</span>(v[1] == 3)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchrev</span>(t, 4); <span class="library">assert</span>(v[1] == 4 <span class="keyword">and</span> v[2] == 5)
+
+
+
+<span class="library">print</span> <span class="string">"DONE"</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Interpolating Search for a String</H3>
+This combines the interpolating search with the binary search to be able to search tables holding strings. This was more a test if it is actually possible, and in some cases, this method could be faster than the binary search.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--[[
+
+   Interpolating Search on a String
+
+   
+
+   LUA 5.1 compatible
+
+   
+
+   Can only search sorted tables with value string
+
+   
+
+   table.intsearchstr( table, value ), for searching a normal sorted table
+
+   table.intsearchstrrev( table, value ), for searching a reversed sorted table
+
+   
+
+   If the  value is found:
+
+      it returns a table holding all the matching indices (e.g. { startindice,endindice } )
+
+      endindice may be the same as startindice if only one matching indice was found
+
+   Return value:
+
+      on success: a table holding matching indices (e.g. { startindice,endindice } )
+
+      on failure: nil
+
+]]</span><span class="comment">--</span>
+
+<span class="keyword">do</span>
+
+   <span class="comment">-- Avoid heap allocs for performance</span>
+
+   <span class="keyword">local</span> getbytevalue = <span class="keyword">function</span>( value )
+
+      <span class="keyword">if</span> value <span class="keyword">then</span>
+
+         <span class="keyword">local</span> num,mul = 0,1
+
+         <span class="comment">-- set bytedept, 4 or 5 seems appropriate</span>
+
+         <span class="keyword">for</span> i = 4,1,-1 <span class="keyword">do</span>
+
+            <span class="keyword">local</span> byte = <span class="library">string.byte</span>( <span class="library">string.sub</span>( value,i,i ) ) <span class="keyword">or</span> -1
+
+            byte,num,mul = byte + 1,num + mul*byte,mul*257
+
+         <span class="keyword">end</span>
+
+         <span class="keyword">return</span> num
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>   
+
+   <span class="comment">-- Load the optimised binary function</span>
+
+   <span class="comment">-- Avoid heap allocs for performance</span>
+
+   <span class="keyword">local</span> fcompf = <span class="keyword">function</span>( a,b ) <span class="keyword">return</span> a &lt; b <span class="keyword">end</span>
+
+   <span class="keyword">local</span> fcompr = <span class="keyword">function</span>( a,b ) <span class="keyword">return</span> a &gt; b <span class="keyword">end</span>
+
+   <span class="keyword">local</span> <span class="keyword">function</span> tablebinsearch( t,value,reversed,iStart,iEnd )
+
+      <span class="comment">-- Initialise functions</span>
+
+      <span class="keyword">local</span> fcomp = reversed <span class="keyword">and</span> fcompr <span class="keyword">or</span> fcompf
+
+      <span class="comment">--  Initialise numbers</span>
+
+      <span class="keyword">local</span> iStart,iEnd,iMid = iStart <span class="keyword">or</span> 1,iEnd <span class="keyword">or</span> #t,0
+
+      <span class="comment">-- Binary Search</span>
+
+      <span class="keyword">while</span> iStart &lt;= iEnd <span class="keyword">do</span>
+
+         <span class="comment">-- calculate middle</span>
+
+         iMid = <span class="library">math.floor</span>( (iStart+iEnd)/2 )
+
+         <span class="comment">-- get compare value</span>
+
+         <span class="keyword">local</span> value2 = t[iMid]
+
+         <span class="comment">-- get all values that match</span>
+
+         <span class="keyword">if</span> value == value2 <span class="keyword">then</span>
+
+            <span class="keyword">local</span> tfound,num = { iMid,iMid },iMid - 1
+
+            <span class="keyword">while</span> value == t[num] <span class="keyword">do</span>
+
+               tfound[1],num = num,num - 1
+
+            <span class="keyword">end</span>
+
+            num = iMid + 1
+
+            <span class="keyword">while</span> value == t[num] <span class="keyword">do</span>
+
+               tfound[2],num = num,num + 1
+
+            <span class="keyword">end</span>
+
+            <span class="keyword">return</span> tfound
+
+         <span class="comment">-- keep searching</span>
+
+         <span class="keyword">elseif</span> fcomp( value,value2 ) <span class="keyword">then</span>
+
+            iEnd = iMid - 1
+
+         <span class="keyword">else</span>
+
+            iStart = iMid + 1
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+   
+
+   <span class="comment">-- The interpolationg Search Function on a String</span>
+
+   <span class="keyword">function</span> <span class="library">table.intsearchstr</span>( t,value )
+
+      <span class="comment">-- Inistialise numbers</span>
+
+      <span class="keyword">local</span> ilow,ihigh = 1,#t
+
+      <span class="comment">-- return on empty table</span>
+
+      <span class="keyword">if</span> <span class="keyword">not</span> t[ilow] <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+      <span class="comment">-- get byte values values of indices and searched value</span>
+
+      <span class="keyword">local</span> _ilow,_ihigh,_value = getbytevalue(t[ilow]),getbytevalue(t[ihigh]),getbytevalue(value)
+
+      <span class="keyword">local</span> oldpos = -1
+
+      <span class="comment">-- make sure slope cannot become 0</span>
+
+      <span class="keyword">while</span> _ilow <span class="keyword">and</span> _ilow &lt; _ihigh <span class="keyword">do</span>
+
+         <span class="comment">-- get interpolated position</span>
+
+         <span class="keyword">local</span> pos = <span class="library">math.floor</span>( (_value-_ilow)*(ihigh-ilow)/(_ihigh-_ilow) ) + ilow
+
+         <span class="comment">-- check for out of range</span>
+
+         <span class="keyword">if</span> pos &lt; ilow <span class="keyword">or</span> pos &gt; ihigh <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+         <span class="comment">-- check for real match</span>
+
+         <span class="keyword">if</span> value == t[pos] <span class="keyword">then</span>
+
+            <span class="comment">-- insert found position</span>
+
+            <span class="keyword">local</span> tfound,num = { pos,pos },pos-1
+
+            <span class="comment">-- get all values that match</span>
+
+            <span class="keyword">while</span> value == t[num] <span class="keyword">do</span>
+
+               tfound[1],num = num,num-1
+
+            <span class="keyword">end</span>
+
+            num = pos+1
+
+            <span class="keyword">while</span> value == t[num] <span class="keyword">do</span>
+
+               tfound[2],num = num,num+1
+
+            <span class="keyword">end</span>
+
+            <span class="keyword">return</span> tfound
+
+         <span class="comment">-- keep searching,</span>
+
+         <span class="comment">-- left part of the table,check for real lower</span>
+
+         <span class="keyword">elseif</span> value &lt; t[pos] <span class="keyword">then</span>
+
+            ihigh = pos-1
+
+         <span class="keyword">else</span>
+
+            ilow = pos+1
+
+         <span class="keyword">end</span>
+
+         <span class="comment">-- check if new position is further than 1 away</span>
+
+         <span class="keyword">if</span> oldpos+1 == pos <span class="keyword">or</span> oldpos-1 == pos <span class="keyword">then</span>
+
+            <span class="comment">-- start binary search</span>
+
+            <span class="keyword">return</span> tablebinsearch( t,value,_,ilow,ihigh )
+
+         <span class="keyword">end</span>
+
+         _ilow,_ihigh,oldpos = getbytevalue(t[ilow]),getbytevalue(t[ihigh]),pos
+
+      <span class="keyword">end</span>
+
+      <span class="comment">-- initiate binary seach function here since we could be in a flat for the interpolating search</span>
+
+      <span class="keyword">return</span> tablebinsearch( t,value,_,ilow,ihigh )
+
+   <span class="keyword">end</span>
+
+   <span class="comment">-- The interpolationg Search Function on a String</span>
+
+   <span class="keyword">function</span> <span class="library">table.intsearchstrrev</span>( t,value )
+
+      <span class="comment">-- Inistialise numbers</span>
+
+      <span class="keyword">local</span> ilow,ihigh = 1,#t
+
+      <span class="comment">-- return on empty table</span>
+
+      <span class="keyword">if</span> <span class="keyword">not</span> t[ilow] <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+      <span class="comment">-- get byte values values of indices and searched value</span>
+
+      <span class="keyword">local</span> _ilow,_ihigh,_value = getbytevalue(t[ilow]),getbytevalue(t[ihigh]),getbytevalue(value)
+
+      <span class="keyword">local</span> oldpos = -1
+
+      <span class="comment">-- make sure slope cannot become 0</span>
+
+      <span class="keyword">while</span> _ilow <span class="keyword">and</span> _ilow &gt; _ihigh <span class="keyword">do</span>
+
+         <span class="comment">-- get interpolated position</span>
+
+         <span class="keyword">local</span> pos = <span class="library">math.floor</span>( (_ihigh-_value)*(ihigh-ilow)/(_ihigh-_ilow) ) + ilow
+
+         <span class="comment">-- check for out of range</span>
+
+         <span class="keyword">if</span> pos &lt; ilow <span class="keyword">or</span> pos &gt; ihigh <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+         <span class="comment">-- check for real match</span>
+
+         <span class="keyword">if</span> value == t[pos] <span class="keyword">then</span>
+
+            <span class="comment">-- insert found position</span>
+
+            <span class="keyword">local</span> tfound,num = { pos,pos },pos-1
+
+            <span class="comment">-- get all values that match</span>
+
+            <span class="keyword">while</span> value == t[num] <span class="keyword">do</span>
+
+               tfound[1],num = num,num-1
+
+            <span class="keyword">end</span>
+
+            num = pos+1
+
+            <span class="keyword">while</span> value == t[num] <span class="keyword">do</span>
+
+               tfound[2],num = num,num+1
+
+            <span class="keyword">end</span>
+
+            <span class="keyword">return</span> tfound
+
+         <span class="comment">-- keep searching,</span>
+
+         <span class="comment">-- left part of the table,check for real lower</span>
+
+         <span class="keyword">elseif</span> value &gt; t[pos] <span class="keyword">then</span>
+
+            ihigh = pos-1
+
+         <span class="keyword">else</span>
+
+            ilow = pos+1
+
+         <span class="keyword">end</span>
+
+         <span class="comment">-- check if new position is further than 1 away</span>
+
+         <span class="keyword">if</span> oldpos+1 == pos <span class="keyword">or</span> oldpos-1 == pos <span class="keyword">then</span>
+
+            <span class="comment">-- start binary search</span>
+
+            <span class="keyword">return</span> tablebinsearch( t,value,1,ilow,ihigh )
+
+         <span class="keyword">end</span>
+
+         _ilow,_ihigh,oldpos = getbytevalue(t[ilow]),getbytevalue(t[ihigh]),pos
+
+      <span class="keyword">end</span>
+
+      <span class="comment">-- initiate binary seach function here since we could be in a flat for the interpolating search</span>
+
+      <span class="keyword">return</span> tablebinsearch( t,value,1,ilow,ihigh )
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- CHILLCODE</span>
+
+</pre>
+
+</DL>
+Test suit:
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- test: table size 0</span>
+
+t = { <span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"aa"</span>,<span class="string">"z"</span> }
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"aa"</span>); <span class="library">assert</span>(v[1] == 11)
+
+
+
+<span class="comment">-- test flat for interpolatin search function</span>
+
+t = { <span class="string">"aabb"</span>,<span class="string">"aabbcc"</span>,<span class="string">"aabc"</span>,<span class="string">"aabc"</span>,<span class="string">"aabc"</span>,<span class="string">"aabc"</span>,<span class="string">"aabc"</span>,<span class="string">"aabc"</span>,<span class="string">"aabc"</span>,<span class="string">"aabc"</span>,<span class="string">"aabc"</span>,<span class="string">"aabc"</span>,<span class="string">"aabc"</span>,<span class="string">"aabca"</span>,<span class="string">"aabcc"</span> }
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"aabca"</span>); <span class="library">assert</span>(v[1] == 14)
+
+
+
+<span class="comment">-- test: table size 1</span>
+
+t = { <span class="string">"a"</span> }
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"b"</span>); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"a"</span>); <span class="library">assert</span>(v[1] == 1)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"c"</span>); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+
+
+<span class="comment">-- test: table size 2</span>
+
+t = {<span class="string">"a"</span>,<span class="string">"c"</span>}
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"0"</span>); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"a"</span>); <span class="library">assert</span>(v[1] == 1)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"b"</span>); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"c"</span>); <span class="library">assert</span>(v[1] == 2)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"d"</span>); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+
+
+<span class="comment">-- test: typical, with duplicate</span>
+
+t = {<span class="string">"a"</span>,<span class="string">"b"</span>,<span class="string">"c"</span>,<span class="string">"c"</span>,<span class="string">"d"</span>,<span class="string">"e"</span>,<span class="string">"f"</span>}
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"a"</span>); <span class="library">assert</span>(v[1] == 1)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"f"</span>); <span class="library">assert</span>(v[1] == 7)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"c"</span>); <span class="library">assert</span>(v[1] == 3 <span class="keyword">and</span> v[2] == 4)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"da"</span>); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"fa"</span>); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"0"</span>); <span class="library">assert</span>(v == <span class="keyword">nil</span>)
+
+
+
+<span class="comment">-- test: identical</span>
+
+t = {<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>,<span class="string">"a"</span>}
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstr</span>(t, <span class="string">"a"</span>); <span class="library">assert</span>(v[1] == 1 <span class="keyword">and</span> v[2] == 10)
+
+
+
+<span class="comment">-- test: reverse</span>
+
+t = {<span class="string">"f"</span>,<span class="string">"e"</span>,<span class="string">"d"</span>,<span class="string">"c"</span>,<span class="string">"c"</span>,<span class="string">"b"</span>,<span class="string">"a"</span>}
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstrrev</span>(t, <span class="string">"d"</span>); <span class="library">assert</span>(v[1] == 3)
+
+<span class="keyword">local</span> v = <span class="library">table.intsearchstrrev</span>(t, <span class="string">"c"</span>); <span class="library">assert</span>(v[1] == 4 <span class="keyword">and</span> v[2] == 5)
+
+
+
+<span class="library">print</span> <span class="string">"DONE"</span>
+
+</pre>
+
+</DL>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/BinarySearch.html" >BinarySearch</a> - searches for a value in a sorted table via a binary search algorithm
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=InterpolatingSearch" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=InterpolatingSearch" >history</a><br>Last edited June 10, 2007 1:59 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=InterpolatingSearch" >(diff)</a>
+</body>
+</html>
