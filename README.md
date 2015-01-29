@@ -6,7 +6,7 @@ You should also browse this repository offline.
 
 # Work done on this repository
 
- * dowmload the original html page (on the official website)
+ * download the original html page (on the official website)
  * fix all line termination (from DOS/Windows, Mac) to Unix
  * fix the charset, try to convert to UTF-8.
  * transforme absolute link to relative link.
