@@ -16,6 +16,7 @@ You should also browse this repository offline.
 # TODO
 
  * change /cgi-bin/... links to something else (maybe an empty target ?)
+ * also see to hide or remove the preferences, edit, history, diff links.
  * fix the bug of double-newline on 'pre' html part (sampel in CurriedLua.html or ModuleDefinition.html)
  * refresh all pages, download again (4 month old)
  * ...
