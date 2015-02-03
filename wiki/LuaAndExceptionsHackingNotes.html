@@ -1,0 +1,225 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua And Exceptions Hacking Notes</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaAndExceptionsHackingNotes&amp;body=1" title="List pages referring to LuaAndExceptionsHackingNotes">Lua And Exceptions Hacking Notes</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is revived from a hacking session back in 2005, to be master-edited.
+-- <a href="../wiki/ThomasLefort.html" >ThomasLefort</a>
+<p>
+<H2>Current algorithm</H2>
+<p>
+As of version 5.1 built as C++.
+<p>
+<H3>Data structures</H3>
+The "long jump buffer" is a linked list of volatile status.
+<pre>
+
+struct lua_longjmp {
+
+  struct lua_longjmp *previous;
+
+  int dummy;
+
+  volatile int status;  
+
+};
+
+</pre>
+Its role is to keep track of the protected call stack. We start with an empty global buffer.
+<p>
+<H3>Catching errors</H3>
+<pre>
+
+// chain a new local buffer, status = 0
+
+// global buffer now points to it
+
+try {
+
+  // call
+
+}
+
+catch (...) {
+
+  // force local status to non 0 (e.g. -1)
+
+}
+
+// restore global buffer
+
+// return local status
+
+</pre>
+<p>
+<H3>Throwing errors</H3>
+<pre>
+
+// if empty global buffer then panic
+
+// store status in global buffer
+
+// throw its address !
+
+</pre>
+<p>
+<H3>Discussion</H3>
+The current algorithm makes it possible to throw exceptions from the other side of Lua, but they will never make it to the other end, for a good reason.
+<p>
+If indeed they weren't caught at Lua level at all, catching them later would unwind violently out of Lua's call stack, leaving us with an inconsistent Lua state. This is what happened when I tweaked Lua 5.0.2 that way.
+<p>
+To ensure a consistent Lua state while still carrying the exception to the other side, we would need to store a copy of it in a safe place, unwind normally to toplevel, and finally throw the copy. However, because catch matches types (Stroustrup 14.3), we lose type information when we `catch (...)`, and with that the ability to copy generic exceptions.
+<p>
+<H2>A partial solution</H2>
+<p>
+To implement the copy mechanism discussed above, we could narrow the type range of alien exceptions to the standard `std::exception`.
+If the programmer needs to catch other exceptions, he can wrap them into `std::exception` subclasses.
+The remaining exceptions would still have to be silently ignored.
+<p>
+This solution has the advantage of simplicity, and works well with hierarchical exception classes (one wrapper per root class). It is however limited to situations where both ends can agree on the `std::exception` wrapping.
+<p>
+NOTE: this means wrapper generators need to be adapted to this scheme.
+<p>
+As a temporary solution, one may also narrow the exception space to a set of custom exceptions, that is, manually at Lua build time.
+<p>
+TODO: check copy of `std::exception`
+<p>
+<H2>Alternative: extending tolua++</H2>
+The above solution is not really proper. If we use a free software binding generator such as <a href="http://www.codenix.com/~tolua/">[tolua++]</a>, we can extend it so as to protect Lua from exceptions thrown by the bound C++ code. This has the advantage of leaving the Lua source base uncluttered.
+<p>
+Looking back, it appears as an appropriate solution in our very case, and it should also be enough for casual applications. However it entails translation between error systems and thus redundancies.
+<p>
+If the Lua source became (or forked) exception-safe, we could enable it to catch C++ exceptions from Lua, either explicitely or through a binding to an eventual Lua exception scheme. A solution is sketched in the next section.
+<p>
+<H2>A complete solution</H2>
+<p>
+<H3>Outline</H3>
+<p>
+<pre>
+
+catch (struct lua_longjump * p_lj) {
+
+  // force local status to non 0
+
+}
+
+catch (...) {
+
+  // do soft unwinding
+
+  throw
+
+}
+
+</pre>
+<p>
+NOTE: `p_lj` should be pointing to the current `lj`.
+<p>
+TODO: assert that.
+<p>
+This should guarantee that we don't eat alien exceptions, unless someone twisted decides to throw `(struct lua_longjump)*` all over the place from her library.
+<p>
+<H3>Soft unwinding</H3>
+<p>
+To devise our algorithm, we need to identify the vital resources that are acquired and released by `pcall`.
+<p>
+<strong>Outline of the pcall stack</strong>
+<UL>
+<li> top level: caller (e.g. application code)
+<li> lapi.c pcall (the API entry point)
+<li> (lua_lock: currently empty)
+<li> /!\ ldo.c D_pcall has some serious <strong>cleanup code</strong> !
+<li> ldo.c luaD_rawrunprotected (where the exception is caught)
+<li> bottom level: actual C function call (where the exception is thrown on Lua)
+</UL>
+<p>
+The top and bottom levels wrap when pcalls are nested.
+<p>
+<strong>The D_pcall cleanup</strong>
+<pre>
+
+if (status != 0) {  /* an error occurred? */
+
+  StkId oldtop = restorestack(L, old_top);
+
+  luaF_close(L, oldtop);  /* close eventual pending closures */
+
+  luaD_seterrorobj(L, status, oldtop);
+
+  L-&gt;nCcalls = oldnCcalls;
+
+  L-&gt;ci = restoreci(L, old_ci);
+
+  L-&gt;base = L-&gt;ci-&gt;base;
+
+  L-&gt;savedpc = L-&gt;ci-&gt;savedpc;
+
+  L-&gt;allowhook = old_allowhooks;
+
+  restore_stack_limit(L);
+
+}
+
+L-&gt;errfunc = old_errfunc;
+
+</pre>
+<p>
+It restores the state previously acquired:
+<p>
+<pre>
+
+// ptrdiff_t old_top, ptrdiff_t ef
+
+unsigned short oldnCcalls = L-&gt;nCcalls;
+
+ptrdiff_t old_ci = saveci(L, L-&gt;ci);
+
+lu_byte old_allowhooks = L-&gt;allowhook;
+
+ptrdiff_t old_errfunc = L-&gt;errfunc;
+
+L-&gt;errfunc = ef;
+
+</pre>
+<p>
+Now, we could use the <em>Resource Acquisition Is Initialization</em> pattern to perform cleanup code automatically at object destruction. It is the natural way to integrate with exceptions (Stroustrup 14.4.1).
+<p>
+<H3>Coding roadmap</H3>
+<p>
+<UL>
+<li> start with current algorithm, refactoring as RAII; test
+<li> use empty soft unwinding, relying on RAII; test
+</UL>
+<p>
+<H2>Final notes</H2>
+<p>
+Stroustrup 14.9 is a fundamental.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaAndExceptionsHackingNotes" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaAndExceptionsHackingNotes" >history</a><br>Last edited October 27, 2007 12:48 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaAndExceptionsHackingNotes" >(diff)</a>
+</body>
+</html>

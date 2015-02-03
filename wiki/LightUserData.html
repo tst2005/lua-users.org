@@ -1,0 +1,63 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Light User Data</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LightUserData&amp;body=1" title="List pages referring to LightUserData">Light User Data</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Light userdata, like heavy userdata, are a form of userdata, which is one of the basic data types in Lua <a href="http://www.lua.org/manual/5.1/manual.html#2.2">[1]</a>.  Light userdata are characterized by the following properties:
+<p>
+<UL>
+<li> Light userdata and heavy userdata have deceptively similar names, and both have the property <code>type(x) == 'userdata'</code>, but these two forms of userdata are otherwise quite different in behavior [1], as outlined below.
+<li> A light userdatum represents a single pointer to a physical memory address (void *), which is typically a 32- or 64-bit value depending on platform.  Light userdata are intended to store C pointers in Lua (note: Lua numbers may or may not be suitable for this purpose depending on the data types on the platform).
+<li> A heavy userdatum represents a region of mutable bytes allocated in Lua's memory and managed by Lua (garbage collected).  This is the only memory in Lua that you are permitted to read/write directly from C (via the userdata's pointer) without the C API.
+<li> Light userdata have the semantics of values, while heavy userdata have the semantics of objects.  Objects have a unique identity <a href="http://en.wikipedia.org/wiki/Identity_(object-oriented_programming).html">[2]</a>: Two heavy userdata constructed with the same data will always be distinguishable (e.g. <code>rawequal</code> will differentiate them by memory address); two light userdata so constructed will never be distinguishable because they are compared by value not by address.
+<li> Light userdata (unlike heavy userdata) are not garbage collected.  <a href="../wiki/LuaImplementations.html" >LuaImplementations</a> typically fit each light userdatum in a single register and copy them around by value, while heavy userdata is allocated on the heap and passed around by reference (pointer).
+<li> Equality: If <code>x</code> is a lightuserdatum, then <code>x == y</code> if-and-only-if <code>y</code> is a light userdatum representing the same pointer.  Light userdata can be used as table keys, in which case <code>x == y</code> implies <code>t[x]</code> and <code>t[y]</code> refer to the same table value (though not necessarily that <code>t[x] == t[y]</code> since NaN ~= NaN).  The <code>__eq</code> metamethod has no effect on light userdata (note: the manual isn't clear on this <a href="http://www.lua.org/manual/5.1/manual.html#2.2">[1]</a>).
+<li> Light userdata (unlike heavy userdata) have no per-value metatables.  All light userdata share the same metatable, which by default is not set (<code>nil</code>).
+<li> <code>tostring(x)</code> typically displays the pointer in hex notation, although this is specific to <a href="../wiki/LuaImplementations.html" >LuaImplementations</a>.
+</UL>
+<p>
+Some interesting points:
+<p>
+<UL>
+<li> A common technique for mapping C pointers to Lua values is to store a light userdata of that pointer as a key in the registry table. <a href="http://www.lua.org/manual/5.1/manual.html#3.5">[Reference Manual, 3.5]</a>.  Bear in mind that these mapping are not automatically garbage collected <a href="/lists/lua-l/2011-01/msg00576.html">[3]</a>, and you might want to use a weak table rather than the registry (which by default is not weak, but a weak table can be stored in it).
+<li> Some people represent handles rather just pointers as lightuserdata <a href="/lists/lua-l/2004-07/msg00389.html">[4]</a>.  It's possible to represent other data in them as well <a href="/lists/lua-l/2011-01/msg00731.html">[5]</a>.  Take care not to mix pointer and non-pointer userdata in a way that might conflict (e.g. storing both in the registry table).
+<li> Light userdata are created from the C API via <a href="http://www.lua.org/manual/5.1/manual.html#lua_pushlightuserdata">[lua_pushlightuserdata]</a>.  Out-of-the-box, Lua doesn't provide a way to create lightuserdata from Lua.
+<li> A one-page summary of light userdata is provided in [1].
+</UL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<DL>
+<dt><dd>[1] ProgrammingInLua<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ProgrammingInLua" >?</a>, Section 28.5 "Light Userdata".
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LightUserData" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LightUserData" >history</a><br>Last edited August 4, 2011 2:56 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LightUserData" >(diff)</a>
+</body>
+</html>

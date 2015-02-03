@@ -1,0 +1,388 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Os Library Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=OsLibraryTutorial&amp;body=1" title="List pages referring to OsLibraryTutorial">Os Library Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+You can find details about the operating system library in section 5.8 of the Reference Manual <a href="http://www.lua.org/manual/5.1/manual.html#5.8">[1]</a>.
+<p>
+<H3>os.clock()</H3>
+<p>
+Return CPU time since Lua started in seconds.
+<DL>
+<dt><dd><pre>
+
+&gt; = os.clock()
+
+11056.989
+
+</pre>
+</DL>
+<p>
+<H3>os.date([format [, time]])</H3>
+<p>
+Return formatted date string, or table of time information. The format string has the same format as the C <code>strftime()</code> function.
+<p>
+<DL>
+<dt><dd><em>TODO: insert info, examples and links to strftime()</em>
+</DL>
+<p>
+List all params at <a href="http://www.cplusplus.com/reference/clibrary/ctime/strftime/">http://www.cplusplus.com/reference/clibrary/ctime/strftime/</a>
+<p>
+Simple example:
+<DL>
+<dt><dd><pre>
+
+&gt; = os.date("%d.%m.%Y")
+
+06.10.2012
+
+</pre>
+</DL>
+<p>
+If the format string is <code>"*t"</code> a table is returned containing the time information, e.g,
+<DL>
+<dt><dd><pre>
+
+&gt; table.foreach(os.date('*t'), print)
+
+hour    14
+
+min     36
+
+wday    1
+
+year    2003
+
+yday    124
+
+month   5
+
+sec     33
+
+day     4
+
+isdst   true
+
+</pre>
+</DL>
+<p>
+Above example using pairs() method:
+<DL>
+<dt><dd><pre>
+
+&gt; for k, v in pairs(os.date("*t")) do print(k, v) end
+
+year    2012
+
+day     1
+
+min     54
+
+wday    4
+
+month   8
+
+isdst   true
+
+yday    214
+
+sec     39
+
+hour    14
+
+</pre>
+</DL>
+<p>
+If the format is preceeded by "!" the time is converted to Coordinated Universal Time, e.g.,
+<DL>
+<dt><dd><pre>
+
+&gt; table.foreach(os.date('!*t'), print)
+
+hour    21
+
+min     36
+
+wday    1
+
+year    2003
+
+yday    124
+
+month   5
+
+sec     42
+
+day     4
+
+isdst   false
+
+</pre>
+</DL>
+<p>
+Above example using pairs() method:
+<DL>
+<dt><dd><pre>
+
+&gt; for k, v in pairs(os.date("!*t")) do print(k, v) end
+
+year    2012
+
+day     1
+
+min     58
+
+wday    4
+
+month   8
+
+isdst   false
+
+yday    214
+
+sec     39
+
+hour    12
+
+</pre>
+</DL>
+<p>
+os.date() returns a string in the format <code>MM/DD/YY HH:MM:SS</code>.
+<DL>
+<dt><dd><pre>
+
+&gt; print(os.date())
+
+08/16/05 10:22:32
+
+</pre>
+</DL>
+<p>
+Nowadays os.date() returns a string in different format:
+<DL>
+<dt><dd><pre>
+
+&gt; = os.date()
+
+Wed Aug  1 15:00:47 2012
+
+</pre>
+</DL>
+<p>
+<H3>os.difftime(t2, t1)</H3>
+<p>
+Calculate the number of seconds between time t1 to time t2. 
+<DL>
+<dt><dd><pre>
+
+&gt; t1 = os.time()
+
+&gt; -- wait a little while then type....
+
+&gt; = os.difftime(os.time(), t1)
+
+31
+
+&gt; = os.difftime(os.time(), t1)
+
+38
+
+</pre>
+</DL>
+<p>
+<H3>os.execute([command])</H3>
+<p>
+Execute an operating system shell command. This is like the C <code>system()</code> function. The system dependent status code is returned.
+<DL>
+<dt><dd><pre>
+
+&gt; = os.execute("echo hello")
+
+hello
+
+0
+
+&gt; = os.execute("mmmmm")  -- generate an error
+
+'mmmmm' is not recognized as an internal or external command,
+
+operable program or batch file.
+
+1
+
+</pre>
+</DL>
+<p>
+With no argument, this command returns a non-zero value if an OS shell is presents or a zero value if one is not present.
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; = os.execute()   -- no argument
+
+1
+
+</pre>
+</DL>
+<p>
+<H3>os.exit([code])</H3>
+<p>
+Calls the C function exit, with an optional code, to terminate the host program. The default value for code is the success code. 
+<DL>
+<dt><dd><pre>
+
+&gt; os.exit(0)   -- kill the Lua shell we are in and pass 0 back to parent shell
+
+</pre>
+</DL>
+<p>
+<H3>os.getenv(varname)</H3>
+<p>
+Returns the value of the process environment variable varname, or nil if the variable is not defined. 
+<DL>
+<dt><dd><pre>
+
+&gt; = os.getenv("BANANA")
+
+nil
+
+&gt; = os.getenv("USERNAME")
+
+Nick
+
+</pre>
+</DL>
+<p>
+<H3>os.remove(filename)</H3>
+<p>
+Deletes the file with the given name. If this function fails, it returns nil, plus a string describing the error. 
+<DL>
+<dt><dd><pre>
+
+&gt; os.execute("echo hello &gt; banana.txt")
+
+&gt; = os.remove("banana.txt")
+
+true
+
+&gt; = os.remove("banana.txt")
+
+nil     banana.txt: No such file or directory   2
+
+</pre>
+</DL>
+<p>
+<H3>os.rename(oldname, newname)</H3>
+<p>
+Renames file named oldname to newname. If this function fails, it returns nil, plus a string describing the error. 
+<DL>
+<dt><dd><pre>
+
+&gt; os.execute("echo hello &gt; banana.txt")
+
+&gt; = os.rename("banana.txt", "apple.txt")
+
+true
+
+&gt; = os.rename("banana.txt", "apple.txt")
+
+nil     banana.txt: No such file or directory   2
+
+</pre>
+</DL>
+<p>
+<H3>os.setlocale(locale [, category])</H3>
+<p>
+<DL>
+<dt><dd><em>TODO: Describe: Sets the current locale of the program. locale is a string specifying a locale; category is an optional string describing which category to change: "all", "collate", "ctype", "monetary", "numeric", or "time"; the default category is "all". The function returns the name of the new locale, or nil if the request cannot be honored.</em> 
+</DL>
+<p>
+<H3>os.time([table])</H3>
+<p>
+Given a formatted date table, as used by <code>os.date()</code> return the time in system seconds.
+<DL>
+<dt><dd><pre>
+
+&gt; t = os.date('*t')  -- time now
+
+&gt; table.foreach(os.date('*t'), print)
+
+hour    15
+
+min     1
+
+wday    1
+
+year    2003
+
+yday    124
+
+month   5
+
+sec     2
+
+day     4
+
+isdst   true
+
+&gt; = os.time(t)       -- time in system seconds
+
+1052085659
+
+&gt; t.year = 2001      -- 2001, a Lua odyssey
+
+&gt; = os.time(t)       -- time then
+
+989013659
+
+</pre>
+</DL>
+<p>
+<H3>os.tmpname ()</H3>
+<p>
+Generate a name that can be used for a temporary file. This only generates a name, it does not open a file.
+<DL>
+<dt><dd><pre>
+
+&gt; = os.tmpname()  -- on windows
+
+\s2js.
+
+</pre>
+<dt><dd><pre>
+
+&gt; = os.tmpname()  -- on debian
+
+/tmp/lua_5xPi18
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=OsLibraryTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=OsLibraryTutorial" >history</a><br>Last edited June 27, 2014 4:54 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=OsLibraryTutorial" >(diff)</a>
+</body>
+</html>

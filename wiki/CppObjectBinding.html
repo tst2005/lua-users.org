@@ -1,0 +1,574 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Cpp Object Binding</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CppObjectBinding&amp;body=1" title="List pages referring to CppObjectBinding">Cpp Object Binding</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Using Lua and C++ interchangably on C++ objects</H3>
+<p>
+Trying to gain access into your C++ Objects from Lua (without using any add-ons to your project)?  
+You can expose your C++ methods to a Lua script and allow the script to call methods inside the object using
+lightuserdata to pass pointers around. 
+Note that I am using luna.h from the * <a href="../wiki/SimplerCppBinding.html" >SimplerCppBinding</a> page.
+<p>
+First, start off with an object you want to expose to Lua- this is a simple class with an integer attribute and a string.
+<p>
+<H3>object.cpp:</H3>
+<DL>
+<dt><dd><pre>
+
+#include "object.h"
+
+
+
+GameObject::GameObject(int x){
+
+  attribute = x;
+
+}
+
+
+
+int GameObject::getAttr(){
+
+  return (int)attribute;
+
+}
+
+
+
+void GameObject::setAttr(int set){
+
+  attribute = set;
+
+}
+
+
+
+void GameObject::setMessage(const char* new_message){
+
+  message.assign(new_message);
+
+}
+
+
+
+const char* GameObject::getMessage(){
+
+  return message.c_str();
+
+}
+
+  
+
+GameObject::~GameObject(){
+
+  printf("deleted Object (%p)\n", this);
+
+}
+
+</pre>
+</DL>
+<p>
+<H3>object.h:</H3>
+<DL>
+<dt><dd><pre>
+
+/**
+
+ * This is the main object that is actually used in the C++ code.
+
+ * It is to be manipulated by Lua through the Lua wrapper object (which will
+
+ * contain a pointer to this object).
+
+ */
+
+#ifndef _object_h_
+
+#define _object_h_
+
+
+
+// Notice that I don't need ANY Lua stuff in here...
+
+#include &lt;stdio.h&gt;
+
+#include &lt;string&gt;
+
+
+
+class GameObject{
+
+public:
+
+  GameObject(int x);
+
+  ~GameObject();
+
+
+
+  int getAttr(void);
+
+  void setAttr(int balance);
+
+
+
+  void setMessage(const char* new_message);
+
+  const char* getMessage(void);
+
+private:
+
+  int attribute;
+
+  std::string message;
+
+};
+
+#endif
+
+</pre>
+</DL>
+<p>
+After you have your object that can now be modified through C++, you need to write a class to expose the object to Lua.
+<p>
+<H3>luaobject.cpp:</H3>
+<DL>
+<dt><dd><pre>
+
+#include "luaobject.h"
+
+
+
+LuaGameObject::LuaGameObject(lua_State *L){
+
+  real_object = (GameObject*)lua_touserdata(L, 1);
+
+}
+
+
+
+void LuaGameObject::setObject(lua_State *L){
+
+  real_object = (GameObject*)lua_touserdata(L, 1);
+
+}
+
+
+
+int LuaGameObject::setAttr(lua_State *L){
+
+  real_object-&gt;setAttr((int)luaL_checknumber(L, 1));
+
+  return 0;
+
+}
+
+int LuaGameObject::getAttr(lua_State *L){
+
+  lua_pushnumber(L, real_object-&gt;getAttr());
+
+  return 1;
+
+}
+
+
+
+int LuaGameObject::setMessage(lua_State *L){
+
+  real_object-&gt;setMessage(lua_tostring(L, 1));
+
+  return 0;
+
+}
+
+int LuaGameObject::getMessage(lua_State *L){
+
+  lua_pushstring(L, real_object-&gt;getMessage());
+
+  return 1;
+
+}
+
+
+
+LuaGameObject::~LuaGameObject(){
+
+  printf("deleted Lua Object (%p)\n", this);
+
+}
+
+</pre>
+</DL>
+<p>
+<H3>luaobject.h:</H3>
+<DL>
+<dt><dd><pre>
+
+/**
+
+ * This is the wrapper around the C++ object found in object.cc
+
+ * Everything this object has done to it is passed on FROM Lua to the real C++
+
+ * object through the pointer 'real_object'
+
+ * Notice that I kept the function names the same for simplicity.
+
+ */
+
+#ifndef _luaobject_h_
+
+#define _luaobject_h_
+
+
+
+// Need to include lua headers this way
+
+extern "C" {
+
+#include "lua.h"
+
+#include "lauxlib.h"
+
+#include "lualib.h"
+
+}
+
+
+
+// I am using luna
+
+#include "luna.h"
+
+// The header file for the real C++ object
+
+#include "object.h"
+
+
+
+class LuaGameObject{
+
+public:
+
+  // Constants
+
+  static const char className[];
+
+  static Luna&lt;LuaGameObject&gt;::RegType methods[];
+
+
+
+  // Initialize the pointer
+
+  LuaGameObject(lua_State *L);
+
+  ~LuaGameObject();
+
+  void setObject(lua_State *L);
+
+
+
+  // Methods we will need to use
+
+  int getAttr(lua_State *L);
+
+  int setAttr(lua_State *L);
+
+  int getMessage(lua_State *L);
+
+  int setMessage(lua_State *L);
+
+private:
+
+  // The pointer to the 'real object' defined in object.cc
+
+  GameObject* real_object;
+
+};
+
+#endif
+
+</pre>
+</DL>
+<p>
+Alright, now we have a way for Lua to gain access to this object, let us bring it together.  Notice the key here is to pass the pointer to Lua using lightuserdata.
+<H3>main.cpp:</H3>
+<DL>
+<dt><dd><pre>
+
+/**
+
+ * Main program to actually run the Lua code against the C++ object
+
+ */
+
+#include "object.h"
+
+#include "luaobject.h"
+
+
+
+// Define the Lua ClassName
+
+const char LuaGameObject::className[] = "LuaGameObject";
+
+
+
+// Define the methods we will expose to Lua
+
+// Check luaobject.h for the definitions...
+
+#define method(class, name) {#name, &amp;class::name}
+
+Luna&lt;LuaGameObject&gt;::RegType LuaGameObject::methods[] = {
+
+   method(LuaGameObject, setAttr),
+
+   method(LuaGameObject, getAttr),
+
+   method(LuaGameObject, getMessage),
+
+   method(LuaGameObject, setMessage),
+
+   {0,0}
+
+};
+
+
+
+int main(int argc, char *argv[]){
+
+  // Init Lua
+
+  lua_State *L = lua_open();
+
+  luaopen_base(L);
+
+  luaopen_table(L);
+
+  luaopen_io(L);
+
+  luaopen_string(L);
+
+  luaopen_math(L);
+
+  luaopen_debug(L);
+
+
+
+  // Register the LuaGameObject data type with Lua
+
+  Luna&lt;LuaGameObject&gt;::Register(L);
+
+
+
+  // In C++ - Create a GameObject for use in our program
+
+  GameObject temp(20);
+
+  temp.setMessage("I'm set in C++");
+
+  
+
+  // Push a pointer to this GameObject to the Lua stack
+
+  lua_pushlightuserdata(L, (void*)&amp;temp);
+
+  // And set the global name of this pointer
+
+  lua_setglobal(L,"gameobject");
+
+
+
+  printf("In C: %p =&gt; %d, %s\n", &amp;temp, temp.getAttr(), temp.getMessage());
+
+
+
+  printf("Loading lua----------\n");
+
+  luaL_loadfile(L, argv[1]);
+
+  printf("lua is loaded--------\n");
+
+
+
+  printf("Running lua----------\n");
+
+  lua_pcall(L, 0, 0, 0);
+
+  printf("Lua is done----------\n");
+
+  //lua_setgcthreshold(L, 0);  // collected garbage
+
+
+
+  luaL_loadfile(L, argv[1]);
+
+  printf("Running lua2---------\n");
+
+  lua_pcall(L, 0, 0, 0);
+
+  printf("Lua is done2---------\n");
+
+
+
+  // GC + Close out Lua
+
+  lua_close(L);
+
+
+
+  printf("In C++: %p =&gt; %d, %s\n", &amp;temp, temp.getAttr(), temp.getMessage());
+
+  return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+<p>
+Now, lets run a test program like this:
+<p>
+<H3>gameobject.lua:</H3>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--[[ 
+
+   gameobject comes from the global parameters and is a pointer to
+
+   the REAL C++ data.  This is saved as lightuserdata in Lua and we preserve
+
+   this pointer in the LuaGameObject.  From there, we can manipulate
+
+   ANYTHING from this pointer.
+
+--]]</span>
+
+
+
+<span class="comment">-- Lua Functions</span>
+
+<span class="keyword">function</span> printf(...) <span class="library">io.write</span>(<span class="library">string.format</span>(<span class="library">unpack</span>(arg))) <span class="keyword">end</span>
+
+
+
+<span class="comment">-- This function uses the getX() methods in our target class</span>
+
+<span class="keyword">function</span> LuaGameObject:show()
+
+  printf(<span class="string">"LuaGameObject attribute = %d - %s\n"</span>, self:getAttr(), self:getMessage())
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Start up a new LuaGameObject wrapper class and pass the global gameobject</span>
+
+<span class="comment">-- C++ lightuserdata pointer into it</span>
+
+b = LuaGameObject(gameobject)
+
+
+
+<span class="comment">-- Call a Lua function on this object</span>
+
+b:show()
+
+
+
+<span class="library">print</span>(<span class="string">'Now to work on the C++ object'</span>)
+
+<span class="comment">-- Modify some of the parameters (gameobject-&gt;modify)</span>
+
+b:setAttr(120)
+
+b:setMessage(<span class="string">'Hey - Lua changes a string!'</span>)
+
+<span class="library">print</span>(<span class="string">'Lua is done changing...'</span>)
+
+b:show()
+
+</pre>
+
+</DL>
+<p>
+<p>
+Finally, here's what happens:
+<DL>
+<dt><dd><pre>
+
+./main gameobject.lua
+
+In C: 0xbfb1d630 =&gt; 20, I'm set in C
+
+Loading lua----------
+
+lua is loaded--------
+
+Running lua----------
+
+LuaGameObject balance = 20 - I'm set in C
+
+Now to work on the C++ object
+
+Lua is done changing...
+
+LuaGameObject attribute = 120 - Hey - Lua changes a string!
+
+Lua is done----------
+
+Running lua2---------
+
+LuaGameObject attribute = 120 - Hey - Lua changes a string!
+
+Now to work on the C++ object
+
+Lua is done changing...
+
+LuaGameObject attribute = 120 - Hey - Lua changes a string!
+
+Lua is done2---------
+
+deleted Lua Object (0x80642d0)
+
+deleted Lua Object (0x8064c40)
+
+In C: 0xbfb1d630 =&gt; 120, Hey - Lua changes a string!
+
+deleted Object (0xbfb1d630)
+
+</pre>
+</DL>
+<p>
+I hope you find this example useful- Lua is awesome!
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CppObjectBinding" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CppObjectBinding" >history</a><br>Last edited May 6, 2009 7:33 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CppObjectBinding" >(diff)</a>
+</body>
+</html>

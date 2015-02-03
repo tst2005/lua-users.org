@@ -1,0 +1,1205 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Complex Numbers</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ComplexNumbers&amp;body=1" title="List pages referring to ComplexNumbers">Complex Numbers</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Complex numbers provides quick access to complex numbers. Complex numbers behave like normal numbers and you can add/sub/mul/div complex numbers;
+<p>
+e.g. cx = cx (+-*/) "2i", cx = cx (+-*/) 2, cx = cx (+-*/) cx2;
+<p>
+one can use cx^.5 to get the squareroot of a complex number; also cx^'*' to get the conjugate complex value. To get a complex number you have to call the function complex.to( num )
+<p>
+Download the whole package from
+<DL>
+<dt><dd><a href="http://luaforge.net/projects/luamatrix">http://luaforge.net/projects/luamatrix</a>
+</DL>
+<p>
+AK 3-Oct-2007: If patching the Lua core (5.1.2) itself is an option, one might consider the LNUM patch at:
+<DL>
+<dt><dd><a href="http://luaforge.net/projects/lnum">http://luaforge.net/projects/lnum</a>
+</DL>
+<p>
+It makes complex numbers the internal Lua number type (define LNUM_COMPLEX, LNUM_INT32, use a C99 compatible compiler).  Fully compatible with Lua 5.1.2 otherwise, extension modules etc.
+<p>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- complex 0.3.0</span>
+
+<span class="comment">-- Lua 5.1</span>
+
+
+
+<span class="comment">-- 'complex' provides common tasks with complex numbers</span>
+
+
+
+<span class="comment">-- function complex.to( arg ); complex( arg )</span>
+
+<span class="comment">-- returns a complex number on success, nil on failure</span>
+
+<span class="comment">-- arg := number or { number,number } or ( "(-)&lt;number&gt;" and/or "(+/-)&lt;number&gt;i" )</span>
+
+<span class="comment">--      e.g. 5; {2,3}; "2", "2+i", "-2i", "2^2*3+1/3i"</span>
+
+<span class="comment">--      note: 'i' is always in the numerator, spaces are not allowed</span>
+
+
+
+<span class="comment">-- a complex number is defined as carthesic complex number</span>
+
+<span class="comment">-- complex number := { real_part, imaginary_part }</span>
+
+<span class="comment">-- this gives fast access to both parts of the number for calculation</span>
+
+<span class="comment">-- the access is faster than in a hash table</span>
+
+<span class="comment">-- the metatable is just a add on, when it comes to speed, one is faster using a direct function call</span>
+
+
+
+<span class="comment">-- http://luaforge.net/projects/LuaMatrix</span>
+
+<span class="comment">-- http://lua-users.org/wiki/ComplexNumbers</span>
+
+
+
+<span class="comment">-- Licensed under the same terms as Lua itself.</span>
+
+
+
+<span class="comment">--/////////////--</span>
+
+<span class="comment">--// complex //--</span>
+
+<span class="comment">--/////////////--</span>
+
+
+
+<span class="comment">-- link to complex table</span>
+
+<span class="keyword">local</span> complex = {}
+
+
+
+<span class="comment">-- link to complex metatable</span>
+
+<span class="keyword">local</span> complex_meta = {}
+
+
+
+<span class="comment">-- complex.to( arg )</span>
+
+<span class="comment">-- return a complex number on success</span>
+
+<span class="comment">-- return nil on failure</span>
+
+<span class="keyword">local</span> _retone = <span class="keyword">function</span>() <span class="keyword">return</span> 1 <span class="keyword">end</span>
+
+<span class="keyword">local</span> _retminusone = <span class="keyword">function</span>() <span class="keyword">return</span> -1 <span class="keyword">end</span>
+
+<span class="keyword">function</span> complex.to( num )
+
+   <span class="comment">-- check for table type</span>
+
+   <span class="keyword">if</span> <span class="library">type</span>( num ) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+      <span class="comment">-- check for a complex number</span>
+
+      <span class="keyword">if</span> <span class="library">getmetatable</span>( num ) == complex_meta <span class="keyword">then</span>
+
+         <span class="keyword">return</span> num
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">local</span> real,imag = <span class="library">tonumber</span>( num[1] ),<span class="library">tonumber</span>( num[2] )
+
+      <span class="keyword">if</span> real <span class="keyword">and</span> imag <span class="keyword">then</span>
+
+         <span class="keyword">return</span> <span class="library">setmetatable</span>( { real,imag }, complex_meta )
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span>
+
+   <span class="keyword">end</span>
+
+   <span class="comment">-- check for number</span>
+
+   <span class="keyword">local</span> isnum = <span class="library">tonumber</span>( num )
+
+   <span class="keyword">if</span> isnum <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="library">setmetatable</span>( { isnum,0 }, complex_meta )
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">if</span> <span class="library">type</span>( num ) == <span class="string">"string"</span> <span class="keyword">then</span>
+
+      <span class="comment">-- check for real and complex</span>
+
+      <span class="comment">-- number chars [%-%+%*%^%d%./Ee]</span>
+
+      <span class="keyword">local</span> real,sign,imag = <span class="library">string.match</span>( num, <span class="string">"^([%-%+%*%^%d%./Ee]*%d)([%+%-])([%-%+%*%^%d%./Ee]*)i$"</span> )
+
+      <span class="keyword">if</span> real <span class="keyword">then</span>
+
+         <span class="keyword">if</span> <span class="library">string.lower</span>(<span class="library">string.sub</span>(real,1,1)) == <span class="string">"e"</span>
+
+         <span class="keyword">or</span> <span class="library">string.lower</span>(<span class="library">string.sub</span>(imag,1,1)) == <span class="string">"e"</span> <span class="keyword">then</span>
+
+            <span class="keyword">return</span>
+
+         <span class="keyword">end</span>
+
+         <span class="keyword">if</span> imag == <span class="string">""</span> <span class="keyword">then</span>
+
+            <span class="keyword">if</span> sign == <span class="string">"+"</span> <span class="keyword">then</span>
+
+               imag = _retone
+
+            <span class="keyword">else</span>
+
+               imag = _retminusone
+
+            <span class="keyword">end</span>
+
+         <span class="keyword">elseif</span> sign == <span class="string">"+"</span> <span class="keyword">then</span>
+
+            imag = <span class="library">loadstring</span>(<span class="string">"return tonumber("</span>..imag..<span class="string">")"</span>)
+
+         <span class="keyword">else</span>
+
+            imag = <span class="library">loadstring</span>(<span class="string">"return tonumber("</span>..sign..imag..<span class="string">")"</span>)
+
+         <span class="keyword">end</span>
+
+         real = <span class="library">loadstring</span>(<span class="string">"return tonumber("</span>..real..<span class="string">")"</span>)
+
+         <span class="keyword">if</span> real <span class="keyword">and</span> imag <span class="keyword">then</span>
+
+            <span class="keyword">return</span> <span class="library">setmetatable</span>( { real(),imag() }, complex_meta )
+
+         <span class="keyword">end</span>
+
+         <span class="keyword">return</span>
+
+      <span class="keyword">end</span>
+
+      <span class="comment">-- check for complex</span>
+
+      <span class="keyword">local</span> imag = <span class="library">string.match</span>( num,<span class="string">"^([%-%+%*%^%d%./Ee]*)i$"</span> )
+
+      <span class="keyword">if</span> imag <span class="keyword">then</span>
+
+         <span class="keyword">if</span> imag == <span class="string">""</span> <span class="keyword">then</span>
+
+            <span class="keyword">return</span> <span class="library">setmetatable</span>( { 0,1 }, complex_meta )
+
+         <span class="keyword">elseif</span> imag == <span class="string">"-"</span> <span class="keyword">then</span>
+
+            <span class="keyword">return</span> <span class="library">setmetatable</span>( { 0,-1 }, complex_meta )
+
+         <span class="keyword">end</span>
+
+         <span class="keyword">if</span> <span class="library">string.lower</span>(<span class="library">string.sub</span>(imag,1,1)) ~= <span class="string">"e"</span> <span class="keyword">then</span>
+
+            imag = <span class="library">loadstring</span>(<span class="string">"return tonumber("</span>..imag..<span class="string">")"</span>)
+
+            <span class="keyword">if</span> imag <span class="keyword">then</span>
+
+               <span class="keyword">return</span> <span class="library">setmetatable</span>( { 0,imag() }, complex_meta )
+
+            <span class="keyword">end</span>
+
+         <span class="keyword">end</span>
+
+         <span class="keyword">return</span>
+
+      <span class="keyword">end</span>
+
+      <span class="comment">-- should be real</span>
+
+      <span class="keyword">local</span> real = <span class="library">string.match</span>( num,<span class="string">"^(%-*[%d%.][%-%+%*%^%d%./Ee]*)$"</span> )
+
+      <span class="keyword">if</span> real <span class="keyword">then</span>
+
+         real = <span class="library">loadstring</span>( <span class="string">"return tonumber("</span>..real..<span class="string">")"</span> )
+
+         <span class="keyword">if</span> real <span class="keyword">then</span>
+
+            <span class="keyword">return</span> <span class="library">setmetatable</span>( { real(),0 }, complex_meta )
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex( arg )</span>
+
+<span class="comment">-- same as complex.to( arg )</span>
+
+<span class="comment">-- set __call behaviour of complex</span>
+
+<span class="library">setmetatable</span>( complex, { __call = <span class="keyword">function</span>( _,num ) <span class="keyword">return</span> complex.to( num ) <span class="keyword">end</span> } )
+
+
+
+<span class="comment">-- complex.new( real, complex )</span>
+
+<span class="comment">-- fast function to get a complex number, not invoking any checks</span>
+
+<span class="keyword">function</span> complex.new( ... )
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { ... }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.type( arg )</span>
+
+<span class="comment">-- is argument of type complex</span>
+
+<span class="keyword">function</span> complex.type( arg )
+
+   <span class="keyword">if</span> <span class="library">getmetatable</span>( arg ) == complex_meta <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="string">"complex"</span>
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.convpolar( r, phi )</span>
+
+<span class="comment">-- convert polar coordinates ( r*e^(i*phi) ) to carthesic complex number</span>
+
+<span class="comment">-- r (radius) is a number</span>
+
+<span class="comment">-- phi (angle) must be in radians; e.g. [0 - 2pi]</span>
+
+<span class="keyword">function</span> complex.convpolar( radius, phi )
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { radius * <span class="library">math.cos</span>( phi ), radius * <span class="library">math.sin</span>( phi ) }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.convpolardeg( r, phi )</span>
+
+<span class="comment">-- convert polar coordinates ( r*e^(i*phi) ) to carthesic complex number</span>
+
+<span class="comment">-- r (radius) is a number</span>
+
+<span class="comment">-- phi must be in degrees; e.g. [0° - 360°]</span>
+
+<span class="keyword">function</span> complex.convpolardeg( radius, phi )
+
+   phi = phi/180 * <span class="library">math.pi</span>
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { radius * <span class="library">math.cos</span>( phi ), radius * <span class="library">math.sin</span>( phi ) }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--// complex number functions only</span>
+
+
+
+<span class="comment">-- complex.tostring( cx [, formatstr] )</span>
+
+<span class="comment">-- to string or real number</span>
+
+<span class="comment">-- takes a complex number and returns its string value or real number value</span>
+
+<span class="keyword">function</span> complex.tostring( cx,formatstr )
+
+   <span class="keyword">local</span> real,imag = cx[1],cx[2]
+
+   <span class="keyword">if</span> formatstr <span class="keyword">then</span>
+
+      <span class="keyword">if</span> imag == 0 <span class="keyword">then</span>
+
+         <span class="keyword">return</span> <span class="library">string.format</span>( formatstr, real )
+
+      <span class="keyword">elseif</span> real == 0 <span class="keyword">then</span>
+
+         <span class="keyword">return</span> <span class="library">string.format</span>( formatstr, imag )..<span class="string">"i"</span>
+
+      <span class="keyword">elseif</span> imag &gt; 0 <span class="keyword">then</span>
+
+         <span class="keyword">return</span> <span class="library">string.format</span>( formatstr, real )..<span class="string">"+"</span>..<span class="library">string.format</span>( formatstr, imag )..<span class="string">"i"</span>
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> <span class="library">string.format</span>( formatstr, real )..<span class="library">string.format</span>( formatstr, imag )..<span class="string">"i"</span>
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">if</span> imag == 0 <span class="keyword">then</span>
+
+      <span class="keyword">return</span> real
+
+   <span class="keyword">elseif</span> real == 0 <span class="keyword">then</span>
+
+      <span class="keyword">return</span> ((imag==1 <span class="keyword">and</span> <span class="string">""</span>) <span class="keyword">or</span> (imag==-1 <span class="keyword">and</span> <span class="string">"-"</span>) <span class="keyword">or</span> imag)..<span class="string">"i"</span>
+
+   <span class="keyword">elseif</span> imag &gt; 0 <span class="keyword">then</span>
+
+      <span class="keyword">return</span> real..<span class="string">"+"</span>..(imag==1 <span class="keyword">and</span> <span class="string">""</span> <span class="keyword">or</span> imag)..<span class="string">"i"</span>
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> real..(imag==-1 <span class="keyword">and</span> <span class="string">"-"</span> <span class="keyword">or</span> imag)..<span class="string">"i"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.print( cx [, formatstr] )</span>
+
+<span class="comment">-- print a complex number</span>
+
+<span class="keyword">function</span> complex.print( ... )
+
+   <span class="library">print</span>( complex.tostring( ... ) )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.polar( cx )</span>
+
+<span class="comment">-- from complex number to polar coordinates</span>
+
+<span class="comment">-- output in radians; [-pi,+pi]</span>
+
+<span class="comment">-- returns r (radius), phi (angle)</span>
+
+<span class="keyword">function</span> complex.polar( cx )
+
+   <span class="keyword">return</span> <span class="library">math.sqrt</span>( cx[1]^2 + cx[2]^2 ), <span class="library">math.atan2</span>( cx[2], cx[1] )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.polardeg( cx )</span>
+
+<span class="comment">-- from complex number to polar coordinates</span>
+
+<span class="comment">-- output in degrees; [-180°,180°]</span>
+
+<span class="comment">-- returns r (radius), phi (angle)</span>
+
+<span class="keyword">function</span> complex.polardeg( cx )
+
+   <span class="keyword">return</span> <span class="library">math.sqrt</span>( cx[1]^2 + cx[2]^2 ), <span class="library">math.atan2</span>( cx[2], cx[1] ) / <span class="library">math.pi</span> * 180
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.mulconjugate( cx )</span>
+
+<span class="comment">-- multiply with conjugate, function returning a number</span>
+
+<span class="keyword">function</span> complex.mulconjugate( cx )
+
+   <span class="keyword">return</span> cx[1]^2 + cx[2]^2
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.abs( cx )</span>
+
+<span class="comment">-- get the absolute value of a complex number</span>
+
+<span class="keyword">function</span> complex.abs( cx )
+
+   <span class="keyword">return</span> <span class="library">math.sqrt</span>( cx[1]^2 + cx[2]^2 )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.get( cx )</span>
+
+<span class="comment">-- returns real_part, imaginary_part</span>
+
+<span class="keyword">function</span> complex.get( cx )
+
+   <span class="keyword">return</span> cx[1],cx[2]
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.set( cx, real, imag )</span>
+
+<span class="comment">-- sets real_part = real and imaginary_part = imag</span>
+
+<span class="keyword">function</span> complex.set( cx,real,imag )
+
+   cx[1],cx[2] = real,imag
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.is( cx, real, imag )</span>
+
+<span class="comment">-- returns true if, real_part = real and imaginary_part = imag</span>
+
+<span class="comment">-- else returns false</span>
+
+<span class="keyword">function</span> complex.is( cx,real,imag )
+
+   <span class="keyword">if</span> cx[1] == real <span class="keyword">and</span> cx[2] == imag <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">true</span>
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> <span class="keyword">false</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--// functions returning a new complex number</span>
+
+
+
+<span class="comment">-- complex.copy( cx )</span>
+
+<span class="comment">-- copy complex number</span>
+
+<span class="keyword">function</span> complex.copy( cx )
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { cx[1],cx[2] }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.add( cx1, cx2 )</span>
+
+<span class="comment">-- add two numbers; cx1 + cx2</span>
+
+<span class="keyword">function</span> complex.add( cx1,cx2 )
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { cx1[1]+cx2[1], cx1[2]+cx2[2] }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.sub( cx1, cx2 )</span>
+
+<span class="comment">-- subtract two numbers; cx1 - cx2</span>
+
+<span class="keyword">function</span> complex.sub( cx1,cx2 )
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { cx1[1]-cx2[1], cx1[2]-cx2[2] }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.mul( cx1, cx2 )</span>
+
+<span class="comment">-- multiply two numbers; cx1 * cx2</span>
+
+<span class="keyword">function</span> complex.mul( cx1,cx2 )
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { cx1[1]*cx2[1] - cx1[2]*cx2[2],cx1[1]*cx2[2] + cx1[2]*cx2[1] }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.mulnum( cx, num )</span>
+
+<span class="comment">-- multiply complex with number; cx1 * num</span>
+
+<span class="keyword">function</span> complex.mulnum( cx,num )
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { cx[1]*num,cx[2]*num }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.div( cx1, cx2 )</span>
+
+<span class="comment">-- divide 2 numbers; cx1 / cx2</span>
+
+<span class="keyword">function</span> complex.div( cx1,cx2 )
+
+   <span class="comment">-- get complex value</span>
+
+   <span class="keyword">local</span> val = cx2[1]^2 + cx2[2]^2
+
+   <span class="comment">-- multiply cx1 with conjugate complex of cx2 and divide through val</span>
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { (cx1[1]*cx2[1]+cx1[2]*cx2[2])/val,(cx1[2]*cx2[1]-cx1[1]*cx2[2])/val }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.divnum( cx, num )</span>
+
+<span class="comment">-- divide through a number</span>
+
+<span class="keyword">function</span> complex.divnum( cx,num )
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { cx[1]/num,cx[2]/num }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.pow( cx, num )</span>
+
+<span class="comment">-- get the power of a complex number</span>
+
+<span class="keyword">function</span> complex.pow( cx,num )
+
+   <span class="keyword">if</span> <span class="library">math.floor</span>( num ) == num <span class="keyword">then</span>
+
+      <span class="keyword">if</span> num &lt; 0 <span class="keyword">then</span>
+
+         <span class="keyword">local</span> val = cx[1]^2 + cx[2]^2
+
+         cx = { cx[1]/val,-cx[2]/val }
+
+         num = -num
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">local</span> real,imag = cx[1],cx[2]
+
+      <span class="keyword">for</span> i = 2,num <span class="keyword">do</span>
+
+         real,imag = real*cx[1] - imag*cx[2],real*cx[2] + imag*cx[1]
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> <span class="library">setmetatable</span>( { real,imag }, complex_meta )
+
+   <span class="keyword">end</span>
+
+   <span class="comment">-- we calculate the polar complex number now</span>
+
+   <span class="comment">-- since then we have the versatility to calc any potenz of the complex number</span>
+
+   <span class="comment">-- then we convert it back to a carthesic complex number, we loose precision here</span>
+
+   <span class="keyword">local</span> length,phi = <span class="library">math.sqrt</span>( cx[1]^2 + cx[2]^2 )^num, <span class="library">math.atan2</span>( cx[2], cx[1] )*num
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { length * <span class="library">math.cos</span>( phi ), length * <span class="library">math.sin</span>( phi ) }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.sqrt( cx )</span>
+
+<span class="comment">-- get the first squareroot of a complex number, more accurate than cx^.5</span>
+
+<span class="keyword">function</span> complex.sqrt( cx )
+
+   <span class="keyword">local</span> len = <span class="library">math.sqrt</span>( cx[1]^2+cx[2]^2 )
+
+   <span class="keyword">local</span> sign = (cx[2]&lt;0 <span class="keyword">and</span> -1) <span class="keyword">or</span> 1
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { <span class="library">math.sqrt</span>((cx[1]+len)/2), sign*<span class="library">math.sqrt</span>((len-cx[1])/2) }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.ln( cx )</span>
+
+<span class="comment">-- natural logarithm of cx</span>
+
+<span class="keyword">function</span> complex.ln( cx )
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { <span class="library">math.log</span>(<span class="library">math.sqrt</span>( cx[1]^2 + cx[2]^2 )),
+
+      <span class="library">math.atan2</span>( cx[2], cx[1] ) }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.exp( cx )</span>
+
+<span class="comment">-- exponent of cx (e^cx)</span>
+
+<span class="keyword">function</span> complex.exp( cx )
+
+   <span class="keyword">local</span> expreal = <span class="library">math.exp</span>(cx[1])
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { expreal*<span class="library">math.cos</span>(cx[2]), expreal*<span class="library">math.sin</span>(cx[2]) }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.conjugate( cx )</span>
+
+<span class="comment">-- get conjugate complex of number</span>
+
+<span class="keyword">function</span> complex.conjugate( cx )
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { cx[1], -cx[2] }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- complex.round( cx [,idp] )</span>
+
+<span class="comment">-- round complex numbers, by default to 0 decimal points</span>
+
+<span class="keyword">function</span> complex.round( cx,idp )
+
+   <span class="keyword">local</span> mult = 10^( idp <span class="keyword">or</span> 0 )
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { <span class="library">math.floor</span>( cx[1] * mult + 0.5 ) / mult,
+
+      <span class="library">math.floor</span>( cx[2] * mult + 0.5 ) / mult }, complex_meta )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--// metatable functions</span>
+
+
+
+complex_meta.__add = <span class="keyword">function</span>( cx1,cx2 )
+
+   <span class="keyword">local</span> cx1,cx2 = complex.to( cx1 ),complex.to( cx2 )
+
+   <span class="keyword">return</span> complex.add( cx1,cx2 )
+
+<span class="keyword">end</span>
+
+complex_meta.__sub = <span class="keyword">function</span>( cx1,cx2 )
+
+   <span class="keyword">local</span> cx1,cx2 = complex.to( cx1 ),complex.to( cx2 )
+
+   <span class="keyword">return</span> complex.sub( cx1,cx2 )
+
+<span class="keyword">end</span>
+
+complex_meta.__mul = <span class="keyword">function</span>( cx1,cx2 )
+
+   <span class="keyword">local</span> cx1,cx2 = complex.to( cx1 ),complex.to( cx2 )
+
+   <span class="keyword">return</span> complex.mul( cx1,cx2 )
+
+<span class="keyword">end</span>
+
+complex_meta.__div = <span class="keyword">function</span>( cx1,cx2 )
+
+   <span class="keyword">local</span> cx1,cx2 = complex.to( cx1 ),complex.to( cx2 )
+
+   <span class="keyword">return</span> complex.div( cx1,cx2 )
+
+<span class="keyword">end</span>
+
+complex_meta.__pow = <span class="keyword">function</span>( cx,num )
+
+   <span class="keyword">if</span> num == <span class="string">"*"</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> complex.conjugate( cx )
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> complex.pow( cx,num )
+
+<span class="keyword">end</span>
+
+complex_meta.__unm = <span class="keyword">function</span>( cx )
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>( { -cx[1], -cx[2] }, complex_meta )
+
+<span class="keyword">end</span>
+
+complex_meta.__eq = <span class="keyword">function</span>( cx1,cx2 )
+
+   <span class="keyword">if</span> cx1[1] == cx2[1] <span class="keyword">and</span> cx1[2] == cx2[2] <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">true</span>
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> <span class="keyword">false</span>
+
+<span class="keyword">end</span>
+
+complex_meta.__tostring = <span class="keyword">function</span>( cx )
+
+   <span class="keyword">return</span> <span class="library">tostring</span>( complex.tostring( cx ) )
+
+<span class="keyword">end</span>
+
+complex_meta.__concat = <span class="keyword">function</span>( cx,cx2 )
+
+   <span class="keyword">return</span> <span class="library">tostring</span>(cx)..<span class="library">tostring</span>(cx2)
+
+<span class="keyword">end</span>
+
+<span class="comment">-- cx( cx, formatstr )</span>
+
+complex_meta.__call = <span class="keyword">function</span>( ... )
+
+   <span class="library">print</span>( complex.tostring( ... ) )
+
+<span class="keyword">end</span>
+
+complex_meta.__index = {}
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>( complex ) <span class="keyword">do</span>
+
+   complex_meta.__index[k] = v
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> complex
+
+
+
+<span class="comment">--///////////////--</span>
+
+<span class="comment">--// chillcode //--</span>
+
+<span class="comment">--///////////////--</span>
+
+</pre>
+
+</DL>
+<p>
+Testcode:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> complex = <span class="library">require</span> <span class="string">"complex"</span>
+
+
+
+<span class="keyword">local</span> cx,cx1,cx2,re,im
+
+
+
+<span class="comment">-- complex.to / complex call</span>
+
+cx = complex { 2,3 }
+
+<span class="library">assert</span>( <span class="library">tostring</span>( cx ) == <span class="string">"2+3i"</span> )
+
+cx = complex ( 2 )
+
+<span class="library">assert</span>( <span class="library">tostring</span>( cx ) == <span class="string">"2"</span> )
+
+<span class="library">assert</span>( cx:tostring() == 2 )
+
+cx = complex <span class="string">"2^2+3/2i"</span>
+
+<span class="library">assert</span>( <span class="library">tostring</span>( cx ) == <span class="string">"4+1.5i"</span> )
+
+cx = complex <span class="string">".5-2E-3i"</span>
+
+<span class="library">assert</span>( <span class="library">tostring</span>( cx ) == <span class="string">"0.5-0.002i"</span> )
+
+cx = complex <span class="string">"3i"</span>
+
+<span class="library">assert</span>( <span class="library">tostring</span>( cx ) == <span class="string">"3i"</span> )
+
+cx = complex <span class="string">"2"</span>
+
+<span class="library">assert</span>( <span class="library">tostring</span>( cx ) == <span class="string">"2"</span> )
+
+<span class="library">assert</span>( cx:tostring() == 2 )
+
+<span class="library">assert</span>( complex <span class="string">"2 + 4i"</span> == <span class="keyword">nil</span> )
+
+
+
+<span class="comment">-- complex.new</span>
+
+cx = complex.new( 2,3 )
+
+<span class="library">assert</span>( <span class="library">tostring</span>( cx ) == <span class="string">"2+3i"</span> )
+
+
+
+<span class="comment">-- complex.type</span>
+
+<span class="library">assert</span>( complex.type( cx ) == <span class="string">"complex"</span> )
+
+<span class="library">assert</span>( complex.type( {} ) == <span class="keyword">nil</span> )
+
+
+
+<span class="comment">-- complex.convpolar( radius, phi )</span>
+
+<span class="library">assert</span>( complex.convpolar( 3, 0 ):round(10) == complex <span class="string">"3"</span> )
+
+<span class="library">assert</span>( complex.convpolar( 3, <span class="library">math.pi</span>/2 ):round(10) == complex <span class="string">"3i"</span> )
+
+<span class="library">assert</span>( complex.convpolar( 3, <span class="library">math.pi</span> ):round(10) == complex <span class="string">"-3"</span> )
+
+<span class="library">assert</span>( complex.convpolar( 3, <span class="library">math.pi</span>*3/2 ):round(10) == complex <span class="string">"-3i"</span> )
+
+<span class="library">assert</span>( complex.convpolar( 3, <span class="library">math.pi</span>*2 ):round(10) == complex <span class="string">"3"</span> )
+
+
+
+<span class="comment">-- complex.convpolardeg( radius, phi )</span>
+
+<span class="library">assert</span>( complex.convpolardeg( 3, 0 ):round(10) == complex <span class="string">"3"</span> )
+
+<span class="library">assert</span>( complex.convpolardeg( 3, 90 ):round(10) == complex <span class="string">"3i"</span> )
+
+<span class="library">assert</span>( complex.convpolardeg( 3, 180 ):round(10) == complex <span class="string">"-3"</span> )
+
+<span class="library">assert</span>( complex.convpolardeg( 3, 270 ):round(10) == complex <span class="string">"-3i"</span> )
+
+<span class="library">assert</span>( complex.convpolardeg( 3, 360 ):round(10) == complex <span class="string">"3"</span> )
+
+
+
+<span class="comment">-- complex.tostring( cx,formatstr )</span>
+
+cx = complex <span class="string">"2+3i"</span>
+
+<span class="library">assert</span>( complex.tostring( cx ) == <span class="string">"2+3i"</span> )
+
+<span class="library">assert</span>( complex.tostring( cx, <span class="string">"%.2f"</span> ) == <span class="string">"2.00+3.00i"</span> )
+
+<span class="comment">-- does not support a second argument</span>
+
+<span class="library">assert</span>( <span class="library">tostring</span>( cx, <span class="string">"%.2f"</span> ) == <span class="string">"2+3i"</span> )
+
+
+
+<span class="comment">-- complex.polar( cx )</span>
+
+<span class="keyword">local</span> r,phi = complex.polar( {3,0} )
+
+<span class="library">assert</span>( r == 3 )
+
+<span class="library">assert</span>( phi == 0 )
+
+
+
+<span class="keyword">local</span> r,phi = complex.polar( {0,3} )
+
+<span class="library">assert</span>( r == 3 )
+
+<span class="library">assert</span>( phi == <span class="library">math.pi</span>/2 )
+
+
+
+<span class="keyword">local</span> r,phi = complex.polar( {-3,0} )
+
+<span class="library">assert</span>( r == 3 )
+
+<span class="library">assert</span>( phi == <span class="library">math.pi</span> )
+
+
+
+<span class="keyword">local</span> r,phi = complex.polar( {0,-3} )
+
+<span class="library">assert</span>( r == 3 )
+
+<span class="library">assert</span>( phi == -<span class="library">math.pi</span>/2 )
+
+
+
+<span class="comment">-- complex.polardeg( cx )</span>
+
+<span class="keyword">local</span> r,phi = complex.polardeg( {3,0} )
+
+<span class="library">assert</span>( r == 3 )
+
+<span class="library">assert</span>( phi == 0 )
+
+
+
+<span class="keyword">local</span> r,phi = complex.polardeg( {0,3} )
+
+<span class="library">assert</span>( r == 3 )
+
+<span class="library">assert</span>( phi == 90 )
+
+
+
+<span class="keyword">local</span> r,phi = complex.polardeg( {-3,0} )
+
+<span class="library">assert</span>( r == 3 )
+
+<span class="library">assert</span>( phi == 180 )
+
+
+
+<span class="keyword">local</span> r,phi = complex.polardeg( {0,-3} )
+
+<span class="library">assert</span>( r == 3 )
+
+<span class="library">assert</span>( phi == -90 )
+
+
+
+<span class="comment">-- complex.mulconjugate( cx )</span>
+
+cx = complex <span class="string">"2+3i"</span>
+
+<span class="library">assert</span>( complex.mulconjugate( cx ) == 13 )
+
+
+
+<span class="comment">-- complex.abs( cx )</span>
+
+cx = complex <span class="string">"3+4i"</span>
+
+<span class="library">assert</span>( complex.abs( cx ) == 5 )
+
+
+
+<span class="comment">-- complex.get( cx )</span>
+
+cx = complex <span class="string">"2+3i"</span>
+
+re,im = complex.get( cx )
+
+<span class="library">assert</span>( re == 2 )
+
+<span class="library">assert</span>( im == 3 )
+
+
+
+<span class="comment">-- complex.set( cx, re, im )</span>
+
+cx = complex <span class="string">"2+3i"</span>
+
+complex.set( cx, 3, 2 )
+
+<span class="library">assert</span>( cx == complex <span class="string">"3+2i"</span> )
+
+
+
+<span class="comment">-- complex.is( cx, re, im )</span>
+
+cx = complex <span class="string">"2+3i"</span>
+
+<span class="library">assert</span>( complex.is( cx, 2, 3 ) == <span class="keyword">true</span> )
+
+<span class="library">assert</span>( complex.is( cx, 3, 2 ) == <span class="keyword">false</span> )
+
+
+
+<span class="comment">-- complex.copy( cx )</span>
+
+cx = complex <span class="string">"2+3i"</span>
+
+cx1 = complex.copy( cx )
+
+complex.set( cx, 1, 1 )
+
+<span class="library">assert</span>( cx1 == complex <span class="string">"2+3i"</span> )
+
+
+
+<span class="comment">-- complex.add( cx1, cx2 )</span>
+
+cx1 = complex <span class="string">"2+3i"</span>
+
+cx2 = complex <span class="string">"3+2i"</span>
+
+<span class="library">assert</span>( complex.add(cx1,cx2) == complex <span class="string">"5+5i"</span> )
+
+
+
+<span class="comment">-- complex.sub( cx1, cx2 )</span>
+
+cx1 = complex <span class="string">"2+3i"</span>
+
+cx2 = complex <span class="string">"3+2i"</span>
+
+<span class="library">assert</span>( complex.sub(cx1,cx2) == complex <span class="string">"-1+1i"</span> )
+
+
+
+<span class="comment">-- complex.mul( cx1, cx2 )</span>
+
+cx1 = complex <span class="string">"2+3i"</span>
+
+cx2 = complex <span class="string">"3+2i"</span>
+
+<span class="library">assert</span>( complex.mul(cx1,cx2) == complex <span class="string">"13i"</span> )
+
+
+
+<span class="comment">-- complex.mulnum( cx, num )</span>
+
+cx = complex <span class="string">"2+3i"</span>
+
+<span class="library">assert</span>( complex.mulnum( cx, 2 ) == complex <span class="string">"4+6i"</span> )
+
+
+
+<span class="comment">-- complex.div( cx1, cx2 )</span>
+
+cx1 = complex <span class="string">"2+3i"</span>
+
+cx2 = complex <span class="string">"3-2i"</span>
+
+<span class="library">assert</span>( complex.div(cx1,cx2) == complex <span class="string">"i"</span> )
+
+
+
+<span class="comment">-- complex.divnum( cx, num )</span>
+
+cx = complex <span class="string">"2+3i"</span>
+
+<span class="library">assert</span>( complex.divnum( cx, 2 ) == complex <span class="string">"1+1.5i"</span> )
+
+
+
+<span class="comment">-- complex.pow( cx, num )</span>
+
+cx = complex <span class="string">"2+3i"</span>
+
+<span class="library">assert</span>( complex.pow( cx, 3 ) == complex <span class="string">"-46+9i"</span> )
+
+
+
+cx = complex( -121 )
+
+cx = cx^.5
+
+<span class="comment">-- we have to round here due to the polar calculation of the squareroot</span>
+
+cx = cx:round( 10 )
+
+<span class="library">assert</span>( cx == complex <span class="string">"11i"</span> )
+
+
+
+cx = complex<span class="string">"2+3i"</span>
+
+<span class="library">assert</span>( cx^-2 ~= 1/cx^2 )
+
+<span class="library">assert</span>( cx^-2 == (cx^-1)^2 )
+
+<span class="library">assert</span>( <span class="library">tostring</span>( cx^-2 ) == <span class="library">tostring</span>( 1/cx^2 ) )
+
+
+
+<span class="comment">-- complex.sqrt( cx )</span>
+
+cx = complex( -121 )
+
+<span class="library">assert</span>( complex.sqrt( cx ) == complex <span class="string">"11i"</span> )
+
+cx = complex <span class="string">"2-3i"</span>
+
+cx = cx^2
+
+<span class="library">assert</span>( cx:sqrt() == complex <span class="string">"2-3i"</span> )
+
+
+
+<span class="comment">-- complex.ln( cx )</span>
+
+cx = complex <span class="string">"3+4i"</span>
+
+<span class="library">assert</span>( cx:ln():round( 4 ) == complex <span class="string">"1.6094+0.9273i"</span> )
+
+
+
+<span class="comment">-- complex.exp( cx )</span>
+
+cx = complex <span class="string">"2+3i"</span>
+
+<span class="library">assert</span>( cx:ln():exp() == complex <span class="string">"2+3i"</span> )
+
+
+
+<span class="comment">-- complex.conjugate( cx )</span>
+
+cx = complex <span class="string">"2+3i"</span>
+
+<span class="library">assert</span>( cx:conjugate() == complex <span class="string">"2-3i"</span> )
+
+
+
+<span class="comment">-- metatable</span>
+
+
+
+<span class="comment">-- __add</span>
+
+cx = complex <span class="string">"2+3i"</span>
+
+<span class="library">assert</span>( cx+2 == complex <span class="string">"4+3i"</span> )
+
+
+
+<span class="comment">-- __unm</span>
+
+cx = complex <span class="string">"2+3i"</span>
+
+<span class="library">assert</span>( -cx == complex <span class="string">"-2-3i"</span> )
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ComplexNumbers" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ComplexNumbers" >history</a><br>Last edited October 3, 2007 10:45 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ComplexNumbers" >(diff)</a>
+</body>
+</html>

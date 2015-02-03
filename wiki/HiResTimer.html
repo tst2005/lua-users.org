@@ -1,0 +1,438 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Hi Res Timer</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=HiResTimer&amp;body=1" title="List pages referring to HiResTimer">Hi Res Timer</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+A high resolution timer on most windows platforms (only).
+(Checked with LuaForWindows_v5.1.4-35)
+<p>
+This is used by <a href="../wiki/BenchmarkModule.html" >BenchmarkModule</a>, my benchmarking toolkit.
+<p>
+<H2><code>HiResTimer.lua</code></H2>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">---------------------------</span>
+
+<span class="comment">-- this module provide a function</span>
+
+<span class="comment">-- HiResTimer.clock() which returns a high resolution timer</span>
+
+<span class="comment">---------------------------</span>
+
+<span class="library">module</span>(<span class="string">"HiResTimer"</span>,<span class="library">package.seeall</span>)
+
+
+
+<span class="comment">--</span>
+
+<span class="comment">-- take the alien module</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">local</span> alien=<span class="library">require</span><span class="string">"alien"</span>
+
+
+
+<span class="comment">--</span>
+
+<span class="comment">-- get the kernel dll</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">local</span> kernel32=alien.load(<span class="string">"kernel32.dll"</span>)
+
+
+
+<span class="comment">--</span>
+
+<span class="comment">-- get dll functions</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">local</span> QueryPerformanceCounter=kernel32.QueryPerformanceCounter
+
+QueryPerformanceCounter:types{ret=<span class="string">"int"</span>,abi=<span class="string">"stdcall"</span>,<span class="string">"pointer"</span>}
+
+<span class="keyword">local</span> QueryPerformanceFrequency=kernel32.QueryPerformanceFrequency
+
+QueryPerformanceFrequency:types{ret=<span class="string">"int"</span>,abi=<span class="string">"stdcall"</span>,<span class="string">"pointer"</span>}
+
+
+
+<span class="comment">--------------------------------------------</span>
+
+<span class="comment">--- utility : convert a long to an unsigned long value</span>
+
+<span class="comment">-- (because alien does not support longlong nor ulong)</span>
+
+<span class="comment">--------------------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> lu(long)
+
+	<span class="keyword">return</span> long&lt;0 <span class="keyword">and</span> long+0x80000000+0x80000000 <span class="keyword">or</span> long
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--------------------------------------------</span>
+
+<span class="comment">--- Query the performance frequency.</span>
+
+<span class="comment">-- @return (number)</span>
+
+<span class="comment">--------------------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> qpf()
+
+	<span class="keyword">local</span> frequency=alien.array(<span class="string">'long'</span>,2)
+
+	QueryPerformanceFrequency(frequency.buffer)
+
+	<span class="keyword">return</span>  <span class="library">math.ldexp</span>(lu(frequency[1]),0)
+
+		    +<span class="library">math.ldexp</span>(lu(frequency[2]),32)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--------------------------------------------</span>
+
+<span class="comment">--- Query the performance counter.</span>
+
+<span class="comment">-- @return (number)</span>
+
+<span class="comment">--------------------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> qpc()
+
+	<span class="keyword">local</span> counter=alien.array(<span class="string">'long'</span>,2)
+
+	QueryPerformanceCounter(counter.buffer)
+
+	<span class="keyword">return</span>	 <span class="library">math.ldexp</span>(lu(counter[1]),0)
+
+			+<span class="library">math.ldexp</span>(lu(counter[2]),32)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--------------------------------------------</span>
+
+<span class="comment">-- get the startup values</span>
+
+<span class="comment">--------------------------------------------</span>
+
+<span class="keyword">local</span> f0=qpf()
+
+<span class="keyword">local</span> c0=qpc()
+
+
+
+<span class="comment">--------------------------------------------</span>
+
+<span class="comment">--- Return a hires clock</span>
+
+<span class="comment">-- @return (number) elapsed seconds since load of the module</span>
+
+<span class="comment">--------------------------------------------</span>
+
+<span class="keyword">function</span> clock()
+
+	<span class="keyword">local</span> c1=qpc()
+
+	<span class="keyword">return</span> (c1-c0)/f0
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> HiResTimer
+
+</pre>
+
+</DL>
+<p>
+<H3>Example, how to use</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> hrt=<span class="library">require</span><span class="string">"HiResTimer"</span>
+
+
+
+<span class="keyword">local</span> t0=hrt.clock()
+
+
+
+<span class="keyword">for</span> i=1,1000*1000 <span class="keyword">do</span>
+
+	<span class="keyword">local</span> j=i*i
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> t1=hrt.clock()
+
+
+
+<span class="library">print</span>(<span class="string">"Took"</span>,t1-t0,<span class="string">"seconds"</span>)
+
+</pre>
+
+</DL>
+<p>
+<H3>Linux??</H3>
+If anyone has a similar module for Linux, I'd be very interested.
+Any suggestions or corrections are welcome.
+<p>
+<H3><a href="../wiki/HiResTimer.html" >HiResTimer</a> v.s. socket.gettime()</H3>
+<p>
+<em>I've been using LuaSocket<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaSocket" >?</a>'s gettime function as a generic high-resolution timer. It seems to work reasonably well on Windows, Linux, and BSD. Also, LuaSocket<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaSocket" >?</a> is usually already present. -ScottVokes<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ScottVokes" >?</a></em>
+<p>
+For me socket.gettime() is not hires enough.
+Check this one
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> hrt=<span class="library">require</span><span class="string">"HiResTimer"</span>
+
+<span class="keyword">local</span> socket=<span class="library">require</span><span class="string">"socket"</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> printf(...)
+
+    <span class="library">io.write</span>(<span class="library">string.format</span>(...))
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> loops=0,100000,1000 <span class="keyword">do</span>
+
+    printf(<span class="string">"%6d loops "</span>,loops)
+
+    <span class="keyword">local</span> t0=hrt.clock()
+
+    <span class="keyword">for</span> i=1,loops <span class="keyword">do</span> <span class="keyword">local</span> j=<span class="library">math.sin</span>(123) <span class="keyword">end</span>
+
+    <span class="keyword">local</span> t1=hrt.clock()
+
+    printf(<span class="string">"hrt=%9.3f ms"</span>,(t1-t0)*1000)
+
+    <span class="keyword">local</span> t0=socket.gettime()
+
+    <span class="keyword">for</span> i=1,loops <span class="keyword">do</span> <span class="keyword">local</span> j=<span class="library">math.sin</span>(123) <span class="keyword">end</span>
+
+    <span class="keyword">local</span> t1=socket.gettime()
+
+    printf(<span class="string">" socket=%9.3f ms\n"</span>,(t1-t0)*1000)
+
+    <span class="comment">--if t1&gt;t0 then  break end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+Results (trunkated)
+<pre>
+
+     0 loops hrt=    0.035 ms socket=    0.000 ms
+
+  1000 loops hrt=    0.327 ms socket=    0.000 ms
+
+  2000 loops hrt=    0.461 ms socket=    0.000 ms
+
+  3000 loops hrt=    0.685 ms socket=    0.000 ms
+
+  4000 loops hrt=    0.905 ms socket=    0.000 ms
+
+  5000 loops hrt=    1.123 ms socket=    0.000 ms
+
+  6000 loops hrt=    1.391 ms socket=    0.000 ms
+
+  7000 loops hrt=    1.565 ms socket=    0.000 ms
+
+  8000 loops hrt=    1.801 ms socket=   15.625 ms
+
+  9000 loops hrt=    2.032 ms socket=    0.000 ms
+
+ 10000 loops hrt=    2.244 ms socket=    0.000 ms
+
+:::
+
+ 90000 loops hrt=   22.061 ms socket=   15.625 ms
+
+ 91000 loops hrt=   20.248 ms socket=   31.250 ms
+
+ 92000 loops hrt=   22.713 ms socket=   15.625 ms
+
+ 93000 loops hrt=   22.575 ms socket=   15.625 ms
+
+ 94000 loops hrt=   21.200 ms socket=   15.625 ms
+
+ 95000 loops hrt=   22.974 ms socket=   15.625 ms
+
+ 96000 loops hrt=   21.370 ms socket=   31.250 ms
+
+ 97000 loops hrt=   23.359 ms socket=   31.250 ms
+
+ 98000 loops hrt=   21.953 ms socket=   15.625 ms
+
+ 99000 loops hrt=   22.304 ms socket=   15.625 ms
+
+100000 loops hrt=   22.887 ms socket=   15.625 ms
+
+</pre>
+<p>
+(at least on windows) socket.gettime has a resolution of 64 ticks/second, the performancecounter used in hires is above 1000000 ticks/second (exact value may vary with the machine)
+<p>
+for the sake of completeness I've checked socket.gettime on a linux machine
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> socket=<span class="library">require</span><span class="string">"socket"</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> printf(...)
+
+	<span class="library">io.write</span>(<span class="library">string.format</span>(...))
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> loops=0,100000,1000 <span class="keyword">do</span>
+
+	printf(<span class="string">"%6d loops "</span>,loops)
+
+	<span class="keyword">local</span> t0=socket.gettime()
+
+	<span class="keyword">for</span> i=1,loops <span class="keyword">do</span> <span class="keyword">local</span> j=<span class="library">math.sin</span>(123) <span class="keyword">end</span>
+
+	<span class="keyword">local</span> t1=socket.gettime()
+
+	printf(<span class="string">" socket=%9.3f ms\n"</span>,(t1-t0)*1000)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+Result
+<pre>
+
+     0 loops  socket=    0.002 ms
+
+  1000 loops  socket=    0.509 ms
+
+  2000 loops  socket=    1.017 ms
+
+  3000 loops  socket=    1.485 ms
+
+  4000 loops  socket=    1.172 ms
+
+  5000 loops  socket=    1.477 ms
+
+  6000 loops  socket=    1.776 ms
+
+  7000 loops  socket=    2.078 ms
+
+  8000 loops  socket=    2.381 ms
+
+  9000 loops  socket=    2.850 ms
+
+ 10000 loops  socket=    3.000 ms
+
+::::
+
+ 90000 loops  socket=   25.086 ms
+
+ 91000 loops  socket=   25.474 ms
+
+ 92000 loops  socket=   25.696 ms
+
+ 93000 loops  socket=   25.991 ms
+
+ 94000 loops  socket=   26.368 ms
+
+ 95000 loops  socket=   26.634 ms
+
+ 96000 loops  socket=   26.922 ms
+
+ 97000 loops  socket=   27.096 ms
+
+ 98000 loops  socket=   27.463 ms
+
+ 99000 loops  socket=   27.776 ms
+
+100000 loops  socket=   27.973 ms
+
+</pre>
+This looks pretty good, much better than the windows results.
+<p>
+- <a href="../wiki/JoergenVonBargen.html" >JoergenVonBargen</a>
+<p>
+The above socket.gettime() code works well on Mac OS X (tested on 10.6.5) as well
+<p>
+Result
+<pre>
+
+     0 loops  socket=    0.001 ms
+
+  1000 loops  socket=    0.156 ms
+
+  2000 loops  socket=    0.264 ms
+
+  3000 loops  socket=    0.399 ms
+
+  4000 loops  socket=    0.529 ms
+
+  5000 loops  socket=    0.667 ms
+
+...
+
+ 96000 loops  socket=   12.948 ms
+
+ 97000 loops  socket=   12.678 ms
+
+ 98000 loops  socket=   12.718 ms
+
+ 99000 loops  socket=   12.963 ms
+
+100000 loops  socket=   12.949 ms
+
+</pre>
+<p>
+-- <a href="../wiki/DougCurrie.html" >DougCurrie</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="http://peterodding.com/code/lua/apr/docs/#apr.time_now">[Lua/APR time_now]</a> provides sub-microsecond time measurement as well.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=HiResTimer" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=HiResTimer" >history</a><br>Last edited January 4, 2011 4:21 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=HiResTimer" >(diff)</a>
+</body>
+</html>

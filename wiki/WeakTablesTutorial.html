@@ -1,0 +1,179 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Weak Tables Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=WeakTablesTutorial&amp;body=1" title="List pages referring to WeakTablesTutorial">Weak Tables Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+It is helpful to understand <em>garbage collection</em> before reading this tutorial. The <a href="../wiki/GarbageCollectionTutorial.html" >GarbageCollectionTutorial</a> provides an introduction.
+<p>
+<H2>The weak link</H2>
+<p>
+In computer languages such as Lua that employ garbage collection, a reference to an object is said to be <em>weak</em> if it does not prevent collection of the object. Weak references are useful for determining when an object has been collected and for caching objects without impeding their collection.
+<p>
+Rather than provide an interface to individual weak references, Lua provides a higher-level construct called a <em>weak table</em>.  In a weak table the keys and/or values are weak references.  If a key or value of such a table is collected, that entry of the table will be removed.
+<p>
+Here is a complete, although very contrived, example of a weak table in action:
+<DL>
+<dt><dd><pre class="code">
+t = {}
+
+<span class="library">setmetatable</span>(t, { __mode = <span class="string">'v'</span> })
+
+
+
+<span class="keyword">do</span>
+
+    <span class="keyword">local</span> someval = {}
+
+    t[<span class="string">'foo'</span>] = someval
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">collectgarbage</span>()
+
+
+
+<span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+    <span class="library">print</span>(k, v)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Try this example with and without the <code>collectgarbage()</code> call commented out.  With the call, the program will print nothing, as the value of the lone table entry will be collected.
+<p>
+A weak table is created by setting its metatable to a metatable that has a <code>__mode</code> field.  In the above example we enable weak values with <code>v</code> (likewise <code>k</code> is for keys).  The purpose of creating the test value <code>someval</code> as a local variable in a <code>do</code> block is so that we may force garbage collection of the value later with a call to <code>collectgarbage</code>.  Note that using a literal such as a string or number for <code>someval</code> would not have worked, as literals are never garbage collected.
+<p>
+Note that once a table has been used as a metatable then it is not legal to change the metatable's <code>__mode</code> field (for the exact restrictions see Section 2.10.2 in the Reference Manual <a href="http://www.lua.org/manual/5.1/manual.html#2.10.2">[1]</a>).  In other words the following code, which attempts to change a table to a weak table by changing its metatable's <code>__mode</code> field, is wrong:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">getmetatable</span>(t).__mode = <span class="string">'v'</span>
+
+</pre>
+
+</DL>
+A table needs to have its <code>__mode</code> field defined before it is used as a metatable.  Hence the following style, which creates an empty table and then immediately gives it a metatable, is correct:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> weaktable = <span class="library">setmetatable</span>({}, {__mode=<span class="string">"k"</span>})
+
+</pre>
+
+</DL>
+<p>
+Weak tables are often used in situations where you wish to annotate values without altering them. For example, you might want to give objects a name which could be used when they were printed out. In this case, you would not want the fact that an object had been named to prevent it from being garbage collected, so you would want to use a table with weak keys (the objects):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> names = <span class="library">setmetatable</span>({}, {__mode = <span class="string">"k"</span>})
+
+
+
+<span class="comment">-- with the example below, this would be a local function</span>
+
+<span class="keyword">function</span> name(obj, str)
+
+  names[obj] = <span class="library">tostring</span>(str)
+
+  <span class="keyword">return</span> obj
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- keep the original print function available</span>
+
+<span class="keyword">local</span> _print = <span class="library">print</span>
+
+<span class="keyword">function</span> <span class="library">print</span>(...)
+
+  <span class="keyword">for</span> i = 1, arg.n <span class="keyword">do</span>
+
+    <span class="keyword">local</span> name = names[arg[i]]
+
+    <span class="keyword">if</span> name <span class="keyword">then</span> arg[i] = name <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  _print(<span class="library">unpack</span>(arg))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+You might want to use this for debugging, by automatically naming global variables. You can do this by adding a simple metamethod (see <a href="../wiki/MetamethodsTutorial.html" >MetamethodsTutorial</a>) to the globals table:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> globalsmeta = {}
+
+
+
+<span class="keyword">local</span> nameable_type = {[<span class="string">"function"</span>] = <span class="keyword">true</span>, userdata = <span class="keyword">true</span>, thread = <span class="keyword">true</span>, <span class="library">table</span> = <span class="keyword">true</span>}
+
+
+
+<span class="keyword">function</span> globalsmeta:__newindex(k, v)
+
+  <span class="keyword">if</span> nameable_type[<span class="library">type</span>(v)] <span class="keyword">then</span> name(v, k) <span class="keyword">end</span>
+
+  <span class="library">rawset</span>(self, k, v)
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">setmetatable</span>(<span class="library">_G</span>, globalsmeta)
+
+</pre>
+
+</DL>
+<p>
+Note how we avoid doing a complex series of <code>if then elseif...</code> statements by using a constant table to do a single check on the type of the value.
+<p>
+For advanced tutorial readers, the text of the <code>__newindex</code> function could be written as follows:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">rawset</span>(self, k, nameable_type[<span class="library">type</span>(v)] <span class="keyword">and</span> name(v, k) <span class="keyword">or</span> v)
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=WeakTablesTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=WeakTablesTutorial" >history</a><br>Last edited January 4, 2014 11:40 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=WeakTablesTutorial" >(diff)</a>
+</body>
+</html>

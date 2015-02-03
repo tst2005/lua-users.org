@@ -1,0 +1,172 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Getting Values From Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=GettingValuesFromLua&amp;body=1" title="List pages referring to GettingValuesFromLua">Getting Values From Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Return values from dostring</H3>
+<p>
+<em>Question:</em> How can I get the return value of the Lua chunk executed by <code>lua_dostring</code> from the C side, i.e. like getting the result returned by the Lua dostring function?
+<p>
+<em>(lhf)</em> Just like the return values of any function. Here is an example:
+<DL>
+<dt><dd><pre>
+
+lua_State *L=lua_open(0);
+
+printf( "%d\n", lua_gettop(L) );
+
+lua_dostring(L, "return 1,'a'" );
+
+printf( "%d\n", lua_gettop(L) );
+
+printf( "%s\n", lua_tostring(L,-2) );
+
+printf( "%s\n", lua_tostring(L,-1) );
+
+</pre>
+</DL>
+In general, you should take the k top values in the stack, where k is the difference between <code>lua_gettop(L)</code> before calling <code>lua_dostring</code> and <code>lua_gettop(L)</code> after calling it, that is, for indices from -1 to -k.
+<p>
+<hr><strong>Note:</strong> These examples are for Lua 4.0. <a href="../wiki/VersionNotice.html" >VersionNotice</a>
+<p>
+<hr>Example code for Lua 5.0:
+<p>
+returnone.c:
+<DL>
+<dt><dd><pre>
+
+#include &lt;lua.h&gt;
+
+#include &lt;lualib.h&gt;
+
+
+
+int main()
+
+{
+
+  lua_State *L=lua_open();
+
+  printf( "%d\n", lua_gettop(L) );
+
+  lua_dostring(L, "return 1,'a'" );
+
+  printf( "%d\n", lua_gettop(L) );
+
+  printf( "%s\n", lua_tostring(L,-2) );
+
+  printf( "%s\n", lua_tostring(L,-1) );
+
+  return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+Build:
+<p>
+<DL>
+<dt><dd><pre>
+
+gcc -o returnone returnone.c -I/usr/include/lua50 -llua50 -llualib50
+
+</pre>
+</DL>
+<p>
+Run:
+# ./returnone
+<DL>
+<dt><dd><pre>
+
+0
+
+2
+
+1
+
+a
+
+</pre>
+</DL>
+<p>
+<hr>Example code for Lua 5.1.1:
+<p>
+lua_dostring() no longer exists:
+<p>
+returnone.c:
+<DL>
+<dt><dd><pre>
+
+#include &lt;lua.h&gt;
+
+#include &lt;lualib.h&gt;
+
+#include &lt;lauxlib.h&gt;
+
+
+
+int main()
+
+{
+
+   lua_State *L = luaL_newstate();
+
+   char buff[] = "return 1,'a'";
+
+   int error;
+
+   printf( "%d\n", lua_gettop(L) );
+
+   error = luaL_loadbuffer(L, buff, strlen(buff), "my test") || lua_pcall(L, 0, LUA_MULTRET, 0);
+
+   if (error) {
+
+      fprintf(stderr, "%s", lua_tostring(L, -1));
+
+      lua_pop(L, 1);  /* pop error message from the stack */
+
+   }
+
+   printf( "%d\n", lua_gettop(L) );
+
+   printf( "%s\n", lua_tostring(L,-2) );
+
+   printf( "%s\n", lua_tostring(L,-1) );
+
+   return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=GettingValuesFromLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=GettingValuesFromLua" >history</a><br>Last edited February 17, 2010 11:35 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=GettingValuesFromLua" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,904 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Extension Proposal</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ExtensionProposal&amp;body=1" title="List pages referring to ExtensionProposal">Extension Proposal</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Extension<code></code>Proposal is an API and implementation for additional non-ANSI functions in the os and io namespaces.
+<p>
+<H2>Description</H2>
+<p>
+A recent (Jan 2006) discussion on the mailing list has prompted me to attempt to design an extended API which extends the Lua API by adding functions to the os and io namespaces.
+<p>
+This is not a proposal to modify the Lua core, but a design proposal for an API which extends the Lua core.  This API is meant to provide a more complete programming environment for stand-alone Lua programs on today's popular operating systems (Windows, MacOSX and POSIX platforms).
+<p>
+<H2>Source</H2>
+<p>
+There are <a href="http://luaforge.net/projects/lua-ex/">[implementations for POSIX and Windows]</a> hosted on <a href="../wiki/LuaForge.html" >LuaForge</a>.  These are highly usable implementations, but should be considered only for testing purposes while the API is still being standardized.
+<p>
+<H2>ex API</H2>
+<p>
+Note that all these functions return the standard (nil,"error message") on failure and that, unless otherwise specified, they return (true) on success.
+<p>
+<H3>Initialization</H3>
+<code>require "ex"</code>
+<DL>
+<dt><dd>marks a Lua program which uses this API
+</DL>
+<p>
+<p>
+<H3>Environment</H3>
+<p>
+<pre>os.getenv(name)</pre>
+<DL>
+<dt><dd>get an environment value
+</DL>
+<p>
+<pre>os.setenv(name, value)</pre>
+<DL>
+<dt><dd>set/modify an environment value
+</DL>
+<p>
+<pre>os.setenv(name, nil)</pre>
+<DL>
+<dt><dd>remove an environment value
+</DL>
+<p>
+<pre>os.environ()</pre>
+<DL>
+<dt><dd>returns a copy of the environment (a simple Lua table)
+</DL>
+<p>
+<p>
+<H3>File system (mostly borrowing from LuaFilesystem<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaFilesystem" >?</a>)</H3>
+<p>
+<pre>os.chdir(pathname)</pre>
+<DL>
+<dt><dd>change working directory
+</DL>
+<p>
+<pre>os.mkdir(pathname)</pre>
+<DL>
+<dt><dd>create a directory
+</DL>
+<p>
+<pre>os.remove(pathname)</pre>
+<DL>
+<dt><dd>remove a file or directory
+</DL>
+<p>
+<pre>pathname = os.currentdir()</pre>
+<DL>
+<dt><dd>get working directory path
+</DL>
+<p>
+<pre>for entry in os.dir(pathname) do ; end</pre>
+<DL>
+<dt><dd>iterates over the entries in a directory.  The pathname argument is optional; if missing the current directory is used.
+<dt><dd>Special directory entries such as "." and ".." are not returned.
+</DL>
+<p>
+<pre>entry = os.dirent(pathname)
+
+entry = os.dirent(file)</pre>
+<DL>
+<dt><dd>gets information about a directory entry via pathname or open file
+</DL>
+<p>
+Both the iterator function returned by os.dir() and the os.dirent() function return an 'entry' table.  This table contains at least the following fields:
+<p>
+<DL>
+<dt><dd>entry.name= the filename (Note that os.dirent() does need to set this field)
+<dt><dd>entry.type= "file" or "directory" (or an implementation-defined string)
+<dt><dd>entry.size= the file size in bytes
+</DL>
+<p>
+Implementations may add other fields or even methods.
+<p>
+<p>
+<H3>I/O (locking and pipes)</H3>
+<p>
+<pre>file:lock(mode, offset, length)
+
+io.lock(file, mode, offset, length)</pre>
+<DL>
+<dt><dd>lock or unlock a file or a portion of a file; 'mode' is either "r" or "w" or "u"; 'offset' and 'length' are optional
+<dt><dd>A mode of "r" requests a read lock, "w" requests a write lock, and "u" releases the lock.  Note that the locks may be either advisory or mandatory.
+</DL>
+<p>
+<pre>file:unlock(offset, length)
+
+io.unlock(file, offset, length)</pre>
+<DL>
+<dt><dd>equivalent to file:lock("u", offset, length) or io.lock(file, "u", offset, length)
+</DL>
+<p>
+Note that both file:lock() and file:unlock() extend the metatable for Lua file objects.
+<p>
+<pre>rd, wr = io.pipe()</pre>
+<DL>
+<dt><dd>create a pipe; 'rd' and 'wr' are Lua file objects
+</DL>
+<p>
+<p>
+<H3>Process control</H3>
+<p>
+<pre>os.sleep(seconds)
+
+os.sleep(interval, unit)</pre>
+<DL>
+<dt><dd>suspends program execution for interval/unit seconds; 'unit' defaults to 1 and either argument can be floating point.  The particular sub-second precision is implementation-defined.
+<dt><dd><pre class="code">
+<span class="library">os.sleep</span>(3.8) <span class="comment">-- sleep for 3.8 seconds</span>
+
+<span class="keyword">local</span> microseconds = 1e6
+
+<span class="library">os.sleep</span>(3800000, microseconds) <span class="comment">-- sleep for 3800000 µs</span>
+
+<span class="keyword">local</span> ticks = 100
+
+<span class="library">os.sleep</span>(380, ticks) <span class="comment">-- sleep for 380 ticks</span>
+
+</pre>
+
+</DL>
+<p>
+<pre>proc = os.spawn(filename)
+
+proc = os.spawn{filename, [args-opts]}
+
+proc = os.spawn{command=filename, [args-opts]} </pre>
+<DL>
+<dt><dd>create a child process
+</DL>
+<p>
+<DL>
+<dt><dd>'filename' names a program.  If the (implementation-defined) pathname is not absolute, the program is found through an implementation-defined search method (the PATH environment variable on most systems).
+</DL>
+<p>
+<DL>
+<dt><dd>If specified, [args-opts] is one or more of the following keys:
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd>[1]..[n]= the command line arguments
+</DL>
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd>args= an array of command line arguments
+</DL>
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd>env= a table of environment variables
+</DL>
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd>stdin= stdout= stderr= io.file objects for standard input, output, and error respectively
+</DL>
+</DL>
+<p>
+<DL>
+<dt><dd>It is an error if both integer keys and an 'args' key are specified.
+</DL>
+<p>
+<DL>
+<dt><dd>An implementation may provide special behavior if a zeroth argument (options.args[0] or options[0]) is provided.
+</DL>
+<p>
+<DL>
+<dt><dd>The returned 'proc' userdatum has the following method:
+</DL>
+<p>
+<pre>exitcode = proc:wait()</pre>
+<DL>
+<dt><dd>wait for child process termination; 'exitcode' is the code returned by the child process
+</DL>
+<p>
+<H3>Summary</H3>
+<p>
+All functions are also available under the ex namespace:
+<p>
+<DL>
+<dt><dd><pre>ex.getenv(name)
+
+ex.setenv(name, value)
+
+ex.environ()
+
+ex.chdir(pathname)
+
+ex.mkdir(pathname)
+
+ex.currentdir()
+
+ex.dir(pathname)
+
+ex.dirent(pathname)
+
+ex.lock(file, mode, offset, length)
+
+ex.unlock(file, offset, length)
+
+ex.pipe()
+
+ex.sleep(interval, [unit])
+
+ex.spawn(...)
+
+ex.wait(proc)</pre>
+</DL>
+<p>
+Note that ex.getenv is here mostly for parallelism, but also because under Windows, using the SetEnvironmentVariable<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SetEnvironmentVariable" >?</a>() API requires overriding the standard os.getenv implementation which uses getenv() to use GetEnvironmentVariable<a href="/cgi-bin/wiki.pl?action=edit&amp;id=GetEnvironmentVariable" >?</a>() instead.
+<p>
+<p>
+<H2>Examples</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"ex"</span>
+
+
+
+<span class="comment">-- run the echo command</span>
+
+proc = <span class="library">os.spawn</span><span class="string">"/bin/echo"</span>
+
+proc = <span class="library">os.spawn</span>{<span class="string">"/bin/echo"</span>, <span class="string">"hello"</span>, <span class="string">"world"</span>}
+
+proc = <span class="library">os.spawn</span>{command=<span class="string">"/bin/echo"</span>, <span class="string">"hello"</span>, <span class="string">"world"</span>}
+
+
+
+<span class="comment">-- run the id command</span>
+
+vars = { LANG=<span class="string">"fr_FR"</span> }
+
+proc = <span class="library">os.spawn</span>{<span class="string">"/bin/id"</span>, <span class="string">"-un"</span>, env=vars}
+
+proc = <span class="library">os.spawn</span>{command=<span class="string">"/bin/id"</span>, <span class="string">"-un"</span>, env=vars)
+
+
+
+<span class="comment">-- Useless use of cat</span>
+
+<span class="keyword">local</span> rd, wr = <span class="library">assert</span>(<span class="library">io.pipe</span>())
+
+<span class="keyword">local</span> proc = <span class="library">assert</span>(<span class="library">os.spawn</span>(<span class="string">"/bin/cat"</span>, {stdin=rd}))
+
+rd:close()
+
+wr:write(<span class="string">"Hello world\n"</span>)
+
+wr:close()
+
+proc:wait()
+
+
+
+<span class="comment">-- Run a program with a modified environment</span>
+
+<span class="keyword">local</span> env = <span class="library">os.environ</span>()
+
+env.LUA_PATH = <span class="string">"/usr/share/lib/lua/?.lua"</span>
+
+env.LUA_CPATH = <span class="string">"/usr/share/lib/lua/?.so"</span>
+
+<span class="keyword">local</span> proc = <span class="library">assert</span>(<span class="library">os.spawn</span>(<span class="string">"lua"</span>, {args = {<span class="string">"-e"</span>, <span class="string">'print"Hello world\n"'</span>}, env=env }))
+
+proc:wait()
+
+
+
+<span class="comment">-- popen2()</span>
+
+<span class="keyword">function</span> popen2(...)
+
+  <span class="keyword">local</span> in_rd, in_wr = <span class="library">io.pipe</span>()
+
+  <span class="keyword">local</span> out_rd, out_wr = <span class="library">io.pipe</span>()
+
+  <span class="keyword">local</span> proc, err = <span class="library">os.spawn</span>{stdin = in_rd, stdout = out_wr, ...}
+
+  in_rd:close(); out_wr:close()
+
+  <span class="keyword">if</span> <span class="keyword">not</span> proc <span class="keyword">then</span>
+
+    in_wr:close(); out_rd:close()
+
+    <span class="keyword">return</span> proc, err
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> proc, out_rd, in_wr
+
+<span class="keyword">end</span>
+
+<span class="comment">-- usage:</span>
+
+<span class="keyword">local</span> p, i, o = <span class="library">assert</span>(popen2(<span class="string">"wc"</span>, <span class="string">"-w"</span>))
+
+o:write(<span class="string">"Hello world"</span>); o:close()
+
+<span class="library">print</span>(i:read<span class="string">"*l"</span>); i:close()
+
+p:wait()
+
+</pre>
+
+</DL>
+<p>
+<H2>Comments</H2>
+<p>
+<em>Mark, rather than insert functions into the standard library namespaces, I suggest that you consider your work to be a utility module, pick a name for it, and place the functions under the new module name.  If your functions catch on as they are now, it's going to cause confusion, especially to Lua beginners who might read some example code and not understand why certain functions in the standard modules are not in the upstream docs.  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a></em>
+<p>
+<p>
+<em>I agree with John. Perhaps an ex.install() or similar could be used to install it into the os library. But I'd rather have it be a separate library.  --Doug Rogers</em>
+<p>
+<p>
+<em>I agree with the previous comments. I'd would prefer not inject the funcs to "os", but rather have separate libs.</em>'
+<p>
+<DL>
+<dt><dd><pre>env.getenv(name)
+
+env.setenv(name, value)
+
+env.environ()
+
+--no unsetenv. It's meaningless.
+
+--function env.unsetenv(name)
+
+--    env.setenv(name, nil)
+
+--end
+
+
+
+fs.chdir(pathname)
+
+fs.mkdir(pathname)
+
+fs.currentdir()
+
+fs.dir(pathname)
+
+fs.dirent(pathname)
+
+fs.lock(file, mode, offset, length)
+
+fs.unlock(file, offset, length)
+
+
+
+proc.pipe()
+
+proc.sleep(seconds)
+
+proc.spawn(...)
+
+proc.wait(proc)</pre>
+</DL>
+<em>--ncopa</em>
+<p>
+<em>Mark, thanks for this implementation.  I'll add to the chorus here of avoiding "polluting" the os and io modules, at least in the current implementation, so that people can use the modules now in production code without danger of future conflict if and when the interface extending os and io namespaces are standardized (why "considered only for testing purposes"?).  As mentioned, your implementation (not your proposed interface) might have an <code>ex.install()</code> or similar function that will update <code>os</code> and <code>io</code> according to the interface proposal.  That gives users a choice for now.--<a href="../wiki/DavidManura.html" >DavidManura</a></em>
+<p>
+<em>Taking this a step further, if you were going to break this out into its own table (such as filesys) copying the file related entries from os might be useful. This keeps new code cleaner and sort of 'obsoletes' the os table when this extension is called.</em>
+<p>
+<hr>Comments on latest version.
+<p>
+(1) In the default conf.in, change "-llua51" to "-llua5.1" to be consistent with <a href="../wiki/LuaBinaries.html" >LuaBinaries</a>?
+<p>
+<em>This is consistent with the Lua distribution, but I can add a note to conf.in. -Mark</em>
+<p>
+I've wondered why there is this inconsistency between Lua and <a href="../wiki/LuaBinaries.html" >LuaBinaries</a>.
+<p>
+(2) os.sleep(math.huge) returns immediately.  should it never return?
+<p>
+<em>I'll need to investigate why this happens ... -Mark</em>
+<p>
+os.sleep(1e100) also returns immediately.  Win32 Sleep(INFINITE) or any huge value doesn't seem that useful though, but who knows (INFINTE seems useful in SleepEx<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SleepEx" >?</a>). <a href="http://groups.google.com/group/borland.public.delphi.nativeapi.win32/browse_thread/thread/60e43f3d8a6650c5/cf0a96dcfd51af52?lnk=st&amp;q=sleep(infinite)&amp;rnum=2#cf0a96dcfd51af52">[1]</a>
+Sleep(0) means "relinquish the timeslice".
+<p>
+(3) os.setenv and os.mkdir(1) - implementation automatically converts number parameter to a string.  intended?
+<p>
+<em>Probably -- they expect a string. -Mark</em>
+<p>
+I see this behavior also in <code>string.lower(123) == "123"</code> (is true).
+<p>
+(4) Intended?
+<p>
+<pre>
+
+&gt; =os.setenv("a", {})
+
+nil     203 (0xCB): The system could not find the environment option that was entered.
+
+&gt; =os.setenv("a", nil)
+
+nil     203 (0xCB): The system could not find the environment option that was entered.
+
+</pre>
+<p>
+<em>The API doesn't say what happens if a non-string is passed as the second argument, or if an attempt is made to remove a non-existent variable.  Should it?</em>
+<p>
+Don't know, but the error message was odd.
+<p>
+(5) Change os.dir(), with no parameter, to use the current working directory?
+<p>
+<em>This is a good idea; it will need to be part of the API then. -Mark</em>
+<p>
+(6) entry.name was missing when I called os.dirent.
+<p>
+<em>Yes, this is intended and the API is incorrect as specified.  Unless there's a reason it should be different?  -Mark</em>
+<p>
+(7) Intended?
+<p>
+<pre>
+
+&gt; f = io.open("123")
+
+&gt; = io.lock(f, "w")
+
+nil     6 (0x6): The handle is invalid.
+
+&gt; =f
+
+file (0080F060)
+
+</pre>
+<p>
+<em>Yes, ex doesn't say what happens if you try to write-lock a read-only file.  Should it?  -Mark</em>
+<p>
+Maybe not.  What about this under Win32?
+<p>
+<pre>
+
+Lua 5.1.1  Copyright (C) 1994-2006 Lua.org, PUC-Rio
+
+&gt; require "ex"
+
+&gt; f = assert(io.open("234", "w"))
+
+&gt; = f:lock("w")
+
+nil     6 (0x6): The handle is invalid.
+
+</pre>
+<p>
+<em>This was a bug; I think it is now fixed.  -Mark</em>
+<p>
+(8)
+<p>
+<pre>
+
+$ make mingw
+
+make -C w32api ex.dll
+
+make[1]: Entering directory `.../ex/w32api'
+
+cc -W -Wall -Wno-missing-braces -DWIN32_LEAN_AND_MEAN -DNOGDI -...  -mno-cygwin -c -o ex.o ex.c
+
+cc -W -Wall -Wno-missing-braces -DWIN32_LEAN_AND_MEAN -DNOGDI -...  -mno-cygwin -c -o spawn.o spawn.c
+
+spawn.c: In function `spawn_param_init':
+
+spawn.c:35: warning: missing initializer
+
+spawn.c:35: warning: (near initialization for `si.lpReserved')
+
+cc -W -Wall -Wno-missing-braces -DWIN32_LEAN_AND_MEAN -DNOGDI -I...  -mno-cygwin -c -o pusherror.o pusherror.c
+
+cc -W -Wall -Wno-missing-braces -DWIN32_LEAN_AND_MEAN -DNOGDI -I...  -mno-cygwin -c -o dirent.o dirent.c
+
+cc -mno-cygwin -shared -o ex.dll ex.o spawn.o pusherror.o dirent.o -L... -llua5.1
+
+make[1]: Leaving directory `.../ex/w32api'
+
+</pre>
+<p>
+See <a href="http://msdn2.microsoft.com/en-us/library/ms686331.aspx">http://msdn2.microsoft.com/en-us/library/ms686331.aspx</a>
+Might want to initialize structure via memset instead to avoid warning.
+<p>
+<em>The warning is an unfortunate feature of GCC -- C guarantees that the other struct members are default-initialized to zero, which is the intention here.  -Mark</em>
+<p>
+Warning could be avoided with "static const STARTUPINFO si = {sizeof si, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};"
+<p>
+(9)
+<p>
+<pre>
+
+$ make cygwin
+
+make -C posix T=ex.dll ex.dll
+
+make[1]: Entering directory `...ex/posix'
+
+cc -W -Wall -std=c89 -D_XOPEN_SOURCE=600 -DMISSING_POSIX_SPAWN -DENVIRON_DECL="e
+
+xtern char **environ;" -I...   -c -o ex.o ex.c
+
+ex.c: In function `ex_setenv':
+
+ex.c:53: warning: implicit declaration of function `setenv'
+
+ex.c:53: warning: implicit declaration of function `unsetenv'
+
+ex.c: In function `new_file':
+
+ex.c:131: warning: implicit declaration of function `fdopen'
+
+ex.c:131: warning: assignment makes pointer from integer without a cast
+
+ex.c: In function `ex_dirent':
+
+ex.c:151: warning: implicit declaration of function `fileno'
+
+cc -W -Wall -std=c89 -D_XOPEN_SOURCE=600 -DMISSING_POSIX_SPAWN -DENVIRON_DECL="e
+
+xtern char **environ;" -I...   -c -o spawn.o spawn.c
+
+cc -W -Wall -std=c89 -D_XOPEN_SOURCE=600 -DMISSING_POSIX_SPAWN -DENVIRON_DECL="e
+
+xtern char **environ;" -I...   -c -o posix_spawn.o po
+
+six_spawn.c
+
+posix_spawn.c:49: warning: unused parameter 'act'
+
+cc -shared -o ex.dll ex.o spawn.o posix_spawn.o -L...
+
+make[1]: Leaving directory `...ex/posix'
+
+</pre>
+<p>
+Note cygwin stdlib.h:
+<p>
+<pre>
+
+#ifndef __STRICT_ANSI__
+
+long    _EXFUN(a64l,(const char *__input));
+
+char *  _EXFUN(l64a,(long __input));
+
+char *  _EXFUN(_l64a_r,(struct _reent *,long __input));
+
+int	_EXFUN(on_exit,(_VOID (*__func)(int, _PTR),_PTR __arg));
+
+_VOID	_EXFUN(_Exit,(int __status) _ATTRIBUTE ((noreturn)));
+
+int	_EXFUN(putenv,(char *__string));
+
+int	_EXFUN(_putenv_r,(struct _reent *, char *__string));
+
+int	_EXFUN(setenv,(const char *__string, const char *__value, int __overwrite));
+
+int	_EXFUN(_setenv_r,(struct _reent *, const char *__string, const char *__value, int __overwrite))
+
+#ifndef __STRICT_ANSI__
+
+#ifndef _REENT_ONLY
+
+FILE *	_EXFUN(fdopen, (int, const char *));
+
+#endif
+
+int	_EXFUN(fileno, (FILE *));
+
+</pre>
+<p>
+The purpose of <a href="../wiki/ExtensionProposal.html" >ExtensionProposal</a> is to provide non-ANSI functions, so why compile under ANSI?
+<p>
+<em>Right, -std=c89 is incorrect -- I'll change conf.in.  -Mark</em>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+(10) It seems that ex.dir opens a file but does not close it. Thus this code:
+<p>
+while true do
+for f in os.dir("./") do
+print(f.name)
+end
+end
+<p>
+fails with error:
+<p>
+stdin:2: attempt to call a nil value
+stack traceback:
+<DL>
+<dt><dd>stdin:2: in main chunk
+<dt><dd>[C]: ?
+</DL>
+<p>
+after some cycles. Other calls to os.dir give:
+<p>
+print(os.dir("./"))
+-&gt; nil     Too many open files
+<p>
+lsof shows that multiple (1020) copies of that directory are open.
+<p>
+I understand that the open file is something that must live accross multiple calls to the ex API, but the possibility to call os.dir with an open file would provide this temporary workaround:
+<p>
+while true do
+local d = io.open("./")
+for f in os.dir(d) do
+print(f.name)
+end
+d:close()
+end
+<p>
+btw, this ex is very useful. Great work -- m.i.
+<p>
+After a quick search over POSIX manuals it seems not easy or impossible. Instead changing a few lines in posix/ex.c (at line 240, in ex_dir) from:
+<p>
+if (!d) return push_error(L);
+<p>
+to:
+<p>
+if (!d) {
+diriter_close(L);
+return push_error(L);
+}
+<p>
+seems to solve the problem (and not create others, but that will need test).
+<p>
+sorry for not using diff, I've never learnt...
+<p>
+Again, great work -- m.i.
+<p>
+<em>Yes, file handles run out long before memory, so yours is the correct solution.  BTW, this is perhaps a better idiom:</em>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> f <span class="keyword">in</span> <span class="library">assert</span>(<span class="library">os.dir</span><span class="string">"."</span>) <span class="keyword">do</span> <span class="library">print</span> f.name; <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<em>-Mark</em>
+<p>
+<hr>The following function (from w32api\spawn.c, current release) crashes reliably if there's more than one parameter. I think the lua_pop() is wrong. Basically the same error seems (twice, in fact) to lurk in spawn_param_env(). I have not looked into the posix implementation... Happy hunting.  -- <a href="../wiki/ThomasLauer.html" >ThomasLauer</a>
+<p>
+<em>Yes, this is a known bug and I have a fix, I just need to post it, sorry.  -Mark</em>
+<p>
+Nice to know... but known to whom? If <em>you</em> knew about these bugs perhaps sharing this knowledge with the wider world would have been a good idea? For instance on this very page? Well... &lt;shakes head&gt;  -- <a href="../wiki/ThomasLauer.html" >ThomasLauer</a>
+<p>
+<pre>
+
+void spawn_param_args(struct spawn_params *p)
+
+{
+
+	 lua_State *L = p-&gt;L;
+
+	 debug("spawn_param_args:"); debug_stack(L);
+
+	 luaL_Buffer args;
+
+	 luaL_buffinit(L, &amp;args);
+
+	 size_t i, n = lua_objlen(L, -1);
+
+	 /* concatenate the arg array to a string */
+
+	 for (i = 1; i &lt;= n; i++) {
+
+	 	 int quote;
+
+	 	 lua_rawgeti(L, -1, i);     /* ... argtab arg */
+
+	 	 /* XXX checkstring is confusing here */
+
+	 	 quote = needs_quoting(luaL_checkstring(L, -1));
+
+	 	 luaL_putchar(&amp;args, ' ');
+
+	 	 if (quote) luaL_putchar(&amp;args, '"');
+
+	 	 luaL_addvalue(&amp;args);
+
+	 	 if (quote) luaL_putchar(&amp;args, '"');
+
+---&gt;	 lua_pop(L, 1);             /* ... argtab */
+
+	 }
+
+	 luaL_pushresult(&amp;args);        /* ... argtab argstr */
+
+	 lua_pushvalue(L, 1);           /* cmd opts ... argtab argstr cmd */
+
+	 lua_insert(L, -2);             /* cmd opts ... argtab cmd argstr */
+
+	 lua_concat(L, 2);              /* cmd opts ... argtab cmdline */
+
+	 lua_replace(L, -2);            /* cmd opts ... cmdline */
+
+	 p-&gt;cmdline = lua_tostring(L, -1);
+
+}
+
+</pre>
+<p>
+<hr>I get SEGFAULT when I try to execute
+<pre>
+
+require 'ex'
+
+ex.spawn{'ls'}
+
+</pre>
+<p>
+in the lua 5.1.1 interpreter (on gentoo, amd64, gcc-4.1.2). Gdb backtrace
+<p>
+<pre>
+
+#0  0x00002adc9351a885 in raise () from /lib/libc.so.6
+
+#1  0x00002adc9351bb3e in abort () from /lib/libc.so.6
+
+#2  0x00002adc93550a27 in ?? () from /lib/libc.so.6
+
+#3  0x00002adc93555b1d in ?? () from /lib/libc.so.6
+
+#4  0x00002adc935579b6 in ?? () from /lib/libc.so.6
+
+#5  0x00002adc9355950d in malloc () from /lib/libc.so.6
+
+#6  0x00002adc93177351 in ?? () from /usr/lib64/liblua.so.5
+
+#7  0x00002adc9317add9 in ?? () from /usr/lib64/liblua.so.5
+
+#8  0x00002adc93170237 in lua_getfield () from /usr/lib64/liblua.so.5
+
+#9  0x00002adc938867e9 in ex_spawn (L=0x503010) at ex.c:412
+
+#10 0x00002adc93173fc1 in ?? () from /usr/lib64/liblua.so.5
+
+#11 0x00002adc9317d50e in ?? () from /usr/lib64/liblua.so.5
+
+#12 0x00002adc9317440d in ?? () from /usr/lib64/liblua.so.5
+
+#13 0x00002adc93173b77 in ?? () from /usr/lib64/liblua.so.5
+
+#14 0x00002adc93173bf4 in ?? () from /usr/lib64/liblua.so.5
+
+#15 0x00002adc9316fc75 in lua_pcall () from /usr/lib64/liblua.so.5
+
+#16 0x0000000000401746 in ?? ()
+
+#17 0x0000000000401b54 in ?? ()
+
+#18 0x0000000000402137 in ?? ()
+
+#19 0x00002adc93173fc1 in ?? () from /usr/lib64/liblua.so.5
+
+#20 0x00002adc931743bd in ?? () from /usr/lib64/liblua.so.5
+
+#21 0x00002adc93173b77 in ?? () from /usr/lib64/liblua.so.5
+
+#22 0x00002adc93173bf4 in ?? () from /usr/lib64/liblua.so.5
+
+#23 0x00002adc9316fc17 in lua_cpcall () from /usr/lib64/liblua.so.5
+
+#24 0x000000000040167d in main ()
+
+</pre>
+<p>
+This is with standard (Gentoo distributed) lua 5.1.1.
+<p>
+I compiled lua 5.1.2 and get the same (more symbols)
+<p>
+Compiling lua with -O0 holds the same error. Just more information:
+<p>
+<pre>#0  0x00002b8a1dc7a885 in raise () from /lib/libc.so.6
+
+#1  0x00002b8a1dc7bb3e in abort () from /lib/libc.so.6
+
+#2  0x00002b8a1dcb0a27 in ?? () from /lib/libc.so.6
+
+#3  0x00002b8a1dcb5b1d in ?? () from /lib/libc.so.6
+
+#4  0x00002b8a1dcb79b6 in ?? () from /lib/libc.so.6
+
+#5  0x00002b8a1dcb950d in malloc () from /lib/libc.so.6
+
+#6  0x0000000000419c8d in l_alloc (ud=0x0, ptr=0x0, osize=0, nsize=29) at lauxlib.c:636
+
+#7  0x000000000040d519 in luaM_realloc_ (L=0x533010, block=0x0, osize=0, nsize=29) at lmem.c:79
+
+#8  0x0000000000411e3b in newlstr (L=0x533010, str=0x2b8a1de8c235 "args", l=4, h=7976507) at lstring.c:56
+
+#9  0x00000000004120ab in luaS_newlstr (L=0x533010, str=0x2b8a1de8c235 "args", l=4) at lstring.c:92
+
+#10 0x00000000004060f4 in lua_getfield (L=0x533010, idx=2, k=0x2b8a1de8c235 "args") at lapi.c:546
+
+#11 0x00002b8a1de8b4be in ex_spawn (L=0x533010) at ex.c:379
+
+#12 0x0000000000409e92 in luaD_precall (L=0x533010, func=0x533410, nresults=0) at ldo.c:319
+
+#13 0x00000000004175b9 in luaV_execute (L=0x533010, nexeccalls=1) at lvm.c:589
+
+#14 0x000000000040a106 in luaD_call (L=0x533010, func=0x533400, nResults=-1) at ldo.c:377
+
+#15 0x0000000000406a30 in f_call (L=0x533010, ud=0x7fff8d573bb0) at lapi.c:796
+
+#16 0x0000000000409192 in luaD_rawrunprotected (L=0x533010, f=0x406a01 &lt;f_call&gt;, ud=0x7fff8d573bb0) at ldo.c:116
+
+#17 0x000000000040a49d in luaD_pcall (L=0x533010, func=0x406a01 &lt;f_call&gt;, u=0x7fff8d573bb0, old_top=48, ef=32) at ldo.c:461
+
+#18 0x0000000000406ad6 in lua_pcall (L=0x533010, nargs=0, nresults=-1, errfunc=1) at lapi.c:817
+
+#19 0x0000000000403dfa in docall (L=0x533010, narg=0, clear=0) at lua.c:100
+
+#20 0x00000000004043d0 in dotty (L=0x533010) at lua.c:219
+
+#21 0x0000000000404b3f in pmain (L=0x533010) at lua.c:367
+
+#22 0x0000000000409e92 in luaD_precall (L=0x533010, func=0x5333e0, nresults=0) at ldo.c:319
+
+#23 0x000000000040a0f4 in luaD_call (L=0x533010, func=0x5333e0, nResults=0) at ldo.c:376
+
+#24 0x0000000000406be0 in f_Ccall (L=0x533010, ud=0x7fff8d573f50) at lapi.c:842
+
+#25 0x0000000000409192 in luaD_rawrunprotected (L=0x533010, f=0x406b11 &lt;f_Ccall&gt;, ud=0x7fff8d573f50) at ldo.c:116
+
+#26 0x000000000040a49d in luaD_pcall (L=0x533010, func=0x406b11 &lt;f_Ccall&gt;, u=0x7fff8d573f50, old_top=16, ef=0) at ldo.c:461
+
+#27 0x0000000000406c37 in lua_cpcall (L=0x533010, func=0x404973 &lt;pmain&gt;, ud=0x7fff8d573fa0) at lapi.c:852
+
+#28 0x0000000000404bb4 in main (argc=1, argv=0x7fff8d5740b8) at lua.c:385
+
+</pre>
+<p>
+The ex.spawn'ls' syntax fails too, but in spawn_param_execute, instead.
+<p>
+I can't understand why.
+<p>
+Parameters passed to the realloc would be correct (gdb sees them as ptr=0x0, nsz=48), but from debug output it seems that it calls malloc instead (is it normal?). I don't experience this kind of failures in normal Lua use, so I assume it is not its fault.
+<p>
+--m.i.
+<p>
+<em>This is a known bug which is now fixed but not yet available.  Soon!  I promise.  - <a href="../wiki/MarkEdgar.html" >MarkEdgar</a></em>
+<p>
+<em>Not knowing this I reimplemented most of the functions. It's sort of duplicating code, so I'll simply stick to your implementation from now on. Still I made some adjustments to the API, that I think could be useful. I post the notes in my page as they are quite long -- <a href="../wiki/MauroIazzi.html" >MauroIazzi</a></em>
+<p>
+I think <code>os.isatty</code> would be useful to allow avoiding the explicit "-" in "cat myfile | lua myapp.lua -".  Lua itself calls isatty, though its in luaconf.h --<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+Perhaps a glob function would be useful here.  See also <a href="../wiki/FileGlob.html" >FileGlob</a>. --<a href="../wiki/DavidManura.html" >DavidManura</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ExtensionProposal" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ExtensionProposal" >history</a><br>Last edited October 31, 2009 7:01 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ExtensionProposal" >(diff)</a>
+</body>
+</html>

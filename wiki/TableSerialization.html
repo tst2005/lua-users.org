@@ -1,0 +1,1026 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Table Serialization</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TableSerialization&amp;body=1" title="List pages referring to TableSerialization">Table Serialization</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here are functions to serialize/unserialize a table or object (usually, not always, represented as a table), which is to convert it to and from a string representation.  This is typically used for display (e.g. debugging) or storing data in a file (e.g. persistence).
+<p>
+Design decisions include
+<p>
+<UL>
+<li> <strong>human readability:</strong> Should the serialized output be optimized for human readability? (example: debugging)
+<li> <strong>machine readability:</strong> Should the serialized output allow reliable deserialization?
+<li> <strong>type of data:</strong> Should it be optimized for representing a certain type of data?  (e.g. Metalua AST's)
+<li> <strong>format:</strong> should deserialization be accomplished via <code>loadstring</code> (if so what style of table construction?), binary I/O, XML, JSON, YAML, HTML, protocol buffers, etc.?
+<li> <strong>depth:</strong> Should deeply nested tables be handled? or just shallow members (e.g. <code>table.foreach(t, print)</code>).
+<li> <strong>size:</strong> How should tables with large size be handled? (e.g. limit depth or incremental display)
+<li> <strong>self-references:</strong> How should tables with self references (e.g. cycles) be handled?
+<li> <strong>types:</strong> How should it handle userdata? functions? functions with upvalues?  tables with metatables? weak table references?  transient objects (e.g. database handles)
+<li> <strong>input/output destination:</strong> Should it read/write from/to a string in memory or to a file stream?
+<li> <strong>complexity/dependencies:</strong> Should it implemented in pure Lua?  Should it be simple? Is a more complex implementation ok?
+<li> <strong>security:</strong> should the deserializer be secure about arbitrary input?  (If using <code>loadstring</code>, then a custom environment may be used, although this doesn't guard against infinite loops.)
+</UL>
+<p>
+Because of these different needs, there have been many implementations.
+<p>
+<H2>Implementations</H2>
+<p>
+Listed people are implementions and descriptions of table persistence functions.
+<p>
+<UL>
+<li> <a href="../wiki/SaveTableToFile.html" >SaveTableToFile</a> - save table to file/str; load table from file/str
+<li> <a href="../wiki/PickleTable.html" >PickleTable</a>
+<li> <a href="../wiki/TablePersistence.html" >TablePersistence</a> - saves tables and primitive types to a file, loads such files.  Forked on github.
+<li> <a href="../wiki/PitLibTablestuff.html" >PitLibTablestuff</a> (old, Lua 4)
+<li> <a href="../wiki/OutputLuaTableToHtmlFile.html" >OutputLuaTableToHtmlFile</a> - output to HTML
+<li> <a href="../wiki/DataDumper.html" >DataDumper</a> - dump nearly any data (incl. closures) into a string
+<li> <a href="http://notebook.kulchenko.com/programming/serpent-lua-serializer-pretty-printer">[Serpent]</a> - Lua serializer and pretty-printer that implements compact and robust serialization that still produces a readable code. 
+<li> <a href="../wiki/MetaLua.html" >MetaLua</a>'s library contains <code>table.tostring</code> and <code>table.print</code><a href="http://metalua.luaforge.net/metalua-manual.html">[1]</a> functions in its standard library (which can be used outside of Metalua).  These focus on customizable pretty-printing, but do not preserve cycles or serialize functions.  (See examples below.)
+<li> <a href="../wiki/MetaLua.html" >MetaLua</a> also contains a robust serializer: it's result doesn't focus on indentation nor nice formatting, but on the respect of identity relationship and shared sub-parts. Additionally, this serializer does handle functions without upvalues. See "Identity-preserving table serialization by metalua" below.
+<li> For really complete serialization (including coroutines, functions with upvalues, etc.), the right solution is to use <a href="../wiki/PlutoLibrary.html" >PlutoLibrary</a>.
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lper">[lper]</a> persists the entire Lua state's memory using <a href="http://freshmeat.net/projects/lpsm/">[Linux Persistent Memory (LPSM)]</a> (via custom Lua allocator tied to LPSM). 
+<li> Lua Gems chapter 3 "Vardump: The Power of Seeing What's Behind" (<a href="../wiki/LuaBooks.html" >LuaBooks</a>) explains a simple table dump function for debugging display purposes (no cycles).
+<li> Lua Gems chapter 4 "Serialization with Pluto" (<a href="../wiki/LuaBooks.html" >LuaBooks</a>) explains the basic operation of Pluto as well as gives a brief overview of LuaPickle<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaPickle" >?</a> and lper.
+<li> <a href="../wiki/EngramProposal.html" >EngramProposal</a> - serializing data using the Lua string.dump format (VM opcodes)
+<li> <a href="../wiki/PersistentTablesSqlite.html" >PersistentTablesSqlite</a> - using SQLite to persist tables
+<li> <a href="http://lua-users.org/lists/lua-l/2009-11/msg00533.html">[Tony Finch's table serializer]</a> posted to lua-l
+<li> <a href="http://github.com/stevedonovan/Penlight/blob/master/lua/pl/pretty.lua">[penlight]</a> has an implementation
+<li> <a href="http://github.com/lua-nucleo/lua-nucleo/">[lua-nucleo]</a> offers several implementations in plain Lua, serializing to Lua code: 
+<UL>
+<li> <a href="https://github.com/lua-nucleo/lua-nucleo/blob/master/lua-nucleo/tstr.lua">[tstr]</a> fastest, no cycles, no functions or userdata; primarily for one-line logging
+<li> <a href="https://github.com/lua-nucleo/lua-nucleo/blob/master/lua-nucleo/tserialize.lua">[tserialize]</a> fast, with cycles, no functions or userdata; for proper serialization
+<li> <a href="https://github.com/lua-nucleo/lua-nucleo/blob/master/lua-nucleo/tpretty.lua">[tpretty]</a> slower, no cycles, no functions or userdata; for multiline readable serialization
+</UL>
+<li> <a href="https://github.com/agladysh/luabins">[luabins]</a> implements fast binary serialization (no cycles, no functions or userdata), supports function-call-like tuples
+<li> <a href="https://github.com/agladysh/luatexts">[luatexts]</a> implements fast human-readable serialization (no cycles, no functions or userdata), supports function-call-like tuples
+<li> <a href="https://github.com/davidm/lua-inspect/blob/master/lib/luainspect/dump.lua">[luainspect dump.lua]</a> has an implementation for AST nodes.
+<li> <a href="https://github.com/richardhundt/lua-marshal">[lua-marshall]</a> - Fast table serialization for Lua.  Serializes tables, which may contain cycles, Lua functions with upvalues and basic data type. <a href="http://thread.gmane.org/gmane.comp.lang.lua.general/72952">[discussion and benchmarks]</a>
+<li> <a href="https://github.com/kikito/inspect.lua">[inspect.lua]</a> Not a serialization library - its output is not valid Lua code, but it's extremely human-readable. It's supposed to be used for debugging. Keys are sorted out alphabetically, nested tables are properly indented, table loops are detected and signaled, and metatable information is also included.
+<li> <a href="https://github.com/antirez/lua-cmsgpack">[lua-cmsgpack]</a> - Fast serialization for Lua in <a href="http://msgpack.org/">[MessagePack]</a> format.
+<li> <a href="http://piratery.net/dump/">[prtr-dump]</a> - Nice human readable Lua-compatible output, support very large tables.
+<li> <a href="https://github.com/gvx/Ser">[Ser]</a> - robust, fast, simple and richly-featured table serialisation library. Especially made to have no learning curve whatsoever.
+<li> <a href="https://github.com/calio/lua-capnproto">[lua-capnproto]</a> Very fast serialization for Lua in <a href="http://capnproto.org/">[Cap'n Proto]</a> format.
+</UL>
+(Note: it would be useful to describe and compare these, clean them up, etc.)
+<p>
+<H2>Identity-preserving table serialization by Metalua</H2>
+<p>
+This example doesn't focus on the readability of the serialized table. Instead, and contrary to other examples in this page, it conserves shared sub-structures. Here's an example of a test that would be passed by metalua serialization, but not by pretty-printers:
+<pre class="code">
+&gt; x={ 1 }
+
+&gt; x[2] = x
+
+&gt; x[x] = 3
+
+&gt; x[3]={ <span class="string">'indirect recursion'</span>, [x]=x }
+
+&gt; y = { x, x }
+
+&gt; x.y = y
+
+&gt; <span class="library">assert</span> (y[1] == y[2])
+
+&gt; s = serialize (x)
+
+&gt; z = <span class="library">loadstring</span> (s)()
+
+&gt; <span class="library">assert</span> (z.y[1] == z.y[2])
+
+&gt; =s
+
+<span class="keyword">local</span> _={ }
+
+_[1]={ <span class="string">"indirect recursion"</span> }
+
+_[2]={ <span class="keyword">false</span>, <span class="keyword">false</span> }
+
+_[3]={ 1, <span class="keyword">false</span>, _[1], [<span class="string">"y"</span>] = _[2] }
+
+_[3][2] = _[3]
+
+_[1][_[3]] = _[3]
+
+_[3][_[3]] = 3
+
+_[2][1] = _[3]
+
+_[2][2] = _[3]
+
+<span class="keyword">return</span> _[3]
+
+&gt;
+
+</pre>
+
+<p>
+Sources for this serializer are available on the <a href="../wiki/MetaLua.html" >MetaLua</a> repository: <a href="http://github.com/fab13n/metalua/tree/no-dll/src/lib/serialize.lua">[2]</a>. 
+<p>
+<H2>Metalua table.tostring and table.print</H2>
+<p>
+These functions are intended for pretty-printing rather than serialization: they don't preserve identity. They will terminate, though: if a table references itself, the inner occurrence will be printed as "[table: 0x12345678]" in order do avoid infinite recursion.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"table2"</span>
+
+<span class="library">require</span> <span class="string">"string2"</span>
+
+
+
+<span class="keyword">local</span> u = {9}
+
+<span class="keyword">local</span> t = {2, <span class="string">"3\"4"</span>, {5, 6}, x=<span class="keyword">function</span>() <span class="keyword">end</span>, [u]=u}
+
+
+
+<span class="library">table.print</span>(t)
+
+<span class="comment">--&gt; { [{ 9 }] = { 9 }, x = function: 0x6a2870, 2, "3\"4", { 5, 6 } }</span>
+
+<span class="library">table.print</span>(t, <span class="string">'nohash'</span>)
+
+<span class="comment">--&gt; { 2, "3\"4", { 5, 6 } }</span>
+
+<span class="library">table.print</span>(t, <span class="string">'nohash'</span>, 10)
+
+<span class="comment">--&gt; { 2,</span>
+
+<span class="comment">--    "3\"4",</span>
+
+<span class="comment">--    { 5, 6 } }</span>
+
+
+
+<span class="comment">-- The `tag' field is particularly important in metalua, to represent tree-like structures.</span>
+
+<span class="comment">-- As such, it has got a special syntax, introduced by a back-quote "`",</span>
+
+<span class="comment">-- which is rendered by default by metalua's pretty printers.</span>
+
+<span class="keyword">local</span> t = {tag=<span class="string">'Sum'</span>, 1, {tag=<span class="string">'Product'</span>, 2, 3}, lines={10,11}}
+
+
+
+<span class="library">table.print</span>(t)
+
+<span class="comment">--&gt; `Sum{ lines = { 10, 11 }, 1, `Product{ 2, 3 } } -- metalua tag syntax</span>
+
+<span class="library">table.print</span>(t, <span class="string">'nohash'</span>)
+
+<span class="comment">--&gt; `Sum{ 1, `Product{ 2, 3 } }</span>
+
+<span class="library">table.print</span>(t, <span class="string">'nohash'</span>, 10)  <span class="comment">-- metalua tag syntax</span>
+
+<span class="comment">--&gt; `Sum{ 1,</span>
+
+<span class="comment">--        `Product{ 2,</span>
+
+<span class="comment">--                  3 } }</span>
+
+
+
+<span class="comment">-- tags syntax can be disabled:</span>
+
+<span class="library">table.print</span>(t, <span class="string">'nohash'</span>, <span class="string">'notag'</span>)
+
+<span class="comment">--&gt; { tag = "Sum", 1, { tag = "Product", 2, 3 } }  -- tag syntax disabled</span>
+
+
+
+<span class="comment">-- Note: table.print(t, ...) is equivalent to print(table.tostring(t, ...)).</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H3>Print a table recursively</H3>
+<p>
+<em>ISSUE: this should return a string rather than assume how the user wants to output the text.</em>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Print anything - including nested tables</span>
+
+<span class="keyword">function</span> table_print (tt, indent, done)
+
+  done = done <span class="keyword">or</span> {}
+
+  indent = indent <span class="keyword">or</span> 0
+
+  <span class="keyword">if</span> <span class="library">type</span>(tt) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+    <span class="keyword">for</span> key, value <span class="keyword">in</span> <span class="library">pairs</span> (tt) <span class="keyword">do</span>
+
+      <span class="library">io.write</span>(<span class="library">string.rep</span> (<span class="string">" "</span>, indent)) <span class="comment">-- indent it</span>
+
+      <span class="keyword">if</span> <span class="library">type</span> (value) == <span class="string">"table"</span> <span class="keyword">and</span> <span class="keyword">not</span> done [value] <span class="keyword">then</span>
+
+        done [value] = <span class="keyword">true</span>
+
+        <span class="library">io.write</span>(<span class="library">string.format</span>(<span class="string">"[%s] =&gt; table\n"</span>, <span class="library">tostring</span> (key)));
+
+        <span class="library">io.write</span>(<span class="library">string.rep</span> (<span class="string">" "</span>, indent+4)) <span class="comment">-- indent it</span>
+
+        <span class="library">io.write</span>(<span class="string">"(\n"</span>);
+
+        table_print (value, indent + 7, done)
+
+        <span class="library">io.write</span>(<span class="library">string.rep</span> (<span class="string">" "</span>, indent+4)) <span class="comment">-- indent it</span>
+
+        <span class="library">io.write</span>(<span class="string">")\n"</span>);
+
+      <span class="keyword">else</span>
+
+        <span class="library">io.write</span>(<span class="library">string.format</span>(<span class="string">"[%s] =&gt; %s\n"</span>,
+
+            <span class="library">tostring</span> (key), <span class="library">tostring</span>(value)))
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    <span class="library">io.write</span>(tt .. <span class="string">"\n"</span>)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Universal tostring
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> table_print (tt, indent, done)
+
+  done = done <span class="keyword">or</span> {}
+
+  indent = indent <span class="keyword">or</span> 0
+
+  <span class="keyword">if</span> <span class="library">type</span>(tt) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> sb = {}
+
+    <span class="keyword">for</span> key, value <span class="keyword">in</span> <span class="library">pairs</span> (tt) <span class="keyword">do</span>
+
+      <span class="library">table.insert</span>(sb, <span class="library">string.rep</span> (<span class="string">" "</span>, indent)) <span class="comment">-- indent it</span>
+
+      <span class="keyword">if</span> <span class="library">type</span> (value) == <span class="string">"table"</span> <span class="keyword">and</span> <span class="keyword">not</span> done [value] <span class="keyword">then</span>
+
+        done [value] = <span class="keyword">true</span>
+
+        <span class="library">table.insert</span>(sb, <span class="string">"{\n"</span>);
+
+        <span class="library">table.insert</span>(sb, table_print (value, indent + 2, done))
+
+        <span class="library">table.insert</span>(sb, <span class="library">string.rep</span> (<span class="string">" "</span>, indent)) <span class="comment">-- indent it</span>
+
+        <span class="library">table.insert</span>(sb, <span class="string">"}\n"</span>);
+
+      <span class="keyword">elseif</span> <span class="string">"number"</span> == <span class="library">type</span>(key) <span class="keyword">then</span>
+
+        <span class="library">table.insert</span>(sb, <span class="library">string.format</span>(<span class="string">"\"%s\"\n"</span>, <span class="library">tostring</span>(value)))
+
+      <span class="keyword">else</span>
+
+        <span class="library">table.insert</span>(sb, <span class="library">string.format</span>(
+
+            <span class="string">"%s = \"%s\"\n"</span>, <span class="library">tostring</span> (key), <span class="library">tostring</span>(value)))
+
+       <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="library">table.concat</span>(sb)
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">return</span> tt .. <span class="string">"\n"</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> to_string( tbl )
+
+    <span class="keyword">if</span>  <span class="string">"nil"</span>       == <span class="library">type</span>( tbl ) <span class="keyword">then</span>
+
+        <span class="keyword">return</span> <span class="library">tostring</span>(<span class="keyword">nil</span>)
+
+    <span class="keyword">elseif</span>  <span class="string">"table"</span> == <span class="library">type</span>( tbl ) <span class="keyword">then</span>
+
+        <span class="keyword">return</span> table_print(tbl)
+
+    <span class="keyword">elseif</span>  <span class="string">"string"</span> == <span class="library">type</span>( tbl ) <span class="keyword">then</span>
+
+        <span class="keyword">return</span> tbl
+
+    <span class="keyword">else</span>
+
+        <span class="keyword">return</span> <span class="library">tostring</span>(tbl)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<strong>Example</strong>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(to_string{
+
+  <span class="string">"Lua"</span>,user=<span class="string">"Mariacher"</span>,
+
+  {{co=<span class="library">coroutine.create</span>(<span class="keyword">function</span>() <span class="keyword">end</span>),{number=12345.6789}},
+
+   func=<span class="keyword">function</span>() <span class="keyword">end</span>}, boolt=<span class="keyword">true</span>} )
+
+</pre>
+
+</DL>
+<p>
+This prints
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="string">"Lua"</span>
+
+{
+
+  {
+
+    {
+
+      number = <span class="string">"12345.6789"</span>
+
+    }
+
+    co = <span class="string">"thread: 0212B848"</span>
+
+  }
+
+  func = <span class="string">"function: 01FC7C70"</span>
+
+}
+
+boolt = <span class="string">"true"</span>
+
+user = <span class="string">"Mariacher"</span>
+
+</pre>
+
+</DL>
+<p>
+(the above code was originally from Table<code></code>Utils)
+<p>
+<H2>PHP-like print_r</H2>
+<p>
+Based on <a href="http://www.php.net/print_r">[PHP print_r]</a>.  Based on code by Nick Gammon, hacked by <a href="../wiki/DracoBlue.html" >DracoBlue</a> to fit to <a href="http://www.php.net/print_r">[PHP print_r]</a>-Style.
+<p>
+Example: <code>print_r{ 5,3,{5,3} } --&gt; </code>
+<DL>
+<dt><dd><pre>
+
+[1] =&gt; 5
+
+[2] =&gt; 3
+
+[3] =&gt; Table 
+
+   {
+
+     [1] =&gt; 5
+
+     [2] =&gt; 3
+
+   }
+
+</pre>
+</DL>
+<p>
+Compatibility: Lua 5.0 and 5.1
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> print_r (t, indent, done)
+
+  done = done <span class="keyword">or</span> {}
+
+  indent = indent <span class="keyword">or</span> <span class="string">''</span>
+
+  <span class="keyword">local</span> nextIndent <span class="comment">-- Storage for next indentation value</span>
+
+  <span class="keyword">for</span> key, value <span class="keyword">in</span> <span class="library">pairs</span> (t) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> <span class="library">type</span> (value) == <span class="string">"table"</span> <span class="keyword">and</span> <span class="keyword">not</span> done [value] <span class="keyword">then</span>
+
+      nextIndent = nextIndent <span class="keyword">or</span>
+
+          (indent .. <span class="library">string.rep</span>(<span class="string">' '</span>,<span class="library">string.len</span>(<span class="library">tostring</span> (key))+2))
+
+          <span class="comment">-- Shortcut conditional allocation</span>
+
+      done [value] = <span class="keyword">true</span>
+
+      <span class="library">print</span> (indent .. <span class="string">"["</span> .. <span class="library">tostring</span> (key) .. <span class="string">"] =&gt; Table {"</span>);
+
+      <span class="library">print</span>  (nextIndent .. <span class="string">"{"</span>);
+
+      print_r (value, nextIndent .. <span class="library">string.rep</span>(<span class="string">' '</span>,2), done)
+
+      <span class="library">print</span>  (nextIndent .. <span class="string">"}"</span>);
+
+    <span class="keyword">else</span>
+
+      <span class="library">print</span>  (indent .. <span class="string">"["</span> .. <span class="library">tostring</span> (key) .. <span class="string">"] =&gt; "</span> .. <span class="library">tostring</span> (value)..<span class="string">""</span>)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> print_r (t, indent) <span class="comment">-- alt version, abuse to http://richard.warburton.it</span>
+
+  <span class="keyword">local</span> indent=indent <span class="keyword">or</span> <span class="string">''</span>
+
+  <span class="keyword">for</span> key,value <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+    <span class="library">io.write</span>(indent,<span class="string">'['</span>,<span class="library">tostring</span>(key),<span class="string">']'</span>) 
+
+    <span class="keyword">if</span> <span class="library">type</span>(value)==<span class="string">"table"</span> <span class="keyword">then</span> <span class="library">io.write</span>(<span class="string">':\n'</span>) print_r(value,indent..<span class="string">'\t'</span>)
+
+    <span class="keyword">else</span> <span class="library">io.write</span>(<span class="string">' = '</span>,<span class="library">tostring</span>(value),<span class="string">'\n'</span>) <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- alt version2, handles cycles, functions, booleans, etc</span>
+
+<span class="comment">--  - abuse to http://richard.warburton.it</span>
+
+<span class="comment">-- output almost identical to print(table.show(t)) below.</span>
+
+<span class="keyword">function</span> print_r (t, name, indent)
+
+  <span class="keyword">local</span> tableList = {}
+
+  <span class="keyword">function</span> table_r (t, name, indent, full)
+
+    <span class="keyword">local</span> serial=<span class="library">string.len</span>(full) == 0 <span class="keyword">and</span> name
+
+        <span class="keyword">or</span> <span class="library">type</span>(name)~=<span class="string">"number"</span> <span class="keyword">and</span> <span class="string">'["'</span>..<span class="library">tostring</span>(name)..<span class="string">'"]'</span> <span class="keyword">or</span> <span class="string">'['</span>..name..<span class="string">']'</span>
+
+    <span class="library">io.write</span>(indent,serial,<span class="string">' = '</span>) 
+
+    <span class="keyword">if</span> <span class="library">type</span>(t) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+      <span class="keyword">if</span> tableList[t] ~= <span class="keyword">nil</span> <span class="keyword">then</span> <span class="library">io.write</span>(<span class="string">'{}; -- '</span>,tableList[t],<span class="string">' (self reference)\n'</span>)
+
+      <span class="keyword">else</span>
+
+        tableList[t]=full..serial
+
+        <span class="keyword">if</span> <span class="library">next</span>(t) <span class="keyword">then</span> <span class="comment">-- Table not empty</span>
+
+          <span class="library">io.write</span>(<span class="string">'{\n'</span>)
+
+          <span class="keyword">for</span> key,value <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span> table_r(value,key,indent..<span class="string">'\t'</span>,full..serial) <span class="keyword">end</span> 
+
+          <span class="library">io.write</span>(indent,<span class="string">'};\n'</span>)
+
+        <span class="keyword">else</span> <span class="library">io.write</span>(<span class="string">'{};\n'</span>) <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">else</span> <span class="library">io.write</span>(<span class="library">type</span>(t)~=<span class="string">"number"</span> <span class="keyword">and</span> <span class="library">type</span>(t)~=<span class="string">"boolean"</span> <span class="keyword">and</span> <span class="string">'"'</span>..<span class="library">tostring</span>(t)..<span class="string">'"'</span>
+
+                  <span class="keyword">or</span> <span class="library">tostring</span>(t),<span class="string">';\n'</span>) <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  table_r(t,name <span class="keyword">or</span> <span class="string">'__unnamed__'</span>,indent <span class="keyword">or</span> <span class="string">''</span>,<span class="string">''</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Here is a more complete version of print_r:
+<p>
+Sorry for the length!
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--[[
+
+   Author: Julio Manuel Fernandez-Diaz
+
+   Date:   January 12, 2007
+
+   (For Lua 5.1)
+
+   
+
+   Modified slightly by RiciLake to avoid the unnecessary table traversal in tablecount()
+
+
+
+   Formats tables with cycles recursively to any depth.
+
+   The output is returned as a string.
+
+   References to other tables are shown as values.
+
+   Self references are indicated.
+
+
+
+   The string returned is "Lua code", which can be procesed
+
+   (in the case in which indent is composed by spaces or "--").
+
+   Userdata and function keys and values are shown as strings,
+
+   which logically are exactly not equivalent to the original code.
+
+
+
+   This routine can serve for pretty formating tables with
+
+   proper indentations, apart from printing them:
+
+
+
+      print(table.show(t, "t"))   -- a typical use
+
+   
+
+   Heavily based on "Saving tables with cycles", PIL2, p. 113.
+
+
+
+   Arguments:
+
+      t is the table.
+
+      name is the name of the table (optional)
+
+      indent is a first indentation (optional).
+
+--]]</span>
+
+<span class="keyword">function</span> <span class="library">table.show</span>(t, name, indent)
+
+   <span class="keyword">local</span> cart     <span class="comment">-- a container</span>
+
+   <span class="keyword">local</span> autoref  <span class="comment">-- for self references</span>
+
+
+
+   <span class="comment">--[[ counts the number of elements in a table
+
+   local function tablecount(t)
+
+      local n = 0
+
+      for _, _ in pairs(t) do n = n+1 end
+
+      return n
+
+   end
+
+   ]]</span>
+
+   <span class="comment">-- (RiciLake) returns true if the table is empty</span>
+
+   <span class="keyword">local</span> <span class="keyword">function</span> isemptytable(t) <span class="keyword">return</span> <span class="library">next</span>(t) == <span class="keyword">nil</span> <span class="keyword">end</span>
+
+
+
+   <span class="keyword">local</span> <span class="keyword">function</span> basicSerialize (o)
+
+      <span class="keyword">local</span> so = <span class="library">tostring</span>(o)
+
+      <span class="keyword">if</span> <span class="library">type</span>(o) == <span class="string">"function"</span> <span class="keyword">then</span>
+
+         <span class="keyword">local</span> info = <span class="library">debug.getinfo</span>(o, <span class="string">"S"</span>)
+
+         <span class="comment">-- info.name is nil because o is not a calling level</span>
+
+         <span class="keyword">if</span> info.what == <span class="string">"C"</span> <span class="keyword">then</span>
+
+            <span class="keyword">return</span> <span class="library">string.format</span>(<span class="string">"%q"</span>, so .. <span class="string">", C function"</span>)
+
+         <span class="keyword">else</span> 
+
+            <span class="comment">-- the information is defined through lines</span>
+
+            <span class="keyword">return</span> <span class="library">string.format</span>(<span class="string">"%q"</span>, so .. <span class="string">", defined in ("</span> ..
+
+                info.linedefined .. <span class="string">"-"</span> .. info.lastlinedefined ..
+
+                <span class="string">")"</span> .. info.source)
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">elseif</span> <span class="library">type</span>(o) == <span class="string">"number"</span> <span class="keyword">or</span> <span class="library">type</span>(o) == <span class="string">"boolean"</span> <span class="keyword">then</span>
+
+         <span class="keyword">return</span> so
+
+      <span class="keyword">else</span>
+
+         <span class="keyword">return</span> <span class="library">string.format</span>(<span class="string">"%q"</span>, so)
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">local</span> <span class="keyword">function</span> addtocart (value, name, indent, saved, field)
+
+      indent = indent <span class="keyword">or</span> <span class="string">""</span>
+
+      saved = saved <span class="keyword">or</span> {}
+
+      field = field <span class="keyword">or</span> name
+
+
+
+      cart = cart .. indent .. field
+
+
+
+      <span class="keyword">if</span> <span class="library">type</span>(value) ~= <span class="string">"table"</span> <span class="keyword">then</span>
+
+         cart = cart .. <span class="string">" = "</span> .. basicSerialize(value) .. <span class="string">";\n"</span>
+
+      <span class="keyword">else</span>
+
+         <span class="keyword">if</span> saved[value] <span class="keyword">then</span>
+
+            cart = cart .. <span class="string">" = {}; -- "</span> .. saved[value] 
+
+                        .. <span class="string">" (self reference)\n"</span>
+
+            autoref = autoref ..  name .. <span class="string">" = "</span> .. saved[value] .. <span class="string">";\n"</span>
+
+         <span class="keyword">else</span>
+
+            saved[value] = name
+
+            <span class="comment">--if tablecount(value) == 0 then</span>
+
+            <span class="keyword">if</span> isemptytable(value) <span class="keyword">then</span>
+
+               cart = cart .. <span class="string">" = {};\n"</span>
+
+            <span class="keyword">else</span>
+
+               cart = cart .. <span class="string">" = {\n"</span>
+
+               <span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">pairs</span>(value) <span class="keyword">do</span>
+
+                  k = basicSerialize(k)
+
+                  <span class="keyword">local</span> fname = <span class="library">string.format</span>(<span class="string">"%s[%s]"</span>, name, k)
+
+                  field = <span class="library">string.format</span>(<span class="string">"[%s]"</span>, k)
+
+                  <span class="comment">-- three spaces between levels</span>
+
+                  addtocart(v, fname, indent .. <span class="string">"   "</span>, saved, field)
+
+               <span class="keyword">end</span>
+
+               cart = cart .. indent .. <span class="string">"};\n"</span>
+
+            <span class="keyword">end</span>
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+
+
+   name = name <span class="keyword">or</span> <span class="string">"__unnamed__"</span>
+
+   <span class="keyword">if</span> <span class="library">type</span>(t) ~= <span class="string">"table"</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> name .. <span class="string">" = "</span> .. basicSerialize(t)
+
+   <span class="keyword">end</span>
+
+   cart, autoref = <span class="string">""</span>, <span class="string">""</span>
+
+   addtocart(t, name, indent)
+
+   <span class="keyword">return</span> cart .. autoref
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+A test:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-----------------------------------------------------------</span>
+
+<span class="comment">--- testing table.show</span>
+
+
+
+t = {1, {2, 3, 4}, default = {<span class="string">"a"</span>, <span class="string">"b"</span>, d = {12, <span class="string">"w"</span>}, e = 14}}
+
+t.g = t.default
+
+
+
+<span class="library">print</span>(<span class="string">"-----------------------------------"</span>)
+
+<span class="library">print</span>(<span class="library">table.show</span>(t))                <span class="comment">-- shows __unnamed__ table</span>
+
+
+
+tt = {1, h = {[<span class="string">"p-q"</span>] = <span class="string">"a"</span>, b = <span class="string">"e"</span>, c = {color = 3, name = <span class="string">"abc"</span>}}, 2}
+
+
+
+f = <span class="library">table.show</span>
+
+tt[f] = <span class="string">"OK"</span>
+
+
+
+<span class="library">print</span>(<span class="string">"-----------------------------------"</span>)
+
+<span class="library">print</span>(<span class="library">table.show</span>(tt, <span class="string">"tt"</span>, <span class="string">"--oo-- "</span>)) <span class="comment">-- shows some initial 'indent'</span>
+
+
+
+t.m = {}
+
+t.g.a = {}
+
+t.g.a.c = t
+
+t.tt = tt.new
+
+t.show = <span class="library">table.show</span>
+
+
+
+<span class="library">print</span>(<span class="string">"-----------------------------------"</span>)
+
+<span class="library">print</span>(<span class="library">table.show</span>(t, <span class="string">"t"</span>))            <span class="comment">-- most typical use</span>
+
+
+
+<span class="library">print</span>(<span class="string">"-----------------------------------"</span>)
+
+<span class="library">print</span>(<span class="library">table.show</span>(<span class="library">math.tan</span>, <span class="string">"tan"</span>))   <span class="comment">-- not a table is OK</span>
+
+
+
+<span class="library">print</span>(<span class="string">"-----------------------------------"</span>)
+
+s = <span class="string">"a string"</span>
+
+<span class="library">print</span>(<span class="library">table.show</span>(s, <span class="string">"s"</span>))            <span class="comment">-- not a table is OK</span>
+
+</pre>
+
+</DL>
+<p>
+The output:
+<p>
+<DL>
+<dt><dd><pre>
+
+-----------------------------------
+
+__unnamed__ = {
+
+   [1] = 1;
+
+   [2] = {
+
+      [1] = 2;
+
+      [2] = 3;
+
+      [3] = 4;
+
+   };
+
+   ["default"] = {
+
+      [1] = "a";
+
+      [2] = "b";
+
+      ["e"] = 14;
+
+      ["d"] = {
+
+         [1] = 12;
+
+         [2] = "w";
+
+      };
+
+   };
+
+   ["g"] = {}; -- __unnamed__["default"] (self reference)
+
+};
+
+__unnamed__["g"] = __unnamed__["default"];
+
+
+
+-----------------------------------
+
+--oo-- tt = {
+
+--oo--    [1] = 1;
+
+--oo--    [2] = 2;
+
+--oo--    ["function: 0x8070e20, defined in (28-99)@newprint_r.lua"] = "OK";
+
+--oo--    ["h"] = {
+
+--oo--       ["b"] = "e";
+
+--oo--       ["c"] = {
+
+--oo--          ["color"] = 3;
+
+--oo--          ["name"] = "abc";
+
+--oo--       };
+
+--oo--       ["p-q"] = "a";
+
+--oo--    };
+
+--oo-- };
+
+
+
+-----------------------------------
+
+t = {
+
+   [1] = 1;
+
+   [2] = {
+
+      [1] = 2;
+
+      [2] = 3;
+
+      [3] = 4;
+
+   };
+
+   ["m"] = {};
+
+   ["show"] = "function: 0x8070e20, defined in (28-99)@newprint_r.lua";
+
+   ["g"] = {
+
+      [1] = "a";
+
+      [2] = "b";
+
+      ["e"] = 14;
+
+      ["d"] = {
+
+         [1] = 12;
+
+         [2] = "w";
+
+      };
+
+      ["a"] = {
+
+         ["c"] = {}; -- t (self reference)
+
+      };
+
+   };
+
+   ["default"] = {}; -- t["g"] (self reference)
+
+};
+
+t["g"]["a"]["c"] = t;
+
+t["default"] = t["g"];
+
+
+
+-----------------------------------
+
+tan = "function: 0x806f758, C function"
+
+-----------------------------------
+
+s = "a string"
+
+</pre>
+</DL>
+<p>
+(the above code originally existed in <a href="../wiki/MakingLuaLikePhp.html" >MakingLuaLikePhp</a>)
+<p>
+<DL>
+<dt><dd>Warning: the above does not work properly as shown here:
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+x = {1, 2, 3}
+
+x[x]=x
+
+print(table.show(x))
+
+
+
+--[[output:
+
+__unnamed__ = {
+
+   [1] = 1;
+
+   [2] = 2;
+
+   [3] = 3;
+
+   ["table: 0x695f08"] = {}; -- __unnamed__ (self reference)
+
+};
+
+__unnamed__["table: 0x695f08"] = __unnamed__;
+
+--]]
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TableSerialization" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TableSerialization" >history</a><br>Last edited July 14, 2014 11:54 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TableSerialization" >(diff)</a>
+</body>
+</html>

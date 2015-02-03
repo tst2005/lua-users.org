@@ -1,0 +1,209 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Sleep Function</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SleepFunction&amp;body=1" title="List pages referring to SleepFunction">Sleep Function</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+A common need is to pause (sleep) a program for a certain number of seconds, preferably without busy waiting.
+<p>
+This function to do this without busy waiting does not exist in ANSI C, so it does not exist in stock Lua.  However, there are extension libraries and calls to external programs that can do this.
+<p>
+<H3>Solution: Busy Wait</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> clock = <span class="library">os.clock</span>
+
+<span class="keyword">function</span> sleep(n)  <span class="comment">-- seconds</span>
+
+  <span class="keyword">local</span> t0 = clock()
+
+  <span class="keyword">while</span> clock() - t0 &lt;= n <span class="keyword">do</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- warning: clock can eventually wrap around for sufficiently large n</span>
+
+<span class="comment">-- (whose value is platform dependent).  Even for n == 1, clock() - t0</span>
+
+<span class="comment">-- might become negative on the second that clock wraps.</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Solution: C extension</H3>
+<p>
+There is a sleep function in <a href="../wiki/ExtensionProposal.html" >ExtensionProposal</a>.  This may call Win32 Sleep or POSIX usleep.  Here's a <a href="http://www.troubleshooters.com/codecorn/lua/lua_lua_calls_c.htm#_Make_an_msleep_Function">[usleep/sleep C wrapper]</a> example.
+<p>
+The <a href="../wiki/LuaApr.html" >LuaApr</a> binding has an <a href="http://peterodding.com/code/lua/apr/docs/#apr.sleep">[apr.sleep()]</a> function that works on Windows &amp; UNIX and supports sub-second resolution.
+<p>
+The lalarm library<a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/">[1]</a> can set an alarm on POSIX.
+<p>
+winapi (Windows only) has a <a href="http://stevedonovan.github.com/winapi/api.html#sleep">[sleep]</a> function. <a href="https://github.com/stevedonovan/winapi">[github]</a>
+<p>
+If an FFI interface (Alien or c/invoke -- <a href="../wiki/BindingCodeToLua.html" >BindingCodeToLua</a>) is available, you can call whichever OS function you have.
+<p>
+<H3>Solution: sleep command</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> sleep(n)
+
+  <span class="library">os.execute</span>(<span class="string">"sleep "</span> .. <span class="library">tonumber</span>(n))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Windows does not have such a built-in command.  However, there's a sleep in the Windows Server Resource Kit.  There is also sleep in Cygwin and MinGW. Also, there is "timeout" utility available in Windows 7
+<p>
+<pre class="code">
+  <span class="library">os.execute</span>(<span class="string">"timeout "</span> .. <span class="library">tonumber</span>(n)) <span class="comment">-- specific to win7 (and probably higher) </span>
+
+</pre>
+
+<p>
+<H3>Solution: ping or other programs</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> sleep(n)
+
+  <span class="keyword">if</span> n &gt; 0 <span class="keyword">then</span> <span class="library">os.execute</span>(<span class="string">"ping -n "</span> .. <span class="library">tonumber</span>(n+1) .. <span class="string">" localhost &gt; NUL"</span>) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- version 20100715 - fixed off-by-one second</span>
+
+</pre>
+
+</DL>
+<p>
+This is mainly for Windows in the absence of a sleep command.  Other variations exist, e.g. <code>"perl -e 'sleep(" .. tonumber(n) .. ")'"</code> or <code>"php -r sleep(" .. tonumber(n) .. ");"</code>.
+<p>
+<H3>Solution: I/O wait</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">io.stdin</span>:read<span class="string">'*l'</span>
+
+</pre>
+
+</DL>
+<p>
+This is not a sleep but may be useful in similar cases.  It waits for the user to press the Enter key.
+<p>
+<H3>Solution: Using WScript (Windows)</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> sleep(n)
+
+  <span class="keyword">local</span> vb = <span class="string">"test.vbs"</span>
+
+  <span class="keyword">local</span> f = <span class="library">assert</span>(<span class="library">io.open</span>(vb,<span class="string">"w"</span>))
+
+  f:write(<span class="string">"WScript.Sleep("</span> .. (<span class="library">tonumber</span>(n) * 1000) .. <span class="string">")\n"</span>)
+
+  f:close()
+
+  <span class="library">os.execute</span>(vb)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+See <a href="/lists/lua-l/2008-03/msg00226.html">[2]</a>.
+<p>
+<H3>Solution: sleep()</H3>
+<p>
+The POSIX sleep() call provides integer second sleeps.
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"posix"</span>
+
+
+
+posix.sleep(3)
+
+</pre>
+
+</DL>
+<p>
+<H3>Solution: select()</H3>
+<p>
+The select() timeout provides a fairly portable sub-second sleep, if you can tolerate the socket library dependency.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"socket"</span>
+
+
+
+<span class="keyword">function</span> sleep(sec)
+
+    socket.select(<span class="keyword">nil</span>, <span class="keyword">nil</span>, sec)
+
+<span class="keyword">end</span>
+
+
+
+sleep(0.2)
+
+</pre>
+
+</DL>
+<p>
+See <a href="http://article.gmane.org/gmane.comp.lang.lua.general/75676">[more select comments]</a>.
+<p>
+<H3>Solution: LuaJIT FFI/LuaFFI</H3>
+<p>
+<pre class="code">
+<span class="keyword">local</span> ffi = <span class="library">require</span> <span class="string">"ffi"</span>
+
+ffi.cdef <span class="string">"unsigned int sleep(unsigned int seconds);"</span>
+
+ffi.C.sleep(2)
+
+</pre>
+
+<p>
+<H3>See Also</H3>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2008-03/msg00209.html">LuaList:2008-03/msg00209.html</a>
+<li> <a href="http://code.google.com/p/lua-ex-api/">http://code.google.com/p/lua-ex-api/</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SleepFunction" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SleepFunction" >history</a><br>Last edited January 4, 2014 10:16 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SleepFunction" >(diff)</a>
+</body>
+</html>

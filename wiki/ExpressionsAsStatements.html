@@ -1,0 +1,152 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Expressions As Statements</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ExpressionsAsStatements&amp;body=1" title="List pages referring to ExpressionsAsStatements">Expressions As Statements</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+In some languages, various common idioms are made possible by the allowance of expressions to be used as statements.  A Perl example:
+<p>
+<DL>
+<dt><dd><pre>
+
+f() or die("fail");   # short alternative to unless (f()) { die("fail"); }
+
+</pre>
+</DL>
+<p>
+In Lua, this does not work since expressions cannot be used as statements:
+<p>
+<DL>
+<dt><dd><pre class="code">
+f() <span class="keyword">or</span> <span class="library">error</span>(<span class="string">"fail"</span>)  <span class="comment">-- syntax error</span>
+
+</pre>
+
+</DL>
+<p>
+Lua chooses this behavior to avoid ambiguities in the language.
+<p>
+<DL>
+<dt><dd><pre class="code">
+a = b - c
+
+<span class="comment">-- Could this be "a = b; -c;"?</span>
+
+a = b
+
+-c
+
+<span class="comment">-- Could this be "a = b - c"?</span>
+
+</pre>
+
+</DL>
+<p>
+Still, there may be some ways to achieve a similar effect in Lua:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- method #1</span>
+
+<span class="keyword">local</span> _ = f() <span class="keyword">or</span> <span class="library">error</span>(<span class="string">"fail"</span>)
+
+
+
+<span class="comment">-- method #2</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> E() <span class="keyword">end</span>
+
+E(f() <span class="keyword">or</span> <span class="library">error</span>(<span class="string">"fail"</span>))
+
+
+
+<span class="comment">-- method #3</span>
+
+<span class="comment">-- This is not much better than if not f() then error("fail") end</span>
+
+<span class="keyword">if</span> f() <span class="keyword">or</span> <span class="library">error</span>(<span class="string">"fail"</span>) <span class="keyword">then</span> <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+In method #1, the result is assigned to a variable named "<code>_</code>" that is not used.  The name "<code>_</code>" has no special meaning to Lua, and we could choose any other name, but <code>_</code> is conventionally used when we want to ignore a value as in the idiom below, so this choice makes semantic sense.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span> <span class="library">print</span>(v) <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Even though it goes against the terseness we desire, the <code>local</code> keyword is added to limit the scope and avoid and global variable side effect (local is implicit in the for loop variables above).
+<p>
+Another possiblility (--<a href="../wiki/RiciLake.html" >RiciLake</a>) is
+<p>
+<DL>
+<dt><dd><pre class="code">
+(f <span class="keyword">or</span> Nil)()  <span class="comment">-- similar to f and f() as well as if f then f() end</span>
+
+</pre>
+
+</DL>
+<p>
+Here's another pathological workaround by <a href="../wiki/RiciLake.html" >RiciLake</a> <a href="http://lua-users.org/lists/lua-l/2007-01/msg00001.html">[1]</a>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">repeat</span> <span class="keyword">until</span> nsfm:fileExistsAtPath(testfile)
+
+   <span class="keyword">or</span> Shriek <span class="string">"File doesn't exist"</span>
+
+</pre>
+
+</DL>
+<p>
+The Perl-like syntax can be added in Metalua--see "Expressions as Statements" in <a href="../wiki/MetaLuaRecipes.html" >MetaLuaRecipes</a>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+-{ extension <span class="string">'expressionstatements'</span> }
+
+f() <span class="keyword">or</span> <span class="library">error</span> <span class="string">'failed!'</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/StatementsInExpressions.html" >StatementsInExpressions</a> - sort of the reverse of this
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ExpressionsAsStatements" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ExpressionsAsStatements" >history</a><br>Last edited March 19, 2009 12:25 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ExpressionsAsStatements" >(diff)</a>
+</body>
+</html>

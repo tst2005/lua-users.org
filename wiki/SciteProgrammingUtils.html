@@ -1,0 +1,413 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Programming Utils</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteProgrammingUtils&amp;body=1" title="List pages referring to SciteProgrammingUtils">Scite Programming Utils</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+A few simple scripts for C programmers from a lua newbie. Work in Progress!
+<p>
+To do: more expand functions (for, while, if, switch, structs), correct indentation for expand (right now everything must start at the first column), svn support, etc.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--Author: Christoph Schreiber &lt;c.schreiber at rindergesundheit dot at&gt;</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> tokenize(str, delim)
+
+    result = {}
+
+
+
+    <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+        <span class="keyword">local</span> cp = <span class="library">string.find</span>(str, delim)
+
+
+
+        <span class="keyword">if</span> <span class="keyword">not</span> cp <span class="keyword">then</span>
+
+            <span class="library">table.insert</span>(result, str)
+
+            <span class="keyword">return</span> result
+
+        <span class="keyword">end</span>
+
+
+
+        <span class="library">table.insert</span>(result, <span class="library">string.sub</span>(str, 1, cp - 1))
+
+        str = <span class="library">string.sub</span>(str, cp + 1)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> expand_cstd_headers(hdrs)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> hdrs[2] <span class="keyword">or</span> hdrs[2] == <span class="string">""</span> <span class="keyword">then</span>
+
+        <span class="library">print</span>(<span class="string">"error: please supply at least one header"</span>)
+
+        <span class="keyword">return</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">for</span> i = 2, <span class="library">table.getn</span>(hdrs) <span class="keyword">do</span>
+
+        editor:AddText(<span class="string">"#include &lt;"</span>..hdrs[i]..<span class="string">".h&gt;\n"</span>)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> expand_c_headers(hdrs)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> hdrs[2] <span class="keyword">or</span> hdrs[2] == <span class="string">""</span> <span class="keyword">then</span>
+
+        <span class="library">print</span>(<span class="string">"error: please supply at least one header"</span>)
+
+        <span class="keyword">return</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">for</span> i = 2, <span class="library">table.getn</span>(hdrs) <span class="keyword">do</span>
+
+        editor:AddText(<span class="string">"#include \""</span>..hdrs[i]..<span class="string">".h\"\n"</span>)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> expand_c_main(offset)
+
+    <span class="keyword">local</span> c_main = {}
+
+
+
+    <span class="library">table.insert</span>(c_main, <span class="string">"int main(int argc, char* argv[])"</span>)
+
+    <span class="library">table.insert</span>(c_main, <span class="string">"{"</span>)
+
+    <span class="library">table.insert</span>(c_main, <span class="string">"\t"</span>)
+
+    <span class="library">table.insert</span>(c_main, <span class="string">""</span>)
+
+    <span class="library">table.insert</span>(c_main, <span class="string">"\treturn 0;"</span>)
+
+    <span class="library">table.insert</span>(c_main, <span class="string">"}"</span>)
+
+
+
+    editor:AddText(<span class="library">table.concat</span>(c_main, <span class="string">"\n"</span>))
+
+    editor:GotoPos(offset + 36)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> expand_c_once(name, line)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> name <span class="keyword">or</span> name == <span class="string">""</span> <span class="keyword">then</span>
+
+        <span class="library">print</span>(<span class="string">"error: please supply a header name"</span>)
+
+        <span class="keyword">return</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">local</span> once = {}
+
+    <span class="keyword">local</span> uname = <span class="library">string.upper</span>(name)
+
+
+
+    <span class="library">table.insert</span>(once, <span class="string">"#ifndef __"</span>..uname..<span class="string">"_H__"</span>)
+
+    <span class="library">table.insert</span>(once, <span class="string">"#define __"</span>..uname..<span class="string">"_H__"</span>)
+
+    <span class="library">table.insert</span>(once, <span class="string">""</span>);
+
+    <span class="library">table.insert</span>(once, <span class="string">""</span>);
+
+    <span class="library">table.insert</span>(once, <span class="string">""</span>);
+
+    <span class="library">table.insert</span>(once, <span class="string">"#endif /* __"</span>..uname..<span class="string">"_H__ */"</span>)
+
+
+
+    editor:AddText(<span class="library">table.concat</span>(once, <span class="string">"\n"</span>))
+
+    editor:GotoLine(line + 3)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> expand_bsd_license(author, year)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> author <span class="keyword">or</span> author == <span class="string">""</span> <span class="keyword">then</span>
+
+        <span class="keyword">if</span> props[<span class="string">"author.full_name"</span>] <span class="keyword">then</span>
+
+            author = props[<span class="string">"author.full_name"</span>]
+
+        <span class="keyword">else</span>
+
+            <span class="library">print</span>(<span class="string">"error: please supply the author's name"</span>)
+
+            <span class="keyword">return</span>
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">local</span> bsd = {}
+
+
+
+    <span class="library">table.insert</span>(bsd, <span class="string">"/*"</span>)
+
+
+
+    <span class="keyword">if</span> year == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+        <span class="library">table.insert</span>(bsd, <span class="string">" * Copyright (c) "</span>..<span class="library">os.date</span>(<span class="string">"%Y"</span>)..<span class="string">" "</span>..author..<span class="string">". All rights reserved."</span>)
+
+    <span class="keyword">else</span>
+
+        <span class="library">table.insert</span>(bsd, <span class="string">" * Copyright (c) "</span>..year..<span class="string">" "</span>..author..<span class="string">". All rights reserved."</span>)
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" *"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * Redistribution and use in source and binary forms, with or without"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * modification, are permitted provided that the following conditions"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * are met:"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" *"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * 1. Redistributions of source code must retain the above copyright"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" *    notice, this list of conditions and the following disclaimer."</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" *"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * 2. Redistributions in binary form must reproduce the above copyright"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" *    notice, this list of conditions and the following disclaimer in the"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" *    documentation and/or other materials provided with the distribution."</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" *"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * THIS SOFTWARE IS PROVIDED BY "</span>..<span class="library">string.upper</span>(author)..<span class="string">" \"AS IS\'' AND"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * ARE DISCLAIMED. IN NO EVENT SHALL "</span>..<span class="library">string.upper</span>(author)..<span class="string">" BE LIABLE"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF"</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" * SUCH DAMAGE."</span>)
+
+    <span class="library">table.insert</span>(bsd, <span class="string">" */"</span>)
+
+
+
+
+
+    editor:AddText(<span class="library">table.concat</span>(bsd, <span class="string">"\n"</span>))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> expand()
+
+    <span class="keyword">local</span> line = editor:LineFromPosition(editor.CurrentPos)
+
+    <span class="keyword">local</span> from = editor:PositionFromLine(line)
+
+    <span class="keyword">local</span> to = editor.CurrentPos
+
+    <span class="keyword">local</span> sel = editor:textrange(from, to)
+
+
+
+    <span class="keyword">if</span> <span class="keyword">not</span> sel <span class="keyword">or</span> sel == <span class="string">""</span> <span class="keyword">then</span>
+
+        <span class="library">print</span>(<span class="string">"error: nothing to expand"</span>)
+
+        <span class="library">print</span>(<span class="string">"valid commands are:"</span>)
+
+        <span class="library">print</span>(<span class="string">"\tmain - C\'s main()"</span>)
+
+        <span class="library">print</span>(<span class="string">"\tstdinc,Header[,Header...] - Standard header files"</span>)
+
+        <span class="library">print</span>(<span class="string">"\tinc,Header[,Header...] - User header files"</span>)
+
+        <span class="library">print</span>(<span class="string">"\tonce,HeaderName - Header guard"</span>)
+
+        <span class="library">print</span>(<span class="string">"\tbsd,Author[,Date] - BSD copyright statement"</span>)
+
+        <span class="keyword">return</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">local</span> args = tokenize(sel, <span class="string">','</span>)
+
+
+
+    editor:SetSel(from, to)
+
+    editor:ReplaceSel(<span class="string">""</span>)
+
+
+
+    <span class="keyword">if</span> args[1] == <span class="string">"stdinc"</span> <span class="keyword">then</span>
+
+        expand_cstd_headers(args)
+
+    <span class="keyword">elseif</span> args[1] == <span class="string">"inc"</span> <span class="keyword">then</span>
+
+        expand_c_headers(args)
+
+    <span class="keyword">elseif</span> args[1] == <span class="string">"main"</span> <span class="keyword">then</span>
+
+        expand_c_main(from)
+
+    <span class="keyword">elseif</span> args[1] == <span class="string">"once"</span> <span class="keyword">then</span>
+
+        expand_c_once(args[2], line)
+
+    <span class="keyword">elseif</span> args[1] == <span class="string">"bsd"</span> <span class="keyword">then</span>
+
+        expand_bsd_license(args[2], args[3])
+
+    <span class="keyword">else</span>
+
+        <span class="library">print</span>(<span class="string">"error: invalid command"</span>)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> hexify_number()
+
+    <span class="keyword">local</span> sel = editor:GetSelText()
+
+
+
+    <span class="keyword">if</span> <span class="keyword">not</span> sel <span class="keyword">or</span> sel == <span class="string">""</span> <span class="keyword">then</span>
+
+        <span class="keyword">return</span>
+
+    <span class="keyword">end</span>
+
+
+
+    editor:ReplaceSel(<span class="library">string.format</span>(<span class="string">'0x%08x'</span>, <span class="library">tonumber</span>(sel)))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> calculate()
+
+    <span class="keyword">local</span> expr = editor:GetSelText()
+
+
+
+    <span class="keyword">if</span> <span class="keyword">not</span> expr <span class="keyword">or</span> expr == <span class="string">""</span> <span class="keyword">then</span>
+
+        <span class="keyword">return</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">local</span> fn, unused = <span class="library">loadstring</span>(<span class="string">"return "</span>..expr)
+
+
+
+    <span class="keyword">if</span> <span class="keyword">not</span> fn <span class="keyword">then</span>
+
+        <span class="library">print</span>(<span class="string">"error: invalid expression"</span>) <span class="keyword">return</span>
+
+    <span class="keyword">end</span>
+
+
+
+    editor:ReplaceSel(<span class="library">tostring</span>(fn()))
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteProgrammingUtils" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteProgrammingUtils" >history</a><br>Last edited July 15, 2007 8:17 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteProgrammingUtils" >(diff)</a>
+</body>
+</html>

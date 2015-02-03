@@ -1,0 +1,160 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Do It Yourself Cpp Binding</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=DoItYourselfCppBinding&amp;body=1" title="List pages referring to DoItYourselfCppBinding">Do It Yourself Cpp Binding</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+When programming my game engine, and specifically integrating Lua from the get-go, I considered quite a few binding generators, such as SWIG, tolua, <a href="../wiki/SimplerCppBinding.html" >SimplerCppBinding</a>, etc. None of them quite served my needs:
+<p>
+<UL>
+<li> I wanted more fine-grained control over how objects were treated by Lua.
+<li> I didn't like the extra indirection from boxing up pointers.
+<li> I wanted to help the compiler as much as possible in inlining code.
+</UL>
+<p>
+Here's a few tricks I've found, mostly in code form, which work together:
+<p>
+<H3>creating metatables</H3>
+<p>
+lauxlib has really, really useful functions for manipulating userdata metatables. Those are adequately covered in the <a href="http://www.lua.org/manual/5.1/manual.html#4">[Lua Auxiliary Library]</a> in the reference manual. I suggest giving each metatable a name identical to the classname; this will enable fun and evil preprocessor tricks like those that follow here. To those unfamiliar with the operator: the # operator in #define statements will cause the following argument to be placed in quotes when the macro is expanded.
+<p>
+<H3>checking argument types</H3>
+<p>
+A useful macro to simplify checking whether the object at a given stack position is of a given userdata type (registered with luaL_newmetatable):
+<p>
+<DL>
+<dt><dd><pre>
+
+#define lua_userdata_cast(L, pos, T) static_cast&lt;T*&gt;(luaL_checkudata((L), (pos), #T))
+
+</pre>
+</DL>
+<p>
+I use stuff like this a lot in my metamethods:
+<p>
+<DL>
+<dt><dd><pre>
+
+if(const MyClass* myclass = lua_userdata_cast(L, 1, MyClass))
+
+{
+
+    MyClass-&gt;SomeMethod();
+
+    return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+<H3>placement new to avoid boxed pointers</H3>
+<p>
+Dig it:
+<p>
+<DL>
+<dt><dd><pre>
+
+void* operator new(size_t size, lua_State* L, const char* metatableName)
+
+{
+
+    void* ptr = lua_newuserdata(L, size);
+
+    luaL_getmetatable(L, metatableName);
+
+    // assert(lua_istable(L, -1)) if you're paranoid
+
+    lua_setmetatable(L, -2);
+
+    return ptr;
+
+}
+
+
+
+#define lua_pushobject(L, T) new(L, #T) T
+
+</pre>
+</DL>
+<p>
+Now, instead of doing boxpointer weirdness, to push an object of a type whose metatable was created with luaL_newmetatable onto the stack, do like so:
+<p>
+<DL>
+<dt><dd><pre>
+
+lua_pushobject(L, MyClass)(arg1, arg2, arg3);
+
+</pre>
+</DL>
+<p>
+...thus allowing you to construct a new <code>MyClass</code> directly into the memory region it'll be using!
+<p>
+<H3>templated __gc method</H3>
+<p>
+watch this:
+<p>
+<DL>
+<dt><dd><pre>
+
+template&lt;typename T&gt;
+
+int GCMethod(lua_State* L)
+
+{
+
+    static_cast&lt;T*&gt;(lua_touserdata(L, 1))-&gt;~T();
+
+    return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+This templated method makes a perfect __gc method. Like so:
+<DL>
+<dt><dd><pre>
+
+lua_pushstring(L, "__gc");
+
+lua_pushcfunction(L, GCMethod&lt;MyClass&gt;);
+
+lua_settable(L, 1);
+
+</pre>
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/BindingCodeToLua.html" >BindingCodeToLua</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DoItYourselfCppBinding" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=DoItYourselfCppBinding" >history</a><br>Last edited February 23, 2014 4:22 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=DoItYourselfCppBinding" >(diff)</a>
+</body>
+</html>

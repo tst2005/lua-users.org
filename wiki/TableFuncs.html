@@ -1,0 +1,188 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Table Funcs</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TableFuncs&amp;body=1" title="List pages referring to TableFuncs">Table Funcs</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The flip side of tables which look like functions is functions which look like tables.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> meta = {__call = <span class="keyword">function</span>(t, ...)
+
+                           <span class="keyword">return</span> t.__function(t, <span class="library">unpack</span>(arg))
+
+                         <span class="keyword">end</span>
+
+               }
+
+
+
+  <span class="keyword">function</span> Tablefunc(fn)
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>({__function = fn}, meta)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The result of Tablefunc is a table with call semantics, but the function
+has an implicit first argument which is its own table, in which it can
+store persistent state.
+<p>
+<em>I know what you're thinking. So what? This is just a standard object call without the key. And what if I want private persistent state? OK, take a look at <a href="../wiki/TableFuncsTwo.html" >TableFuncsTwo</a></em>
+<p>
+Meanwhile, here is a quick and silly example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+repeater = Tablefunc(
+
+  <span class="keyword">function</span>(self, n, str)
+
+    <span class="comment">-- I've got persistent state variables</span>
+
+    self.times_called = (self.times_called <span class="keyword">or</span> 0) + 1
+
+    <span class="comment">-- I can get at the base function and even change it</span>
+
+    <span class="comment">-- so it will do something different next time</span>
+
+    <span class="keyword">if</span> self.times_called &gt;= 99 <span class="keyword">then</span>
+
+      self.__function =
+
+        <span class="keyword">function</span>() <span class="keyword">return</span> <span class="string">"Sorry, I'm tired of repeating myself"</span> <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="comment">-- I can use the table for configuration, and</span>
+
+    <span class="comment">-- the functable itself is self, so I can recurse</span>
+
+    <span class="keyword">if</span> n == 0 <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">""</span>
+
+      <span class="keyword">elseif</span> n == 1 <span class="keyword">then</span> <span class="keyword">return</span> str
+
+      <span class="keyword">else</span> <span class="keyword">return</span> str .. (self.delim <span class="keyword">or</span> <span class="string">", "</span>) .. self(n - 1, str)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+The obligatory sample run:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua
+
+Lua 5.0 (beta)  Copyright (C) 1994-2002 Tecgraf, PUC-Rio
+
+&gt; -- I can get at the state variables from here, too
+
+&gt; repeater.delim = "; "
+
+&gt; print(repeater(7, "hello"))
+
+hello; hello; hello; hello; hello; hello; hello
+
+&gt; print(repeater.times_called)
+
+7
+
+&gt; _ = repeater(90, "hello")
+
+&gt; print(repeater.times_called)
+
+97
+
+&gt; print(repeater(7, "hello"))
+
+hello; hello; Sorry, I'm tired of repeating myself
+
+</pre>
+</DL>
+<p>
+--<a href="../wiki/RiciLake.html" >RiciLake</a>
+<p>
+<DL>
+<dt><dd>Another implementation:
+<dt><dd><pre class="code">
+<span class="keyword">function</span> wrap(fn)
+
+  <span class="keyword">local</span> t = {}
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(...) <span class="keyword">return</span> fn(t, ...) <span class="keyword">end</span>, t
+
+<span class="keyword">end</span>
+
+</pre>
+
+<dt><dd>or this:
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> states = <span class="library">setmetatable</span>({}, {__mode = <span class="string">"kv"</span>})
+
+<span class="keyword">function</span> addstate(fn)
+
+  <span class="keyword">local</span> t = {}
+
+  <span class="keyword">local</span> fn2 = <span class="keyword">function</span>(...) <span class="keyword">return</span> fn(t, ...) <span class="keyword">end</span>
+
+  states[fn2] = t
+
+  <span class="keyword">return</span> fn2
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> getstate(fn)
+
+  <span class="keyword">return</span> states[fn]
+
+<span class="keyword">end</span>
+
+</pre>
+
+<dt><dd>--<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TableFuncs" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TableFuncs" >history</a><br>Last edited May 28, 2007 4:15 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TableFuncs" >(diff)</a>
+</body>
+</html>

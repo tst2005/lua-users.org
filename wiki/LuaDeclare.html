@@ -1,0 +1,177 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Declare</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaDeclare&amp;body=1" title="List pages referring to LuaDeclare">Lua Declare</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Introduction</H2>
+<p>
+<a href="../wiki/LuaDeclare.html" >LuaDeclare</a> is a Lua module (see <a href="../wiki/LuaBinaryModules.html" >LuaBinaryModules</a>), that provides a function binding mechanism for arbitrary win32 dynamic libraries.
+<p>
+<em><strong><a href="../wiki/VersionNotice.html" >VersionNotice</a>: This page largely pertains to an earlier version of Lua (4.0 and 5.0beta) using a <code>loadmodule</code> extension.  Lua 5.1 uses <code>package.loadlib</code> and <code>require</code>. Lua 5.0 uses <code>loadlib</code>.)</strong></em>
+<p>
+<H2>Usage Guide</H2>
+<p>
+The declare library is loaded with the following line:
+<p>
+<DL>
+<dt><dd><code>assert(loadmodule "declare")</code>
+</DL>
+<p>
+<p>
+The declare module exports the following function:
+<p>
+<DL>
+<dt><dd><code>declare(library, funcname, prototype, calltype)</code>
+</DL>
+<p>
+<p>
+The first parameter is the name of the library. The second parameter is 
+the name of the string you want to bind. The third argument is a string that
+encodes the arguments and the return type of the function. The last parameter
+is optional. By default the call type is "cdecl", but you can also use "stdcall".
+<p>
+The format of the prototype is: 
+<p>
+<DL>
+<dt><dd><code>"returntype=(argument)*"</code>
+</DL>
+<p>
+<p>
+The encoding of the arguments is as follows:
+<DL>
+<dt><dd><pre>
+
+A: a string in ANSI format.
+
+c: Signed char value (8 bits)
+
+C: Unsigned char value (8 bits)
+
+s: Signed short value (16 bits)
+
+S: Unsigned short value (16 bits)
+
+i: Signed integer value (32 bits)
+
+I: Unsigned integer value (32 bits)
+
+l: Signed long value (64 bits)
+
+L: Unsigned long value (64 bits)
+
+f: Single-precision float in the native format (32 bits)
+
+d: Double-precision float in the native format (64 bits)
+
+v: void (only allowed for return values)
+
+</pre>
+</DL>
+<p>
+Here is an example of how to bind the win32 MessageBox<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MessageBox" >?</a> function:
+<DL>
+<dt><dd><pre>
+
+MessageBox = declare("user32.dll", "MessageBox", "i=IAAI", "stdcall")
+
+</pre>
+</DL>
+<p>
+after doing this, you can use the function as follows:
+<DL>
+<dt><dd><pre>
+
+MessageBox( 0, "this is", "a test", 0 )
+
+</pre>
+</DL>
+<p>
+You can also get additional information about the function in the 
+following way:
+<DL>
+<dt><dd><pre>
+
+print(MessageBox.lib)
+
+print(MessageBox.name)
+
+print(MessageBox.proto)
+
+</pre>
+</DL>
+<p>
+To remove the function do:
+<DL>
+<dt><dd><pre>
+
+MessageBox = nil
+
+</pre>
+</DL>
+<p>
+and the garbage collector will unload the library automatically.
+<p>
+See test-declare.lua to see an example.
+<p>
+<p>
+<p>
+<H2>TODO</H2>
+<p>
+The binding mechanism is currently quite slow, the real solution is to emit the 
+binding code dynamically to avoid branches. In the meantime, you can reduce the 
+cost by writting a few separate paths for cdecl and stdcall, and optimizing the 
+argument checks.
+<p>
+lua_declare only supports function calls with simple data types. It's possible to
+support structures and additional data types, but you will have to extend the 
+prototype declaration and parse it appropiately.
+<p>
+<p>
+<p>
+<H2>Credits</H2>
+<p>
+The author of <a href="../wiki/LuaDeclare.html" >LuaDeclare</a> is <a href="../wiki/IgnacioCastano.html" >IgnacioCastano</a>
+<p>
+This code is based on the dynawrap code of Ton Plooy and Jeff Stong, that enabled 
+the use of 'declare' statements in VBScript, and published it in WDJ.
+<p>
+Thanks also go to <a href="../wiki/MartinSpernau.html" >MartinSpernau</a> for founding this gem and showing it to me.
+<p>
+<p>
+<p>
+<H2>Downloads</H2>
+<p>
+<a href="../wiki/LuaDeclare.html" >LuaDeclare</a> is actually available for Lua 4.0 only. A Lua 5.0 version will be available someday.
+<p>
+<a href="http://castano.ludicon.com/files/lua/luadeclare40.zip">[Download]</a> <a href="../wiki/LuaDeclare.html" >LuaDeclare</a> for lua-4.0
+<p>
+Potential update for Lua 5.0 use <a href="/files/wiki_insecure/declare.c">[here]</a>. It's not fully tested but passes the basic 'MessageBox<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MessageBox" >?</a>' test.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaDeclare" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaDeclare" >history</a><br>Last edited January 14, 2007 12:58 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaDeclare" >(diff)</a>
+</body>
+</html>

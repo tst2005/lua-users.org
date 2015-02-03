@@ -1,0 +1,609 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Merge On Change</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteMergeOnChange&amp;body=1" title="List pages referring to SciteMergeOnChange">Scite Merge On Change</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Checks if the file being edited has been changed on disk, and if so, tries to perform a three-way merge to apply the changes made to the file to the text in the editor. If the merge creates any conflicts, bookmarks will be set for the lines they occur on.
+<p>
+Useful for saving yourself from deleting recent changes if you have the same file opened multiple times, or when updating a repository when its files are already open.
+<p>
+The Unix version uses <em>stat</em>, <em>diff</em>, and <em>diff3</em> to detect and merge changes.
+<p>
+I couldn't find an equivalent of <em>stat</em> in Windows, so the Windows version uses <em>md5sum</em> to detect changes instead; you'll need Windows ports of <em>md5sum</em>, <em>diff</em>, and <em>diff3</em> <a href="http://gnuwin32.sourceforge.net/">[GnuWin32]</a>, and their bin directory needs to be in your PATH environment variable so that the script can execute them.
+<p>
+<H3>Source</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Will be replaced by a function for escaping shell strings, once we know know how</span>
+
+<span class="keyword">local</span> shellString = <span class="keyword">nil</span>
+
+
+
+<span class="comment">-- Will be replaced by a function for generating a string for a file that will change when that file changes.</span>
+
+<span class="keyword">local</span> fileState = <span class="keyword">nil</span>
+
+
+
+<span class="keyword">local</span> shell = <span class="library">os.getenv</span>(<span class="string">"SHELL"</span>)
+
+<span class="keyword">if</span> shell <span class="keyword">then</span> shell = shell:match(<span class="string">"([^\\/]+)$"</span>) <span class="keyword">end</span>
+
+
+
+<span class="keyword">if</span> <span class="keyword">not</span> shell <span class="keyword">then</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> <span class="library">os.getenv</span>(<span class="string">"WinDir"</span>) <span class="keyword">then</span>
+
+    <span class="library">error</span>(<span class="string">"$SHELL is undefined, and this doesn't seem to be Windows."</span>)
+
+  <span class="keyword">end</span>
+
+  
+
+  <span class="comment">-- Assume the shell is cmd</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> shellEscapeCharacter(c)
+
+    <span class="comment">-- Escape character doesn't work in quoted strings, and spaces can't be escaped? Tragic!</span>
+
+    <span class="comment">-- So I quote the spaces and don't quote the rest of the text. Not pretty, but it seems to work.</span>
+
+    <span class="keyword">return</span> (c == <span class="string">" "</span> <span class="keyword">and</span> <span class="string">"\" \""</span>) <span class="keyword">or</span> (c:find(<span class="string">"[^\\/%.%-%a%d]"</span>) <span class="keyword">and</span> <span class="string">"^"</span>..c)
+
+  <span class="keyword">end</span>
+
+  
+
+  shellString = <span class="keyword">function</span>(filename)
+
+    <span class="keyword">return</span> filename == <span class="string">""</span> <span class="keyword">and</span> <span class="string">"\"\""</span> <span class="keyword">or</span> filename:gsub(<span class="string">"."</span>, shellEscapeCharacter)
+
+  <span class="keyword">end</span>
+
+  
+
+  fileState = <span class="keyword">function</span>(filename)
+
+    <span class="comment">-- Use md5sum; slower than checking date, but I don't know of a</span>
+
+    <span class="comment">-- good way to do that.</span>
+
+    <span class="keyword">local</span> stream = <span class="library">io.popen</span>((<span class="string">"md5sum -- %s"</span>):format(shellString(filename)))
+
+    <span class="keyword">if</span> stream <span class="keyword">then</span>
+
+      <span class="keyword">local</span> result = stream:read(<span class="string">"*line"</span>)
+
+      stream:close()
+
+      <span class="keyword">return</span> result
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">elseif</span> shell == <span class="string">"sh"</span> <span class="keyword">or</span> shell == <span class="string">"bash"</span> <span class="keyword">then</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> shellEscapeCharacter(c)
+
+    <span class="keyword">return</span> c:find(<span class="string">"[^/%.%-%a%d]"</span>) <span class="keyword">and</span> <span class="string">"\\"</span>..c
+
+  <span class="keyword">end</span>
+
+  
+
+  shellString = <span class="keyword">function</span>(filename)
+
+    <span class="keyword">return</span> filename == <span class="string">""</span> <span class="keyword">and</span> <span class="string">"\"\""</span> <span class="keyword">or</span> filename:gsub(<span class="string">"."</span>, shellEscapeCharacter)
+
+  <span class="keyword">end</span>
+
+  
+
+  fileState = <span class="keyword">function</span>(filename)
+
+    <span class="keyword">local</span> stream = <span class="library">io.popen</span>((<span class="string">"stat -Lc %%y -- %s"</span>):format(shellString(filename)))
+
+    <span class="keyword">if</span> stream <span class="keyword">then</span>
+
+      <span class="keyword">local</span> result = stream:read(<span class="string">"*line"</span>)
+
+      <span class="library">io.close</span>(stream)
+
+      <span class="keyword">return</span> result <span class="keyword">or</span> <span class="string">""</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="string">""</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">else</span>
+
+  <span class="library">error</span>(<span class="string">"Don't know how to safely escape strings for shell '"</span>..shell..<span class="string">"'."</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Holds information about files that are open.</span>
+
+<span class="keyword">local</span> buffers = {}
+
+
+
+<span class="comment">-- Returns a string containing the contents of a file.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> fileData(filename)
+
+  <span class="keyword">local</span> stream = <span class="library">io.open</span>(filename)
+
+  <span class="keyword">if</span> stream <span class="keyword">then</span>
+
+    <span class="keyword">local</span> result = stream:read(<span class="string">"*all"</span>)
+
+    <span class="library">io.close</span>(stream)
+
+    <span class="keyword">return</span> result <span class="keyword">or</span> <span class="string">""</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="string">""</span>
+
+<span class="keyword">end</span> 
+
+
+
+<span class="comment">-- Returns the last known state of a file, or sets up a new state if the file wasn't known.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> getBuffer(file)
+
+  <span class="keyword">local</span> buffer = buffers[file]
+
+  
+
+  <span class="keyword">if</span> <span class="keyword">not</span> buffer <span class="keyword">then</span>
+
+    buffer = {}
+
+    buffers[file] = buffer
+
+    buffer.state = fileState(file)
+
+    buffer.data = fileData(file)
+
+  <span class="keyword">end</span>
+
+  
+
+  <span class="keyword">return</span> buffer
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Returns the name of a temporary file containing the passed string.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> dataToFile(data)
+
+  <span class="keyword">local</span> file = <span class="library">os.tmpname</span>()
+
+  <span class="keyword">local</span> stream = <span class="library">io.open</span>(file, <span class="string">"w"</span>)
+
+  stream:write(data)
+
+  stream:close()
+
+  <span class="keyword">return</span> file
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Merges some strings, and returns the result.</span>
+
+<span class="comment">--   orig is the state of the file before editing occured</span>
+
+<span class="comment">--   new is what the file on disk currently looks like</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> mergeData(orig, new)
+
+  <span class="keyword">local</span> current = editor:GetText()
+
+  current, orig, new = dataToFile(current), dataToFile(orig), dataToFile(new)
+
+  
+
+  <span class="comment">-- We use diff3 to merge the files together, and</span>
+
+  <span class="comment">-- then we use diff to discover the changes needed to transform</span>
+
+  <span class="comment">-- the text in the buffer into the merged file.</span>
+
+  <span class="comment">-- Then we manually apply those changes, rather than dumping the</span>
+
+  <span class="comment">-- merged file into the buffer, so that folds, bookmarks, and selections</span>
+
+  <span class="comment">-- are (more or less) preserved.</span>
+
+  <span class="keyword">local</span> stream = <span class="library">io.popen</span>((<span class="string">"diff3 -mE --strip-trailing-cr -L Local -L Original -L Disk %s %s %s | diff %s -"</span>)
+
+                          :format(shellString(current),
+
+                                  shellString(orig),
+
+                                  shellString(new),
+
+                                  shellString(current)))
+
+  
+
+  <span class="keyword">if</span> stream <span class="keyword">then</span>
+
+    <span class="keyword">local</span> conflicts = {}
+
+    <span class="keyword">local</span> eol = <span class="string">"\n"</span>
+
+    
+
+    <span class="keyword">if</span> editor.EOLMode == 0 <span class="keyword">then</span> eol = <span class="string">"\r\n"</span>
+
+    <span class="keyword">elseif</span> editor.EOLMode == 1 <span class="keyword">then</span> eol = <span class="string">"\r"</span> <span class="keyword">end</span>
+
+    
+
+    <span class="keyword">local</span> p = 1
+
+    <span class="keyword">local</span> line = stream:read(<span class="string">"*line"</span>)
+
+    
+
+    editor:BeginUndoAction()
+
+    
+
+    <span class="keyword">while</span> line <span class="keyword">do</span>
+
+      <span class="keyword">local</span> action, pos = line:match(<span class="string">"^%d[,%d]-([acd])(%d+)"</span>)
+
+      <span class="keyword">if</span> action <span class="keyword">then</span>
+
+        p = <span class="library">tonumber</span>(pos)
+
+        <span class="keyword">if</span> action == <span class="string">"d"</span> <span class="keyword">then</span>
+
+          <span class="comment">-- Position of deleted text is kind of inconsistant in my opinion, but</span>
+
+          <span class="comment">-- considering non-existent things don't usually have positions,</span>
+
+          <span class="comment">-- I suppose I should be greatful.</span>
+
+          p = p + 1
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+      
+
+      <span class="keyword">local</span> cmd, txt = line:match(<span class="string">"^(.).(.*)$"</span>)
+
+      
+
+      <span class="keyword">if</span> cmd == <span class="string">"&lt;"</span> <span class="keyword">then</span>
+
+        <span class="keyword">local</span> a = editor.Anchor
+
+        editor.TargetStart = editor:PositionFromLine(p-1)
+
+        editor.TargetEnd = editor.TargetStart+editor:LineLength(p-1)
+
+        <span class="keyword">if</span> a &gt;= editor.TargetStart <span class="keyword">then</span>
+
+          <span class="keyword">if</span> a &gt;= editor.TargetEnd <span class="keyword">then</span> a = a - (editor.TargetEnd-editor.TargetStart)
+
+          <span class="keyword">else</span> a = editor.TargetStart
+
+          <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+        editor:ReplaceTarget(<span class="string">""</span>)
+
+        editor.Anchor = a
+
+      <span class="keyword">elseif</span> cmd == <span class="string">"&gt;"</span> <span class="keyword">then</span>
+
+        <span class="keyword">local</span> a = editor.Anchor
+
+        <span class="keyword">local</span> pos = editor:PositionFromLine(p-1)
+
+        editor:InsertText(pos, txt..eol)
+
+        <span class="keyword">if</span> a &gt;= pos <span class="keyword">then</span>
+
+          a = a + txt:len() + eol:len()
+
+        <span class="keyword">end</span>
+
+        editor.Anchor = a
+
+        <span class="keyword">if</span> txt == <span class="string">"======="</span> <span class="keyword">then</span>
+
+          <span class="library">table.insert</span>(conflicts, p)
+
+          editor:MarkerAdd(p-1, 1) <span class="comment">-- And a bookmark for this conflict.</span>
+
+        <span class="keyword">end</span>
+
+        p = p + 1
+
+      <span class="keyword">end</span>
+
+      
+
+      line = stream:read(<span class="string">"*line"</span>)
+
+    <span class="keyword">end</span>
+
+    
+
+    editor:EndUndoAction()
+
+    
+
+    <span class="keyword">if</span> #conflicts &gt; 0 <span class="keyword">then</span>
+
+      <span class="library">print</span>(<span class="string">"Merge conflicts on lines: "</span>..<span class="library">table.concat</span>(conflicts, <span class="string">", "</span>)..<span class="string">"\n"</span>)
+
+    <span class="keyword">end</span>
+
+    
+
+    stream:close()
+
+  <span class="keyword">end</span>
+
+  
+
+  <span class="library">os.remove</span>(current)
+
+  <span class="library">os.remove</span>(orig)
+
+  <span class="library">os.remove</span>(new)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Check if a file has been modified, and merge it if needed.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> recheckFile(file)
+
+  <span class="comment">-- The file being checked damn well better be the file in the editor.</span>
+
+  <span class="library">assert</span>(file == props[<span class="string">"FilePath"</span>])
+
+  
+
+  <span class="keyword">local</span> buffer = getBuffer(file)
+
+  <span class="keyword">local</span> state = fileState(file)
+
+  <span class="keyword">if</span> state ~= buffer.state <span class="keyword">then</span>
+
+    <span class="keyword">local</span> data= fileData(file)
+
+    
+
+    <span class="keyword">if</span> data ~= buffer.data <span class="keyword">then</span>
+
+      mergeData(buffer.data, data)
+
+    <span class="keyword">end</span>
+
+    
+
+    buffer.state = state
+
+    buffer.data = data
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> onSwitch(file)
+
+  recheckFile(file)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> onClose(file)
+
+  buffers[file] = <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> onOpen(file)
+
+  onClose(file) <span class="comment">-- Forget everything we know about the file.</span>
+
+  getBuffer(file) <span class="comment">-- This will recreate the state information for the file.</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> onBeforeSave(file)
+
+  recheckFile(file)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> onSave(file)
+
+  <span class="comment">-- Pretend the file was just opened.</span>
+
+  onOpen(file)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> onFocus()
+
+  recheckFile(props[<span class="string">"FilePath"</span>])
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> register(name, func)
+
+  <span class="keyword">if</span> <span class="library">_G</span>[<span class="string">"scite_"</span>..name] <span class="keyword">then</span>
+
+    <span class="comment">-- Use extman's register function if it exists.</span>
+
+    <span class="library">_G</span>[<span class="string">"scite_"</span>..name](func)
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">local</span> orig = <span class="library">_G</span>[name]
+
+    <span class="keyword">if</span> orig <span class="keyword">then</span>
+
+      <span class="comment">-- If there is already a function, replace it with a new one that will call both</span>
+
+      <span class="comment">-- ours and the original.</span>
+
+      <span class="library">_G</span>[name] = <span class="keyword">function</span>(...) <span class="keyword">return</span> func(...) <span class="keyword">or</span> orig(...) <span class="keyword">end</span>
+
+    <span class="keyword">else</span>
+
+      <span class="comment">-- If the function doesn't exist, use our own.</span>
+
+      <span class="library">_G</span>[name] = func
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+register(<span class="string">"OnOpen"</span>, onOpen)
+
+register(<span class="string">"OnBeforeSave"</span>, onBeforeSave)
+
+register(<span class="string">"OnSave"</span>, onSave)
+
+register(<span class="string">"OnClose"</span>, onClose)
+
+register(<span class="string">"OnSwitchFile"</span>, onSwitch)
+
+
+
+<span class="comment">-- Don't do this on Windows, because it makes the command prompt flash over the screen,</span>
+
+<span class="comment">-- which is annoying.</span>
+
+<span class="keyword">if</span> shell <span class="keyword">then</span>
+
+  <span class="comment">-- I'd rather only check when SciTE regains focus after the user returns to it</span>
+
+  <span class="comment">-- after using another program, but this will have to do.</span>
+
+  register(<span class="string">"OnUpdateUI"</span>, onFocus)
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">_G</span>.moc_checkFile = <span class="keyword">function</span>()
+
+  recheckFile(props[<span class="string">"FilePath"</span>])
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">if</span> scite_Command <span class="keyword">then</span>
+
+  <span class="comment">-- Add shortcut using extman.</span>
+
+  scite_Command(<span class="string">"Merge External Changes|moc_checkFile"</span>)
+
+<span class="keyword">else</span>
+
+  <span class="comment">-- Add shortcut manually.</span>
+
+  <span class="keyword">local</span> i = 1
+
+  
+
+  <span class="keyword">while</span> props[<span class="string">"command.name."</span>..i..<span class="string">".*"</span>] ~= <span class="string">""</span> <span class="keyword">and</span> <span class="comment">-- Search for unused index, </span>
+
+        props[<span class="string">"command.name."</span>..i..<span class="string">".*"</span>] ~= <span class="string">"Merge External Changes"</span> <span class="keyword">do</span> <span class="comment">-- Or our old index if SciTE reloaded this script.</span>
+
+    i = i + 1
+
+  <span class="keyword">end</span>
+
+  
+
+  props[<span class="string">"command.name."</span>..i..<span class="string">".*"</span>] = <span class="string">"Merge External Changes"</span>
+
+  props[<span class="string">"command."</span>..i..<span class="string">".*"</span>] = <span class="string">"moc_checkFile"</span>
+
+  props[<span class="string">"command.subsystem."</span>..i..<span class="string">".*"</span>] = <span class="string">"3"</span>
+
+  props[<span class="string">"command.mode."</span>..i..<span class="string">".*"</span>]=<span class="string">"savebefore:no"</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteMergeOnChange" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteMergeOnChange" >history</a><br>Last edited October 27, 2008 3:34 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteMergeOnChange" >(diff)</a>
+</body>
+</html>

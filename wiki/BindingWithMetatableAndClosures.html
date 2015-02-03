@@ -1,0 +1,415 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Binding With Metatable And Closures</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BindingWithMetatableAndClosures&amp;body=1" title="List pages referring to BindingWithMetatableAndClosures">Binding With Metatable And Closures</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Description</H3>
+<p>
+Here is an example of how to make a Lua binding
+to Thomas Boutell's GD Graphics Library<a href="http://www.boutell.com/gd/">[1]</a>
+using closures containing a metatable.  The original example of how to use GD
+in C can be found on Tom's web page<a href="http://www.boutell.com/gd/manual1.8.4.html#basics">[2]</a>.
+<p>
+<code>Image.new</code> is a constructor that returns a userdata containing the image
+to be maninpulated.  The userdata's metatable has a garbage collection event
+to destroy the image, and a <em>index</em> event for calling the methods needed to
+draw the image and save the image to a file.  Only three methods are implimented:
+<code>ColorAllocate</code>, <code>Line</code> and <code>PNG</code>.
+<p>
+<H3>C code</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+#include &lt;stdio.h&gt;
+
+
+
+#include "lua.h"
+
+#include "lauxlib.h"
+
+#include "lualib.h"
+
+#include "gd.h"
+
+
+
+/*
+
+==============================================================================
+
+  Example Lua bindings for GD
+
+==============================================================================
+
+*/
+
+
+
+#define IMAGE "Image"
+
+
+
+static gdImagePtr checkimage (lua_State *L, int index)
+
+{
+
+  luaL_checktype(L, index, LUA_TUSERDATA);
+
+  lua_getmetatable(L, index);
+
+  if( ! lua_equal(L, lua_upvalueindex(1), -1) )
+
+    luaL_typerror(L, index, IMAGE);  /* die */
+
+  lua_pop(L, 1);
+
+  return (gdImagePtr)lua_unboxpointer(L, index);
+
+}
+
+
+
+static gdImagePtr pushimage (lua_State *L, gdImagePtr im)
+
+{
+
+  lua_boxpointer(L, im);
+
+  lua_pushvalue(L, lua_upvalueindex(1));
+
+  lua_setmetatable(L, -2);
+
+  return im;
+
+}
+
+
+
+
+
+static int image_new (lua_State *L)
+
+{
+
+  int x = luaL_checkint(L, 1);
+
+  int y = luaL_checkint(L, 2);
+
+  pushimage(L, gdImageCreate(x, y));
+
+  return 1;
+
+}
+
+
+
+static int image_destroy (lua_State *L)
+
+{
+
+  gdImagePtr im = (gdImagePtr)lua_unboxpointer(L, 1);
+
+  if (im) gdImageDestroy(im);
+
+  return 0;
+
+}
+
+
+
+static int image_color_allocate (lua_State *L)
+
+{
+
+  gdImagePtr im = checkimage(L, 1);
+
+  int r = luaL_checkint(L, 2);
+
+  int g = luaL_checkint(L, 3);
+
+  int b = luaL_checkint(L, 4);
+
+  lua_pushnumber(L, gdImageColorAllocate(im, r, g, b));
+
+  return 1;
+
+}
+
+
+
+static int image_line (lua_State *L)
+
+{
+
+  gdImagePtr im = checkimage(L, 1);
+
+  int x1     = luaL_checkint(L, 2);
+
+  int y1     = luaL_checkint(L, 3);
+
+  int x2     = luaL_checkint(L, 4);
+
+  int y2     = luaL_checkint(L, 5);
+
+  int colour = luaL_checkint(L, 6);
+
+  gdImageLine(im, x1, y1, x2, y2, colour);
+
+  return 0;
+
+}
+
+
+
+static int image_png (lua_State *L)
+
+{
+
+  /* Output the image to the disk file in PNG format. */
+
+  gdImagePtr im    = checkimage(L, 1);
+
+  const char *name = luaL_checkstring(L, 2);
+
+  FILE *pngout     = fopen( name, "wb");
+
+  gdImagePng(im, pngout);
+
+  fclose(pngout);
+
+  return 0;
+
+}
+
+
+
+static const luaL_reg meta_methods[] = {
+
+{"__gc", image_destroy },
+
+{0,0}
+
+};
+
+
+
+static const luaL_reg image_methods[] = {
+
+{"new",           image_new},
+
+{"colorallocate", image_color_allocate},
+
+{"line",          image_line},
+
+{"PNG",           image_png},
+
+{0,0}
+
+};
+
+
+
+#define newtable(L) (lua_newtable(L), lua_gettop(L))
+
+
+
+int Image_register (lua_State *L)
+
+{
+
+  int metatable, methods;
+
+
+
+  lua_pushliteral(L, IMAGE);         /* name of Image table */
+
+  methods   = newtable(L);           /* Image methods table */
+
+  metatable = newtable(L);           /* Image metatable */
+
+  lua_pushliteral(L, "__index");     /* add index event to metatable */
+
+  lua_pushvalue(L, methods);
+
+  lua_settable(L, metatable);        /* metatable.__index = methods */
+
+  lua_pushliteral(L, "__metatable"); /* hide metatable */
+
+  lua_pushvalue(L, methods);
+
+  lua_settable(L, metatable);        /* metatable.__metatable = methods */
+
+  luaL_openlib(L, 0, meta_methods,  0); /* fill metatable */
+
+  luaL_openlib(L, 0, image_methods, 1); /* fill Image methods table */
+
+  lua_settable(L, LUA_GLOBALSINDEX); /* add Image to globals */
+
+  return 0;
+
+}
+
+
+
+
+
+int main(int argc, char *argv[])
+
+{
+
+  lua_State *L = lua_open();
+
+
+
+  luaopen_base(L);
+
+  luaopen_table(L);
+
+  luaopen_io(L);
+
+  luaopen_string(L);
+
+  luaopen_math(L);
+
+  luaopen_debug(L);
+
+
+
+  Image_register(L);
+
+
+
+  if(argc&gt;1) lua_dofile(L, argv[1]);
+
+
+
+  lua_close(L);
+
+  return 0;
+
+}
+
+
+
+</pre>
+</DL>
+<p>
+<H3>Compiling the Code</H3>
+<p>
+This code can be compiled for Lua 5.0 as follows:
+<p>
+<DL>
+<dt><dd><pre>
+
+gcc gd.c  -L/usr/local/lib/ -llua -llualib -lgd -lpng
+
+</pre>
+</DL>
+<p>
+<H3>Lua Test Code</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> n,v <span class="keyword">in</span> <span class="library">pairs</span>(Image) <span class="keyword">do</span> <span class="library">print</span>(n,v) <span class="keyword">end</span>
+
+
+
+size = 256
+
+
+
+im = Image.new(size, size)
+
+
+
+<span class="library">print</span>(im)
+
+
+
+white = im:colorallocate(255, 255, 255)
+
+
+
+<span class="keyword">for</span> i = 0,size-1,1 <span class="keyword">do</span>
+
+  c = im:colorallocate(0, i, i)
+
+  im:line(0, 0, size-1 , i, c)
+
+<span class="keyword">end</span>
+
+
+
+im:PNG<span class="string">'test.png'</span>
+
+
+
+<span class="comment">-- debug.debug()</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Test Code Output</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+$ ./a gd.lua
+
+line    function: 0x100553b8
+
+PNG     function: 0x10055500
+
+colorallocate   function: 0x10055418
+
+new     function: 0x10054ff8
+
+userdata: 0x10055e98
+
+</pre>
+</DL>
+<p>
+This is the image created by the test code.
+<p>
+<img src="/files/wiki_insecure/users/pshook/tangram/test.png">
+<p>
+The next example shows how to use the <em>index</em> and <em>newindex</em> events to read and write structure members
+<a href="../wiki/BindingWithMembersAndMethods.html" >BindingWithMembersAndMethods</a>
+<p>
+<H2>Related Pages</H2>
+<p>
+<UL>
+<li> <a href="../wiki/UserDataWithPointerExample.html" >UserDataWithPointerExample</a> - another GD example.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BindingWithMetatableAndClosures" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BindingWithMetatableAndClosures" >history</a><br>Last edited January 6, 2007 6:31 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BindingWithMetatableAndClosures" >(diff)</a>
+</body>
+</html>

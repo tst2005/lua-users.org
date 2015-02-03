@@ -1,0 +1,103 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Date And Time</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=DateAndTime&amp;body=1" title="List pages referring to DateAndTime">Date And Time</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here's some resources related to date and time handling in Lua.
+<p>
+<UL>
+<li> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-os.time">[os.time]</a> - gets the system time.  According to the reference manual, 'The returned value is a number, whose meaning depends on your system. In POSIX, Windows, and some other systems, this number counts the number of seconds since some given start time (the "epoch"). In other systems, the meaning is not specified, and the number returned by time can be used only as an argument to <a href="http://www.lua.org/manual/5.1/manual.html#pdf-os.date">[date]</a> and <a href="http://www.lua.org/manual/5.1/manual.html#pdf-os.difftime">[difftime]</a>.'
+</UL>
+<p>
+<UL>
+<li> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-os.clock">[os.clock]</a> - gets the approximate number of seconds of CPU time used by the program.  This function is implemented in terms of the ANSI C <code>clock</code> <a href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/clock.html">[1]</a> function, and the precise meaning of this value is implementation specific.  For example, on Linux, <code>clock</code> gives "CPU time" <a href="http://www.gnu.org/s/libc/manual/html_node/Time-Basics.html#Time-Basics">[2]</a><a href="http://linux.die.net/man/3/clock">[3]</a>, which only counts the time in which the process is actively using the CPU and does not count time executing other processes or waiting for I/O.  CPU time may be less than the real time ("wall clock time").  On Windows, <code>clock</code> counts real (wall clock) time since the start of the process <a href="http://msdn.microsoft.com/en-us/library/4e2ess30.aspx">[4]</a>.  On Windows and Linux, the resolution on <code>clock</code> is on the order of milliseconds, which is more precise than the <code>time</code> function, but on other systems it may be only one second resolution.  The <code>clock</code> value will also wrap around on overflow, depending on the size of the data type used to represent <code>clock_t</code>.  Sometimes this function is more useful than <code>os.time</code> for benchmarking: <code>local clock = os.clock(); local t1 = clock(); dosomething(); local dt = clock() - t1</code> .
+</UL>
+<p>
+<UL>
+<li> <a href="../wiki/HiResTimer.html" >HiResTimer</a> - implementation of higher resolution timers (platform-specific).
+</UL>
+<p>
+<UL>
+<li> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-os.date">[os.date]</a> - Returns a string or a table containing date and time, formatted according to the given string format.
+</UL>
+<p>
+<UL>
+<li> <a href="../wiki/DateFormattingFunctions.html" >DateFormattingFunctions</a> - formats dates as strings in additional ways.
+</UL>
+<p>
+<UL>
+<li> <a href="../wiki/TimeZone.html" >TimeZone</a> - portably returns a timezone string in the form +hhmm or -hhmm.
+</UL>
+<p>
+<UL>
+<li> <a href="http://luaforge.net/projects/date/">[LuaDate]</a> - Pure Lua date and time module for Lua 5.0/5.1 featuring date and time string parsing, time addition and subtraction, time span calculation, support for ISO 8601 Dates, local time support, and strftime-like formatting.
+</UL>
+<p>
+<UL>
+<li> <a href="http://www.scilua.org/time.html">[Time]</a> (LuaJIT 2.0) - Pure LuaJIT library for the manipulation of dates and periods according to the Gregorian calendar, i.e. the internationally accepted calendar for most uses. Time operations are supported, microsecond precision.
+</UL>
+<p>
+<UL>
+<li> <a href="../wiki/SleepFunction.html" >SleepFunction</a> - functions to pause a program for a certain duration
+</UL>
+<p>
+<UL>
+<li> <a href="../wiki/OsLibraryTutorial.html" >OsLibraryTutorial</a> - examples of using date/time functions in the os library.
+</UL>
+<p>
+<UL>
+<li> <a href="../wiki/DayOfWeekAndDaysInMonthExample.html" >DayOfWeekAndDaysInMonthExample</a> - calculates the number of days in a given month or year and the day of week for a given calendar day
+</UL>
+<p>
+<UL>
+<li> <a href="../wiki/DisplayCalendarInHtml.html" >DisplayCalendarInHtml</a> - creates calendar in HTML
+</UL>
+<p>
+<UL>
+<li> <a href="https://github.com/agladysh/lua-getdate">[lua-getdate]</a> - Lua binding to <a href="http://pubs.opengroup.org/onlinepubs/009695399/functions/strptime.html">[strptime]</a> - parses time string.
+</UL>
+<p>
+<UL>
+<li> <a href="http://peterodding.com/code/lua/apr/">[Lua Apache APR bindings]</a> has <a href="http://peterodding.com/code/lua/apr/docs/#time_routines">[time functions]</a>, including sleep, obtaining time (microseconds since epoch), converting epoch time to/from calendar times, and time formatting.  <a href="http://peterodding.com/code/lua/apr/docs/#date_parsing">[date functions]</a> include date parsing.
+</UL>
+<p>
+<UL>
+<li> <a href="http://snippets.luacode.org/?p=tags/datetime">[datetype on snippets.lua.org]</a> - Lua code snippets relating to date and time
+</UL>
+<p>
+<UL>
+<li> <a href="https://github.com/luaposix/luaposix">[luaposix]</a> has some date/time functions (POSIX, C wrappers) <a href="https://github.com/luaposix/luaposix/blob/master/lposix.c">[lposix.c]</a>. Functions: gettimeofday(), time(), localtime([time]), gmtime([time]), lock_getres([clockid]), clock_gettime([clockid]), strftime(format, [time]), (tm, next = strptime(s, format)), ctime = mktime(tm).
+</UL>
+<p>
+<UL>
+<li> <a href="http://code.matthewwild.co.uk/ndp/">[ndp]</a> - "natural date parser" library for Lua, using <a href="../wiki/LuaPeg.html" >LuaPeg</a>. <a href="http://thread.gmane.org/gmane.comp.lang.lua.general/89385/focus=89403">[5]</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DateAndTime" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=DateAndTime" >history</a><br>Last edited April 10, 2013 6:42 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=DateAndTime" >(diff)</a>
+</body>
+</html>

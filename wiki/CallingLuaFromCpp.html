@@ -1,0 +1,434 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Calling Lua From Cpp</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CallingLuaFromCpp&amp;body=1" title="List pages referring to CallingLuaFromCpp">Calling Lua From Cpp</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Description</H3>
+<p>
+Luna (see <a href="../wiki/SimplerCppBinding.html" >SimplerCppBinding</a>) is good for calling C++ functions from Lua.
+But if you wish to call Lua functions from C++, then you'll need
+to stash your Lua function in a sub-table of either the registry
+or the table of globals, and then use <code>lua_pcall</code> to invoke it from your C++ code.
+This example uses Lunar (see <a href="../wiki/CppBindingWithLunar.html" >CppBindingWithLunar</a>)
+which is a revised version of Luna that makes this a bit easier.
+<p>
+You can find <code>lunar.h</code> on the <a href="../wiki/CppBindingWithLunar.html" >CppBindingWithLunar</a> page.
+<p>
+<H3>account.cc C++ code</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+extern "C" {
+
+#include "lua.h"
+
+#include "lauxlib.h"
+
+#include "lualib.h"
+
+}
+
+
+
+#include "lunar.h"
+
+
+
+class Account {
+
+  lua_Number m_balance;
+
+public:
+
+  Account(double balance=0)    : m_balance(balance) { }
+
+  void deposit(double amount)  { m_balance += amount; }
+
+  void withdraw(double amount) { m_balance -= amount; }
+
+  double balance(void)         { return m_balance; }
+
+  ~Account() { printf("deleted Account (%p)\n", this); }
+
+
+
+  // Lua interface
+
+  Account(lua_State *L) :     m_balance(luaL_checknumber(L, 1)) { }
+
+  int deposit (lua_State *L) { deposit (luaL_checknumber(L, 1)); return 0; }
+
+  int withdraw(lua_State *L) { withdraw(luaL_checknumber(L, 1)); return 0; }
+
+  int balance (lua_State *L) { lua_pushnumber(L, balance()); return 1; }
+
+
+
+  static const char className[];
+
+  static Lunar&lt;Account&gt;::RegType methods[];
+
+};
+
+
+
+const char Account::className[] = "Account";
+
+
+
+#define method(class, name) {#name, &amp;class::name}
+
+
+
+Lunar&lt;Account&gt;::RegType Account::methods[] = {
+
+  method(Account, deposit),
+
+  method(Account, withdraw),
+
+  method(Account, balance),
+
+  {0,0}
+
+};
+
+
+
+static int report (lua_State *L, int status)
+
+{
+
+  if (status) {
+
+    const char *msg = lua_tostring(L, -1);
+
+    if (msg == NULL) msg = "(error with no message)";
+
+    fprintf(stderr, "ERROR: %s\n", msg);
+
+    lua_pop(L, 1);
+
+  }
+
+  return status;
+
+}
+
+
+
+static int application (lua_State *L)
+
+{
+
+  lua_settop(L, 0);
+
+  lua_pushliteral(L, "_TRACEBACK");
+
+  lua_gettable(L, LUA_GLOBALSINDEX);   // get traceback function
+
+  int tb = lua_gettop(L);
+
+
+
+  Account a;
+
+  Account *b = new Account(30);
+
+
+
+  int A = Lunar&lt;Account&gt;::push(L, &amp;a);
+
+  int B = Lunar&lt;Account&gt;::push(L, b, true);
+
+
+
+  lua_pushliteral(L, "a");
+
+  lua_pushvalue(L, A);
+
+  lua_settable(L, LUA_GLOBALSINDEX);
+
+
+
+  lua_pushliteral(L, "b");
+
+  lua_pushvalue(L, B);
+
+  lua_settable(L, LUA_GLOBALSINDEX);
+
+
+
+  lua_pushvalue(L, A);
+
+  lua_pushnumber(L, 100.00);
+
+  report(L, Lunar&lt;Account&gt;::call(L, "deposit", 1, 0, tb) &lt; 0);
+
+  lua_pushvalue(L, A);
+
+  report(L, Lunar&lt;Account&gt;::call(L, "show",    0, 0, tb) &lt; 0);
+
+  lua_pushvalue(L, B);
+
+  report(L, Lunar&lt;Account&gt;::call(L, "show",    0, 0, tb) &lt; 0);
+
+
+
+  lua_pushliteral(L, "main");
+
+  lua_gettable(L, LUA_GLOBALSINDEX);
+
+  report(L, lua_pcall(L, 0, 0, tb));
+
+
+
+  return 0;
+
+}
+
+
+
+int main (int argc, char *argv[])
+
+{
+
+  lua_State *L = lua_open();
+
+
+
+  luaopen_base(L);
+
+  luaopen_table(L);
+
+  luaopen_io(L);
+
+  luaopen_string(L);
+
+  luaopen_math(L);
+
+  luaopen_debug(L);
+
+
+
+  Lunar&lt;Account&gt;::Register(L);
+
+
+
+  if (argc&gt;1) {
+
+    printf("loading '%s'\n", argv[1]);
+
+    if (report(L, luaL_loadfile(L, argv[1]) || lua_pcall(L, 0, 0, 0)) == 0) {
+
+      printf("running application\n");
+
+      if (report(L, lua_cpcall(L, &amp;application, 0)) == 0) {
+
+        printf("okay\n");
+
+      }
+
+    }
+
+  }
+
+
+
+  lua_setgcthreshold(L, 0);  // collected garbage
+
+  printf("close\n");
+
+  lua_close(L);
+
+  printf("done\n");
+
+  return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+<H3>Compiling the Code</H3>
+<p>
+This code can be compiled for Lua 5.0 as follows:
+<p>
+<DL>
+<dt><dd><pre>
+
+g++ -o test  account.cc -L/usr/local/lib -llua -llualib
+
+</pre>
+</DL>
+<p>
+<H3>Lua Test Code</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> printf(...) <span class="library">io.write</span>(<span class="library">string.format</span>(<span class="library">unpack</span>(arg))) <span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Account:show()
+
+  printf(<span class="string">"Account balance = $%0.02f\n"</span>, self:balance())
+
+<span class="keyword">end</span>
+
+
+
+parent = {}
+
+
+
+<span class="keyword">function</span> parent:rob(amount)
+
+  amount = amount <span class="keyword">or</span> self:balance()
+
+  self:withdraw(amount)
+
+  <span class="keyword">return</span> amount
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">getmetatable</span>(Account).__index = parent
+
+
+
+<span class="keyword">function</span> main()
+
+  <span class="library">print</span>(<span class="string">'a ='</span>, a)
+
+  <span class="library">print</span>(<span class="string">'b ='</span>, b)
+
+  <span class="library">print</span>(<span class="string">'metatable ='</span>, <span class="library">getmetatable</span>(a))
+
+  <span class="library">print</span>(<span class="string">'Account ='</span>, Account)
+
+  <span class="library">table.foreach</span>(Account, <span class="library">print</span>)
+
+
+
+  a:show() a:deposit(50.30) a:show() a:withdraw(25.10) a:show()
+
+  <span class="library">debug.debug</span>()
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Test Code Output</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+$ ./test setup.lua
+
+loading 'setup.lua'
+
+running application
+
+Account balance = $100.00
+
+Account balance = $30.00
+
+a =     Account (0x22fcb0)
+
+b =     Account (0xa041d98)
+
+metatable =     table: 0xa044f28
+
+Account =       table: 0xa044f28
+
+show    function: 0xa0464a0
+
+balance function: 0xa0455f8
+
+withdraw        function: 0xa045300
+
+deposit function: 0xa045508
+
+new     function: 0xa044fe8
+
+Account balance = $100.00
+
+Account balance = $150.30
+
+Account balance = $125.20
+
+lua_debug&gt; a:show()
+
+Account balance = $125.20
+
+lua_debug&gt; b:show()
+
+Account balance = $30.00
+
+lua_debug&gt; b:deposit(0.01)  b:show()
+
+Account balance = $30.01
+
+lua_debug&gt; c = Account(19.99)  c:deposit(b:rob())  c:show()
+
+Account balance = $50.00
+
+lua_debug&gt; b:show()
+
+Account balance = $0.00
+
+lua_debug&gt; b = nil
+
+lua_debug&gt; print('c =', c)
+
+c =     Account (0xa048cf8)
+
+lua_debug&gt; cont
+
+deleted Account (0x22fcb0)
+
+okay
+
+deleted Account (0xa041d98)
+
+close
+
+deleted Account (0xa048cf8)
+
+done
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallingLuaFromCpp" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CallingLuaFromCpp" >history</a><br>Last edited January 6, 2007 6:32 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CallingLuaFromCpp" >(diff)</a>
+</body>
+</html>

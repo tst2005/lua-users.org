@@ -1,0 +1,72 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Dist</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaDist&amp;body=1" title="List pages referring to LuaDist">Lua Dist</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua<code></code>Dist provides automated CMake building and Lua-based deployment of software.
+<p>
+<strong>Web site:</strong> <a href="http://www.luadist.org">http://www.luadist.org</a>
+<p>
+<H3>Description</H3>
+<p>
+Lua<code></code>Dist is sort-of like <a href="../wiki/LuaRocks.html" >LuaRocks</a>, BSD ports, and RPM:
+<p>
+<UL>
+<li> It's basically a ports system <a href="http://en.wikipedia.org/wiki/Ports_collection.html">[1]</a> based on CMake <a href="http://www.cmake.org/cmake/project/about.html">[2]</a>, which can build software in a cross-platform manner.  (CMake is a build system generator that is perhaps the main alternative to autotools and supports a variety of systems, IDEs and compilers.)
+<li> It contains a collection of CMake build files (CMakeLists.txt, e.g. <a href="https://github.com/LuaDist/lua/blob/master/CMakeLists.txt">[3]</a>) for many packages.  These can be used by themselves <a href="https://github.com/LuaDist/Repository/wiki/LuaDist:-Manual-Installation.html">[4]</a> with CMake to build modules, or the builds can be automated via the the luadist<a href="https://github.com/LuaDist/Repository/wiki/LuaDist:-Use.html">[5]</a> utility.
+<li> Lua<code></code>Dist can build/deploy many types of things, including applications (e.g. Lua), system libraries (e.g. zlib), Lua modules (e.g. luazlib), and (soon) entire distributions (e.g. Lua for Windows via the batteries<a href="https://github.com/LuaDist/batteries">[6]</a> meta package).
+<li> It contains a collection of dist.info files (e.g. <a href="https://github.com/LuaDist/lua/blob/master/dist.info">[7]</a>) containing metadata for packages and written in Lua syntax.  These are quite similar to .rockspec files in <a href="../wiki/LuaRocks.html" >LuaRocks</a>, though without the build sections.
+<li> It contains a mirror of package sources stored in central git Repository<a href="https://github.com/LuaDist/Repository">[8]</a>.  The sources combined with the build files and dist.info files are zipped into self-contained package files called "dists" for offline distribution.
+<li> It contains the "luadist"<a href="https://github.com/LuaDist/luadist">[9]</a> utility and libraries, written in Lua, to automate the process of downloading, building and deploying packages.
+<li> "luadist" depends on CMake and a compiler toolchain for building packages from source, but it does not require these if you only deploy binary modules.  Other than possibly CMake and a compiler toolchain, Lua<code></code>Dist is self-contained and builds it own dependencies from source.
+<li> Though an automated tool has not yet been written, it's fairly straightforward to translate Lua<code></code>Dist packages to Lua<code></code>Rocks packages since Lua<code></code>Rocks supports CMake builds.  The "luarocks" package in Lua<code></code>Dist will also be usable to deploy Lua<code></code>Rocks if desired.
+</UL>
+<p>
+<H3>License</H3>
+<p>
+Lua<code></code>Dist is free software and uses the MIT license.
+<p>
+<H3>Download</H3>
+<p>
+Lua<code></code>Dist can be downloaded from Git<code></code>Hub in source and binary form<a href="https://github.com/LuaDist/Repository/downloads">[10]</a>. For source installation instructions visit the project wiki<a href="https://github.com/LuaDist/Repository/wiki/index.html">[11]</a>.
+<p>
+<H3>Related</H3>
+<p>
+<UL>
+<li> <a href="../wiki/LuaRocks.html" >LuaRocks</a> - similar project with different aims
+<li> Debian Lua packages project - <a href="http://pkg-lua.alioth.debian.org/">http://pkg-lua.alioth.debian.org/</a>
+</UL>
+<p>
+<H3>User Comments</H3>
+<p>
+---
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaDist" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaDist" >history</a><br>Last edited August 12, 2011 3:56 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaDist" >(diff)</a>
+</body>
+</html>

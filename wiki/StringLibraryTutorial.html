@@ -1,0 +1,426 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: String Library Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=StringLibraryTutorial&amp;body=1" title="List pages referring to StringLibraryTutorial">String Library Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+You can find details about the string library in section 5.4 of the Reference Manual <a href="http://www.lua.org/manual/5.1/manual.html#5.4">[1]</a>. For practical examples of usage of the string library, have a look at <a href="../wiki/StringRecipes.html" >StringRecipes</a>.
+<p>
+<em>Note</em>: In Lua string indices start at index value 1, not index value 0 (as they do in C).
+<p>
+<H3>string.byte(s [, i [, j]])</H3>
+<H3>s:byte([i [, j]])</H3>
+<p>
+Return the numerical code the i-th through j-th character of the string passed.
+<DL>
+<dt><dd><pre>
+
+&gt; = string.byte("ABCDE")      -- no index, so the first character
+
+65
+
+&gt; = string.byte("ABCDE",1)    -- indexes start at 1
+
+65
+
+&gt; = string.byte("ABCDE",0)    -- we're not using C
+
+&gt; = string.byte("ABCDE",100)  -- index out of range, no value returned
+
+&gt; = string.byte("ABCDE",3,4)
+
+67      68
+
+&gt; s = "ABCDE"
+
+&gt; = s:byte(3,4)               -- can apply directly to string variable
+
+67      68
+
+</pre>
+</DL>
+<p>
+<H3>string.char(i1, i2, ...)</H3>
+<p>
+Generate a string representing the character codes passed as arguments. Numerical codes are not necessarily portable across platforms. 
+<DL>
+<dt><dd><pre>
+
+&gt; = string.char(65,66,67)
+
+ABC
+
+&gt; = string.char()  -- empty string
+
+
+
+</pre>
+</DL>
+<p>
+<H3>string.dump(function)</H3>
+<p>
+<p>
+Returns a binary representation of the given function, so that a later loadstring on that string returns a copy of the function. Function must be a Lua function without upvalues. 
+<p>
+<H3>string.find(s, pattern [, index [, plain]])</H3>
+<H3>s:find(pattern [, index [, plain]])</H3>
+<p>
+Find the first occurrence of the pattern in the string passed. If an instance of the pattern is found a pair of values representing the start and end of the string is returned. If the pattern cannot be found <code>nil</code> is returned.
+<DL>
+<dt><dd><pre>
+
+&gt; = string.find("Hello Lua user", "Lua")
+
+7       9
+
+&gt; = string.find("Hello Lua user", "banana")
+
+nil
+
+</pre>
+</DL>
+We can optionally specify where to start the search with a third argument. The argument may also be negative which means we count back from the end of the string and start the search.
+<DL>
+<dt><dd><pre>
+
+&gt; = string.find("Hello Lua user", "Lua", 1)  -- start at first character
+
+7       9
+
+&gt; = string.find("Hello Lua user", "Lua", 8)  -- "Lua" not found again after character 8
+
+nil
+
+&gt; = string.find("Hello Lua user", "e", -5)   -- first "e" 5 characters from the end
+
+13      13
+
+</pre>
+</DL>
+The pattern argument also allows more complex searches. See the <a href="../wiki/PatternsTutorial.html" >PatternsTutorial</a> for more information. We can turn off the pattern matching feature by using the optional fourth argument <code>plain</code>. <code>plain</code> takes a boolean value and must be preceeded by <code>index</code>. E.g.,
+<DL>
+<dt><dd><pre>
+
+&gt; = string.find("Hello Lua user", "%su")          -- find a space character followed by "u"
+
+10      11
+
+&gt; = string.find("Hello Lua user", "%su", 1, true) -- turn on plain searches, now not found
+
+nil
+
+</pre>
+</DL>
+<p>
+<H3>string.format(s, e1, e2, ...)</H3>
+<H3>s:format(e1, e2, ...)</H3>
+<p>
+Create a formatted string from the format and arguments provided. This is similar to the <code>printf("format",...)</code> function in C. An additional option <code>%q</code> puts quotes around a string argument's value.
+<UL>
+<li> c, d, E, e, f, g, G, i, o, u, X, and x all expect a number as argument.
+<li> q and s expect a string.
+</UL><DL>
+<dt><dd><pre>
+
+&gt; = string.format("%s %q", "Hello", "Lua user!")   -- string and quoted string
+
+Hello "Lua user!"
+
+&gt; = string.format("%c%c%c", 76,117,97)             -- char
+
+Lua
+
+&gt; = string.format("%e, %E", math.pi,math.pi)       -- exponent
+
+3.141593e+000, 3.141593E+000
+
+&gt; = string.format("%f, %g", math.pi,math.pi)       -- float and compact float
+
+3.141593, 3.14159
+
+&gt; = string.format("%d, %i, %u", -100,-100,-100)    -- signed, signed, unsigned integer
+
+-100, -100, 4294967196
+
+&gt; = string.format("%o, %x, %X", -100,-100,-100)    -- octal, hex, hex
+
+37777777634, ffffff9c, FFFFFF9C
+
+</pre>
+</DL>
+<p>
+<H3>string.gmatch(s, pattern)</H3>
+<H3>s:gmatch(pattern)</H3>
+<p>
+This returns a pattern finding iterator. The iterator will search through the string passed looking for instances of the pattern you passed. 
+<DL>
+<dt><dd><pre>
+
+&gt; for word in string.gmatch("Hello Lua user", "%a+") do print(word) end
+
+Hello
+
+Lua
+
+user
+
+</pre>
+</DL>
+For more information on iterators read the <a href="../wiki/ForTutorial.html" >ForTutorial</a> and <a href="../wiki/IteratorsTutorial.html" >IteratorsTutorial</a>. For more information on patterns read the <a href="../wiki/PatternsTutorial.html" >PatternsTutorial</a>.
+<p>
+<H3>string.gsub(s, pattern, replace [, n])</H3>
+<H3>s:gsub(pattern, replace [,n])</H3>
+<p>
+This is a very powerful function and can be used in multiple ways. Used simply it can replace all instances of the pattern provided with the replacement. A pair of values is returned, the modified string and the number of substitutions made. The optional fourth argument <code>n</code> can be used to limit the number of substitutions made:
+<DL>
+<dt><dd><pre>
+
+&gt; = string.gsub("Hello banana", "banana", "Lua user")
+
+Hello Lua user  1
+
+&gt; = string.gsub("banana", "a", "A", 2)  -- limit substitutions made to 2
+
+bAnAna  2
+
+</pre>
+</DL>
+<p>
+Just like <code>string.find()</code> we can use patterns to search in strings. Patterns are covered in the <a href="../wiki/PatternsTutorial.html" >PatternsTutorial</a>. If a <em>capture</em> is used this can be referenced in the replacement string using the notation <em>%capture_index</em>, e.g.,
+<DL>
+<dt><dd><pre>
+
+&gt; = string.gsub("banana", "(an)", "%1-")    -- capture any occurences of "an" and replace
+
+ban-an-a        2
+
+&gt; = string.gsub("banana", "a(n)", "a(%1)")  -- brackets around n's which follow a's
+
+ba(n)a(n)a      2
+
+&gt; = string.gsub("banana", "(a)(n)", "%2%1") -- reverse any "an"s
+
+bnanaa  2
+
+</pre>
+</DL>
+<p>
+If the replacement is a <em>function</em>, not a string, the arguments passed to the function are any captures that are made. If the function returns a string, the value returned is substituted back into the string.
+<DL>
+<dt><dd><pre>
+
+&gt; = string.gsub("Hello Lua user", "(%w+)", print)  -- print any words found
+
+Hello
+
+Lua
+
+user
+
+        3
+
+&gt; = string.gsub("Hello Lua user", "(%w+)", function(w) return string.len(w) end) -- replace with lengths
+
+5 3 4   3
+
+&gt; = string.gsub("banana", "(a)", string.upper)     -- make all "a"s found uppercase
+
+bAnAnA  3
+
+&gt; = string.gsub("banana", "(a)(n)", function(a,b) return b..a end) -- reverse any "an"s
+
+bnanaa  2
+
+</pre>
+</DL>
+<p>
+Pattern capture: The most commonly seen pattern capture instances could be
+<UL>
+<li> "(.-)", e.g. "{(.-)}" means capture any characters between the curly braces {} (<em>lazy</em> match, i.e. as few characters as possible)
+<li> "(.*)", e.g. "{(.*)}" means capture any characters between the curly braces {} (<em>greedy</em> match, i.e. as many characters as possible)
+</UL>
+<p>
+<pre>
+
+&gt; = string.gsub("The big {brown} fox jumped {over} the lazy {dog}.","{(.-)}", function(a)  print(a) end )
+
+brown 
+
+over 
+
+dog
+
+
+
+&gt; = string.gsub("The big {brown} fox jumped {over} the lazy {dog}.","{(.*)}", function(a)  print(a) end )
+
+brown} fox jumped {over} the lazy {dog
+
+
+
+</pre>
+<p>
+<H3>string.len(s)</H3>
+<H3>s:len()</H3>
+<p>
+Return the length of the string passed.
+<DL>
+<dt><dd><pre>
+
+&gt; = string.len("Lua")
+
+3
+
+&gt; = string.len("")
+
+0
+
+&gt; = string.len("Lua\000user")   -- Lua strings are 8 bit pure so \000 does not terminate
+
+8
+
+</pre>
+</DL>
+<p>
+<H3>string.lower(s)</H3>
+<H3>s:lower()</H3>
+<p>
+Make uppercase characters lower case.
+<DL>
+<dt><dd><pre>
+
+&gt; = string.lower("Hello, Lua user!")
+
+hello, lua user!
+
+</pre>
+</DL>
+<p>
+<H3>string.match (s, pattern [, index])</H3>
+<H3>s:match(pattern [, index])</H3>
+<p>
+Extract substrings by matching patterns.
+<DL>
+<dt><dd><pre>
+
+&gt; = string.match("I have 2 questions for you.", "%d+ %a+")
+
+2 questions
+
+
+
+&gt; = string.format("%d, %q", string.match("I have 2 questions for you.", "(%d+) (%a+)"))
+
+2, "questions"
+
+</pre>
+</DL>
+<p>
+<H3>string.rep(s, n)</H3>
+<H3>s:rep(n)</H3>
+<p>
+Generate a string which is n copies of the string passed concatenated together.
+<DL>
+<dt><dd><pre>
+
+&gt; = string.rep("Lua ",5)
+
+Lua Lua Lua Lua Lua
+
+&gt; = string.rep("Lua\n",3)
+
+Lua
+
+Lua
+
+Lua
+
+</pre>
+</DL>
+<p>
+<H3>string.reverse(s)</H3>
+<H3>s:reverse()</H3>
+<p>
+Reverses a string.
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; = string.reverse("lua")
+
+aul
+
+</pre>
+</DL>
+<p>
+<H3>string.sub(s, i [, j])</H3>
+<H3>s:sub(i [,j])</H3>
+<p>
+Return a substring of the string passed. The substring starts at <code>i</code>. If the third argument <code>j</code> is not given, the substring will end at the end of the string. If the third argument is given, the substring ends at and includes <code>j</code>.
+<DL>
+<dt><dd><pre>
+
+&gt; = string.sub("Hello Lua user", 7)      -- from character 7 until the end
+
+Lua user
+
+&gt; = string.sub("Hello Lua user", 7, 9)   -- from character 7 until and including 9
+
+Lua
+
+&gt; = string.sub("Hello Lua user", -8)     -- 8 from the end until the end
+
+Lua user
+
+&gt; = string.sub("Hello Lua user", -8, 9)  -- 8 from the end until 9 from the start
+
+Lua
+
+&gt; = string.sub("Hello Lua user", -8, -6) -- 8 from the end until 6 from the end
+
+Lua
+
+</pre>
+</DL>
+<p>
+<H3>string.upper(s)</H3>
+<H3>s:upper()</H3>
+<p>
+Make all the lower case characters upper case.
+<DL>
+<dt><dd><pre>
+
+&gt; = string.upper("Hello, Lua user!")
+
+HELLO, LUA USER!
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=StringLibraryTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=StringLibraryTutorial" >history</a><br>Last edited September 23, 2013 10:05 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=StringLibraryTutorial" >(diff)</a>
+</body>
+</html>

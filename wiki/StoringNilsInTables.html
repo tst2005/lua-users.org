@@ -1,0 +1,933 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Storing Nils In Tables</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=StoringNilsInTables&amp;body=1" title="List pages referring to StoringNilsInTables">Storing Nils In Tables</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua tables make no distinction between a table value being <code>nil</code> and the corresponding key not existing in the table.  <code> t = {[k] = nil} </code> is identical to <code> t = {} </code>, and <code>t[k]</code> evaluates to <code>nil</code> when <code>k</code> is not a table key.  In fact, you may think of <code> {} </code> as a table with all possible keys set to <code>nil</code>, and this still takes only a small finite amount of memory because all those keys having <code>nil</code> values are not explicitly stored.  Furthermore, attempting to set a table key as <code>nil</code>, e.g. <code> {[nil] = true} </code>, raises a run-time error.  This is unlike various other common languages. [1]
+<p>
+Occasionally we find ourselves in a situation where we really do want to distinguish between table values that are <code>nil</code> v.s. those that are undefined.  Consider this function that reverses its arguments by storing and manipulating the arguments in a table:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> reverse(...)
+
+    <span class="keyword">local</span> t = {...}
+
+    <span class="keyword">for</span> i = 1,#t/2 <span class="keyword">do</span>
+
+      <span class="keyword">local</span> j = #t - i + 1
+
+      t[i],t[j] = t[j],t[i]  <span class="comment">-- swap</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="library">unpack</span>(t)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+This usually works, but not necessarily when one of the arguments is <code>nil</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(reverse(10,20,30)) <span class="comment">--&gt; 30 20 10</span>
+
+<span class="library">print</span>(reverse(10,<span class="keyword">nil</span>,20,<span class="keyword">nil</span>)) <span class="comment">--&gt; 10</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Solution: explicit 'n' field</H3>
+<p>
+A solution we can use here is to store the table length as a key <code>n</code> in the table.  In fact, this is how Lua versions prior to 5.1 implemented array length:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> reverse(...)
+
+    <span class="keyword">local</span> t = {n=<span class="library">select</span>(<span class="string">'#'</span>, ...), ...}
+
+    <span class="keyword">for</span> i = 1,t.n/2 <span class="keyword">do</span>
+
+      <span class="keyword">local</span> j = t.n - i + 1
+
+      t[i],t[j] = t[j],t[i]  <span class="comment">-- swap</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="library">unpack</span>(t, 1, t.n)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+(It's been noted by <a href="../wiki/RiciLake.html" >RiciLake</a> that the extra copy of <code>...</code> into a function argument list for determining its length involves needless overhead.  In fact, it would also be nice to avoid the overhead of constructing a table to perform this operation, but data in <code>...</code> is cumbersome to manipulate unless copied into a table, though there are some slightly awkward patterns to avoid the table--see "Vararg Saving" in <a href="../wiki/VarargTheSecondClassCitizen.html" >VarargTheSecondClassCitizen</a>.)
+<p>
+<H3>Solution: <code>nil</code> Placeholder</H3>
+<p>
+The above approach works in the special cases where a table is used as an array containing <code>nil</code>'s.  In the general case, the table might contain arbitrary (not necessarily numeric) values.  The following example expresses a mathematical set by storing its elements as keys in a Lua table.  However, since table keys cannot be <code>nil</code>, this presents a challenge to storing <code>nil</code> in the set.  The solution is to create a placeholder object <code>NIL</code> that is stored in place of <code>nil</code> in the table:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> NIL = {}
+
+  <span class="keyword">function</span> set_create(...)
+
+    <span class="keyword">local</span> t = {}
+
+    <span class="keyword">for</span> n=1,<span class="library">select</span>(<span class="string">'#'</span>, ...) <span class="keyword">do</span>
+
+      <span class="keyword">local</span> v = <span class="library">select</span>(n, ...)
+
+      t[v == <span class="keyword">nil</span> <span class="keyword">and</span> NIL <span class="keyword">or</span> v] = <span class="keyword">true</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> t
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> set_exists(t, v)
+
+    <span class="keyword">return</span> t[v == <span class="keyword">nil</span> <span class="keyword">and</span> NIL <span class="keyword">or</span> v]
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> t = set_create(10, <span class="keyword">nil</span>, <span class="keyword">false</span>)
+
+<span class="library">assert</span>(set_exists(t, 10))
+
+<span class="library">assert</span>(set_exists(t, <span class="keyword">nil</span>))
+
+<span class="library">assert</span>(set_exists(t, <span class="keyword">false</span>))
+
+<span class="library">assert</span>(<span class="keyword">not</span> set_exists(t, <span class="string">"hello"</span>))
+
+</pre>
+
+</DL>
+<p>
+There is little possibility for conflict using <code>NIL</code> as a place-holder.  <code>NIL</code>, as a table, is an object, and objects have unique identities.  The table <code>NIL</code> is lexically scoped in the <code>do</code> block and is not visible anywhere else in the program--except, well, in the table.  The user could grab <code>NIL</code> out of the table and attempt to add it to another set, and in this case <code>NIL</code> will be treated as <code>nil</code> rather than <code>NIL</code>, and this is probably what the user intended.
+<p>
+There are other alternatives to using <code>NIL</code>, such as using some other value that is unique to the domain of a particular table (possibly <code>false</code> or the table itself), but this will not work in the general case.  You might alternately use a second table enumerating the defined keys:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> t = {red = 1, green = 2}
+
+<span class="keyword">local</span> is_key = {<span class="string">"red"</span>, <span class="string">"green"</span>, <span class="string">"blue"</span>}
+
+<span class="keyword">for</span> _,k <span class="keyword">in</span> <span class="library">ipairs</span>(is_key) <span class="keyword">do</span> <span class="library">print</span>(k, t[k]) <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+It should be noted that <code>nil</code> is not the only value that cannot be stored in tables.  The "not-a-number" value (<code>NAN</code>) defined by <code>0/0</code> cannot be stored as a key (but can be stored as a value).  There are some potential issues with NAN being a table key: <a href="/lists/lua-l/2005-11/msg00214.html">LuaList:2005-11/msg00214.html</a> .  This limitation can be worked around in a similar way.  However, note that <code>NAN</code> is the only value that doesn't equal itself (<code>NAN ~= NAN</code>), and this is the way to test for <code>NAN</code>.
+<p>
+<H3>Hack: Distinguishing <code>UNDEF</code> and <code>nil</code> via Metafunctions</H3>
+<p>
+One possible solution would be to define a metatable on a given table so that the table returns <code>nil</code> if a key exists and the value is <code>nil</code> but returns a new unique value <code>UNDEF = {</code>} if a key does not exist.  However, this has some fairly serious problems.  First, <code>UNDEF</code> logically evaluates to <code>true</code>, so we can't use the idiom <code>if t[k] then ... end</code> since it will execute the branch if <code>k</code> is undefined in the table.  More importantly, the programmer might attempt to store these <code>UNDEF</code> values in a table, leading to a similar problem that <code>UNDEF</code>'s can't be stored in tables.
+<p>
+That approach is implemented below by making the table be a proxy to another private table that maintains the <code>nil</code> v.s. <code>UNDEF</code> information, and the <code>__newindex</code> metfunction records the setting of <code>nil</code>.  It is partly based on the "Tables with default values" example in <em>Programming In Lua, 2nd ed.</em>, 13.4.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- NiledTable.lua</span>
+
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="comment">-- weak table for representing nils.</span>
+
+<span class="keyword">local</span> nils = <span class="library">setmetatable</span>({}, {__mode = <span class="string">'k'</span>})
+
+
+
+<span class="comment">-- undefined value</span>
+
+<span class="keyword">local</span> UNDEF = <span class="library">setmetatable</span>({},
+
+  {__tostring = <span class="keyword">function</span>() <span class="keyword">return</span> <span class="string">"undef"</span> <span class="keyword">end</span>})
+
+M.UNDEF = UNDEF
+
+
+
+<span class="comment">-- metatable for NiledTable's.</span>
+
+<span class="keyword">local</span> mt = {}
+
+<span class="keyword">function</span> mt.__index(t,k)
+
+  <span class="keyword">local</span> n = nils[t]
+
+  <span class="keyword">return</span> <span class="keyword">not</span> (n <span class="keyword">and</span> n[k]) <span class="keyword">and</span> UNDEF <span class="keyword">or</span> <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> mt.__newindex(t,k,v)
+
+  <span class="keyword">if</span> v == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> u = nils[t]
+
+    <span class="keyword">if</span> <span class="keyword">not</span> u <span class="keyword">then</span>
+
+      u = {}
+
+      nils[t] = u
+
+    <span class="keyword">end</span>
+
+    u[k] = <span class="keyword">true</span>
+
+  <span class="keyword">else</span>
+
+    <span class="library">rawset</span>(t,k,v)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- constructor</span>
+
+<span class="library">setmetatable</span>(M, {__call = <span class="keyword">function</span>(class, t)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>(t, mt)
+
+<span class="keyword">end</span>})
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> exipairs_iter(t, i)
+
+  i = i + 1
+
+  <span class="keyword">local</span> v = t[i]
+
+  <span class="keyword">if</span> v ~= UNDEF <span class="keyword">then</span>
+
+    <span class="keyword">return</span> i, v
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- ipairs replacement that handles nil values in tables.</span>
+
+<span class="keyword">function</span> M.exipairs(t, i)
+
+  <span class="keyword">return</span> exipairs_iter, t, 0
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- next replacement that handles nil values in tables</span>
+
+<span class="keyword">function</span> M.exnext(t, k)
+
+  <span class="keyword">if</span> k == <span class="keyword">nil</span> <span class="keyword">or</span> <span class="library">rawget</span>(t,k) ~= <span class="keyword">nil</span> <span class="keyword">then</span>
+
+    k = <span class="library">next</span>(t,k)
+
+    <span class="keyword">if</span> k == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+      t = nils[t]
+
+      <span class="keyword">if</span> t <span class="keyword">then</span> k = <span class="library">next</span>(t) <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    t = nils[t]
+
+    k = <span class="library">next</span>(t, k)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> k
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> exnext = M.exnext
+
+
+
+<span class="comment">-- pairs replacement that handles nil values in tables.</span>
+
+<span class="keyword">function</span> M.expairs(t, i)
+
+  <span class="keyword">return</span> exnext, t, <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Undefine key in table.  This is used since t[k] = UNDEF doesn't work</span>
+
+<span class="comment">-- as is.</span>
+
+<span class="keyword">function</span> M.undefine(t, k)
+
+  <span class="library">rawset</span>(t, k, <span class="keyword">nil</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+Examples/test:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- test_nil.lua - test of NiledTable.lua</span>
+
+
+
+<span class="keyword">local</span> NiledTable = <span class="library">require</span> <span class="string">"NiledTable"</span>
+
+
+
+<span class="keyword">local</span> UNDEF    = NiledTable.UNDEF
+
+<span class="keyword">local</span> exipairs = NiledTable.exipairs
+
+<span class="keyword">local</span> expairs  = NiledTable.expairs
+
+<span class="keyword">local</span> exnext   = NiledTable.exnext
+
+
+
+<span class="keyword">local</span> t = NiledTable { }
+
+
+
+t[1] = 3
+
+t[2] = <span class="keyword">nil</span>
+
+t.x = 4
+
+t.y = <span class="keyword">nil</span>
+
+<span class="library">assert</span>(t[1] == 3)
+
+<span class="library">assert</span>(t[2] == <span class="keyword">nil</span>)
+
+<span class="library">assert</span>(t[3] == UNDEF)
+
+<span class="library">assert</span>(t.x == 4)
+
+<span class="library">assert</span>(t.y == <span class="keyword">nil</span>)
+
+<span class="library">assert</span>(t.z == UNDEF)
+
+
+
+<span class="comment">-- UNDEF is true.  This is possible undesirable since</span>
+
+<span class="comment">-- "if t[3] then ... end" syntax cannot be used as before.</span>
+
+<span class="library">assert</span>(UNDEF)
+
+
+
+<span class="comment">-- nils don't count.  __len cannot be overriden in 5.1 without special</span>
+
+<span class="comment">-- userdata tricks.</span>
+
+<span class="library">assert</span>(#t == 1)
+
+
+
+<span class="comment">-- constructor syntax doesn't work.  The construction is done</span>
+
+<span class="comment">-- before the metatable is set, so the nils are discarded before</span>
+
+<span class="comment">-- NiledTable can see them.</span>
+
+<span class="keyword">local</span> t2 = NiledTable {<span class="keyword">nil</span>, <span class="keyword">nil</span>}
+
+<span class="library">assert</span>(t2[1] == UNDEF)
+
+
+
+<span class="comment">-- nils don't work with standard iterators</span>
+
+<span class="keyword">local</span> s = <span class="string">""</span>; <span class="keyword">local</span> n=0
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(t)  <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"pairs:"</span>, k, v); n=n+1 <span class="keyword">end</span>
+
+<span class="library">assert</span>(n == 2)
+
+<span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"ipairs:"</span>, i, v); n=n+1 <span class="keyword">end</span>
+
+<span class="library">assert</span>(n == 3)
+
+
+
+<span class="comment">-- replacement iterators that do work</span>
+
+<span class="keyword">for</span> i,v <span class="keyword">in</span> exipairs(t) <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"exipairs:"</span>, i, v); n=n+1 <span class="keyword">end</span>
+
+<span class="library">assert</span>(n == 5)
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> expairs(t) <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"expairs:"</span>, k, v); n=n+1 <span class="keyword">end</span>
+
+<span class="library">assert</span>(n == 9)
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> exnext, t <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"next:"</span>, k, v); n=n+1 <span class="keyword">end</span>
+
+<span class="library">assert</span>(n == 13)
+
+
+
+<span class="comment">-- This does not do what you might expect.  The __newindex</span>
+
+<span class="comment">-- metamethod is not called.  We might resolve that by making</span>
+
+<span class="comment">-- the table be a proxy table to allow __newindex to handle this.</span>
+
+t[1] = UNDEF
+
+<span class="library">assert</span>(t[1] == UNDEF)
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> expairs(t) <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"expairs2:"</span>, k, v); n=n+1 <span class="keyword">end</span>
+
+<span class="library">assert</span>(n == 17) <span class="comment">--opps</span>
+
+
+
+<span class="comment">-- Alternative</span>
+
+undefine(t, 1)
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> expairs(t) <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"expairs3:"</span>, k, v); n=n+1 <span class="keyword">end</span>
+
+<span class="library">assert</span>(n == 20) <span class="comment">--ok</span>
+
+
+
+<span class="comment">-- Now that we can store nil's in tables, we might now ask</span>
+
+<span class="comment">-- whether it's possible to store UNDEF in tables.  That's</span>
+
+<span class="comment">-- probably not a good idea, and I don't know why you would</span>
+
+<span class="comment">-- even want to do that.  It leads to a similar problem.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">--   Here is why:  any value in Lua can potentially be used as input or</span>
+
+<span class="comment">--   output to a function, and any function input or output can potentially</span>
+
+<span class="comment">--   be captured as a Lua list, and Lua lists are implemented with tables...</span>
+
+
+
+<span class="library">print</span> <span class="string">"done"</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Solution: Existence Maintained Internally in a Table</H3>
+<p>
+The problems in the hack above can be solved by avoiding exposure of any new values outside the module.  Instead, <code>t[k]</code> will return <code>nil</code> both if the <code>k</code> is not in the table or if the corresponding value is <code>nil</code>.  We'll distinguish between those two conditions with a new function <code>exists(t,k)</code>, which returns a Boolean indicating whether the key <code>k</code> exists in the table <code>t</code>.  (This behavior is similar to that in the Perl language.)
+<p>
+In this way, we can still use the idiom <code>if t[k] then ... end</code> when appropriate or use the new idiom <code>if exists(t, k) then ... end</code>.  Furthermore, no new values are introduced into the language, thereby avoiding the "storing <code>UNDEF</code>'s in tables" problem above.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- NiledTable.lua</span>
+
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="comment">-- weak table for representing proxied storage tables.</span>
+
+<span class="keyword">local</span> data = <span class="library">setmetatable</span>({}, {__mode = <span class="string">'k'</span>})
+
+
+
+<span class="comment">-- nil placeholder.</span>
+
+<span class="comment">-- Note: this value is not exposed outside this module, so</span>
+
+<span class="comment">-- there's typically no possibility that a user could attempt</span>
+
+<span class="comment">-- to store a "nil placeholder" in a table, leading to the</span>
+
+<span class="comment">-- same problem as storing nils in tables.</span>
+
+<span class="keyword">local</span> NIL = {__tostring = <span class="keyword">function</span>() <span class="keyword">return</span> <span class="string">"NIL"</span> <span class="keyword">end</span>}
+
+<span class="library">setmetatable</span>(NIL, NIL)
+
+
+
+<span class="comment">-- metatable for NiledTable's.</span>
+
+<span class="keyword">local</span> mt = {}
+
+<span class="keyword">function</span> mt.__index(t,k)
+
+  <span class="keyword">local</span> d = data[t]
+
+  <span class="keyword">local</span> v = d <span class="keyword">and</span> d[k]
+
+  <span class="keyword">if</span> v == NIL <span class="keyword">then</span> v = <span class="keyword">nil</span> <span class="keyword">end</span>
+
+  <span class="keyword">return</span> v
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> mt.__newindex(t,k,v)
+
+  <span class="keyword">if</span> v == <span class="keyword">nil</span> <span class="keyword">then</span> v = NIL <span class="keyword">end</span>
+
+  <span class="keyword">local</span> d = data[t]
+
+  <span class="keyword">if</span> <span class="keyword">not</span> d <span class="keyword">then</span>
+
+    d = {}
+
+    data[t] = d
+
+  <span class="keyword">end</span>
+
+  d[k] = v
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> mt.__len(t)  <span class="comment">-- note: ignored by Lua but used by exlen below</span>
+
+  <span class="keyword">local</span> d = data[t]
+
+  <span class="keyword">return</span> d <span class="keyword">and</span> #d <span class="keyword">or</span> 0
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- constructor</span>
+
+<span class="library">setmetatable</span>(M, {__call = <span class="keyword">function</span>(class, t)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>(t, mt)
+
+<span class="keyword">end</span>})
+
+
+
+<span class="keyword">function</span> M.exists(t, k)
+
+  <span class="keyword">local</span> d = data[t]
+
+  <span class="keyword">return</span> (d <span class="keyword">and</span> d[k]) ~= <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> exists = M.exists
+
+
+
+<span class="keyword">function</span> M.exlen(t)
+
+  <span class="keyword">local</span> mt = <span class="library">getmetatable</span>(t)
+
+  <span class="keyword">local</span> len = mt.__len
+
+  <span class="keyword">return</span> len <span class="keyword">and</span> len(t) <span class="keyword">or</span> #t
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> exipairs_iter(t, i)
+
+  i = i + 1
+
+  <span class="keyword">if</span> exists(t, i) <span class="keyword">then</span>
+
+    <span class="keyword">local</span> v = t[i]
+
+    <span class="keyword">return</span> i, v
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- ipairs replacement that handles nil values in tables.</span>
+
+<span class="keyword">function</span> M.exipairs(t, i)
+
+  <span class="keyword">return</span> exipairs_iter, t, 0
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- next replacement that handles nil values in tables</span>
+
+<span class="keyword">function</span> M.exnext(t, k)
+
+  <span class="keyword">local</span> d = data[t]
+
+  <span class="keyword">if</span> <span class="keyword">not</span> d <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+  k = <span class="library">next</span>(d, k)
+
+  <span class="keyword">return</span> k
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> exnext = M.exnext
+
+
+
+<span class="comment">-- pairs replacement that handles nil values in tables.</span>
+
+<span class="keyword">function</span> M.expairs(t, i)
+
+  <span class="keyword">return</span> exnext, t, <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Remove key in table.  This is used since there is no</span>
+
+<span class="comment">-- value v such that t[k] = v will remove k from the table.</span>
+
+<span class="keyword">function</span> M.delete(t, k)
+
+  <span class="keyword">local</span> d = data[t]
+
+  <span class="keyword">if</span> d <span class="keyword">then</span> d[k] = <span class="keyword">nil</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- array constructor replacement.  used since {...} discards nils.</span>
+
+<span class="keyword">function</span> M.niledarray(...)
+
+  <span class="keyword">local</span> n = <span class="library">select</span>(<span class="string">'#'</span>, ...)
+
+  <span class="keyword">local</span> d = {...}
+
+  <span class="keyword">local</span> t = <span class="library">setmetatable</span>({}, mt)
+
+  <span class="keyword">for</span> i=1,n <span class="keyword">do</span>
+
+    <span class="keyword">if</span> d[i] == <span class="keyword">nil</span> <span class="keyword">then</span> d[i] = NIL <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  data[t] = d
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- table constructor replacement.  used since {...} discards nils.</span>
+
+<span class="keyword">function</span> M.niledtablekv(...)
+
+  <span class="comment">-- possibly more optimally implemented in C.</span>
+
+  <span class="keyword">local</span> n = <span class="library">select</span>(<span class="string">'#'</span>, ...)
+
+  <span class="keyword">local</span> tmp = {...} <span class="comment">-- it would be nice to avoid this</span>
+
+  <span class="keyword">local</span> t = <span class="library">setmetatable</span>({}, mt)
+
+  <span class="keyword">for</span> i=1,n,2 <span class="keyword">do</span> t[tmp[i]] = tmp[i+1] <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+Examples/test:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- test_nil.lua - test of NiledTable.lua</span>
+
+
+
+<span class="keyword">local</span> NiledTable = <span class="library">require</span> <span class="string">"NiledTable"</span>
+
+
+
+<span class="keyword">local</span> exlen      = NiledTable.exlen
+
+<span class="keyword">local</span> exipairs   = NiledTable.exipairs
+
+<span class="keyword">local</span> expairs    = NiledTable.expairs
+
+<span class="keyword">local</span> exnext     = NiledTable.exnext
+
+<span class="keyword">local</span> exists     = NiledTable.exists
+
+<span class="keyword">local</span> delete     = NiledTable.delete
+
+<span class="keyword">local</span> niledarray = NiledTable.niledarray
+
+<span class="keyword">local</span> niledtablekv = NiledTable.niledtablekv
+
+
+
+<span class="keyword">local</span> t = NiledTable { }
+
+
+
+t[1] = 3
+
+t[2] = <span class="keyword">nil</span>
+
+t.x = 4
+
+t.y = <span class="keyword">nil</span>
+
+<span class="library">assert</span>(t[1] == 3    <span class="keyword">and</span> exists(t, 1))
+
+<span class="library">assert</span>(t[2] == <span class="keyword">nil</span>  <span class="keyword">and</span> exists(t, 2))
+
+<span class="library">assert</span>(t[3] == <span class="keyword">nil</span>  <span class="keyword">and</span> <span class="keyword">not</span> exists(t, 3))
+
+<span class="library">assert</span>(t.x  == 4    <span class="keyword">and</span> exists(t, <span class="string">'x'</span>))
+
+<span class="library">assert</span>(t.y  == <span class="keyword">nil</span>  <span class="keyword">and</span> exists(t, <span class="string">'y'</span>))
+
+<span class="library">assert</span>(t.z  == <span class="keyword">nil</span>  <span class="keyword">and</span> <span class="keyword">not</span> exists(t, <span class="string">'z'</span>))
+
+
+
+<span class="comment">-- non-existant and nil values are both returned as nil and</span>
+
+<span class="comment">-- therefore both are logically false.</span>
+
+<span class="comment">-- allows "if t[3] then ... end" usage.</span>
+
+<span class="library">assert</span>(<span class="keyword">not</span> t[2] <span class="keyword">and</span> <span class="keyword">not</span> t[3])
+
+
+
+<span class="comment">-- nils don't count in #t since __len cannot be overriden in</span>
+
+<span class="comment">-- 5.1 without special userdata tricks.</span>
+
+<span class="library">assert</span>(#t == 0)
+
+<span class="library">assert</span>(exlen(t) == 2) <span class="comment">-- workaround function</span>
+
+
+
+<span class="comment">-- constructor syntax doesn't work.  The construction is done</span>
+
+<span class="comment">-- before the metatable is set, so the nils are discarded before</span>
+
+<span class="comment">-- NiledTable can see them.</span>
+
+<span class="keyword">local</span> t2 = NiledTable {<span class="keyword">nil</span>, <span class="keyword">nil</span>}
+
+<span class="library">assert</span>(t2[1] == <span class="keyword">nil</span>)
+
+
+
+<span class="comment">-- alternate array constructor syntax (value list) that does work</span>
+
+<span class="keyword">local</span> t2 = niledarray(<span class="keyword">nil</span>,<span class="keyword">nil</span>)
+
+<span class="library">assert</span>(t2[1] == <span class="keyword">nil</span> <span class="keyword">and</span> exists(t2, 1))
+
+<span class="library">assert</span>(t2[2] == <span class="keyword">nil</span> <span class="keyword">and</span> exists(t2, 2))
+
+<span class="library">assert</span>(t2[3] == <span class="keyword">nil</span> <span class="keyword">and</span> <span class="keyword">not</span> exists(t2, 3))
+
+
+
+<span class="comment">--- more tests of niledarray</span>
+
+<span class="keyword">local</span> t2 = niledarray(1,<span class="keyword">nil</span>,<span class="keyword">nil</span>)
+
+<span class="library">assert</span>(t2[1] == 1 <span class="keyword">and</span> exists(t2, 1))
+
+<span class="library">assert</span>(t2[2] == <span class="keyword">nil</span> <span class="keyword">and</span> exists(t2, 2))
+
+<span class="library">assert</span>(t2[3] == <span class="keyword">nil</span> <span class="keyword">and</span> exists(t2, 3))
+
+<span class="library">assert</span>(t2[4] == <span class="keyword">nil</span> <span class="keyword">and</span> <span class="keyword">not</span> exists(t2, 4))
+
+t2[4]=4
+
+<span class="library">assert</span>(t2[4] == 4 <span class="keyword">and</span> exists(t2, 4))
+
+
+
+<span class="comment">-- alternate table constructor syntax (key-value pair list) that does work</span>
+
+<span class="keyword">local</span> t2 = niledtablekv(1,<span class="keyword">nil</span>, 2,<span class="keyword">nil</span>) <span class="comment">-- {[1]=nil, [2]=nill}</span>
+
+<span class="library">assert</span>(t2[1] == <span class="keyword">nil</span> <span class="keyword">and</span> exists(t2, 1))
+
+<span class="library">assert</span>(t2[2] == <span class="keyword">nil</span> <span class="keyword">and</span> exists(t2, 2))
+
+<span class="library">assert</span>(t2[3] == <span class="keyword">nil</span> <span class="keyword">and</span> <span class="keyword">not</span> exists(t2, 3))
+
+
+
+<span class="comment">-- nils don't work with standard iterators</span>
+
+<span class="keyword">local</span> s = <span class="string">""</span>; <span class="keyword">local</span> n=0
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(t)  <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"pairs:"</span>, k, v); n=n+1 <span class="keyword">end</span>
+
+<span class="library">assert</span>(n == 0)
+
+<span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"ipairs:"</span>, i, v); n=n+1 <span class="keyword">end</span>
+
+<span class="library">assert</span>(n == 0)
+
+
+
+<span class="comment">-- replacement iterators that do work</span>
+
+<span class="keyword">for</span> i,v <span class="keyword">in</span> exipairs(t) <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"exipairs:"</span>, i, v); n=n+1 <span class="keyword">end</span>
+
+n = n - 2; <span class="library">assert</span>(n == 0)
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> expairs(t) <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"expairs:"</span>, k, v); n=n+1 <span class="keyword">end</span>
+
+n = n - 4; <span class="library">assert</span>(n == 0)
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> exnext, t <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"next:"</span>, k, v); n=n+1 <span class="keyword">end</span>
+
+n = n - 4; <span class="library">assert</span>(n == 0)
+
+
+
+<span class="comment">-- Setting an existing element to nil, makes it nil and existant</span>
+
+t[1] = <span class="keyword">nil</span>
+
+<span class="library">assert</span>(t[1] == <span class="keyword">nil</span> <span class="keyword">and</span> exists(t, 1))
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> expairs(t) <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"expairs2:"</span>, k, v); n=n+1 <span class="keyword">end</span>
+
+n = n - 4; <span class="library">assert</span>(n == 0)
+
+
+
+<span class="comment">-- Calling delete makes an element non-existant</span>
+
+delete(t, 1)
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> expairs(t) <span class="keyword">do</span> <span class="library">print</span>(<span class="string">"expairs3:"</span>, k, v); n=n+1 <span class="keyword">end</span>
+
+n = n - 3; <span class="library">assert</span>(n == 0)
+
+
+
+<span class="comment">-- nil's still can't be used as keys though (and neither can NaN)</span>
+
+<span class="library">assert</span>(<span class="keyword">not</span> <span class="library">pcall</span>(<span class="keyword">function</span>() t[<span class="keyword">nil</span>] = 10 <span class="keyword">end</span>))
+
+<span class="library">assert</span>(<span class="keyword">not</span> <span class="library">pcall</span>(<span class="keyword">function</span>() t[0/0] = 10 <span class="keyword">end</span>))
+
+
+
+<span class="library">print</span> <span class="string">"done"</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Footnotes</H2>
+<p>
+[1] Including C, Java, Python, and Perl.  In Perl, <a href="http://perldoc.perl.org/functions/exists.html">[exists and defined]</a> differentiate these two cases: <code>exists $v{x} </code> v.s. <code>defined $v{x} </code>.
+<p>
+-- <a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/VarargTheSecondClassCitizen.html" >VarargTheSecondClassCitizen</a> - discusses the problem of <code>nil</code>s being lost when converting <code>...</code> or function multiple return values into a table.
+<li> <a href="../wiki/LuaTableSize.html" >LuaTableSize</a> - the change made in 5.0
+<li> <a href="/lists/lua-l/2007-07/msg00557.html">LuaList:2007-07/msg00557.html</a> "lists with nil play nice for Lua 5.2"
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=StoringNilsInTables" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=StoringNilsInTables" >history</a><br>Last edited January 13, 2011 5:36 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=StoringNilsInTables" >(diff)</a>
+</body>
+</html>

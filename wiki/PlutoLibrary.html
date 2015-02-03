@@ -1,0 +1,93 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Pluto Library</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PlutoLibrary&amp;body=1" title="List pages referring to PlutoLibrary">Pluto Library</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Pluto is a heavy duty persistence library for Lua.
+<p>
+(For an improved version of the library see: <a href="../wiki/TamedPluto.html" >TamedPluto</a>, for a rewrite/port for Lua 5.2 see: <a href="https://github.com/fnuecke/eris">[Eris]</a>)
+<p>
+<strong>Web site:</strong> <a href="http://luaforge.net/projects/pluto/">http://luaforge.net/projects/pluto/</a> .  (Older versions are at a different location <a href="/files/wiki_insecure/users/bsunshin/">[1]</a>.)
+<p>
+<strong>Description:</strong> Pluto is a library which allows users to write arbitrarily large portions
+of the "Lua universe" into a flat file, and later read them back into the
+same or a different Lua universe. Object references are appropriately
+handled, such that the file contains everything needed to recreate the
+objects in question.
+<p>
+Pluto has the following major features: 
+<p>
+<UL>
+<li> Can persist any Lua function
+<li> Can persist threads 
+<li> Works with any Lua chunkreader/chunkwriter 
+<li> Support for "invariant" permanent objects, of all datatypes
+</UL>
+<p>
+For more information, please see the README file.
+<p>
+<strong>Dependencies:</strong> Pluto 2.0 requires Lua 5.1. 
+Pluto 1.2 requires Lua 5.0.x, where x is 2 or later. If you have Lua 5.0 or
+Lua 5.0.1, you will need to apply the pc patch listed on the official Lua
+bugs page or you will receive assertions in <code>luaV_execute</code> when an
+unpersisted thread returns from a function.
+Users who experience difficulties are strongly advised to define <code>lua_assert</code>
+in llimits.h to something useful when compiling in debug mode, to catch
+assertions by Pluto and Lua.
+<p>
+<strong>Contact:</strong> Please send questions, comments, bug reports, feature requests, death threats, and chocolate chip cookie recipes to <a href="mailto:sneftel.at.gmail.dot.com">mailto:sneftel.at.gmail.dot.com</a>.
+<p>
+<strong>Author:</strong> <a href="../wiki/BenSunshineHill.html" >BenSunshineHill</a>
+<p>
+<H2>User Comments</H2>
+<p>
+<em>What is the behavior of Pluto regarding lexical closures?</em>
+<p>
+In short, correct.
+<p>
+<em>Are the lexically scoped variables persisted, and do the relationships between the variables and functions persist also?</em>
+<p>
+Yep.
+<p>
+<em>For example, multiple functions may access the same lexically scoped variable.  If they are persisted, and restored, do they still work together, on the same variable?</em>
+<p>
+Hell yes they do.
+<p>
+<em>If so, how?  Is the debug interface used?</em>
+<p>
+It treats them properly now. The change was a relatively simple one.
+<p>
+Oh, and Pluto doesn't use the debug interface at all (except insofar as it goes out of its way to keep the debug interface happy). Instead, it directly manipulates the internals. The nice thing about using Pluto for this is that I've already done it so you don't have to. ;)
+<p>
+<em>How about userdata and lightuserdata?</em>
+<p>
+These can be persisted literally, or you can provide persist/unpersist functions to handle cases where i.e. userdata references c-ptrs or must be prepared otherwise.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PlutoLibrary" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PlutoLibrary" >history</a><br>Last edited September 23, 2013 3:37 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PlutoLibrary" >(diff)</a>
+</body>
+</html>

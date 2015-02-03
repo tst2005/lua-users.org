@@ -1,0 +1,287 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua To Cee</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaToCee&amp;body=1" title="List pages referring to LuaToCee">Lua To Cee</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+lua2c is a Lua module and utility to convert Lua 5.1 source code to C API code.
+<p>
+<H3>Description</H3>
+<p>
+This utility converts a given Lua source file into an equivalent C
+source file written in terms of Lua C API calls.  At least, this works
+for a large subset of the Lua language (see limitations below).
+<p>
+The compiler is written entirely in Lua, and no build/install is
+needed.  This project reuses Metalua's gg/mlp parser to convert Lua
+source to a Metalua-style [1] AST over which the compiler then
+operates.  lua2c does not require Metalua itself though since gg/mlp
+is bundled in the distribution (patched metalua-0.4.1-rc1) and is
+written in pure Lua.
+<p>
+<H3>Usage</H3>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre>
+
+lua lua2c.lua test/bisect.lua
+
+</pre>
+</DL>
+<p>
+which generates a C file similar to as shown here: <a href="http://math2.org/download/bisect.c">[bisect.c]</a>.
+<p>
+You may also use the shell script "clua" to compile Lua-&gt;C-&gt;machine
+code and execute all in one step.  However, you may need to edit the
+variables in the file to match your system since this utility invokes
+the C compiler.
+<p>
+<DL>
+<dt><dd><pre>
+
+./clua test/bisect.lua
+
+</pre>
+</DL>
+<p>
+lua2c can even compile itself!  (Note: the -c option compiles only
+without running.)
+<p>
+<DL>
+<dt><dd><pre>
+
+./clua -c lua2c.lua               # compile lua2c binary
+
+
+
+./lua2c examples-lua/bisect.lua   # test
+
+</pre>
+</DL>
+<p>
+<H3>Related Work</H3>
+<p>
+<UL>
+<li> luac2c - This related effort by Hisham Muhammad [2] converts Lua bytecodes to C source, whereas this project converts Lua source to C source.  luac2c runs into a few similar limitations as given below.  luac2c has remained experimental but superseded Luiz Henrique De Figueiredo's very basic but similarly named lua2c for Lua 4.0 [3].
+</UL>
+<p>
+<UL>
+<li> luagen++ [4] uses C++ expression templates to translate Lua-like C++ statements to C API calls.  Some of the code generation structure is actually fairly similar to lua2c.
+</UL>
+<p>
+<UL>
+<li> Python Pyrex [5] does something similar in Python but has the added goal of lowering the boundary between C and Python code.  Something like that could be done with lua2c, especially since lua2c uses the extensible gg parser.
+</UL>
+<p>
+<UL>
+<li> Clue by David Given [6] does the opposite: convert C source to Lua source.
+</UL>
+<p>
+<UL>
+<li> luac + <a href="../wiki/BinToCee.html" >BinToCee</a> [10] allow compilation of Lua source to bytecodes and/or embedding in a C file.
+</UL>
+<p>
+<UL>
+<li> <a href="../wiki/LuaInterpreterInLua.html" >LuaInterpreterInLua</a> [12] - is the Lua interpreter (lua.c) reimplemented in Lua.  It can be compiled to C via lua2c (e.g. for scaffolding).
+</UL>
+<p>
+<H3>Potential Uses</H3>
+<p>
+I think this project not only is theoretically nice to have but
+has a number of potential uses:
+<p>
+<UL>
+<li> Provide another approach of compiling Lua to machine code (rather than luac + <a href="../wiki/BinToCee.html" >BinToCee</a>).
+<li> Streamline the interface between C and Lua code and allow efficient access to C datatypes from Lua (see Pyrex above).
+<li> Compile Lua to optimized C.  For example, by statically determining that certain variables are used in a restricted way (e.g. by decorating the Lua source file with pragmas or determining this implicitly by inference), certain code constructs might be simplified to use plain C rather that the Lua C API.  This could allow certain Lua code written with sufficient care to run at native speeds.  Since it compiles to C, it will even work on CPUs where LuaJIT is not available.
+</UL>
+<p>
+<H3>Limitations</H3>
+<p>
+WARNING: This code passes much of the Lua 5.1 test suite [7] and can
+compile itself, but the code is new and there can still be errors.
+In particular, a few language features (e.g. coroutines) are not
+implemented.  See comments in lua2c.lua for details.  Please report
+bugs/patches on the wiki.
+<p>
+lua2c does not currently support coroutines, functions that normally
+reject C functions (e.g. setfenv), and possibly tail call
+optimizations.  Not all of these have the exact analogue in C.
+Coroutines might not ever be supported. However, some solutions might
+be explored [8][9], including possibly generating code that maintains
+the coroutine context in Lua tables.
+<p>
+Closures and upvalues are implemented, but creating and accessing
+upvalues is somewhat slow due to the implementation (see implementation
+notes below) and hopefully can be improved.
+<p>
+Now that the code is fairly complete/robust, more attention can be given to
+optimizing the code generation.  Performance was 25%-75% of regular Lua
+when running a few tests [11], but hopefully future optimizations will improve
+that.
+<p>
+<H3>Lua 5.2 Notes</H3>
+<p>
+<UL>
+<li> <a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a> (as of 5.2.0-work4) deprecates getfenv and setfenv, which eliminates one of the limitations above.
+<li> <a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a> has new lua_arith and lua_compare C API functions, which eliminate the need for lua2c to reimplement these functions.
+<li> <a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a> also has new lua_yieldk, lua_callk, and lua_pcallk functions for coroutines and might help to implement coroutines in lua2c.
+<li> lua2c might implement upvalues as C function upvalues rather than tables, given <a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a> implements lua_upvaluejoin/lua_setupvalue/lua_setupvalue, so C functions can share upvalues directly.
+<li> Concerning tail calls, see <a href="http://article.gmane.org/gmane.comp.lang.lua.general/68285">[1]</a>.
+</UL>
+<p>
+<H3>Download</H3>
+<p>
+<UL>
+<li> Latest development source (recommended): <a href="http://github.com/davidm/lua2c/">http://github.com/davidm/lua2c/</a> .  From here you can browse the source, download a tar/zip snapshot, or checkout with git by running "<code>git clone git://github.com/davidm/lua2c.git</code>".
+<li> Last release distribution: <a href="http://math2.org/download/lua2c-0.2.1-20080802.tar.gz">[lua2c-0.2.1-20080802.tar.gz]</a>; Older versions: <a href="http://math2.org/download/lua2c-archive">[achive]</a>
+</UL>
+<p>
+<H3>Project Page</H3>
+<p>
+The project page is currently <a href="http://lua-users.org/wiki/LuaToCee.html">http://lua-users.org/wiki/LuaToCee</a> .
+<p>
+<H3>Author</H3>
+<p>
+<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H3>Licensing</H3>
+<p>
+(c) 2008 <a href="../wiki/DavidManura.html" >DavidManura</a>.  Licensed under the same terms as Lua (MIT license).
+See included LICENSE file for full licensing details.  Please post any patches/improvements.
+<p>
+<H3>Implementation Notes</H3>
+<p>
+Some implementation notes will likely go here.
+<p>
+Important topics include
+<p>
+<UL>
+<li> Implementing closures with upvalues in C.  The current approach is to store local variables that are used as upvalues in a Lua table scoped to the block (lc_newclosuretable).  Utility functions lc_getupvalue/lc_setupvalue access it.
+<li> Supporting vararg (...) functions.  Mainly, this just requires allowing the stack to be shifted by an arbitrary amount (lc_nextra).
+<li> The transformation process: Lua code string -&gt; Lua AST -&gt; C AST -&gt; C code string
+<li> Implementation of utility functions not in the Lua C API (e.g. arithmetic metamethod handlers, such as lc_add to implement __add to add two numbers while handling metamethods).
+<li> Keeping track of lexical scope (currentscope table)
+<li> Keeping track of the stack (idxtop)
+<li> Handling expressions that evaluate to 0, 1, or multiple return values
+<li> Handling expressions not on the top of the stack (where is 'onstack' v.s. 'anywhere')
+<li> Constant folding
+<li> Possible optimization tricks (not yet implemented):
+<UL>
+<li> Removing metamethods calls when it can be inferred they won't be triggered.
+<li> Other code elimination.
+<li> Using internal interfaces rather than the C API?
+<li> Building constant tables?
+<li> Inlining?
+</UL>
+</UL>
+<p>
+<H3>Future Work</H3>
+<p>
+This project could be significantly helped by the addition of a global (per-file) code optimizer.  Most importantly, some type of interprocedural <strong>data flow analysis</strong> <a href="http://en.wikipedia.org/wiki/Data_flow_analysis.html">[2]</a> could infer the basic data types of many expressions in code (e.g. this value is a number, has no metatable, is a constant with a certain value, or is positive), especially when that code makes extensive use of local (lexical) variables.  Alternately, special comments ("--!" like in <a href="../wiki/LuaInspect.html" >LuaInspect</a>) could be supported to allow the programmer to inject this information.  If the AST is decorated with this information, the code generator could replace generic code with more specific code.  For example, the Lua code "a+b" normally translates to values a and b on the Lua stack, with __add metamethod lookups.  However, if a and b are known to be numbers, this can be translated directly to the C code "a+b" where a and b are C doubles on the C stack.  There is no reason we shouldn't be able to achieve this type of transformation:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Lua code</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> f(n)
+
+  <span class="keyword">local</span> sum = 0
+
+  <span class="keyword">for</span> i=1,n <span class="keyword">do</span> sum = sum + i <span class="keyword">end</span>
+
+  <span class="comment">-- note: sum and n are obviously always numbers.</span>
+
+  <span class="keyword">return</span> sum
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>(f(5))
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+// C code
+
+double sum = 0;  // C datatype
+
+for(int i=1; i&lt;=5; i++) { sum = sum + i; }  // no overhead!
+
+lua_getfield(L,LUA_ENVIRONINDEX,"print");
+
+lua_pushnumber(L,sum);
+
+lua_call(L,1,0);
+
+</pre>
+</DL>
+<p>
+There may be some overlap with LuaJIT and other projects here <a href="/lists/lua-l/2008-08/msg00013.html">[3]</a>.  For initial work in this area, see <a href="../wiki/SourceOptimizer.html" >SourceOptimizer</a> and <a href="../wiki/LuaInspect.html" >LuaInspect</a>.
+<p>
+Some syntax for embedding C expressions in-line to Lua code should also be high on the to-do list (as in Pyrex).
+<p>
+Coroutines should be supported, particularly given the enhancements in 5.2 (e.g. lua_callk).
+<p>
+Update to Lua 5.2 is recommended (see 5.2 notes above).
+<p>
+<H3>Status</H3>
+<p>
+Unfortunately, due to time and priorities, I'm not currently actively maintaining this, besides perhaps the occasional simple bug fix, or perhaps if paid to do so.  If you want to take over maintenance of this and correct the above limitations, please do so.
+<p>
+<H3>Naming</H3>
+<p>
+This package possibly would be better renamed "lua2capi" to emphasize the fact that it generates C code in the form of Lua C API calls.  Another option would be to generate C code in the form of Lua internals.
+<p>
+<H3>References</H3>
+<p>
+<UL>
+<li> [1] Metalua AST - <a href="http://metalua.luaforge.net/manual006.html#toc17">http://metalua.luaforge.net/manual006.html#toc17</a>
+<li> [2] luac2c (previously named luatoc) - <a href="/lists/lua-l/2006-07/msg00144.html">LuaList:2006-07/msg00144.html</a>
+<li> [3] LHF's lua2c for Lua 4.0 - <a href="/lists/lua-l/2002-01/msg00296.html">LuaList:2002-01/msg00296.html</a>
+<li> [4] luagen++ - <a href="../wiki/LuaGenPlusPlus.html" >LuaGenPlusPlus</a>
+<li> [5] Pyrex - <a href="http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/">http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/</a>
+<li> [6] Clue - <a href="http://cluecc.sourceforge.net/">http://cluecc.sourceforge.net/</a>
+<li> [7] Lua 5.1 test suite - <a href="http://www.inf.puc-rio.br/~roberto/lua/lua5.1-tests.tar.gz">http://www.inf.puc-rio.br/~roberto/lua/lua5.1-tests.tar.gz</a>
+<li> [8] <a href="http://en.wikipedia.org/wiki/Coroutine#Implementations_for_C.html">[Wikipedia:Coroutine - Implementations for C]</a>
+<li> [9] <a href="http://coco.luajit.org/">[Coco]</a> - True C coroutine semantics (used in LuaJIT 1.x)
+<li> [10] <a href="../wiki/BinToCee.html" >BinToCee</a>
+<li> [11] <a href="http://shootout.alioth.debian.org/gp4/lua.php">[The Computer Language 
+
+Benchmarks Game]</a>
+<li> [12] <a href="../wiki/LuaInterpreterInLua.html" >LuaInterpreterInLua</a> - Lua interpreter (lua.c) reimplemented in Lua.
+<li> <a href="../wiki/LuaImplementations.html" >LuaImplementations</a> - other source translators and Lua reimplementations
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaToCee" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaToCee" >history</a><br>Last edited September 1, 2010 7:05 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaToCee" >(diff)</a>
+</body>
+</html>

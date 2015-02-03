@@ -1,0 +1,647 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Dir Tree Iterator</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=DirTreeIterator&amp;body=1" title="List pages referring to DirTreeIterator">Dir Tree Iterator</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following implementation provides a Lua iterator function that recursively iterates over the files and subdirectories in a given directory.
+<p>
+It depends on the <a href="../wiki/LuaFileSystem.html" >LuaFileSystem</a> library (<code>"lfs"</code>) <a href="http://www.keplerproject.org/luafilesystem/">[1]</a>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- code by AlexanderMarinov</span>
+
+<span class="comment">-- Compatible with Lua 5.1 (not 5.0).</span>
+
+<span class="library">require</span> <span class="string">"lfs"</span>
+
+
+
+<span class="keyword">function</span> dirtree(dir)
+
+  <span class="library">assert</span>(dir <span class="keyword">and</span> dir ~= <span class="string">""</span>, <span class="string">"directory parameter is missing or empty"</span>)
+
+  <span class="keyword">if</span> <span class="library">string.sub</span>(dir, -1) == <span class="string">"/"</span> <span class="keyword">then</span>
+
+    dir=<span class="library">string.sub</span>(dir, 1, -2)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> diriters = {lfs.dir(dir)}
+
+  <span class="keyword">local</span> dirs = {dir}
+
+
+
+  <span class="keyword">return</span> <span class="keyword">function</span>()
+
+    <span class="keyword">repeat</span> 
+
+      <span class="keyword">local</span> entry = diriters[#diriters]()
+
+      <span class="keyword">if</span> entry <span class="keyword">then</span> 
+
+        <span class="keyword">if</span> entry ~= <span class="string">"."</span> <span class="keyword">and</span> entry ~= <span class="string">".."</span> <span class="keyword">then</span> 
+
+          <span class="keyword">local</span> filename = <span class="library">table.concat</span>(dirs, <span class="string">"/"</span>)..<span class="string">"/"</span>..entry
+
+          <span class="keyword">local</span> attr = lfs.attributes(filename)
+
+          <span class="keyword">if</span> attr.mode == <span class="string">"directory"</span> <span class="keyword">then</span> 
+
+            <span class="library">table.insert</span>(dirs, entry)
+
+            <span class="library">table.insert</span>(diriters, lfs.dir(filename))
+
+          <span class="keyword">end</span>
+
+          <span class="keyword">return</span> filename, attr
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">else</span>
+
+        <span class="library">table.remove</span>(dirs)
+
+        <span class="library">table.remove</span>(diriters)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">until</span> #diriters==0
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+A more concise version using coroutines would be
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Code by David Kastrup</span>
+
+<span class="library">require</span> <span class="string">"lfs"</span>
+
+
+
+<span class="keyword">function</span> dirtree(dir)
+
+  <span class="library">assert</span>(dir <span class="keyword">and</span> dir ~= <span class="string">""</span>, <span class="string">"directory parameter is missing or empty"</span>)
+
+  <span class="keyword">if</span> <span class="library">string.sub</span>(dir, -1) == <span class="string">"/"</span> <span class="keyword">then</span>
+
+    dir=<span class="library">string.sub</span>(dir, 1, -2)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> yieldtree(dir)
+
+    <span class="keyword">for</span> entry <span class="keyword">in</span> lfs.dir(dir) <span class="keyword">do</span>
+
+      <span class="keyword">if</span> entry ~= <span class="string">"."</span> <span class="keyword">and</span> entry ~= <span class="string">".."</span> <span class="keyword">then</span>
+
+        entry=dir..<span class="string">"/"</span>..entry
+
+	<span class="keyword">local</span> attr=lfs.attributes(entry)
+
+	<span class="library">coroutine.yield</span>(entry,attr)
+
+	<span class="keyword">if</span> attr.mode == <span class="string">"directory"</span> <span class="keyword">then</span>
+
+	  yieldtree(entry)
+
+	<span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> <span class="library">coroutine.wrap</span>(<span class="keyword">function</span>() yieldtree(dir) <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example usage when the current directory (<code>.</code>) is the Lua source directory:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; -- example
+
+&gt; for filename, attr in dirtree(".") do
+
+&gt;&gt;      print(attr.mode, filename)
+
+&gt;&gt; end
+
+file    ./COPYRIGHT
+
+directory       ./doc
+
+file    ./doc/contents.html
+
+file    ./doc/logo.gif
+
+file    ./doc/lua.1
+
+file    ./doc/lua.css
+
+file    ./doc/lua.html
+
+file    ./doc/luac.1
+
+file    ./doc/luac.html
+
+file    ./doc/manual.html
+
+file    ./doc/readme.html
+
+directory       ./etc
+
+file    ./etc/all.c
+
+file    ./etc/lua.hpp
+
+file    ./etc/lua.ico
+
+file    ./etc/lua.pc
+
+file    ./etc/luavs.bat
+
+file    ./etc/Makefile
+
+file    ./etc/min.c
+
+file    ./etc/noparser.c
+
+file    ./etc/README
+
+file    ./etc/strict.lua
+
+file    ./HISTORY
+
+file    ./INSTALL
+
+file    ./Makefile
+
+file    ./README
+
+directory       ./src
+
+file    ./src/lapi.c
+
+file    ./src/lapi.h
+
+file    ./src/lauxlib.c
+
+file    ./src/lauxlib.h
+
+file    ./src/lbaselib.c
+
+file    ./src/lcode.c
+
+file    ./src/lcode.h
+
+file    ./src/ldblib.c
+
+file    ./src/ldebug.c
+
+file    ./src/ldebug.h
+
+file    ./src/ldo.c
+
+file    ./src/ldo.h
+
+file    ./src/ldump.c
+
+file    ./src/lfunc.c
+
+file    ./src/lfunc.h
+
+file    ./src/lgc.c
+
+file    ./src/lgc.h
+
+file    ./src/linit.c
+
+file    ./src/liolib.c
+
+file    ./src/llex.c
+
+file    ./src/llex.h
+
+file    ./src/llimits.h
+
+file    ./src/lmathlib.c
+
+file    ./src/lmem.c
+
+file    ./src/lmem.h
+
+file    ./src/loadlib.c
+
+file    ./src/lobject.c
+
+file    ./src/lobject.h
+
+file    ./src/lopcodes.c
+
+file    ./src/lopcodes.h
+
+file    ./src/loslib.c
+
+file    ./src/lparser.c
+
+file    ./src/lparser.h
+
+file    ./src/lstate.c
+
+file    ./src/lstate.h
+
+file    ./src/lstring.c
+
+file    ./src/lstring.h
+
+file    ./src/lstrlib.c
+
+file    ./src/ltable.c
+
+file    ./src/ltable.h
+
+file    ./src/ltablib.c
+
+file    ./src/ltm.c
+
+file    ./src/ltm.h
+
+file    ./src/lua.c
+
+file    ./src/lua.h
+
+file    ./src/luac.c
+
+file    ./src/luaconf.h
+
+file    ./src/lualib.h
+
+file    ./src/lundump.c
+
+file    ./src/lundump.h
+
+file    ./src/lvm.c
+
+file    ./src/lvm.h
+
+file    ./src/lzio.c
+
+file    ./src/lzio.h
+
+file    ./src/Makefile
+
+file    ./src/print.c
+
+directory       ./test
+
+file    ./test/bisect.lua
+
+file    ./test/cf.lua
+
+file    ./test/echo.lua
+
+file    ./test/env.lua
+
+file    ./test/factorial.lua
+
+file    ./test/fib.lua
+
+file    ./test/fibfor.lua
+
+file    ./test/globals.lua
+
+file    ./test/hello.lua
+
+file    ./test/life.lua
+
+file    ./test/luac.lua
+
+file    ./test/printf.lua
+
+file    ./test/README
+
+file    ./test/readonly.lua
+
+file    ./test/sieve.lua
+
+file    ./test/sort.lua
+
+file    ./test/table.lua
+
+file    ./test/trace-calls.lua
+
+file    ./test/trace-globals.lua
+
+file    ./test/xd.lua
+
+</pre>
+</DL>
+<p>
+Another method using "lfs".
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"lfs"</span>
+
+
+
+<span class="comment">-- code by GianlucaVespignani - 2012-03-04; 2013-01-26</span>
+
+<span class="comment">-- Search files in a path, alternative in sub directory</span>
+
+<span class="comment">-- @param dir_path string (";" for multiple paths supported)</span>
+
+<span class="comment">-- @param filter string - eg.: ".txt" or ".mp3;.wav;.flac"</span>
+
+<span class="comment">-- @param s bool - search in subdirectories</span>
+
+<span class="comment">-- @param pformat format of data - 'system' for system-dependent number; nil or string with formatting directives</span>
+
+<span class="comment">-- @return  files, dirs - files and dir are tables {name, modification, path, size}</span>
+
+<span class="keyword">function</span> file_search(dir_path, filter, s, pformat)
+
+	<span class="comment">-- === Preliminary functions ===</span>
+
+	<span class="comment">-- comparison function like the IN() function like SQLlite, item in a array</span>
+
+	<span class="comment">-- useful for compair table for escaping already processed item</span>
+
+	<span class="comment">-- Gianluca Vespignani 2012-03-03</span>
+
+	<span class="keyword">local</span> c_in = <span class="keyword">function</span>(value, tab)
+
+		<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(tab) <span class="keyword">do</span>
+
+			<span class="keyword">if</span> v==value <span class="keyword">then</span>
+
+				<span class="keyword">return</span> <span class="keyword">true</span>
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>
+
+		<span class="keyword">return</span> <span class="keyword">false</span>
+
+	<span class="keyword">end</span>
+
+
+
+	<span class="keyword">local</span> <span class="library">string</span> = <span class="library">string</span>	<span class="comment">-- http://lua-users.org/wiki/SplitJoin</span>
+
+	<span class="keyword">function</span> <span class="library">string</span>:split(sep)
+
+		<span class="keyword">local</span> sep, fields = sep <span class="keyword">or</span> <span class="string">":"</span>, {}
+
+		<span class="keyword">local</span> pattern = <span class="library">string.format</span>(<span class="string">"([^%s]+)"</span>, sep)
+
+		self:gsub(pattern, <span class="keyword">function</span>(c) fields[#fields+1] = c <span class="keyword">end</span>)
+
+		<span class="keyword">return</span> fields
+
+	<span class="keyword">end</span>
+
+
+
+	<span class="keyword">local</span> ExtensionOfFile = <span class="keyword">function</span>(filename)
+
+		<span class="keyword">local</span> rev = <span class="library">string.reverse</span>(filename)
+
+		<span class="keyword">local</span> len = rev:find(<span class="string">"%."</span>)
+
+		<span class="keyword">local</span> rev_ext = rev:sub(1,len)
+
+		<span class="keyword">return</span> <span class="library">string.reverse</span>(rev_ext)
+
+	<span class="keyword">end</span>
+
+
+
+	<span class="comment">-- === Init ===</span>
+
+	dir_path = dir_path <span class="keyword">or</span> cwd
+
+	filter = <span class="library">string.lower</span>(filter) <span class="keyword">or</span> <span class="string">"*"</span>
+
+	extensions = filter:split(<span class="string">";"</span>)
+
+	s = s <span class="keyword">or</span> <span class="keyword">false</span> <span class="comment">-- as /s : subdirectories</span>
+
+
+
+	<span class="keyword">if</span> pformat == <span class="string">'system'</span> <span class="keyword">then</span>	<span class="comment">-- if 4th arg is explicity 'system', then return the system-dependent number representing date/time</span>
+
+		os_date = <span class="keyword">function</span>(os_time)
+
+			<span class="keyword">return</span> os_time
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">else</span>
+
+		<span class="comment">-- if 4th arg is nil use default, else it could be a string that respects the Time formatting directives</span>
+
+		pformat = pformat <span class="keyword">or</span> <span class="string">"%Y/%m/%d"</span> <span class="comment">-- eg.: "%Y/%m/%d %H:%M:%S"</span>
+
+		os_date = <span class="keyword">function</span>(os_time)
+
+			<span class="keyword">return</span> <span class="library">os.date</span>(pformat, os_time)
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+
+
+	<span class="comment">-- == MAIN ==</span>
+
+	<span class="keyword">local</span> files = {}
+
+	<span class="keyword">local</span> dirs = {}
+
+	<span class="keyword">local</span> paths = dir_path:split(<span class="string">";"</span>)
+
+	<span class="keyword">for</span> i,path <span class="keyword">in</span> <span class="library">ipairs</span>(paths) <span class="keyword">do</span>
+
+		<span class="keyword">for</span> f <span class="keyword">in</span> lfs.dir(path) <span class="keyword">do</span>
+
+			<span class="keyword">if</span> f ~= <span class="string">"."</span> <span class="keyword">and</span> f ~= <span class="string">".."</span> <span class="keyword">then</span>
+
+				<span class="keyword">local</span> attr = lfs.attributes ( path..<span class="string">"/"</span>..f )
+
+				<span class="keyword">if</span> attr.mode == <span class="string">"file"</span> <span class="keyword">then</span>
+
+					<span class="keyword">if</span> filter==<span class="string">"*"</span>
+
+					<span class="keyword">or</span> c_in( <span class="library">string.lower</span>( ExtensionOfFile(f) ), extensions)
+
+					<span class="keyword">then</span>
+
+						<span class="library">table.insert</span>(files,{
+
+							name = f,
+
+							modification = os_date(attr.modification) ,
+
+							path = path..<span class="string">"/"</span>,
+
+							size = attr.size
+
+						})
+
+					<span class="keyword">end</span>
+
+				<span class="keyword">else</span>
+
+					<span class="keyword">if</span> filter==<span class="string">"*"</span> <span class="keyword">then</span>			<span class="comment">-- if attr.mode == "directory" and file ~= "." and file ~= ".." then end</span>
+
+						<span class="library">table.insert</span>(dirs,{
+
+							name = f ,
+
+							modification = os_date(attr.modification) ,
+
+							path = path..<span class="string">"/"</span>,
+
+							size = attr.size
+
+						})
+
+					<span class="keyword">end</span>
+
+					<span class="keyword">if</span> s <span class="keyword">and</span> attr.mode == <span class="string">"directory"</span> <span class="keyword">then</span>
+
+						<span class="keyword">local</span> subf={}
+
+						<span class="keyword">local</span> subd={}
+
+						subf, subd = file_search(path..<span class="string">"/"</span>..f, filter, s, pformat)
+
+						<span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(subf) <span class="keyword">do</span>
+
+							<span class="library">table.insert</span>(files,{
+
+								name = v.name ,
+
+								modification = v.modification ,
+
+								path = v.path,
+
+								size = v.size
+
+							})
+
+						<span class="keyword">end</span>
+
+						<span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(subd) <span class="keyword">do</span>
+
+							<span class="library">table.insert</span>(dirs,{
+
+								name = v.name ,
+
+								modification = v.modification ,
+
+								path = v.path,
+
+								size = v.size
+
+							})
+
+						<span class="keyword">end</span>
+
+					<span class="keyword">end</span>
+
+				<span class="keyword">end</span>
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">return</span> files,dirs
+
+
+
+	<span class="comment">--[=[	ABOUT ATTRIBUTES
+
+&gt; for k,v in pairs(a) do print(k..' \t'..v..'') end
+
+dev     2
+
+change  1175551262	-- date of file Creation
+
+access  1235831652
+
+rdev    2
+
+nlink   1
+
+uid     0
+
+gid     0
+
+ino     0
+
+mode    file
+
+modification    1181692021 -- Date of Last Modification
+
+size    805 in byte
+
+	]=]</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DirTreeIterator" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=DirTreeIterator" >history</a><br>Last edited January 26, 2013 6:17 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=DirTreeIterator" >(diff)</a>
+</body>
+</html>

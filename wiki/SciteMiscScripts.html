@@ -1,0 +1,518 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Misc Scripts</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteMiscScripts&amp;body=1" title="List pages referring to SciteMiscScripts">Scite Misc Scripts</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page contains some small miscellaneous <a href="../wiki/SciteScripts.html" >SciteScripts</a>.
+<p>
+<H3>Simple script for toggle binary value</H3>
+This simple script toggle the word under the cursor.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> ToggleBinaryValue()
+
+ <span class="keyword">local</span> StartPos = editor.CurrentPos
+
+ editor:WordRight()
+
+ editor:WordLeftExtend()
+
+ <span class="keyword">local</span> Word = editor:GetSelText()
+
+ 
+
+ <span class="keyword">if</span> Word == <span class="string">"FALSE"</span> <span class="keyword">then</span> editor:ReplaceSel(<span class="string">"TRUE"</span>) <span class="keyword">end</span>
+
+ <span class="keyword">if</span> Word == <span class="string">"TRUE"</span> <span class="keyword">then</span> editor:ReplaceSel(<span class="string">"FALSE"</span>) <span class="keyword">end</span>
+
+ <span class="keyword">if</span> Word == <span class="string">"false"</span> <span class="keyword">then</span> editor:ReplaceSel(<span class="string">"true"</span>) <span class="keyword">end</span>
+
+ <span class="keyword">if</span> Word == <span class="string">"true"</span> <span class="keyword">then</span> editor:ReplaceSel(<span class="string">"false"</span>) <span class="keyword">end</span>
+
+ <span class="keyword">if</span> Word == <span class="string">"False"</span> <span class="keyword">then</span> editor:ReplaceSel(<span class="string">"True"</span>) <span class="keyword">end</span>
+
+ <span class="keyword">if</span> Word == <span class="string">"True"</span> <span class="keyword">then</span> editor:ReplaceSel(<span class="string">"False"</span>) <span class="keyword">end</span>
+
+ <span class="keyword">if</span> Word == <span class="string">"YES"</span> <span class="keyword">then</span> editor:ReplaceSel(<span class="string">"NO"</span>) <span class="keyword">end</span>
+
+ <span class="keyword">if</span> Word == <span class="string">"NO"</span> <span class="keyword">then</span> editor:ReplaceSel(<span class="string">"YES"</span>) <span class="keyword">end</span>
+
+ <span class="keyword">if</span> Word == <span class="string">"yes"</span> <span class="keyword">then</span> editor:ReplaceSel(<span class="string">"no"</span>) <span class="keyword">end</span>
+
+ <span class="keyword">if</span> Word == <span class="string">"no"</span> <span class="keyword">then</span> editor:ReplaceSel(<span class="string">"yes"</span>) <span class="keyword">end</span>
+
+ <span class="keyword">if</span> Word == <span class="string">"0"</span> <span class="keyword">then</span> editor:ReplaceSel(<span class="string">"1"</span>) <span class="keyword">end</span>
+
+ <span class="keyword">if</span> Word == <span class="string">"1"</span> <span class="keyword">then</span> editor:ReplaceSel(<span class="string">"0"</span>) <span class="keyword">end</span>
+
+ 
+
+ editor:GotoPos(StartPos)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<em>--DaveMDS</em>
+<p>
+<H3>Complicated script to toggle binary value</H3>
+The simple script has a flaw, when a toggle-word is followed by one or more whitespaces. 
+e.g. "if (false)" will toggle, while "if ( false )" won't. Here is a more complicated version that is more robust. Both functions are needed, link to scite_ToggleBoolean() in your SciTE Options file.
+<p>
+<pre class="code">
+<span class="comment">-- general lua function to alternatingly replace a bool-ish word in a string</span>
+
+<span class="keyword">function</span> ToggleBoolean(str)
+
+<span class="comment">-- create a 2 colum table with toggle expressions</span>
+
+	<span class="keyword">local</span> TogglePairTable = {}	
+
+	TogglePairTable[<span class="string">"FALSE"</span>] = <span class="string">"TRUE"</span>
+
+	TogglePairTable[<span class="string">"false"</span>] = <span class="string">"true"</span>
+
+	TogglePairTable[<span class="string">"False"</span>] = <span class="string">"True"</span>
+
+	TogglePairTable[<span class="string">"YES"</span>] = <span class="string">"NO"</span>
+
+	TogglePairTable[<span class="string">"yes"</span>] = <span class="string">"no"</span>
+
+	TogglePairTable[<span class="string">"0"</span>] = <span class="string">"1"</span>
+
+
+
+<span class="comment">-- replace left column string in table with righ column string</span>
+
+	<span class="keyword">for</span> findString,replaceString <span class="keyword">in</span> <span class="library">pairs</span>(TogglePairTable) <span class="keyword">do</span>
+
+		<span class="keyword">if</span> <span class="library">string.find</span>(str, findString) <span class="keyword">then</span> <span class="keyword">return</span> <span class="library">string.gsub</span>(str, findString, replaceString) <span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	
+
+<span class="comment">-- replace right column string in table with left column string	</span>
+
+	<span class="keyword">for</span> replaceString,findString <span class="keyword">in</span> <span class="library">pairs</span>(TogglePairTable) <span class="keyword">do</span>
+
+		<span class="keyword">if</span> <span class="library">string.find</span>(str, findString) <span class="keyword">then</span> <span class="keyword">return</span> <span class="library">string.gsub</span>(str, findString, replaceString) <span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="keyword">return</span> str
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- For use in SciTE</span>
+
+<span class="comment">-- this selects the the word under the caret</span>
+
+<span class="comment">-- side effect: discards existing selection</span>
+
+<span class="keyword">function</span> scite_ToggleBoolean()
+
+	<span class="comment">--save position</span>
+
+	<span class="keyword">local</span> StartPos = editor.CurrentPos
+
+
+
+	editor:WordRight()
+
+	editor:WordLeftExtend() 
+
+	<span class="keyword">local</span> sel = editor:GetSelText()
+
+	editor:ReplaceSel(ToggleBoolean(sel))
+
+	
+
+	<span class="comment">-- reset position</span>
+
+	editor:SetSel(StartPos, StartPos) 
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<em>--SK</em> 
+<p>
+<H3>Script for increment and decrement number</H3>
+This script increment and decrement the next number found in text.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> NumPlusPlus()
+
+ output:ClearAll()
+
+ <span class="keyword">local</span> StartPos = editor.CurrentPos
+
+ <span class="keyword">local</span> CurLine = editor:LineFromPosition(StartPos)
+
+ 
+
+ <span class="keyword">local</span> fs,fe = editor:findtext(<span class="string">"\-*[0-9]+"</span>, SCFIND_REGEXP,StartPos)
+
+ editor:SetSel(fs,fe)
+
+ <span class="keyword">local</span> Number = editor:GetSelText()
+
+ 
+
+ editor:ReplaceSel(Number + 1)
+
+ editor:GotoPos(fs)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> NumMinusMinus()
+
+ output:ClearAll()
+
+ <span class="keyword">local</span> StartPos = editor.CurrentPos
+
+ <span class="keyword">local</span> CurLine = editor:LineFromPosition(StartPos)
+
+ 
+
+ <span class="keyword">local</span> fs,fe = editor:findtext(<span class="string">"\-*[0-9]+"</span>, SCFIND_REGEXP,StartPos)
+
+ editor:SetSel(fs,fe)
+
+ <span class="keyword">local</span> Number = editor:GetSelText()
+
+ 
+
+ editor:ReplaceSel(Number - 1)
+
+ editor:GotoPos(fe)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<em>--DaveMDS</em>
+<p>
+<H3>Script for transposing two characters</H3>
+This script flips the positions of two adjacent characters.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> transpose_characters()
+
+  <span class="keyword">local</span> pos = editor.CurrentPos
+
+  editor:GotoPos(pos-1)
+
+  editor.Anchor = pos+1
+
+  <span class="keyword">local</span> sel = editor:GetSelText()
+
+  editor:ReplaceSel(<span class="library">string.sub</span>(sel, 2, 2)..<span class="library">string.sub</span>(sel, 1, 1))
+
+  editor:GotoPos(pos)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<em>--Myles Strous--</em>
+<p>
+<H3>Insert the current date at the cursor position</H3>
+I missed this feature in SciTE.
+Add the following lines into User Options File (SciTEUser.properties)
+<p>
+<DL>
+<dt><dd><pre>
+
+command.name.12.*=InsertDate
+
+command.12.*=InsertDate
+
+command.subsystem.12.*=3
+
+command.mode.12.*=savebefore:no
+
+command.shortcut.12.*=Ctrl+d
+
+</pre>
+</DL>
+<p>
+Add the following lines into Lua Startup Script:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> InsertDate()
+
+   editor:AddText(<span class="library">os.date</span>(<span class="string">"%Y-%m-%d"</span>))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<em>--Klaus Hummel--</em>
+<p>
+This version replaces the current selection, if there is one:
+<p>
+<pre class="code">
+<span class="comment">-- replace current selection with text</span>
+
+<span class="comment">-- if there is none, insert at cursor position</span>
+
+<span class="keyword">function</span> replaceOrInsert(text)
+
+    <span class="keyword">local</span> sel = editor:GetSelText()
+
+    <span class="keyword">if</span> <span class="library">string.len</span>(sel) ~= 0 <span class="keyword">then</span>
+
+        editor:ReplaceSel(text)
+
+    <span class="keyword">else</span>
+
+        editor:AddText(text)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- insert the current date in YYYY-mm-dd format</span>
+
+<span class="keyword">function</span> insertDate()
+
+    replaceOrInsert(<span class="library">os.date</span>(<span class="string">"%Y-%m-%d"</span>))
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+And another function for inserting the current time:
+<p>
+<pre class="code">
+<span class="comment">-- insert the current time in HH:MM:SS Timezone format</span>
+
+<span class="keyword">function</span> insertTime()
+
+    replaceOrInsert(<span class="library">os.date</span>(<span class="string">"%H:%M:%S %Z"</span>))
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<em>--Chris Arndt--</em>
+<p>
+<H3>Lua calculator/expression evaluator</H3>
+A simple Lua expression evaluator for calculating stuff. Highlight a valid Lua expression and run the script to perform the calculation or evaluation.
+<p>
+<pre class="code">
+<span class="keyword">function</span> SciTECalculator()
+
+  <span class="keyword">local</span> expr = editor:GetSelText()
+
+  <span class="keyword">if</span> <span class="keyword">not</span> expr <span class="keyword">or</span> expr == <span class="string">""</span> <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+  <span class="keyword">local</span> f, msg = <span class="library">loadstring</span>(<span class="string">"return "</span>..expr)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> f <span class="keyword">then</span>
+
+    <span class="library">print</span>(<span class="string">"&gt;Calculator: cannot evaluate selection"</span>) <span class="keyword">return</span>
+
+  <span class="keyword">end</span>
+
+  editor:ReplaceSel(<span class="library">tostring</span>(f()))
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<em>--khman--</em>
+<p>
+<H2>Find selection</H2>
+<pre class="code">
+<span class="keyword">local</span> findText = editor:GetSelText()
+
+<span class="keyword">local</span> flag = 0
+
+
+
+output:ClearAll()
+
+
+
+<span class="keyword">if</span> <span class="library">string.len</span>(findText) &gt; 0 <span class="keyword">then</span>
+
+	trace(<span class="string">'&gt;find: '</span>..findText..<span class="string">'\n'</span>)
+
+	<span class="keyword">local</span> s,e = editor:findtext(findText,flag,0)
+
+	<span class="keyword">local</span> m = editor:LineFromPosition(s) - 1
+
+	<span class="keyword">local</span> count = 0
+
+
+
+	<span class="keyword">while</span> s <span class="keyword">do</span>
+
+		<span class="keyword">local</span> l = editor:LineFromPosition(s)
+
+
+
+		<span class="keyword">if</span> l ~= m <span class="keyword">then</span>
+
+			count = count + 1
+
+
+
+			<span class="keyword">local</span> str = <span class="library">string.gsub</span>(<span class="string">' '</span>..editor:GetLine(l),<span class="string">'%s+'</span>,<span class="string">' '</span>)
+
+
+
+			<span class="keyword">local</span> add = <span class="string">':'</span>..(l + 1)..<span class="string">':'</span>
+
+			<span class="keyword">local</span> i = 8 - <span class="library">string.len</span>(add)
+
+			<span class="keyword">local</span> ind = <span class="string">' '</span>
+
+			<span class="keyword">while</span> (<span class="library">string.len</span>(ind) &lt; i) <span class="keyword">do</span>
+
+				ind = ind..<span class="string">' '</span>
+
+			<span class="keyword">end</span>
+
+
+
+			trace(add..ind..str..<span class="string">'\n'</span>)
+
+			m = l
+
+		<span class="keyword">end</span>
+
+
+
+		s,e = editor:findtext(findText,flag,e+1)
+
+	<span class="keyword">end</span>
+
+
+
+	trace(<span class="string">'&gt;result: '</span>..count..<span class="string">'\n'</span>)
+
+<span class="keyword">else</span>
+
+	trace(<span class="string">'! Select symbol and replay'</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<em>--gans_A--</em>
+<p>
+<H3>Text Cleaner</H3>
+A simple script that gets rid of annoying unrecognized tab(\t) and newline(\r\n) characters in pasted text.
+<p>
+<pre class="code">
+<span class="keyword">function</span> cleanText(reportNoMatch)
+
+    editor:BeginUndoAction()
+
+        <span class="keyword">for</span> ln = 0, editor.LineCount - 1 <span class="keyword">do</span>
+
+            <span class="keyword">local</span> lbeg = editor:PositionFromLine(ln)
+
+            <span class="keyword">local</span> lend = editor.LineEndPosition[ln]
+
+            <span class="keyword">local</span> text = editor:textrange(lbeg, lend)
+
+            
+
+            text = <span class="library">string.gsub</span>(text, <span class="string">"\\t"</span>, <span class="string">"\t"</span>)
+
+            text = <span class="library">string.gsub</span>(text, <span class="string">"\\r"</span>, <span class="string">"\r"</span>)
+
+            text = <span class="library">string.gsub</span>(text, <span class="string">"\\n"</span>, <span class="string">"\n"</span>)
+
+            
+
+            editor.TargetStart = lbeg
+
+            editor.TargetEnd = lend
+
+            editor:ReplaceTarget(text)
+
+        <span class="keyword">end</span><span class="comment">--for</span>
+
+    editor:EndUndoAction()
+
+<span class="keyword">end</span></pre>
+
+<p>
+<em>--sirol81--</em>
+<p>
+<H3>Swap Comma</H3>
+Transpose positions when separated, of words by commas.. If " when separated, of words" is selected in the previous sentence and swapped, it would now read, "Transpose positions of words, when separated by commas." It also works with semicolons.
+<p>
+<pre class="code">
+<span class="keyword">function</span> swap_comma()
+
+    <span class="keyword">local</span> str = editor:GetSelText()
+
+    <span class="keyword">local</span> b = <span class="library">string.gsub</span>(str,<span class="string">".*[,;]"</span>,<span class="string">""</span>)
+
+    <span class="keyword">local</span> c = <span class="library">string.gsub</span>(str,<span class="string">".*([,;]).*"</span>,<span class="string">"%1"</span>)
+
+    <span class="keyword">local</span> a = <span class="library">string.gsub</span>(str,c..<span class="string">".*"</span>,<span class="string">""</span>)
+
+    editor:ReplaceSel(b..c..a)
+
+<span class="keyword">end</span></pre>
+
+<p>
+<em>--hellork--</em>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteMiscScripts" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteMiscScripts" >history</a><br>Last edited November 1, 2010 8:29 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteMiscScripts" >(diff)</a>
+</body>
+</html>

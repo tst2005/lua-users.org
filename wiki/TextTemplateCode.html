@@ -1,0 +1,299 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Text Template Code</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TextTemplateCode&amp;body=1" title="List pages referring to TextTemplateCode">Text Template Code</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<hr><DL>
+<dt><dd><strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  Certain features used like tag methods (<code>settagmethod</code>) are no longer present in Lua 5 but have been replaced with metamethods.</strong>
+</DL>
+<hr>Go back to <a href="../wiki/TextTemplate.html" >TextTemplate</a> 
+<pre>
+
+     1
+
+     2  local ENVPAT="%$(%w+)"
+
+     3  local DOTPAT="|((%a%w*)[.:][.:%w]+)|"
+
+     4  local TABPAT="@((%a%w*)[.:%w]*%s*%b{})"
+
+     5  local FUNPAT="@((%a%w*)[.:%w]*%s*%b())"
+
+     6  local ANYPAT="@(%b{})"
+
+     7  local VARPAT="((\n?) *)|(%w+)|"
+
+     8
+
+     9  local sharedvars = {
+
+    10    DATE=date("%d/%m/%Y %T"),
+
+    11  }
+
+    12
+
+    13  function share(t)
+
+    14    for n,v in t do sharedvars[n]=v end
+
+    15  end
+
+    16
+
+    17  local push, pop, join = tinsert, tremove, concat
+
+    18  local getn, call, unpack, globals, rawget, concat, getglobal, gsub, type =
+
+    19        getn, call, unpack, globals, rawget, concat, getglobal, gsub, type
+
+    20
+
+    21  local indent = function( sp, cr, var )
+
+    22    local val = getglobal(var)
+
+    23    if cr and sp ~= cr then val = gsub( val, '\n([^\n])', sp.."%1" ) end
+
+    24    return sp .. val
+
+    25  end
+
+    26
+
+    27  local tagnil = tag(nil)
+
+    28
+
+    29  function fillin( s, pat )
+
+    30    pat = pat or s.template or "*** WARNING: nil pattern ***"
+
+    31    local g  = globals()
+
+    32    s._ERRORMESSAGE = function(x) globals(g) _ERRORMESSAGE(x) end
+
+    33    local tm = gettagmethod( tagnil, 'getglobal' )
+
+    34    settagmethod( tagnil, 'getglobal', function( name, value )
+
+    35        local v
+
+    36        v = s[name] if v then return v end -- support delegation via index
+
+    37        v = sharedvars[name] if v then return v end
+
+    38        v = rawget( g, name ) if v then -- rawget must be local
+
+    39          if type(v) == 'magic' then return v[name]() end
+
+    40          --? local tm = gettagmethod( tag(v), 'getglobal' )
+
+    41          --? if tm then return tm(name,v) end
+
+    42          return v
+
+    43        end
+
+    44        if tm then return tm( name, value ) end
+
+    45        return "*** WARNING: '".. name .."' == nil ***"
+
+    46      end )
+
+    47    globals( s )
+
+    48    local n repeat pat,n = gsub( pat, VARPAT, indent ) until n==0
+
+    49    globals( g )
+
+    50    settagmethod( tagnil, 'getglobal', tm )
+
+    51    return pat
+
+    52  end
+
+    53
+
+    54  local fcnt = 0
+
+    55  local uniq_id = function( x )
+
+    56    fcnt = fcnt + 1
+
+    57    return fcnt .. x
+
+    58  end
+
+    59
+
+    60  function template( pat )
+
+    61    pat = gsub( pat, ENVPAT, getenv )
+
+    62    local mfc = { [[
+
+    63  local Magic = settype( {}, newtype'magic' )
+
+    64  ]] }
+
+    65    local add = function(fc,name)
+
+    66        name = uniq_id(name)
+
+    67        push( mfc, [[
+
+    68  Magic[']].. name ..[['] = function()
+
+    69    local self=globals()
+
+    70    return ]].. fc ..[[ --
+
+    71  end
+
+    72  setglobal(']].. name ..[[', Magic )
+
+    73  ]] )
+
+    74        return '|'.. name ..'|'
+
+    75      end -- add
+
+    76    local doo = function(fc)
+
+    77        local name = uniq_id'ANY'
+
+    78        push( mfc, [[
+
+    79  Magic[']].. name ..[['] = function()
+
+    80    local OUT=''
+
+    81    local self=globals()
+
+    82    do ]].. strsub(fc,2,-2) ..[[ end
+
+    83    return OUT
+
+    84  end
+
+    85  setglobal(']].. name ..[[', Magic )
+
+    86  ]] )
+
+    87        return '|'.. name ..'|'
+
+    88      end -- doo
+
+    89    pat = gsub( pat, DOTPAT, add )
+
+    90    pat = gsub( pat, TABPAT, add )
+
+    91    pat = gsub( pat, FUNPAT, add )
+
+    92    pat = gsub( pat, ANYPAT, doo )
+
+    93  --  write( _STDERR, pat )
+
+    94    local ds = concat( mfc )
+
+    95  --?   ds = ds .. [[
+
+    96  --? settagmethod( tag(Magic), 'getglobal', function( name, magic )
+
+    97  --?     local f = rawget( magic, name )  return f()
+
+    98  --?   end )
+
+    99  --? ]]
+
+   100  --  write( _STDERR, ds )
+
+   101    local _,msg = dostring( ds, 'Make Magic' )
+
+   102    if msg then error( msg .." with\n".. ds ) end
+
+   103    return pat
+
+   104  end
+
+   105
+
+   106
+
+   107  function map( t, fun, ... )
+
+   108    local r = {}
+
+   109    for i = 1, getn(t) do
+
+   110      local v = fun( t[i], unpack(arg) )
+
+   111      push(r,v)
+
+   112    end
+
+   113    return r
+
+   114  end
+
+   115
+
+   116  function grep( t, fun, ... )
+
+   117    local r = {}
+
+   118    for i = 1, getn(t) do
+
+   119      local v = t[i]
+
+   120      if fun( v, unpack(arg) ) then push(r,v) end
+
+   121    end
+
+   122    return r
+
+   123  end
+
+   124
+
+   125  function filleachi( t, sep, pat )
+
+   126    return concat( map( t, fillin, pat ), sep )
+
+   127  end
+
+   128
+
+</pre>
+<p>
+Go back to <a href="../wiki/TextTemplate.html" >TextTemplate</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TextTemplateCode" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TextTemplateCode" >history</a><br>Last edited December 30, 2006 10:43 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TextTemplateCode" >(diff)</a>
+</body>
+</html>

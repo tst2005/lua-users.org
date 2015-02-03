@@ -1,0 +1,114 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Build Systems</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaBuildSystems&amp;body=1" title="List pages referring to LuaBuildSystems">Lua Build Systems</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following are Lua-based build systems<a href="http://en.wikipedia.org/wiki/Build_automation.html">[1]</a>.  They function similar to tools like make<a href="http://en.wikipedia.org/wiki/Make_(software).html">[2]</a>, SCons<a href="http://www.scons.org/">[3]</a><a href="http://en.wikipedia.org/wiki/SCons.html">[4]</a>, CMake<a href="http://www.cmake.org/">[5]</a><a href="http://en.wikipedia.org/wiki/CMake.html">[6]</a>, Autotools<a href="http://en.wikipedia.org/wiki/GNU_build_system.html">[7]</a>, and CPAN.pm<a href="http://en.wikipedia.org/wiki/CPAN.html">[8]</a>.  However, the tools or the build files are written in Lua.
+<p>
+<UL>
+<li> SCons-like systems
+<UL>
+<li> <a href="../wiki/LuaBuildBou.html" >LuaBuildBou</a> - dependency build system (somewhat like SCons)
+<li> <a href="https://github.com/stevedonovan/Lake">[Lake]</a> Bou has grown up and been renamed Lake
+<li> <a href="http://primemover.sourceforge.net/">[primemover]</a> - small, portable, easy to deploy dependency build system (somewhat like SCons)
+<li> <a href="http://github.com/matricks/bam/">[Bam]</a> - (like SCons)
+<li> <a href="http://luaforge.net/projects/luaibs">[LuaIBS]</a> - make-replacement written in Lua and C and using <a href="../wiki/LuaFileSystem.html" >LuaFileSystem</a>
+<li> <a href="http://luaforge.net/projects/meique">[Meique]</a> - scons-like tool written in Lua and C++
+<li> <a href="http://www.sweetsoftware.co.nz/build_overview.html">[Sweet Build]</a> - a build tool written in C++ and Lua.
+<li> <a href="http://github.com/xlq/moonmake">[moonmake]</a>
+<li> <a href="http://code.google.com/p/tmake">[tmake]</a> - a build tool written in C++ using lua as configuration files.
+</UL>
+<li> Build script generators (like Autotools and CMake)
+<UL>
+<li> <a href="http://industriousone.com/premake">[premake]</a> - build script generator (like CMake but with Lua as the config language)
+<li> <a href="http://kotisivu.dnainternet.net/askok/hamster/">[Hamster]</a> - Build script generator for Lua with API derived from <a href="http://www.scons.org/">[scons]</a>. It can generate Makefiles (GNU/BSD/nmake), build with scons, or build with no external tool.
+<li> <a href="https://gist.github.com/davidm/5125764">[makebuild.lua]</a> rudimentary Lua makefile generator in &lt; 100 lines of code.
+<li> <a href="http://lists.luaforge.net/pipermail/luarocks-developers/2009-September/001181.html">[9]</a> - proof-of-concept rockspec to Makefile converter
+</UL>
+<li> Other:
+<UL>
+<li> <a href="http://jamplus.org/">[jamplus]</a> - a derivative of Perforce Jam, with various enhancements like outputting Visual Studio IDE, Xcode, and Code<code></code>Blocks project files.  It embeds a minimal LuaPlus<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaPlus" >?</a> <a href="http://jamplus.org/git/jamplus/docs/html/lua_support.html">[10]</a>.
+<li> <a href="http://github.com/deplinenoise/tundra">[tundra]</a> - Lua configuration languages produces a DAG consumed by a multithreaded C builder supporting quick incremental builds.  notes: <a href="http://deplinenoise.wordpress.com/2012/09/30/looking-towards-tundra-2-0/">[11]</a><a href="http://voodoo-slide.blogspot.com/2010/08/tundra-my-build-system.html">[12]</a><a href="https://github.com/deplinenoise/tundra/blob/master/doc/manual.asciidoc">[13]</a>
+</UL>
+<li> CPAN-like systems
+<UL>
+<li> <a href="../wiki/LuaRocks.html" >LuaRocks</a> - deployment Lua modules, including network fetch, automated build, installation, and management (like Perl CPAN)
+<li> <a href="http://luadist.org/">[LuaDist]</a> - Modules are built using CMake.  Also includes optional package management features like <a href="../wiki/LuaRocks.html" >LuaRocks</a>.
+</UL>
+<li> Memoized build systems (like fabricate, memoize.py, fbuild, ...)
+<UL>
+<li> <a href="https://github.com/davidm/lua-mbuild">[lua-mbuild]</a>
+</UL>
+<li> See Also
+<UL>
+<li> <a href="http://www.cmake.org/Wiki/CMake:Experiments_With_Lua#Notes">[CMake Experiments with Lua]</a> - prototype for replacing CMake's language with Lua. <a href="http://public.kitware.com/pipermail/cmake-developers/2012-August/004737.html">[update:2012-08]</a>
+</UL>
+</UL>
+<p>
+The following are build systems that are not necessarily implemented in Lua but nevertheless have been used to build Lua related code:
+<p>
+<UL>
+<li> Make (including <a href="http://www.gnu.org/software/make/">[GNU Make]</a>) - The standard distribution of Lua (and <a href="../wiki/LuaJit.html" >LuaJit</a>) contains just a Makefile.  Other examples include <a href="http://www.murga-projects.com/murgaLua.html">[murgaLua]</a>.
+<li> <a href="http://en.wikipedia.org/wiki/GNU_build_system.html">[autotools]</a> - used in many places, such as <a href="http://love2d.org/">[LOVE]</a>.
+<li> <a href="http://cmake.org/">[CMake]</a> - used by <a href="http://luadist.org">[LuaDist]</a>
+<li> <a href="http://jamplus.org/projects/jamplus/wiki">[JamPlus]</a> - used by <a href="http://luaplus.org/">[LuaPlus]</a>
+<li> <a href="http://www.tecgraf.puc-rio.br/tecmake/">[tecmake]</a> - has been used for a few things like <a href="http://www.tecgraf.puc-rio.br/iup/">[IUP]</a> and <a href="http://luabinaries.sourceforge.net/configuration.html">[LuaBinaries]</a>.
+<li> See also <a href="../wiki/LuaDistributions.html" >LuaDistributions</a> (e.g. <a href="../wiki/LuaRocks.html" >LuaRocks</a>), <a href="../wiki/BuildingLua.html" >BuildingLua</a>, and <a href="../wiki/BuildingModules.html" >BuildingModules</a>.
+</UL>
+<p>
+Such build automation systems (<a href="http://en.wikipedia.org/wiki/Build_automation.html">[1]</a>) cover topics such as
+<p>
+<UL>
+<li> <strong>Compiling</strong> code or other files.  This involves a few parts:
+<UL>
+<li> There is some <strong>configuration language</strong> that defines what is to be built and in what order.  This could be in the form of a makefile.  It may be expressed in a limited language specific to the problem domain, but since it can be necessary to make decisions on what and how to compile, some general purpose language features are useful such as variables, control structures, functions/macros, and string/list manipulation.  Some systems use Python (as in SCons) or Lua for this.  Even if your build system does not use Lua for the configuration language, you can still likely invoke a Lua interpreter from it.
+<li> There may be some means of <strong>translating high level build descriptions</strong> in the configuration language (e.g. compile a shared library from a list of C files) into actual commands to be run (compiler command lines with switches).  This can require knowledge of each supported toolchain, which may be built into the build tool or definable by the user.  Some simpler build systems (e.g. make) don't directly provide this knowledge but leave it up to the user to input low-level build descriptions.
+<li> There is some means of <strong>scheduling the commands</strong> to be run, including ensuring they run in certain order based on dependencies, queuing jobs to run in parallel on different CPU cores or machines, omitting commands if the target is up-to-date (based on time-stamps or checksums), and checking error results.  This is typically deeply coupled with the actual running of the commands, like via os.execute or some more advanced platform-specific process control mechanism or job processor.  The commands may be invoked within the configuration language (like SCons).  Alternately, this work might be offloaded to another existing tool, as done by "makefile generators" (like Automake, CMake, or premake) which generate, for example, a makefile, ninja build description, or msbuild description for use separately in a subsequent build step.  The makefiles may need to be regenerated if the dependencies change, and there are ways to insert this into the makefile itself.  The dependency tree might to some extent need to be determined dynamically (e.g. C include files).
+<li> There may be some means of <strong>platform detection</strong> (e.g. detecting the host compiler, libraries, and symbols available), like autoconf.  This information is used for "translating high level build descriptions".  Sometimes it is run as part of the build process, or (like in autoconf) it may be a step run before the build process and not rerun during incremental builds, assuming the platform doesn't change.  The job processor may be required for this to do things like test compiles on the host platform (assuming not cross-compiling to a different target platform).
+</UL>
+<li> Running <strong>tests</strong> (make test), <strong>deployment</strong> (make install), and <strong>packaging</strong> (e.g. .deb).
+<li> Deploying and/or compiling <strong>dependencies</strong>--like <a href="../wiki/LuaRocks.html" >LuaRocks</a>, the deployment tool in <a href="../wiki/LuaDist.html" >LuaDist</a>, and CPAN.
+</UL>
+<p>
+Concerns include
+<p>
+<UL>
+<li> Ease of deploying the build system.  It's convenient if the build system is usually pre-installed (e.g. make), or easily installed (apt-get install cmake), or perhaps has a low footprint and ease of deployment or even bundled in your package (e.g. <a href="http://primemover.sourceforge.net/">[primemover]</a>).
+<li> Familiarity.  Learning, debugging, or maintaining an unfamiliar, non-standard, buggy, inflexible build system is not fun.  It's tempting to write your own build system, but there is a cost.
+<li> Platform support.  Does the tool know how to build on your platform and toolchain?
+<li> Generality.  If your build invokes only custom commands (e.g. building web pages or images rather than C code), convenience in defining your own arbitrary rules (like in make) is more important than having extensive built-in toolchain support.
+<li> Speed.  How fast are incremental builds?  Are parallel builds supported?  Precompiled headers?
+<li> Support for platform detection (like autoconf), if support for many platforms is desired.
+<li> Configuration language.
+<li> IDE integration, like in premake, CMake, or to a lesser extent <a href="http://www.scons.org/wiki/IDEIntegration.html">[SCons]</a>.
+<li> Reliability of the build process.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaBuildSystems" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaBuildSystems" >history</a><br>Last edited March 9, 2013 9:57 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaBuildSystems" >(diff)</a>
+</body>
+</html>

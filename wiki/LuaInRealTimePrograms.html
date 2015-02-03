@@ -1,0 +1,45 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua In Real Time Programs</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaInRealTimePrograms&amp;body=1" title="List pages referring to LuaInRealTimePrograms">Lua In Real Time Programs</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em><strong><a href="../wiki/VersionNotice.html" >VersionNotice</a>:  This article relates to an earlier version of Lua. Incremental garbage collection is available as of Lua 5.1.</strong></em>
+<p>
+Older versions of Lua (prior to 5.1) are not well-suited for the main loops of real-time programs. The reason isn't that Lua is slow--in fact it probably has the fastest virtual machine of any scripting language. The problem is the mark-and-sweep garbage collection (GC), which requires a concentrated chunk of CPU time proportional to the number of objects allocated.  It was useful in 5.1 to replace the mark-and-sweep collector with a real-time incremental system (see paper <em>Real-Time Non-Copying Garbage Collection</em> <a href="ftp://ftp.cs.utexas.edu/pub/garbage/GC93/wilson.ps">[1]</a>).  In older version of Lua, there are still several ways to make good use of Lua in real-time programs:
+<p>
+<UL>
+<li> <strong>Use Lua only at init time.</strong> Use Lua scripts to initialize C structures, then close or discontinue use of the Lua context. 
+<li> <strong>Use Lua in main loop but do not allocate objects.</strong> With careful programming it's possible to eliminate object allocation in the main loop, in which case the GC doesn't need to run. 
+<li> <strong>Keep amount of allocated objects small and run the GC after every iteration of the main loop.</strong> For a small number of objects this may be reasonable. Note that the standard libraries are included in this count so it's best to strip unused functions. 
+</UL>
+<p>
+<hr>See also: <a href="../wiki/OptimisationTips.html" >OptimisationTips</a>, <a href="../wiki/GarbageCollection.html" >GarbageCollection</a>/<a href="../wiki/GarbageCollectionInRealTimeGames.html" >GarbageCollectionInRealTimeGames</a>, <a href="../wiki/ProfilingLuaCode.html" >ProfilingLuaCode</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaInRealTimePrograms" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaInRealTimePrograms" >history</a><br>Last edited October 25, 2008 3:53 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaInRealTimePrograms" >(diff)</a>
+</body>
+</html>

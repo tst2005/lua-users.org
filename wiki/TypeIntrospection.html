@@ -1,0 +1,113 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Type Introspection</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TypeIntrospection&amp;body=1" title="List pages referring to TypeIntrospection">Type Introspection</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Type introspection <a href="http://en.wikipedia.org/wiki/Type_introspection.html">[1]</a> is the ability determine the type of an object at runtime.  This page describes ways this can be supported in Lua.
+<p>
+First, why do we need type introspection?  It may be that you don't even need to use type introspection at all.  Duck typing <a href="http://en.wikipedia.org/wiki/Duck_typing.html">[2]</a> and <a href="http://en.wikipedia.org/wiki/Polymorphism_in_object-oriented_programming.html">[polymorphism]</a> can dispatch based on type without programmer intervention.  There are reasons you may still want to inspect type, such as for debugging purposes <a href="http://lua-users.org/lists/lua-l/2007-08/msg00381.html">[3]</a> or type checking (<a href="../wiki/LuaTypeChecking.html" >LuaTypeChecking</a>).  You may also want to dispatch code in a particular custom way, such as how <a href="http://www.lua.org/manual/5.1/manual.html#pdf-string.gsub">[string.gsub]</a> behaves differently depending on whether <code>repl</code> is a string, table, or function.  Unfortunately, the lines are sometimes blurred, such as <a href="../wiki/FuncTables.html" >FuncTables</a>, which are tables with a call operator allowing them to behave like functions.  Also, maybe you want to define a function that loads data from either a string or a file specified by filename, but both are strings, so you need some other way to distinguish them (e.g. two separate functions like <a href="http://www.lua.org/manual/5.1/manual.html#pdf-loadstring">[loadstring]</a> and <a href="http://www.lua.org/manual/5.1/manual.html#pdf-loadfile">[loadfile]</a>).
+<p>
+The <a href="http://www.lua.org/manual/5.1/manual.html#pdf-type">[type]</a> function returns the basic type of value as a string.  There are only eight basic types in Lua (<code>"nil"</code>, <code>"number"</code>, <code>"string"</code>, <code>"boolean"</code>, <code>"table"</code>, <code>"function"</code>, <code>"thread"</code>, or <code>"userdata"</code>).
+<p>
+The <a href="http://www.lua.org/manual/5.1/manual.html#lua_type">[lua_type]</a> function in the C API is similar to <code>type</code> but returns an integer constant.  It also differentiates between the two types of userdata: LUA_TUSERDATA and LUA_TLIGHTUSERDATA (see <a href="../wiki/LightUserData.html" >LightUserData</a>).  There is also a <code>lua_typename</code> function that converts this integer back to a string in the form returned by <code>type</code>.
+<p>
+The <a href="http://www.lua.org/manual/5.1/manual.html#pdf-io.type">[io.type]</a> function determines whether the given object is a file handle (as well as whether it is open or closed).  A number of user libraries follow a similar pattern by providing their own function that checks whether the given object is of a type defined by the library, either returning <code>true/false</code> or a class name string.  This function is implemented using methods described below.  This style can, however, go against duck typing and can prevent (<a href="../wiki/LuaVirtualization.html" >LuaVirtualization</a>).
+<p>
+The equality operator, or more precisely the <a href="http://www.lua.org/manual/5.1/manual.html#pdf-rawequal">[rawequal]</a> function can check if two values have the same identity (and by implication are the same objects since objects have unique identity).  If all objects in a class are stored as keys in a table, then you check for identity by indexing the table (preferably weak keyed table, although prior to Lua 5.2 that has a caveat--<a href="../wiki/GarbageCollectingWeakTables.html" >GarbageCollectingWeakTables</a>):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> isfoo_ = <span class="library">setmetatable</span>({}, {__mode=<span class="string">'k'</span>})
+
+
+
+<span class="keyword">function</span> newfoo()
+
+  <span class="keyword">local</span> self = {}
+
+  isfoo_[self] = <span class="keyword">true</span>
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> isfoo(o)
+
+  <span class="keyword">return</span> isfoo_[o]
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+If all objects in a class, and only those objects, have a certain metatable (or value returned by a <code>__metatable</code> metamethod), then you can check that metatable:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> foo_mt = {}
+
+
+
+<span class="keyword">function</span> newfoo()
+
+  <span class="keyword">local</span> self = <span class="library">setmetatable</span>({}, foo_mt)
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> isfoo(o)
+
+  <span class="keyword">return</span> <span class="library">getmetatable</span>(o) == foo_mt
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+To obtain the name of a user-defined type as a string, you might first obtain the type of the object and then obtain the name from the type.  You might do to this via <code>tostring</code> on the type, but some consider <code>tostring</code> only for debugging.  Or you might store a <code>_NAME</code> field in the type or even in the object itself <a href="/lists/lua-l/2007-08/msg00440.html">[9]</a><a href="http://lua-users.org/lists/lua-l/2007-08/msg00459.html">[4]</a> (<a href="../wiki/TypeOf.html" >TypeOf</a>).  The reason for this choice of field name is that a module's <code>_NAME</code> field is set by the <a href="http://www.lua.org/manual/5.1/manual.html#pdf-module">[module]</a> function, and a module is often used as a type, and even those not using the module function (<a href="../wiki/LuaModuleFunctionCritiqued.html" >LuaModuleFunctionCritiqued</a>) may still follow the convention of using <code>_NAME</code>.  Unfortunately, indexing an object might raise an error rather than return <code>nil</code> (duck typing can also have this problem).
+<p>
+Some have modified the <code>type</code> function to support user-defined types, possibly by querying a <code>__type</code> metamethod <a href="http://lua-users.org/lists/lua-l/2007-08/msg00414.html">[5]</a><a href="http://lua-users.org/lists/lua-l/2006-09/msg00950.html">[6]</a>.  This may break existing code that expects only basic types returned or add some overhead globally.  You could, however, swap in a custom <code>type</code> function locally: <code>local type = mytype</code> .  Others have made user-defined types (or subtypes) be returned only as a second return value of <code>type</code> <a href="http://lua-users.org/lists/lua-l/2006-09/msg00959.html">[7]</a><a href="http://lua-users.org/lists/lua-l/2007-08/msg00415.html">[8]</a>.
+<p>
+Some object-oriented frameworks (<a href="../wiki/ObjectOrientedProgramming.html" >ObjectOrientedProgramming</a>) implement their own introspection capabilities, but these may not be compatible with objects not created with that framework.
+<p>
+Not all these type introspection methods are fool-proof against intentional abuse (see <a href="../wiki/SandBoxes.html" >SandBoxes</a>).  An object's identity, however, cannot be forged in normal Lua usage.  Also, by restricting access to the debug library and providing a <code>__metatable</code> metamethod, can can prevent public access to an object's metatable, as well as public knowledge of the metatable's identity.  These can hinder abuse from untrusted code.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<em>Note</em>: for a relatively simple function that will allow you to <code>print</code> diverse objects without Lua crashing, see <a href="../wiki/IntrospectionFunctionsLua.html" >IntrospectionFunctionsLua</a>. 
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TypeIntrospection" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TypeIntrospection" >history</a><br>Last edited April 6, 2013 3:51 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TypeIntrospection" >(diff)</a>
+</body>
+</html>

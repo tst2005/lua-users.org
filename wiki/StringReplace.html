@@ -1,0 +1,153 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: String Replace</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=StringReplace&amp;body=1" title="List pages referring to StringReplace">String Replace</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>FAST non-regular expression string search and replace function</H3>
+<p>
+Half of the time when doing string search and replace we do not require the
+regular expression functionality that comes with the string.gsub function.
+I have done a benchmark test with this new function and found it to be
+overall more than twice faster than <code>gsub</code>.  The speed difference can
+be easily seen when doing search and replace on field values of thousands
+of records.
+<p>
+I have chosen to name the function 'replace' as Python, Ruby and most languages
+use 'replace' for the string search and replace function.
+<p>
+--Sam Lie
+<p>
+<hr>Add the following function to the string lib file in Lua.
+<p>
+<DL>
+<dt><dd><pre>
+
+static int str_replace(lua_State *L) {
+
+    size_t l1, l2, l3;
+
+    const char *src = luaL_checklstring(L, 1, &amp;l1);
+
+    const char *p = luaL_checklstring(L, 2, &amp;l2);
+
+    const char *p2 = luaL_checklstring(L, 3, &amp;l3);
+
+    const char *s2;
+
+    int n = 0;
+
+    int init = 0;
+
+
+
+    luaL_Buffer b;
+
+    luaL_buffinit(L, &amp;b);
+
+
+
+    while (1) {
+
+        s2 = lmemfind(src+init, l1-init, p, l2);
+
+        if (s2) {
+
+            luaL_addlstring(&amp;b, src+init, s2-(src+init));
+
+            luaL_addlstring(&amp;b, p2, l3);
+
+            init = init + (s2-(src+init)) + l2;
+
+            n++;
+
+        } else {
+
+            luaL_addlstring(&amp;b, src+init, l1-init);
+
+            break;
+
+        }
+
+    }
+
+
+
+    luaL_pushresult(&amp;b);
+
+    lua_pushnumber(L, (lua_Number)n);  /* number of substitutions */
+
+    return 2;
+
+}
+
+
+
+/* note: add new the 'replace' function to strlib  */
+
+
+
+static const luaL_reg strlib[] = {
+
+    {"len", str_len},
+
+    {"sub", str_sub},
+
+    {"lower", str_lower},
+
+    {"upper", str_upper},
+
+    {"char", str_char},
+
+    {"getchar", str_getchar},
+
+    {"rep", str_rep},
+
+    {"byte", str_byte},
+
+    {"format", str_format},
+
+    {"dump", str_dump},
+
+    {"find", str_find},
+
+    {"gfind", gfind},
+
+    {"gsub", str_gsub},
+
+    {"replace", str_replace},
+
+    {NULL, NULL}
+
+};
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=StringReplace" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=StringReplace" >history</a><br>Last edited January 6, 2007 6:27 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=StringReplace" >(diff)</a>
+</body>
+</html>

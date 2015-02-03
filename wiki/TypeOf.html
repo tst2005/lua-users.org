@@ -1,0 +1,67 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Type Of</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TypeOf&amp;body=1" title="List pages referring to TypeOf">Type Of</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Playing around with the concept of a typeof() operator.
+<p>
+When a module is made using the module() function, it adds a value of the module name as 
+metatable._NAME. This function takes advantage of that default behavior.  Note: this
+doesn't apply to C extensions, unless the author specifically adds the value.
+<p>
+<pre>
+
+function typeof(var)
+
+    local _type = type(var);
+
+    if(_type ~= "table" and _type ~= "userdata") then
+
+        return _type;
+
+    end
+
+    local _meta = getmetatable(var);
+
+    if(_meta ~= nil and _meta._NAME ~= nil) then
+
+        return _meta._NAME;
+
+    else
+
+        return _type;
+
+    end
+
+end
+
+    </pre>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TypeOf" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TypeOf" >history</a><br>Last edited March 1, 2006 10:47 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TypeOf" >(diff)</a>
+</body>
+</html>

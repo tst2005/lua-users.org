@@ -1,0 +1,120 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Time Zone</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TimeZone&amp;body=1" title="List pages referring to TimeZone">Time Zone</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following function portably returns a timezone string in the form <code>+hhmm</code> or <code>-hhmm</code>.  One cannot use <code>os.date("%z")</code> as the format of its return value is non-portable; in particular, Windows systems don't use the C99 semantics for <code>strftime()</code>.  The following code should portably produce a timezone string for the current local time.
+<p>
+<em>NOTE: the following only computes the timezone offset for "now", which differs from <code>os.date("%z")</code> which can handle times in the past or future, taking daylight savings time into account. Alternatively, you can use get_timezone_anystamp(ts) below</em>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Compute the difference in seconds between local time and UTC.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> get_timezone()
+
+  <span class="keyword">local</span> now = <span class="library">os.time</span>()
+
+  <span class="keyword">return</span> <span class="library">os.difftime</span>(now, <span class="library">os.time</span>(<span class="library">os.date</span>(<span class="string">"!*t"</span>, now)))
+
+<span class="keyword">end</span>
+
+timezone = get_timezone()
+
+
+
+<span class="comment">-- Return a timezone string in ISO 8601:2000 standard form (+hhmm or -hhmm)</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> get_tzoffset(timezone)
+
+  <span class="keyword">local</span> h, m = <span class="library">math.modf</span>(timezone / 3600)
+
+  <span class="keyword">return</span> <span class="library">string.format</span>(<span class="string">"%+.4d"</span>, 100 * h + 60 * m)
+
+<span class="keyword">end</span>
+
+tzoffset = get_tzoffset(timezone)
+
+
+
+
+
+<span class="comment">--[[ debugging
+
+for _, tz in ipairs(arg) do
+
+  if tz == '-' then
+
+    tz = timezone
+
+  else
+
+    tz = 0 + tz
+
+  end
+
+  print(tz, get_tzoffset(tz))
+
+end
+
+--]]</span>
+
+
+
+<span class="comment">-- return the timezone offset in seconds, as it was on the time given by ts</span>
+
+<span class="comment">-- Eric Feliksik</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> get_timezone_offset(ts)
+
+	<span class="keyword">local</span> utcdate   = <span class="library">os.date</span>(<span class="string">"!*t"</span>, ts)
+
+	<span class="keyword">local</span> localdate = <span class="library">os.date</span>(<span class="string">"*t"</span>, ts)
+
+	localdate.isdst = <span class="keyword">false</span> <span class="comment">-- this is the trick</span>
+
+	<span class="keyword">return</span> <span class="library">os.difftime</span>(<span class="library">os.time</span>(localdate), <span class="library">os.time</span>(utcdate))
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2008-03/msg00050.html">LuaList:2008-03/msg00050.html</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TimeZone" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TimeZone" >history</a><br>Last edited January 21, 2013 1:18 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TimeZone" >(diff)</a>
+</body>
+</html>

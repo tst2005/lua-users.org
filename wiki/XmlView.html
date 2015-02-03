@@ -1,0 +1,149 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Xml View</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=XmlView&amp;body=1" title="List pages referring to XmlView">Xml View</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>xmlview: convenient access to XML trees</H2>
+<p>
+(This is part of <a href="../wiki/LazyKit.html" >LazyKit</a>.)
+<p>
+This package is a work in progress for <a href="../wiki/XmlTree.html" >XmlTree</a>. Quick summary:
+<p>
+<p>
+<H3>xstring(node)</H3>
+<p>
+Returns the immediate string contents of node (which may be
+either a tree or, trivially, a string.) Returns
+<code>nil,errormessage</code> if <code>node</code> is a tree
+with mixed content.
+<p>
+<p>
+<H3>xtext(node)</H3>
+<p>
+Recursively returns the string contents of <code>node</code>,
+descending into any child elements.
+<p>
+<p>
+<H2>View objects</H2>
+<p>
+Views provide easy random access to the children of a <a href="../wiki/XmlTree.html" >XmlTree</a>.
+They are currently read-only.
+<p>
+<p>
+<p>
+The current implementation completely populates them on first
+access, but lazy implementations are possible.
+<p>
+<p>
+<H3>xmlview.string(tree)</H3>
+<p>
+Create a string view on <code>tree</code>. The view contains
+all immediate children of <code>tree</code> that have unique
+element names and do not contain mixed content. Accessing names
+that are not unique or have mixed content results in an error.
+Example:
+<p>
+<p>
+<DL>
+<dt><dd><pre>&lt;logentry&gt;
+
+  &lt;type&gt;INFO&lt;/info&gt;
+
+  &lt;time&gt;12:50&lt;/time&gt;
+
+  &lt;receivedfrom&gt;upstream1&lt;/receivedfrom&gt;
+
+  &lt;receivedfrom&gt;upstream2&lt;/receivedfrom&gt;
+
+  &lt;body&gt;This is a &lt;b&gt;test message&lt;/b&gt;&lt;/body&gt;
+
+  &lt;empty/&gt;
+
+&lt;/logentry&gt;
+
+
+
+tree=lxptree.parsestring(s)
+
+sv = xmlview.string(tree)
+
+print(sv.type)          -- "INFO"
+
+print(sv.time)          -- "12:50"
+
+print(sv.empty)         -- ""
+
+print(sv.receivedfrom)  -- error "contains duplicate content"
+
+print(sv.body)          -- error "contains mixed content" </pre>
+</DL>
+<H3>xmlview.text(tree)</H3>
+<p>
+Create a text view on <code>tree</code>. The view contains all
+immediate children of <code>tree</code> that have unique element
+names. <code>xtext</code> is called on those children,
+providing the recursive character data content of those nodes.
+Accessing names that are not unique results in an error.
+<p>
+<p>
+<H3>xmlview.elements(tree)</H3>
+<p>
+Create an elements view on <code>tree</code>. The view contains
+a list of all child element trees with the given name. Example:
+<p>
+<p>
+<DL>
+<dt><dd><pre>ev = xmlview.elements(tree)
+
+ev.type =&gt; {{name="type", "INFO", n=1}, n=1}
+
+ev.receivedfrom =&gt; {
+
+  {name="receivedfrom", "upstream1", n=1}, 
+
+  {name="receivedfrom", "upstream2", n=1},
+
+  n=2
+
+} </pre>
+</DL>
+<H2>What's missing</H2>
+<p>
+<code>element</code> would provide named elements if they were
+unique.
+<p>
+<p>
+<p>
+<code>firststring</code>, <code>firsttext</code>, and
+<code>firstelement</code> would be views that did not have to
+iterate through the entire tree, as they would not have to
+guarantee uniqueness. This could be friendlier to lazy trees.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=XmlView" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=XmlView" >history</a><br>Last edited February 28, 2004 11:32 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=XmlView" >(diff)</a>
+</body>
+</html>

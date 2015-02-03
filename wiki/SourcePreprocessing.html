@@ -1,0 +1,159 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Source Preprocessing</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SourcePreprocessing&amp;body=1" title="List pages referring to SourcePreprocessing">Source Preprocessing</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em>Source code preprocessing</em> (or <em>Source filtering</em> in Perl) refers to a transformation done to the source code before the code gets executed.  Some background information is given below:
+<p>
+<UL>
+<li> <a href="http://perldoc.perl.org/perlfilter.html">http://perldoc.perl.org/perlfilter.html</a>
+<li> <a href="http://en.wikipedia.org/wiki/Preprocessor.html">http://en.wikipedia.org/wiki/Preprocessor</a>
+<li> <a href="http://search.cpan.org/~jhi/perl/lib/Filter/Simple.pm">http://search.cpan.org/~jhi/perl/lib/Filter/Simple.pm</a>
+<li> <a href="http://dev.perl.org/perl6/rfc/264.html">http://dev.perl.org/perl6/rfc/264.html</a>
+<li> <a href="http://www.perl.com/lpt/a/663">http://www.perl.com/lpt/a/663</a>
+</UL>
+<p>
+Source filtering can be used to extend the syntax of a language.  It some cases it can be used to improve the efficiency as well.
+<p>
+Lua provides a <code>loadstring</code> functions (similar to <code>eval</code> in other dynamic languages) that can be used to compile Lua code on the fly.  This allows a Lua program itself to in some ways filter itself or other code in-process rather than via a separate preprocessor (e.g. as in the C preprocessor).
+<p>
+In the below example, we do a benchmark comparison between a typical method of doing vector multiplication and that implemented using source filtering macro-expansion.  This mostly for illustration, and it's not necessarily recommended.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> lua = <span class="string">[[
+
+  -- typical implementation (without filtering)
+
+  local function cross_vector2(u, v, result)
+
+    local u1, u2, u3 = u[1], u[2], u[3]
+
+    local v1, v2, v3 = v[1], v[2], v[3]
+
+    result[1], result[2], result[3] = u2*v3-u3*v2, u3*v1-u1*v3, u1*v2-u2*v1
+
+    return result
+
+  end
+
+
+
+  -- test and benchmark
+
+  local function benchmark(func)
+
+    local t1 = os.clock()
+
+    func()
+
+    local t2 = os.clock()
+
+    print("time:", t2-t1)
+
+  end
+
+  benchmark(function()
+
+    local vector u = 1, 0, 0
+
+    local vector v = 0, 1, 0
+
+    for n = 1,5000000 do
+
+      cross_vector(u,v,u)
+
+      --print("DEBUG: u=" .. stringify_vector(u))
+
+    end
+
+  end)
+
+  benchmark(function()
+
+    local u = {1, 0, 0}
+
+    local v = {0, 1, 0}
+
+    for n = 1,5000000 do
+
+      cross_vector2(u,v,u)
+
+      -- print("DEBUG: u=" .. table.concat(u, ', '))
+
+    end
+
+  end)
+
+]]</span>
+
+
+
+<span class="comment">-- source filtering implementation</span>
+
+lua = <span class="library">string.gsub</span>(lua, <span class="string">"local%s+vector%s+(%w+)%s*=%s*(%w+)%s*,%s*(%w+)%s*,%s*(%w+)"</span>, <span class="string">"local %1_1, %1_2, %1_3 = %2, %3, %4"</span>)
+
+lua = <span class="library">string.gsub</span>(lua, <span class="string">"cross_vector%s*%(%s*(%w+)%s*,%s*(%w+)%s*,%s*(%w+)%s*%)"</span>, <span class="string">"%3_1, %3_2, %3_3 = %1_2*%2_3-%1_3*%2_2, %1_3*%2_1-%1_1*%2_3, %1_1*%2_2-%1_2*%2_1"</span>)
+
+lua = <span class="library">string.gsub</span>(lua, <span class="string">"stringify_vector%((%w+)%)"</span>, <span class="string">"(%1_1 .. ',' .. %1_2 .. ',' .. %1_3)"</span>)
+
+
+
+<span class="comment">-- source filter</span>
+
+<span class="library">print</span>(<span class="string">"DEBUG[\n"</span> .. lua .. <span class="string">"]"</span>)
+
+<span class="library">assert</span>(<span class="library">loadstring</span>(lua))()
+
+</pre>
+
+</DL>
+<p>
+Results on one system:
+<DL>
+<dt><dd>time:   0.937
+<dt><dd>time:   4.078
+</DL>
+<p>
+The above could be made more robust.  In particular, additional care should be taken to ensure that the source filtering doesn't occur in unwanted places.  For example, in the remote case that your program had
+<p>
+print("cross_vector(u,v,u) = ", cross_vector(u,v,u))
+<p>
+you probably don't want source filtering to occur inside the string.  To handle this, your source filter will need to skip over strings.  This may require a full Lua parser (e.g. <a href="http://luaforge.net/projects/luaparse/">[LuaParse]</a>), or you may even get away with a partial lexer (e.g. <a href="../wiki/LuaBalanced.html" >LuaBalanced</a>).  Luckily, Lua is relatively easy to parse compared to other languages.
+<p>
+Interaction issues may occur if you attempt to use two independent source filters at the same time.
+<p>
+Source filtering is related to code generation.  For example, see the usage in <a href="/lists/lua-l/2006-09/msg00798.html">LuaList:2006-09/msg00798.html</a>.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<hr>See also: <a href="../wiki/LuaTokenParsing.html" >LuaTokenParsing</a>, <a href="../wiki/SimpleLuaPreprocessor.html" >SimpleLuaPreprocessor</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SourcePreprocessing" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SourcePreprocessing" >history</a><br>Last edited December 19, 2008 1:04 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SourcePreprocessing" >(diff)</a>
+</body>
+</html>

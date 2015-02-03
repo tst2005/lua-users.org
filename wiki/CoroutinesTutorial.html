@@ -1,0 +1,342 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Coroutines Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CoroutinesTutorial&amp;body=1" title="List pages referring to CoroutinesTutorial">Coroutines Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>What are coroutines?</H2>
+<p>
+Coroutines allow us to execute several tasks at once. This is done in a controlled manner by passing control to each routine and waiting until the routine says it has finished. We can reenter the routine to continue at a later time and by doing this repeatedly we achieve multi-tasking.
+<p>
+Coroutines are described in sections 2.11 and 5.2 of the Reference Manual. <a href="http://www.lua.org/manual/5.1/manual.html#2.11">[1]</a> <a href="http://www.lua.org/manual/5.1/manual.html#5.2">[2]</a>
+<p>
+<H3>Multi-threading</H3>
+<p>
+Each task runs in a <em>thread</em> which is separate from the other threads. Having several tasks running at once is often called <em>multi-threading</em>. Because there is more than one thread running at once our application is said to be <em>multi-threaded</em>.
+<p>
+There are different ways in which multi-threading can be implemented. Some systems allocate a fixed amount of time to each thread and take control away when the time is up, passing control on to the next thread etc. This is called <em>pre-emptive</em> multi-threading. In this case each of the threads does not need to worry about how much time it occupies, it is more concerned with its own function.
+<p>
+In other systems, a thread <em>is</em> concerned with how long it is taking. The thread knows it must pass control to other threads so that they can function as well. This is is called <em>cooperative</em>, or <em>collaborative</em> multi-threading. Here, all of the threads are collaborating together to allow the application to operate properly. This is the type of multi-tasking that Lua's coroutines use.
+<p>
+Coroutines in Lua are not operating system threads or processes. Coroutines are blocks of Lua code which are created within Lua, and have their own flow of control like threads.  Only one coroutine ever runs at a time, and it runs until it activates another coroutine, or yields (returns to the coroutine that invoked it).  Coroutines are a way to express multiple cooperating threads of control in a convenient and natural way, but do not execute in parallel, and thus gain no performance benefit from multiple CPU's.  However, since coroutines switch much faster than operating system threads and do not typically require complex and sometimes expensive locking mechanisms, using coroutines is typically faster than the equivalent program using full OS threads.
+<p>
+<H3>Yielding</H3>
+<p>
+In order for multiple coroutines to share execution they must stop executing (after performing a sensible amount of processing) and pass control to another thread. This act of submission is called <em>yielding</em>. Coroutines explicitly call a Lua function <code>coroutine.yield()</code>, which is similar to using <code>return</code> in functions. What differentiates yielding from function returns is that at a later point we can reenter the thread and carry on where we left off. When you exit a function scope using <code>return</code> the scope is destroyed and we cannot reenter it, e.g.,
+<DL>
+<dt><dd><pre>
+
+&gt; function foo(x)
+
+&gt;&gt;  if x&gt;3 then return true end  -- we can exit the function before the end if need be
+
+&gt;&gt;  return false                 -- return a value at the end of the function (optional)
+
+&gt;&gt; end
+
+&gt; = foo(1)
+
+false
+
+&gt; = foo(100)                     -- different exit point
+
+true
+
+</pre>
+</DL>
+<p>
+<H2>Simple usage</H2>
+<p>
+To create a coroutine we must have function which represents it, e.g.,
+<DL>
+<dt><dd><pre>
+
+&gt; function foo()
+
+&gt;&gt;   print("foo", 1)
+
+&gt;&gt;   coroutine.yield()
+
+&gt;&gt;   print("foo", 2)
+
+&gt;&gt; end
+
+&gt;
+
+</pre>
+</DL>
+<p>
+We create a coroutine using the <code>coroutine.create(fn)</code> function. We pass it an entry point for the thread which is a Lua function. The object returned by Lua is a <em>thread</em>:
+<DL>
+<dt><dd><pre>
+
+&gt; co = coroutine.create(foo) -- create a coroutine with foo as the entry
+
+&gt; = type(co)                 -- display the type of object "co"
+
+thread
+
+</pre>
+</DL>
+<p>
+We can find out what state the thread is in using the <code>coroutine.status()</code> function, e.g.,
+<DL>
+<dt><dd><pre>
+
+&gt; = coroutine.status(co)
+
+suspended
+
+</pre>
+</DL>
+The state <em>suspended</em> means that the thread is alive, and as you would expect, not doing anything. Note that when we created the thread it did not start executing. To start the thread we use the <code>coroutine.resume()</code> function. Lua will enter the thread and leave when the thread yields. 
+<DL>
+<dt><dd><pre>
+
+&gt; = coroutine.resume(co)
+
+foo     1
+
+true
+
+</pre>
+</DL>
+The <code>coroutine.resume()</code> function returns the error status of the resume call. The output acknowledges that we entered the function <code>foo</code> and then exited with no errors. Now is the interesting bit. With a function we would not be able to carry on where we left off, but with coroutines we can resume again:
+<DL>
+<dt><dd><pre>
+
+&gt; = coroutine.resume(co)
+
+foo     2
+
+true
+
+</pre>
+</DL>
+We can see we executed the line after the yield in <code>foo</code> and again returned without error. However, if we look at the status we can see that we exited the function <code>foo</code> and the coroutine terminated.
+<DL>
+<dt><dd><pre>
+
+&gt; = coroutine.status(co)
+
+dead
+
+</pre>
+</DL>
+If we try to resume again a pair of values is returned: an error flag and an error message:
+<DL>
+<dt><dd><pre>
+
+&gt; = coroutine.resume(co)
+
+false   cannot resume dead coroutine
+
+</pre>
+</DL>
+Once a coroutine exits or returns like a function it cannot be resumed.
+<p>
+<H2>More details</H2>
+<p>
+The following is a more complicated example demonstrating some important features of coroutines.
+<DL>
+<dt><dd><pre>
+
+&gt; function odd(x)
+
+&gt;&gt;   print('A: odd', x)
+
+&gt;&gt;   coroutine.yield(x)
+
+&gt;&gt;   print('B: odd', x)
+
+&gt;&gt; end
+
+&gt;
+
+&gt; function even(x)
+
+&gt;&gt;   print('C: even', x)
+
+&gt;&gt;   if x==2 then return x end
+
+&gt;&gt;   print('D: even ', x)
+
+&gt;&gt; end
+
+&gt;
+
+&gt; co = coroutine.create(
+
+&gt;&gt;   function (x)
+
+&gt;&gt;     for i=1,x do
+
+&gt;&gt;       if i==3 then coroutine.yield(-1) end
+
+&gt;&gt;       if i % 2 == 0 then even(i) else odd(i) end
+
+&gt;&gt;     end
+
+&gt;&gt;   end)
+
+&gt;
+
+&gt; count = 1
+
+&gt; while coroutine.status(co) ~= 'dead' do
+
+&gt;&gt;   print('----', count) ; count = count+1
+
+&gt;&gt;   errorfree, value = coroutine.resume(co, 5)
+
+&gt;&gt;   print('E: errorfree, value, status', errorfree, value, coroutine.status(co))
+
+&gt;&gt; end
+
+----    1
+
+A: odd  1
+
+E: errorfree, value, status     true    1       suspended
+
+----    2
+
+B: odd  1
+
+C: even 2
+
+E: errorfree, value, status     true    -1      suspended
+
+----    3
+
+A: odd  3
+
+E: errorfree, value, status     true    3       suspended
+
+----    4
+
+B: odd  3
+
+C: even 4
+
+D: even         4
+
+A: odd  5
+
+E: errorfree, value, status     true    5       suspended
+
+----    5
+
+B: odd  5
+
+E: errorfree, value, status     true    nil     dead
+
+&gt;
+
+</pre>
+</DL>
+<p>
+Basically we have a <code>for</code> loop which calls two functions: <code>odd()</code> when it encounters an odd number and <code>even()</code> on even numbers. The output may be a little difficult to digest so we will study the outer loops, counted by <code>count</code>, one at a time. Comments have been added.
+<DL>
+<dt><dd><pre>
+
+----    1
+
+A: odd  1       -- yield from odd()
+
+E: errorfree, value, status     true    1       suspended
+
+</pre>
+</DL>
+In loop one we call our coroutine using <code>coroutine.resume(co, 5)</code>. The first time it is called we enter the <code>for</code> loop in the coroutine function. Note that the function <code>odd()</code>, which is called by our coroutine function yields. You do not have to yield in the coroutine function. This is an important and useful feature. We return value of 1 with the yield.
+<p>
+<DL>
+<dt><dd><pre>
+
+----    2
+
+B: odd  1       -- resume in odd with the values we left on the yield
+
+C: even 2       -- call even and exit prematurely
+
+E: errorfree, value, status     true    -1      suspended  -- yield in for loop
+
+</pre>
+</DL>
+In loop 2, the main <code>for</code> loop yields and suspends the coroutine. The point to note here is that we can yield anywhere. We do not have to keep yielding from one point in our coroutine. We return -1 with the yield.
+<p>
+<DL>
+<dt><dd><pre>
+
+----    3
+
+A: odd  3       -- odd() yields again after resuming in for loop
+
+E: errorfree, value, status     true    3       suspended
+
+</pre>
+</DL>
+We resume the coroutine in the <code>for</code> loop and when <code>odd()</code> is called it yields again.
+<p>
+<DL>
+<dt><dd><pre>
+
+----    4
+
+B: odd  3       -- resume in odd(), variable values retained
+
+C: even 4       -- even called()
+
+D: even 4       -- no return in even() this time
+
+A: odd  5       -- odd() called and a yield
+
+E: errorfree, value, status     true    5       suspended
+
+</pre>
+</DL>
+In loop 4, we resume in <code>odd()</code> where we left off. Note that the variable values are preserved. The scope of the <code>odd()</code> function is preserved during a coroutine suspend. We traverse to the end of <code>even()</code>, this time exiting at the end of the function. In either case, when we exit a function without using <code>coroutine.yield()</code>, the scope and all its variables are destroyed. Only on a yield can we resume.
+<p>
+<DL>
+<dt><dd><pre>
+
+----    5
+
+B: odd  5       -- odd called again
+
+E: errorfree, value, status     true    nil     dead  -- for loop terminates
+
+&gt;
+
+</pre>
+</DL>
+Once again we resume in <code>odd()</code>. This time the main <code>for</code> loop reaches the limit of 5 we passed into the coroutine. The value of 5 and the <code>for</code> loop state were preserved throughout the execution of the coroutine. A coroutine preserves its own stack and state while in existance. When we exit our coroutine function it dies and we can no longer use it.
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CoroutinesTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CoroutinesTutorial" >history</a><br>Last edited June 23, 2012 11:39 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CoroutinesTutorial" >(diff)</a>
+</body>
+</html>

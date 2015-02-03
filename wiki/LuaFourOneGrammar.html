@@ -1,0 +1,185 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Four One Grammar</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaFourOneGrammar&amp;body=1" title="List pages referring to LuaFourOneGrammar">Lua Four One Grammar</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Moved from <a href="../wiki/LuaGrammar.html" >LuaGrammar</a> and retained for history:
+<p>
+Enclosed is an LALR(1) grammar for Lua (4.1?).
+<p>
+<DL>
+<dt><dd><pre>
+
+block	--&gt; { stmt [ ';' ] } [ finish [ ';' ] ]
+
+
+
+stmt	--&gt; var { ',' var } '=' exprs
+
+	 |  call
+
+	 |  DO block END
+
+	 |  WHILE expr DO block END
+
+         |  REPEAT block UNTIL expr
+
+	 |  IF expr THEN block 
+
+	      { ELSEIF expr THEN block }
+
+	      [ ELSE block ] END
+
+	 |  FOR name '=' expr ',' expr [ ',' expr ] DO block END
+
+	 |  FOR name ',' name IN expr DO block END 
+
+	 |  FUNCTION func_name '(' [ params ] ')' block END
+
+	 |  LOCAL name { ',' name } [ '=' exprs ]
+
+
+
+finish	--&gt; RETURN [ exprs ] |  BREAK [ name ]
+
+
+
+func_name --&gt; name { '.' key } [ ':' key ]
+
+
+
+key     --&gt; name  
+
+
+
+params  --&gt; '...' | name { ',' name } [ ',' '...' ]
+
+
+
+exprs	--&gt; expr { ',' expr }
+
+
+
+expr    --&gt; primary | var | call | expr binop expr | unop expr
+
+
+
+primary --&gt; NIL | number | literal | '%' name | table_cons
+
+	 |  FUNCTION '(' [ params ] ')' block END | '(' expr ')' 
+
+
+
+var     --&gt; name
+
+         |  primary index
+
+         |  var index
+
+         |  call index
+
+
+
+index   --&gt; '[' expr ']' | '.' key
+
+
+
+call    --&gt; primary [ ':' key ] args
+
+         |  var [ ':' key ] args
+
+         |  call [ ':' key ] args
+
+
+
+args    --&gt; '(' [ exprs ] ')' | table_cons | literal
+
+
+
+table_cons --&gt; '{' [ fields ] '}'
+
+
+
+fields  --&gt; expr_fields [ ';' [ mapping_fields ] ]
+
+         |  mapping_fields [ ';' [ expr_fields ] ]
+
+         |  ';' [ expr_fields | mapping_fields ]
+
+
+
+expr_fields --&gt; exprs [ ',' ]
+
+
+
+mapping_fields --&gt; mapping_field { ',' mapping_field }  [ ',' ]
+
+
+
+mapping_field --&gt; '[' expr ']' '=' expr | key '=' expr
+
+
+
+binop   --&gt; '+' | '-' | '*' | '/' | '^' | '..' | AND | OR
+
+         |  '&lt;' | '&lt;=' | '&gt;' | '&gt;=' | '==' | '~='
+
+
+
+unop    --&gt; '-' | NOT
+
+</pre>
+</DL>
+<p>
+Note that left parenthesis, left brace, and literals are preferentially treated as arguments rather than as starting a new expression. This rule comes into effect when interpreting a call as a statement, or a primary, variable, or call as an expression. Without this rule, the grammar is ambiguous.
+<p>
+<DL>
+<dt><dd><em>This is a change in the Lua 4.1 grammar that I'm not happy about.  It makes the <code>;</code> no longer a pure optional statement terminator. -- ET</em>
+</DL>
+<p>
+One can generalize a key to include keywords without ambiguity by replacing the key production with the following.
+<p>
+<DL>
+<dt><dd><pre>
+
+key     --&gt; name | AND | BREAK | DO | END | ELSE | ELSEIF
+
+         |  FOR | FUNCTION | GLOBAL | IF | IN | LOCAL | NIL
+
+         |  NOT | OR | RETURN | REPEAT | THEN | UNTIL | WHILE
+
+</pre>
+</DL>
+<p>
+<p>
+-- John D. Ramsdell
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaFourOneGrammar" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaFourOneGrammar" >history</a><br>Last edited February 22, 2007 6:24 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaFourOneGrammar" >(diff)</a>
+</body>
+</html>

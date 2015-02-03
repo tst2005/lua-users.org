@@ -1,0 +1,167 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Copas Example</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CopasExample&amp;body=1" title="List pages referring to CopasExample">Copas Example</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a very simple example of implementing a TCP socket server by utilizing the Copas library (<code>"copas"</code>) <a href="http://www.keplerproject.org/copas/">[1]</a>.  The server listens for connections, and when it receives a connection, it echoes a greeting, reads one line, and then closes the connection.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"copas"</span>
+
+<span class="keyword">function</span> handler(c, host, port)
+
+	<span class="keyword">local</span> peer = host .. <span class="string">":"</span> .. port
+
+	<span class="library">print</span>(<span class="string">"connection from"</span>, peer)
+
+	c:send(<span class="string">"Hello\r\n"</span>)
+
+	<span class="library">print</span>(<span class="string">"data from"</span>, peer, (c:receive<span class="string">"*l"</span>))
+
+<span class="keyword">end</span>
+
+copas.addserver(<span class="library">assert</span>(socket.bind(<span class="string">"*"</span>,2220)),
+
+                <span class="keyword">function</span>(c) <span class="keyword">return</span> handler(copas.wrap(c), c:getpeername()) <span class="keyword">end</span>
+
+)
+
+copas.loop()</pre>
+
+</DL>
+<p>
+The following server is only slightly more advanced.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"copas"</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> simple(host, port, handler)
+
+    <span class="keyword">return</span> copas.addserver(<span class="library">assert</span>(socket.bind(host, port)),
+
+        <span class="keyword">function</span>(c)
+
+            <span class="keyword">return</span> handler(copas.wrap(c), c:getpeername())
+
+        <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> example_handler(c, host, port)
+
+    <span class="keyword">local</span> peer = host .. <span class="string">":"</span> .. port
+
+    <span class="library">print</span>(<span class="string">"example connection from"</span>, peer)
+
+    c:send(<span class="string">"Hello\r\n"</span>)
+
+    <span class="library">print</span>(<span class="string">"data from"</span>, peer, (c:receive<span class="string">"*l"</span>))
+
+    <span class="library">print</span>(<span class="string">"example termination from"</span>, peer)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> daytime_handler(c, host, port)
+
+    <span class="library">print</span>(<span class="string">"daytime connection from"</span>, host, port)
+
+    c:send(<span class="library">os.date</span>() .. <span class="string">'\r\n'</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> echo_handler(c, host, port)
+
+    <span class="library">print</span>(<span class="string">"echo connection from"</span>, host, port)
+
+    <span class="keyword">repeat</span>
+
+        <span class="keyword">local</span> line = c:receive<span class="string">"*l"</span>
+
+        <span class="keyword">if</span> line <span class="keyword">then</span> c:send(line .. <span class="string">'\r\n'</span>) <span class="keyword">end</span>
+
+    <span class="keyword">until</span> <span class="keyword">not</span> line
+
+    <span class="library">print</span>(<span class="string">"echo termination from"</span>, host, port)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> discard_handler(c, host, port)
+
+    <span class="library">print</span>(<span class="string">"discard connection from"</span>, host, port)
+
+    <span class="keyword">repeat</span> <span class="keyword">until</span> <span class="keyword">not</span> c:receive(100)
+
+    <span class="library">print</span>(<span class="string">"discard termination from"</span>, host, port)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Use 0 to listen on the standard (privileged) ports.</span>
+
+<span class="keyword">local</span> offset = ... <span class="keyword">or</span> 10000
+
+
+
+simple(<span class="string">"*"</span>, offset + 7, echo_handler)
+
+simple(<span class="string">"*"</span>, offset + 9, discard_handler)
+
+simple(<span class="string">"*"</span>, offset + 13, daytime_handler)
+
+simple(<span class="string">"*"</span>, offset + 57, example_handler)
+
+
+
+<span class="keyword">return</span> copas.loop()
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/CoroutinesAsConnectionHandlers.html" >CoroutinesAsConnectionHandlers</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CopasExample" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CopasExample" >history</a><br>Last edited January 10, 2007 4:08 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CopasExample" >(diff)</a>
+</body>
+</html>

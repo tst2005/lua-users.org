@@ -1,0 +1,238 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua To Html</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaToHtml&amp;body=1" title="List pages referring to LuaToHtml">Lua To Html</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This script converts Lua source files to HTML.
+<p>
+[!] <strong><a href="../wiki/VersionNotice.html" >VersionNotice</a>: The source code requires a small change in _VERSION handling to work under Lua 5.1.  Some additional changes might be needed for proper 5.1 syntax highlighting.</strong>
+<p>
+There is a Lua 4.0 version <a href="/files/wiki_insecure/users/pshook/lua2html/lua2html.lua">[3]</a>,
+and a Lua 5.0 version <a href="/files/wiki_insecure/users/pshook/lua2html/lua52html.lua">[4]</a>, which is the same file with all the <code>%</code> signs for upvalues deleted.
+<p>
+Here is a sample web listing <a href="/files/wiki_insecure/users/pshook/lua2html/Dump.html">[5]</a>
+<p>
+Run the Lua 4.0 version like so:
+<code>  lua -f lua2html.lua  x.lua &gt; x.html</code>
+<p>
+and the Lua 5.0 version like this:
+<code>  lua lua52html.lua  x.lua &gt; x.html</code>
+<p>
+<hr>This particular Wiki does Lua syntax highlighting with some tricky Perl code by Mike Pall. It supports the full Lua 5.1 syntax. You can customize it by modifying the embedded CSS. The standalone <code>lua2html.pl</code> can be found <a href="/lists/lua-l/2006-03/msg00661.html">[here]</a>.
+<p>
+<DL>
+<dt><dd>Mike and John, is this the latest version of this source code used by the wiki?  (Maybe the latest master copy of this function can be maintained on the wiki?)  One extension (as recently mentioned in <a href="../wiki/GuestBook.html" >GuestBook</a> and <a href="../wiki/DavidManura.html" >DavidManura</a>) we miht want to see is properly syntax highlighting interpreter input/output such as
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua
+
+Lua 5.1  Copyright (C) 1994-2006 Lua.org, PUC-Rio
+
+&gt; = 1 + math.sqrt(2)
+
+2.4142135623731
+
+&gt; print("math.sqrt(2)")
+
+math.sqrt(2)
+
+&gt;
+
+</pre>
+</DL>
+<p>
+<DL>
+<dt><dd>That should not be difficult to add, and I'd offer to do the patch myself if desired.
+</DL>
+<p>
+<DL>
+<dt><dd>The wiki might provide a different environment for this--e.g. <pre>{{{!LuaInteractive
+
+$ lua
+
+Lua 5.1  Copyright (C) 1994-2006 Lua.org, PUC-Rio
+
+&gt; = 1 + math.sqrt(2)
+
+2.4142135623731
+
+&gt;</pre>}}}
+</DL>
+<p>
+<DL>
+<dt><dd><a href="../wiki/RiciLake.html" >RiciLake</a> and I have also brought up the desire for C syntax highlighting (<a href="../wiki/GuestBook.html" >GuestBook</a>) for the C code that's often posted on this wiki.  Perhaps, to avoid reinventing the wheel, we can just use the existing Syntax-Highlight-Engine-Kate with the C module <a href="http://search.cpan.org/dist/Syntax-Highlight-Engine-Kate/">[1]</a> similar to as shown below for Lua.  There's some alternates too, e.g. GNU enscript.
+</DL>
+<p>
+<DL>
+<dt><dd>--<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+<hr>The following Perl code demonstrates using the Syntax-Highlight-Engine-Kate <a href="http://search.cpan.org/dist/Syntax-Highlight-Engine-Kate">[2]</a> Perl module to syntax highlight Lua.  It has a bit more baggage than Mike's Perl code above, and as of version 0.2 it trips up on some Lua syntax (i.e. patches needed):
+<p>
+<DL>
+<dt><dd><pre>
+
+use strict;
+
+use Syntax::Highlight::Engine::Kate::Lua;
+
+
+
+my $sh = Syntax::Highlight::Engine::Kate::Lua-&gt;new(
+
+    substitutions =&gt; {
+
+       "&lt;" =&gt; "&lt;",
+
+       "&gt;" =&gt; "&gt;",
+
+       "&amp;" =&gt; "&amp;",
+
+       " " =&gt; "&nbsp;",
+
+       "\t" =&gt; "&nbsp;&nbsp;&nbsp;",
+
+       "\n" =&gt; "&lt;BR&gt;\n",
+
+    },
+
+    format_table =&gt; {
+
+       Alert =&gt; ['&lt;span class="alert"&gt;', '&lt;/span&gt;'],
+
+       BaseN =&gt; ['&lt;span class="basen"&gt;', '&lt;/span&gt;'],
+
+       BString =&gt; ['&lt;span class="bstring"&gt;', '&lt;/span&gt;'],
+
+       Char =&gt; ['&lt;cpan class="char"&gt;', '&lt;/span&gt;'],
+
+       Comment =&gt; ['&lt;span class="comment"&gt;', '&lt;/span&gt;'],
+
+       DataType =&gt; ['&lt;span class="datatype"&gt;', '&lt;/span&gt;'],
+
+       DecVal =&gt; ['&lt;span class="decval"&gt;', '&lt;/span&gt;'],
+
+       Error =&gt; ['&lt;span class="error"&gt;', '&lt;/span&gt;'],
+
+       Float =&gt; ['&lt;span class="float"&gt;', '&lt;/span&gt;'],
+
+       Function =&gt; ['&lt;span class="function"&gt;', '&lt;/span&gt;'],
+
+       IString =&gt; ['&lt;span class="istring"&gt;', '&lt;/span&gt;'],
+
+       Keyword =&gt; ['&lt;span class="keyword"&gt;', '&lt;/span&gt;'],
+
+       Normal =&gt; ['', ''],
+
+       Operator =&gt; ['&lt;span class="operator"&gt;', '&lt;/span&gt;'],
+
+       Others =&gt; ['&lt;span class="others"&gt;', '&lt;/span&gt;'],
+
+       RegionMarker =&gt; ['&lt;span class="regionmarker"&gt;', '&lt;/span&gt;'],
+
+       Reserved =&gt; ['&lt;span class="reserved"&gt;', '&lt;/span&gt;'],
+
+       String =&gt; ['&lt;span class="string"&gt;', '&lt;/span&gt;'],
+
+       Variable =&gt; ['&lt;span class="variable"&gt;', '&lt;/span&gt;'],
+
+       Warning =&gt; ['&lt;span class="warning"&gt;', '&lt;/span&gt;'],
+
+    },
+
+);
+
+
+
+my $html = $sh-&gt;highlightText(qq(
+
+local function test(y, z, ...)
+
+  for x in 1,y do
+
+    print(x)
+
+  end -- loop
+
+  local w = y * 2 + math.random()
+
+  print(2, y, 'test"2', "test\"'2'", [[math.random]], #z, 3, ...)
+
+));
+
+
+
+my $css = qq(
+
+&lt;style type="text/css"&gt;
+
+  span.comment  { color: #00a000; }
+
+  span.string   { color: #0000c0; }
+
+  span.keyword  { color: #a00000; font-weight: bold; }
+
+  span.reserved { color: #a0a000; font-weight: bold; }
+
+&lt;/style&gt;
+
+);
+
+
+
+$html = qq(
+
+&lt;html&gt;
+
+&lt;head&gt;
+
+$css
+
+&lt;/head&gt;
+
+&lt;body&gt;
+
+$html
+
+&lt;/body&gt;
+
+);
+
+
+
+print $html;
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaToHtml" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaToHtml" >history</a><br>Last edited January 2, 2007 7:03 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaToHtml" >(diff)</a>
+</body>
+</html>

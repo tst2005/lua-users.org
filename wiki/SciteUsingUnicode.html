@@ -1,0 +1,268 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Using Unicode</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteUsingUnicode&amp;body=1" title="List pages referring to SciteUsingUnicode">Scite Using Unicode</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following are examples of writing and reading Unicode characters
+in a buffer, specifically dealing with UTF-8. If you can't see the Unicode
+characters in the first code snippet, try viewing using the UTF-8
+character set.
+<p>
+<hr><H3>Write Some Unicode Characters</H3>
+<p>
+<pre class="code">
+<span class="comment">-- -*- coding: utf-8 -*-</span>
+
+<span class="comment">-- write some UTF-8 chars &lt;khman@users.sf.net&gt; 20061017 public domain</span>
+
+<span class="comment">-- (see Markus Kuhn's UTF-8 and Unicode FAQ or RFC3629 for more info)</span>
+
+<span class="keyword">function</span> UnicodeWriteSomething()
+
+  <span class="comment">-- áéïöü C3 A1 C3 A9 C3 AF C3 B6 C3 BC</span>
+
+  <span class="comment">-- &#20013;&#25991; E4 B8 AD E6 96 87</span>
+
+  <span class="comment">-- open a new buffer and set encoding as UTF-8</span>
+
+  scite.Open(<span class="string">""</span>)
+
+  editor.CodePage = SC_CP_UTF8
+
+  <span class="comment">-- string is in UTF-8</span>
+
+  editor:AppendText(<span class="string">"áéïöü\n"</span>)
+
+  editor:AppendText(<span class="string">"&#20013;&#25991;\n"</span>)
+
+  <span class="comment">-- string is encoded as escaped sequences</span>
+
+  editor:AppendText(<span class="string">"\195\161\195\169\195\175\195\182\195\188\n"</span>)
+
+  editor:AppendText(<span class="string">"\228\184\173\230\150\135\n"</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<hr><H3>Read And Write Unicode Values</H3>
+<p>
+The following functions helps with reading and writing of UTF-8
+characters in a buffer. It allows up to 6-byte character sequences
+to support UCS-4 ranges.
+<p>
+<pre class="code">
+<span class="comment">-- -*- coding: utf-8 -*-</span>
+
+<span class="comment">-- return value of UTF-8 character &lt;khman@users.sf.net&gt; 20061017 public domain</span>
+
+<span class="comment">-- (see Markus Kuhn's UTF-8 and Unicode FAQ or RFC3629 for more info)</span>
+
+<span class="keyword">function</span> FromUTF8(pos)
+
+  <span class="keyword">local</span> mod = <span class="library">math.mod</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> charat(p)
+
+    <span class="keyword">local</span> v = editor.CharAt[p]; <span class="keyword">if</span> v &lt; 0 <span class="keyword">then</span> v = v + 256 <span class="keyword">end</span>; <span class="keyword">return</span> v
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> v, c, n = 0, charat(pos), 1
+
+  <span class="keyword">if</span> c &lt; 128 <span class="keyword">then</span> v = c
+
+  <span class="keyword">elseif</span> c &lt; 192 <span class="keyword">then</span>
+
+    <span class="library">error</span>(<span class="string">"Byte values between 0x80 to 0xBF cannot start a multibyte sequence"</span>)
+
+  <span class="keyword">elseif</span> c &lt; 224 <span class="keyword">then</span> v = mod(c, 32); n = 2
+
+  <span class="keyword">elseif</span> c &lt; 240 <span class="keyword">then</span> v = mod(c, 16); n = 3
+
+  <span class="keyword">elseif</span> c &lt; 248 <span class="keyword">then</span> v = mod(c,  8); n = 4
+
+  <span class="keyword">elseif</span> c &lt; 252 <span class="keyword">then</span> v = mod(c,  4); n = 5
+
+  <span class="keyword">elseif</span> c &lt; 254 <span class="keyword">then</span> v = mod(c,  2); n = 6
+
+  <span class="keyword">else</span>
+
+    <span class="library">error</span>(<span class="string">"Byte values between 0xFE and OxFF cannot start a multibyte sequence"</span>)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">for</span> i = 2, n <span class="keyword">do</span>
+
+    pos = pos + 1; c = charat(pos)
+
+    <span class="keyword">if</span> c &lt; 128 <span class="keyword">or</span> c &gt; 191 <span class="keyword">then</span>
+
+      <span class="library">error</span>(<span class="string">"Following bytes must have values between 0x80 and 0xBF"</span>)
+
+    <span class="keyword">end</span>
+
+    v = v * 64 + mod(c, 64)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> v, pos, n
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- return UTF-8 sequence string &lt;khman@users.sf.net&gt; 20061017 public domain</span>
+
+<span class="comment">-- (see Markus Kuhn's UTF-8 and Unicode FAQ or RFC3629 for more info)</span>
+
+<span class="keyword">function</span> ToUTF8(v)
+
+  <span class="keyword">local</span> <span class="library">math</span> = <span class="library">math</span>
+
+  <span class="keyword">local</span> n, s, b = 1, <span class="string">""</span>, 0
+
+  <span class="comment">-- delete this if your version of SciTE goes beyond UCS-2</span>
+
+  <span class="keyword">if</span> v &gt; 65535 <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"SciTE does not support codes above U+FFFF"</span>) <span class="keyword">end</span>
+
+  <span class="keyword">if</span> v &gt;= 55296 <span class="keyword">and</span> v &lt;= 57343 <span class="keyword">then</span>
+
+    <span class="library">error</span>(<span class="string">"failed to convert UTF-16 surrogate pairs to UTF-8"</span>)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span>    v &gt;= 67108864 <span class="keyword">then</span> n = 6; b = 252
+
+  <span class="keyword">elseif</span> v &gt;= 2097152 <span class="keyword">then</span> n = 5; b = 248
+
+  <span class="keyword">elseif</span> v &gt;=   65536 <span class="keyword">then</span> n = 4; b = 240
+
+  <span class="keyword">elseif</span> v &gt;=    2048 <span class="keyword">then</span> n = 3; b = 224
+
+  <span class="keyword">elseif</span> v &gt;=     128 <span class="keyword">then</span> n = 2; b = 192
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">for</span> i = 2, n <span class="keyword">do</span>
+
+    <span class="keyword">local</span> c = <span class="library">math.mod</span>(v, 64); v = <span class="library">math.floor</span>(v / 64)
+
+    s = <span class="library">string.char</span>(c + 128)..s
+
+  <span class="keyword">end</span>
+
+  s = <span class="library">string.char</span>(v + b)..s
+
+  <span class="keyword">return</span> s, n
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- demonstrate use of FromUTF8() function: display the character code</span>
+
+<span class="comment">-- value of the current character under the cursor in the output window</span>
+
+<span class="keyword">function</span> Demo_FromUTF8()
+
+  <span class="library">print</span>(<span class="string">"Character code: "</span>..(FromUTF8(editor.CurrentPos)))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- demonstrate use of ToUTF8() function: display two characters based</span>
+
+<span class="comment">-- on the given unicode value</span>
+
+<span class="keyword">function</span> Demo_ToUTF8()
+
+  editor:AppendText(ToUTF8(<span class="library">tonumber</span>(<span class="string">"0x4E2D"</span>, 16)))
+
+  editor:AppendText(ToUTF8(<span class="library">tonumber</span>(<span class="string">"0x6587"</span>, 16)))
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<hr><H3>Display Character Codes from U+0000 to U+FFFF</H3>
+<p>
+The following demo function displays a table of Unicode characters.
+It requires the <code>ToUTF8()</code> function from above.
+<p>
+<pre class="code">
+<span class="comment">-- -*- coding: utf-8 -*-</span>
+
+<span class="comment">-- write out a UTF-16 table &lt;khman@users.sf.net&gt; 20061017 public domain</span>
+
+<span class="keyword">function</span> UTF16Table()
+
+  scite.Open(<span class="string">""</span>)
+
+  editor.CodePage = SC_CP_UTF8
+
+  editor:AppendText(<span class="string">"-*- coding: utf-8 -*-\n"</span>)
+
+  editor:AppendText(<span class="string">"   Dec ( Hex ) : 0123456789ABCDEF0123456789ABCDEF\n"</span>)
+
+  editor:AppendText(<span class="string">"-------------------------------------------------\n"</span>)
+
+  <span class="keyword">for</span> p = 0, 65535, 32 <span class="keyword">do</span>
+
+    ln = <span class="library">string.format</span>(<span class="string">"%6d (0x%4X): "</span>, p, p)
+
+    <span class="keyword">for</span> q = p, p+31 <span class="keyword">do</span>
+
+      <span class="keyword">if</span> q &lt; 32 <span class="keyword">or</span> (q &gt;= 55296 <span class="keyword">and</span> q &lt;= 57343) <span class="keyword">then</span> ln = ln..<span class="string">"?"</span>
+
+      <span class="keyword">else</span> ln = ln..ToUTF8(q)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    ln = ln..<span class="string">"\n"</span>
+
+    editor:AppendText(ln)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+--<em><a href="../wiki/KeinHongMan.html" >KeinHongMan</a></em>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteUsingUnicode" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteUsingUnicode" >history</a><br>Last edited October 17, 2006 5:26 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteUsingUnicode" >(diff)</a>
+</body>
+</html>

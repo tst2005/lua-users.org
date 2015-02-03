@@ -1,0 +1,546 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Unit Testing</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=UnitTesting&amp;body=1" title="List pages referring to UnitTesting">Unit Testing</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Unit testing is about testing your code during development, not in production.
+Typically you start by preparing the testing environment, writing some code that calls production code and check expected results with actual results.
+<p>
+Lua has several frameworks to do that:
+<UL>
+<li> <a href="http://www.mroth.net/lunit/">[lunit]</a>
+<UL>
+<li> Fork with Lua 5.2 support: <a href="https://github.com/dcurrie/lunit">[lunitx]</a>
+</UL>
+<li> <a href="http://github.com/Phrogz/Lunity">[Lunity]</a> (similar to lunit, but can only run a single file and doesn't distinguish between errors and test assertions)
+<li> <a href="http://github.com/silentbicycle/lunatest">[lunatest]</a> (upwardly compatible from lunit, but no dependencies, and also supports randomized testing)
+<li> <a href="https://github.com/bluebird75/luaunit">[LuaUnit]</a> (supports Lua 5.1 and 5.2, no dependencies, see below)
+<li> <a href="http://shake.luaforge.net/">[Shake]</a> - source preprocessing using basic assert-like syntax (see below)
+<li> <a href="http://users.skynet.be/adrias/Lua/BTDLua/index.html">[build-test-deploy (BTD)]</a> - Unit testing inspired by jUnit and originally based on <a href="../wiki/LuaUnit.html" >LuaUnit</a>
+<li> <a href="http://github.com/mirven/luaspec/tree/master">[luaspec]</a><a href="http://luaforge.net/projects/lua-spec/">[1]</a> - Behavior Driven Development (BDD) test framework
+<li> <a href="http://stevedonovan.github.com/Penlight/api/modules/pl.test.html">[PenLight pl.test]</a> - PenLightLibraries<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PenLightLibraries" >?</a> has a very small unit testing library, mostly for internal testing. See the Penlight tests <a href="https://github.com/stevedonovan/Penlight/tree/master/tests">[here]</a>
+<li> <a href="https://github.com/norman/telescope/">[telescope]</a> -  A highly customizable test library for Lua that allows for declarative tests with nested contexts. Uses BDD-style spec names.
+<li> <a href="http://fperrad.github.com/lua-TestMore/">[lua-TestMore]</a> - port of the Perl5 module Test::More (Test Anything Protocol).
+<li> <a href="http://olivinelabs.com/busted/">[busted]</a> - Behavior Driven Development (BDD) unit testing library, with various outputs formats including TAP and focus on elegance.
+</UL>
+<p>
+They have mostly the same feature set, which is:
+<UL>
+<li> a special set of assert functions
+<li> facilities to group tests into test suites
+<li> facilities to detect where test fails
+</UL>
+<p>
+Commercial Lua testing tools are available from Software Verification<a href="http://www.softwareverify.com/productsLua.html">[2]</a>.
+<p>
+Comparison: <a href="http://blog.octetcloud.com/?p=32">[3]</a>
+<p>
+Tests of Lua itself (useful for testing <a href="../wiki/LuaImplementations.html" >LuaImplementations</a>):
+<p>
+<UL>
+<li> <a href="http://www.lua.org/tests/5.2/">[Lua 5.2 test suite]</a>
+<li> <a href="/lists/lua-l/2006-03/msg00716.html">[Lua 5.1 test suite]</a>
+<li> <a href="/lists/lua-l/2005-12/msg00312.html">[Lua 5.0 test suite]</a>
+<li> <a href="https://github.com/fperrad/lua-TestMore/">[lua-TestMore]</a> contains Lua 5.1 and 5.2 test suites <a href="/lists/lua-l/2009-09/msg00500.html">[announcement]</a>
+</UL>
+<p>
+<H2>luaunit</H2>
+<p>
+I am going to provide an example for luaunit since I am more familiar with it. The example is pretty simple to understand.
+<p>
+<DL>
+<dt><dd><pre class="code">
+
+
+<span class="comment">-- Some super function to test</span>
+
+<span class="keyword">function</span> my_super_function( arg1, arg2 ) <span class="keyword">return</span> arg1 + arg2 <span class="keyword">end</span>
+
+
+
+<span class="comment">-- Unit testing starts</span>
+
+<span class="keyword">local</span> LuaUnit = <span class="library">require</span>(<span class="string">'luaunit'</span>)
+
+
+
+TestMyStuff = {} <span class="comment">--class</span>
+
+    <span class="keyword">function</span> TestMyStuff:testWithNumbers()
+
+        a = 1
+
+        b = 2
+
+        result = my_super_function( a, b )
+
+        assertEquals( <span class="library">type</span>(result), <span class="string">'number'</span> )
+
+        assertEquals( result, 3 )
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> TestMyStuff:testWithRealNumbers()
+
+        a = 1.1
+
+        b = 2.2
+
+        result = my_super_function( a, b )
+
+        assertEquals( <span class="library">type</span>(result), <span class="string">'number'</span> )
+
+        <span class="comment">-- I would like the result to be always rounded to an integer</span>
+
+        <span class="comment">-- but it won't work with my simple implementation</span>
+
+        <span class="comment">-- thus, the test will fail</span>
+
+        assertEquals( result, 3 )
+
+    <span class="keyword">end</span>
+
+
+
+<span class="comment">-- class TestMyStuff</span>
+
+
+
+LuaUnit:run()
+
+</pre>
+
+</DL>
+<p>
+When you run it, you get:
+<DL>
+<dt><dd><pre>
+
+shell $ lua use_luaunit1.lua
+
+&gt;&gt;&gt;&gt;&gt;&gt; TestMyStuff
+
+&gt;&gt;&gt; TestMyStuff:testWithNumbers
+
+Ok
+
+&gt;&gt;&gt; TestMyStuff:testWithRealNumbers
+
+use_luaunit1.lua:25: expected: 3.3, actual: 3
+
+Failed
+
+
+
+Success : 50% - 1 / 2
+
+</pre>
+</DL>
+<p>
+The testing framework reports the file and line that caused the error, and some additional information.
+<p>
+<p>
+When your program grows, you need more and more test cases. The next example is slightly more complicated.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Some super function to test</span>
+
+<span class="keyword">function</span> my_super_function( arg1, arg2 ) <span class="keyword">return</span> arg1 + arg2 <span class="keyword">end</span>
+
+<span class="keyword">function</span> my_bad_function( arg1, arg2 ) <span class="keyword">return</span> arg1 - arg2 <span class="keyword">end</span>
+
+
+
+<span class="comment">-- Unit testing starts</span>
+
+<span class="library">require</span>(<span class="string">'luaunit'</span>)
+
+
+
+<span class="comment">-- now, we perform all the tests on int in one test class</span>
+
+<span class="comment">-- and the tests on float in another one</span>
+
+<span class="comment">-- when your test grows, you will have many test classes</span>
+
+
+
+TestWithInt = {} <span class="comment">--class</span>
+
+    <span class="keyword">function</span> TestWithInt:setUp() 
+
+        <span class="comment">-- this function is run before each test, so that multiple</span>
+
+        <span class="comment">-- tests can share initialisations</span>
+
+        self.a = 1
+
+        self.b = 2
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> TestWithInt:tearDown() 
+
+        <span class="comment">-- this function is executed after each test</span>
+
+        <span class="comment">-- here, we have nothing to do so we could have avoid</span>
+
+        <span class="comment">-- declaring it</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> TestWithInt:testSuperFunction()
+
+        result = my_super_function( self.a, self.b )
+
+        assertEquals( <span class="library">type</span>(result), <span class="string">'number'</span> )
+
+        assertEquals( result, 3 )
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> TestWithInt:testBadFunction()
+
+        result = my_bad_function( self.a, self.b )
+
+        assertEquals( <span class="library">type</span>(result), <span class="string">'number'</span> )
+
+        assertEquals( result, -1 )
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> TestWithInt:testThatFails()
+
+        <span class="comment">-- you can test anything with assertEquals</span>
+
+        assertEquals( self.a, 1 )
+
+        assertEquals( <span class="library">type</span>(self.a), <span class="string">'number'</span> )
+
+        <span class="comment">-- will fail</span>
+
+        assertEquals( <span class="string">'hop'</span>, <span class="string">'bof'</span> )
+
+    <span class="keyword">end</span>
+
+<span class="comment">-- class TestWithInt</span>
+
+
+
+TestWithFloat = {} <span class="comment">--class</span>
+
+    <span class="keyword">function</span> TestWithFloat:setUp() 
+
+        <span class="comment">-- this function is run before each test, so that multiple</span>
+
+        <span class="comment">-- tests can share initialisations</span>
+
+        self.a = 1.1
+
+        self.b = 2.1
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> TestWithFloat:tearDown() 
+
+        <span class="comment">-- this function is executed after each test</span>
+
+        <span class="comment">-- here, we have nothing to do so we could have avoid</span>
+
+        <span class="comment">-- declaring it</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> TestWithFloat:testSuperFunction()
+
+        result = my_super_function( self.a, self.b )
+
+        assertEquals( <span class="library">type</span>(result), <span class="string">'number'</span> )
+
+        <span class="comment">-- will fail</span>
+
+        assertEquals( result, 3 )
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> TestWithFloat:testBadFunction()
+
+        result = my_bad_function( self.a, self.b )
+
+        assertEquals( <span class="library">type</span>(result), <span class="string">'number'</span> )
+
+        <span class="comment">-- will work, but only by chance :-)</span>
+
+        assertEquals( result, -1 )
+
+    <span class="keyword">end</span>
+
+<span class="comment">-- class TestWithFloat</span>
+
+
+
+LuaUnit:run()
+
+</pre>
+
+</DL>
+<p>
+Run it:
+<DL>
+<dt><dd><pre>
+
+shell $ lua use_luaunit2.lua
+
+&gt;&gt;&gt;&gt;&gt;&gt; TestWithFloat
+
+&gt;&gt;&gt; TestWithFloat:testSuperFunction
+
+use_luaunit2.lua:66: expected: 3.2, actual: 3
+
+Failed
+
+&gt;&gt;&gt; TestWithFloat:testBadFunction
+
+Ok
+
+
+
+&gt;&gt;&gt;&gt;&gt;&gt; TestWithInt
+
+&gt;&gt;&gt; TestWithInt:testSuperFunction
+
+Ok
+
+&gt;&gt;&gt; TestWithInt:testBadFunction
+
+Ok
+
+&gt;&gt;&gt; TestWithInt:testThatFails
+
+use_luaunit2.lua:44: expected: 'hop', actual: 'bof'
+
+Failed
+
+
+
+Success : 60% - 3 / 5
+
+</pre>
+</DL>
+<p>
+You can also run tests individually:
+<DL>
+<dt><dd><pre>
+
+shell $ lua use_luaunit2.lua TestWithInt:testSuperFunction
+
+&gt;&gt;&gt;&gt;&gt;&gt; TestWithInt
+
+&gt;&gt;&gt; TestWithInt:testSuperFunction
+
+Ok
+
+
+
+Success : 100% - 1 / 1
+
+
+
+
+
+shell $ lua use_luaunit2.lua TestWithFloat
+
+&gt;&gt;&gt;&gt;&gt;&gt; TestWithFloat
+
+&gt;&gt;&gt; TestWithFloat:testSuperFunction
+
+use_luaunit2.lua:66: expected: 3.2, actual: 3
+
+Failed
+
+&gt;&gt;&gt; TestWithFloat:testBadFunction
+
+Ok
+
+
+
+Success : 50% - 1 / 2
+
+</pre>
+</DL>
+<p>
+<H2>Shake</H2>
+<p>
+Shake is a simple and transparent test engine for Lua that assumes that tests only use standard assert and print calls. If you are looking for a xUnit style framework, check lunit and luaunit instead.
+<p>
+Many Lua modules and applications use a simple pattern for internal tests. They have a script (usually called test.lua) that exercises the module API using API calls and assert() calls to verify the results. It is also common practice in those modules to use print() to output information about the test progress and to use Lua comments to inform what is being tested to whoever reads the source. Although widespread this approach may be too crude for those wanting to test more than one module at a time or to have a more detailed view of the results.
+<p>
+Shake assumes that the tests have been implemented for the above scenario but offers a transparent test engine for those wanting the execution of the tests in batch mode or those wanting to get an overview of the various results. The Shake engine can inform not only the number of tests, failures and errors found in a group of test scripts, but it can infer information about the test context using the output and comments associated with the assert() calls.
+<p>
+The main characteristic of Shake is being transparent, which means that the module authors and test writers do not have to be aware that tests are going to be run with Shake. As long as the tests call assert() Shake can obtain quite a lot of information from the source and run time execution. This is done through the pre-processing of the tests source code using Leg (and therefore LPeg) to replace every call to assert() with one that can extract information about the expressions, values and operators involved in the assertion.
+<p>
+Assuming you have a module like <a href="../wiki/LuaFileSystem.html" >LuaFileSystem</a> installed and you go to its /tests directory and run Shake from there, the output would be:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt;&gt;&gt;&gt;~/workspace/luafilesystem/tests$ shake
+
+-&gt;  test.lua OK!
+
+_________________
+
+
+
+Tests: 27
+
+Failures: 0
+
+Errors: 0
+
+</pre>
+</DL>
+<p>
+On the other hand, if you have a test script like the one below that includes two assertions that are supposed to fail (lines are numbered):
+<p>
+<DL>
+<dt><dd><pre class="code">
+ 1	items = 10
+
+ 2	<span class="comment">-- checks the correct case</span>
+
+ 3	<span class="library">assert</span> (items == 10, <span class="string">"this should not fail"</span>)
+
+ 4
+
+ 5	items = 20
+
+ 6	<span class="comment">-- checks an overflow case</span>
+
+ 7	<span class="library">assert</span> (items == 10, <span class="string">"wrong number of items"</span>)
+
+ 8
+
+ 9	<span class="library">print</span>(<span class="string">"Verifying the total"</span>)
+
+10	items = 10
+
+11	total = 30
+
+12	<span class="library">assert</span> (items == total, <span class="string">"wrong total"</span>)
+
+</pre>
+
+</DL>
+<p>
+Shake would register the failures but would run the whole test script, reporting at the end:
+<p>
+<DL>
+<dt><dd><pre>
+
+:~/workspace$ shake
+
+----------------    test.lua failed!   ----------------
+
+
+
+-- checks an overflow case
+
+   #7 assert (items == 10, "wrong number of items")
+
+   items -&gt; 20
+
+
+
+Verifying the total
+
+   #12 assert (items == total, "wrong total")
+
+   items -&gt; 10
+
+   total -&gt; 30
+
+_________________
+
+
+
+Tests: 3
+
+Failures: 2
+
+Errors: 0
+
+</pre>
+</DL>
+<p>
+Note how much more informative this is when compared to the default output of running the test script with Lua:
+<p>
+<DL>
+<dt><dd><pre>
+
+:~/workspace$ lua5.1 test.lua
+
+lua5.1: test.lua:7: wrong number of items
+
+stack traceback:
+
+        [C]: in function 'assert'
+
+        test.lua:7: in main chunk
+
+        [C]: ?
+
+</pre>
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/DebuggingAndTesting.html" >DebuggingAndTesting</a>.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=UnitTesting" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=UnitTesting" >history</a><br>Last edited August 29, 2014 8:13 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=UnitTesting" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua In Free Pascal</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaInFreePascal&amp;body=1" title="List pages referring to LuaInFreePascal">Lua In Free Pascal</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<a href="http://www.freepascal.org">[Free Pascal]</a> is a well-supported Pascal compiler available on many platforms.
+<p>
+All routines from the C API and auxiliary library mentioned in the Lua 5.1 reference manual are supported in the <code>lua</code>, <code>lualib</code> or <code>lauxlib</code> libraries of Free Pascal 2.4.  For Lua 5.2, see the section below. There is no documentation, but you can use the Lua manual since the call sequences are basically identical, with only a few exceptions.
+<p>
+In order to split strings over multiple lines in Free Pascal, create multiple string constants that are concatenated via the '+' operator. Alternatively, you can store your Lua code in files, or put it all on one line.
+<p>
+<H3>Type names</H3>
+<p>
+<pre>luaL_Reg    =&gt; lua_CFunction</pre>
+Most others are obvious, with P used for pointer, e.g. 
+<pre>luaState*   =&gt; Plua_State</pre>
+or standard, e.g.
+<pre>void*       =&gt; Pointer
+
+int         =&gt; Integer</pre>
+You can always look at the interface of <code>lauxlib.pas</code> etc 
+(package <code>fpc-source</code> on Ubuntu) to make sure.
+<p>
+<H3>Routine names</H3>
+<p>
+Some names starting with <code>lua_L</code> are different (probably typos):
+<pre>luaL_dofile         =&gt; lua_dofile
+
+luaL_dostring       =&gt; lua_dostring
+
+luaL_getmetatable   =&gt; lua_Lgetmetatable</pre>
+<p>
+<p>
+<H3>Minimal usage example</H3>
+<p>
+<pre>uses lua, lualib, lauxlib;
+
+
+
+var L: Plua_State;
+
+    result: integer;
+
+
+
+begin
+
+    L := lua_open(); luaL_openlibs(L);
+
+    result := lua_dostring(L, 
+
+'for k in string.gmatch("a,b,c,d,e,f,g,h","([^,]+),") do print(k) end'
+
+);
+
+    lua_close(L);
+
+end.</pre>
+<p>
+<H3>Lua 5.2 update</H3>
+<p>
+<DL>
+<dt><dd>1. Download <a href="/files/wiki_insecure/FreePascal/lua52.pas">[<code>the Pascal source</code>]</a> of the unit and save it under the name <code>lua52.pas</code>.
+<dt><dd>2. Change the line defining <code>LUA_LIB_NAME</code> to that of your system's Lua 5.2 shared library. Some possible names are <code>lua52.dll</code> (Windows), <code>liblua5.2.so</code> (Debian, Ubuntu etc) and <code>liblua.so.5.2</code> (Red Hat, Fedora etc). 
+</DL>
+<p>
+This update conforming to Lua 5.2 was made by Egor Skriptunoff. Some further improvements, including Delphi compatibility, were added by Vladimir Klimov. See the comments at the start of <code>lua52.pas</code> for full details. The version here was uploaded on 1 May 2013. A more recent version (1 March 2014) with mainly cosmetic changes is available but attempts to upload it have so far failed.
+<p>
+Note that <code>PChar</code> and <code>String</code> in Free Pascal have been implemented as Unicode since December 2009. To retain Lua compatibility, the types <code>PAnsiChar</code> and <code>AnsiString</code> are now used. 
+<p>
+Only one unit <code>lua52</code> is needed, not three units. A minimal usage example is:
+<p>
+<pre>uses lua52; (* 5.2 change *)
+
+
+
+var L: Plua_State;
+
+    result: integer;
+
+
+
+begin
+
+    L := luaL_newstate(); (* 5.2 change *)
+
+    luaL_openlibs(L);
+
+    result := luaL_dostring(L, 'print (unpack,table.unpack)');
+
+    lua_close(L);         
+
+end.</pre>
+<p>
+<p>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaInFreePascal" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaInFreePascal" >history</a><br>Last edited March 2, 2014 8:05 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaInFreePascal" >(diff)</a>
+</body>
+</html>

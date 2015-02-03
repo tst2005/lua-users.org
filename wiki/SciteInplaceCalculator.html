@@ -1,0 +1,207 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Inplace Calculator</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteInplaceCalculator&amp;body=1" title="List pages referring to SciteInplaceCalculator">Scite Inplace Calculator</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+A simple calculator based on the user formula. It requires luawin.dll. The formula is a string that includes "&lt;&gt;" as a place holder for the number.
+<p>
+<H3>Script to execute an existing formula</H3>
+If there is a selection (line or rectangular selection), the operation will occur in the selection; otherwise, the next number to the right will be updated. It only supports very simple number format.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> executeFormula()
+
+    editor:BeginUndoAction()
+
+    <span class="keyword">if</span> <span class="keyword">not</span> formula <span class="keyword">or</span> formula ==<span class="string">""</span> <span class="keyword">then</span> 
+
+        <span class="library">print</span>(<span class="string">'Please set formula first by ALT+SHIFT+F.'</span>)
+
+        <span class="keyword">return</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">local</span> expr = editor:GetSelText()
+
+    <span class="keyword">local</span> ss = editor.CurrentPos
+
+    <span class="keyword">local</span> se = editor.Anchor  
+
+    <span class="keyword">if</span> <span class="keyword">not</span> expr <span class="keyword">or</span> expr == <span class="string">""</span> <span class="keyword">then</span>
+
+        ss, se = editor:findtext(<span class="string">"\-*[0-9]+[.0-9]*"</span>, SCFIND_REGEXP, ss)
+
+    <span class="keyword">end</span>
+
+    
+
+    <span class="keyword">if</span> ss &gt; se <span class="keyword">then</span> ss,se = se, ss <span class="keyword">end</span>
+
+    <span class="keyword">local</span> cs, ce
+
+    <span class="keyword">if</span> editor.SelectionIsRectangle <span class="keyword">then</span>
+
+        cs = editor.Column[ss]
+
+        ce = editor.Column[se] 
+
+        <span class="comment">-- print (cs..' '..ce)</span>
+
+    <span class="keyword">end</span>
+
+    <span class="comment">-- print (ss..' '..se)</span>
+
+      
+
+    <span class="keyword">for</span> m <span class="keyword">in</span> editor:match(<span class="string">"\-*[0-9]+[.0-9]*"</span>, SCFIND_REGEXP, ss) <span class="keyword">do</span>
+
+        <span class="keyword">local</span> c = m.pos
+
+        <span class="keyword">if</span> c &gt; se <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+          
+
+        <span class="keyword">local</span> width = m.len
+
+        <span class="keyword">local</span> col = editor.Column[c]
+
+        <span class="keyword">local</span> chFlag
+
+        <span class="comment">-- print(col .. ' ' ..width ..'|'..cs..' '..ce)</span>
+
+        <span class="keyword">if</span> <span class="keyword">not</span> editor.SelectionIsRectangle <span class="keyword">or</span> 
+
+            (col &gt;= cs <span class="keyword">and</span> (col + width -1) &lt;= ce) <span class="keyword">then</span> 
+
+            chFlag = <span class="keyword">true</span>
+
+        <span class="keyword">else</span>
+
+            chFlag = <span class="keyword">false</span>      
+
+        <span class="keyword">end</span>
+
+          
+
+         <span class="keyword">if</span> chFlag <span class="keyword">then</span>
+
+            expr = m.text
+
+            <span class="keyword">local</span> pt = <span class="library">string.find</span>(expr, <span class="string">'.'</span>, 1, <span class="keyword">true</span>)
+
+            <span class="keyword">local</span> acc, fmt
+
+            <span class="keyword">if</span> pt <span class="keyword">then</span>
+
+                acc = width - pt
+
+                <span class="keyword">if</span> acc &lt; 0 <span class="keyword">then</span> acc = 0 <span class="keyword">end</span>
+
+                fmt = <span class="string">"%"</span>..width..<span class="string">"."</span>..acc..<span class="string">"f"</span>
+
+            <span class="keyword">else</span>
+
+                fmt = <span class="string">"%"</span>..width..<span class="string">"i"</span>
+
+            <span class="keyword">end</span>
+
+            <span class="comment">-- print (expr .. "|" .. fmt.."|"..pt)</span>
+
+            expr = <span class="library">string.gsub</span>(formula, <span class="string">'&lt;&gt;'</span>, expr)
+
+            <span class="keyword">local</span> f, msg = <span class="library">loadstring</span>(<span class="string">"return "</span>..expr)
+
+            <span class="keyword">if</span> f <span class="keyword">then</span>
+
+                m:replace(<span class="library">string.format</span>(fmt, f()))
+
+            <span class="keyword">else</span>
+
+                <span class="library">print</span>(<span class="string">"&gt;Execute Formula: cannot evaluate the formula"</span>)
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    editor:EndUndoAction()
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<em>--JRN</em>
+<p>
+<H3>Script to prompt for a formula and then execute the operation</H3>
+It requires the luawin.dll to ask for a formula. 
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> formula
+
+<span class="keyword">local</span> Init =loadlib(<span class="string">'C:\\Program Files\\Scintilla Text Editor\\luawin.dll'</span>, <span class="string">'Init'</span>)
+
+Init()
+
+
+
+<span class="keyword">function</span> setFormula()
+
+    <span class="keyword">local</span> flag, msg = win.InputBox(<span class="string">'Formula: &lt;&gt; as the place holder. e.g. &lt;&gt;*10'</span>)
+
+    <span class="keyword">if</span> flag <span class="keyword">and</span> <span class="library">string.find</span>(msg,<span class="string">'&lt;&gt;'</span>,1,<span class="keyword">true</span>) <span class="keyword">then</span>
+
+        formula = msg
+
+    <span class="keyword">end</span>
+
+    
+
+    <span class="keyword">if</span> formula <span class="keyword">then</span> msg = formula <span class="keyword">else</span> msg = <span class="string">"NONE"</span> <span class="keyword">end</span>
+
+    <span class="library">print</span>(<span class="string">"FORMULA: "</span>..msg)
+
+    
+
+    executeFormula()
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<em>--JRN</em>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteInplaceCalculator" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteInplaceCalculator" >history</a><br>Last edited August 31, 2006 6:32 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteInplaceCalculator" >(diff)</a>
+</body>
+</html>

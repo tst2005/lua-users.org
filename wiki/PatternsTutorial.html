@@ -1,0 +1,273 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Patterns Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PatternsTutorial&amp;body=1" title="List pages referring to PatternsTutorial">Patterns Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua patterns can match sequences of characters, where each character can be optional, or repeat multiple times. If you're used to other languages that have regular expressions to match text, remember that Lua's pattern matching is not the same: it's more limited, and has different syntax.
+<p>
+After reading this tutorial, it's very strongly recommended to read the manual on patterns<a href="http://www.lua.org/manual/5.2/manual.html#6.4.1">[1]</a>, so you know everything it offers.
+<p>
+<H2>Introduction to patterns</H2>
+<p>
+First we will use the <code>string.find</code> function, which finds the first occurrence of a pattern in a string and returns start and end indices of the first and last characters that matched the text:
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">string.find</span>(<span class="string">'banana'</span>, <span class="string">'an'</span>) <span class="comment">-- find 1st occurance of 'an' (letters are matched literally)</span>
+
+2       3
+
+&gt; = <span class="library">string.find</span>(<span class="string">'banana'</span>, <span class="string">'lua'</span>) <span class="comment">-- 'lua' will not be found</span>
+
+<span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+<p>
+But literally matching text isn't that useful, so patterns have the concept of <em>character classes</em>. A character class is a pattern that matches one of a set of characters. For example, <code>.</code> is a character class that matches any character:
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">string.find</span>(<span class="string">"abcdefg"</span>, <span class="string">'b..'</span>)
+
+2 4
+
+</pre>
+
+</DL>
+<p>
+We can now use these indices to get the matched text, but there's a better way: the <code>string.match</code> function. It returns the matched text, or nil if the pattern is not found: (actually, find also returns the matched text, but it first returns the indexes; match only returns the text)
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">string.match</span>(<span class="string">"abcdefg"</span>, <span class="string">'b..'</span>)
+
+bcd
+
+</pre>
+
+</DL>
+<p>
+Patterns have a few pre-defined classes, use them as "%x", where "x" is the letter identifying the class:
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">string.match</span>(<span class="string">"foo 123 bar"</span>, <span class="string">'%d%d%d'</span>) <span class="comment">-- %d matches a digit</span>
+
+123
+
+&gt; = <span class="library">string.match</span>(<span class="string">"text with an Uppercase letter"</span>, <span class="string">'%u'</span>) <span class="comment">-- %u matches an uppercase letter</span>
+
+U
+
+</pre>
+
+</DL>
+Making the letter after the % uppercase inverts the class, so %D will match all non-digit characters. See the patterns manual (linked at the top of the tutorial) for a list of all pre-defined classes.
+<p>
+You can also create your own classes by wrapping a group of characters in square brackets. This will match one of the characters. If the first character inside the brackets is <code>^</code>, then it will match a character <em>not</em> in the group.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">string.match</span>(<span class="string">"abcd"</span>, <span class="string">'[bc][bc]'</span>)
+
+bc
+
+&gt; = <span class="library">string.match</span>(<span class="string">"abcd"</span>, <span class="string">'[^ad]'</span>)
+
+b
+
+&gt; = <span class="library">string.match</span>(<span class="string">"123"</span>, <span class="string">'[0-9]'</span>) <span class="comment">-- you can specify a range of characters using -</span>
+
+1
+
+</pre>
+
+</DL>
+<p>
+<H3>Repetition</H3>
+<p>
+Even with character classes this is still very limiting, because we can only match strings with a fixed length. To solve this, patterns support these four repetition operators:
+<p>
+<UL>
+<li> <code>*</code> Match the previous character (or class) zero or more times, as many times as possible.
+<li> <code>+</code> Match the previous character (or class) one or more times, as many times as possible.
+<li> <code>-</code> Match the previous character (or class) zero or more times, as few times as possible.
+<li> <code>?</code> Make the previous character (or class) optional.
+</UL>
+<p>
+We'll start with <code>?</code>, since it's the simplest:
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">string.match</span>(<span class="string">"examples"</span>, <span class="string">'examples?'</span>)
+
+examples
+
+&gt; = <span class="library">string.match</span>(<span class="string">"example"</span>, <span class="string">'examples?'</span>)
+
+example
+
+&gt; = <span class="library">string.match</span>(<span class="string">"example"</span>, <span class="string">'examples'</span>)
+
+<span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+<p>
+Now an example of <code>+</code>. Note how it's used with a class, so it can match a sequence of different characters:
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">string.match</span>(<span class="string">"this is some text with a number 12345 in it"</span>, <span class="string">'%d+'</span>)
+
+12345
+
+</pre>
+
+</DL>
+<p>
+Unlike <code>+</code>, <code>*</code> can match nothing:
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">string.match</span>(<span class="string">"one |two| three"</span>, <span class="string">'|.*|'</span>)
+
+|two|
+
+&gt; = <span class="library">string.match</span>(<span class="string">"one || three"</span>, <span class="string">'|.*|'</span>)
+
+||
+
+&gt; = <span class="library">string.match</span>(<span class="string">"one || three"</span>, <span class="string">'|.+|'</span>)
+
+<span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+<p>
+A common mistake with <code>+</code> and <code>*</code> is not realizing that they match as much as possible, which may not be the desired result. One way to fix this is using <code>-</code>:
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">string.match</span>(<span class="string">"one |two| three |four| five"</span>, <span class="string">'|.*|'</span>)
+
+|two| three |four|
+
+&gt; = <span class="library">string.match</span>(<span class="string">"one |two| three |four| five"</span>, <span class="string">'|.-|'</span>)
+
+|two|
+
+&gt; = <span class="library">string.match</span>(<span class="string">"one |two| three |four| five"</span>, <span class="string">'|[^|]*|'</span>) <span class="comment">-- another solution can be to not let the contents match the delimiter</span>
+
+|two|
+
+</pre>
+
+</DL>
+<p>
+When using <code>-</code>, you need to remember to "anchor" it from both sides, otherwise it will match nothing (since it tries to match as little as possible):
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">string.match</span>(<span class="string">"abc"</span>, <span class="string">'a.*'</span>)
+
+abc
+
+&gt; = <span class="library">string.match</span>(<span class="string">"abc"</span>, <span class="string">'a.-'</span>) <span class="comment">-- the .- part matches nothing</span>
+
+a
+
+&gt; = <span class="library">string.match</span>(<span class="string">"abc"</span>, <span class="string">'a.-$'</span>) <span class="comment">-- the $ matches the end of the string</span>
+
+abc
+
+&gt; = <span class="library">string.match</span>(<span class="string">"abc"</span>, <span class="string">'^.-b'</span>) <span class="comment">-- the ^ matches the start of the string</span>
+
+ab
+
+</pre>
+
+</DL>
+Here we also introduced <code>^</code> and <code>$</code>, which match the start and end of the string. They're not just for use with <code>-</code>, you can just prepend the pattern with <code>^</code> to make it match at the start, append <code>$</code> to make it match at the end, and wrap it in both (like the example above) to make it match the whole string.
+<p>
+Finally, you might be thinking how to match all these special characters literally. The solution is to prepend them with a % character:
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">string.match</span>(<span class="string">"%*^"</span>, <span class="string">'%%%*%^'</span>)
+
+%*^
+
+</pre>
+
+</DL>
+<p>
+<H3>Captures</H3>
+<p>
+What if you want to get certain pieces out of a string of text? This can be done by wrapping parts of a pattern in <code>( )</code>, and the contents of each of these captures will be returned from <code>string.match</code>.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">string.match</span>(<span class="string">"foo: 123 bar: 456"</span>, <span class="string">'(%a+):%s*(%d+)%s+(%a+):%s*(%d+)'</span>) <span class="comment">-- %a: letter %s: whitespace</span>
+
+foo 123 bar 456
+
+</pre>
+
+</DL>
+<p>
+Each capture is returned as a separate result, so this is useful for splitting out values
+<p>
+<DL>
+<dt><dd><pre class="code">
+    date = <span class="string">"04/19/64"</span>
+
+    m, d, y = <span class="library">string.match</span>(date, <span class="string">"(%d+)/(%d+)/(%d+)"</span>)
+
+    <span class="library">print</span>(<span class="string">"19"</span> .. y)  <span class="comment">--&gt; 1964</span>
+
+</pre>
+
+</DL>
+<p>
+For more on captures, see the manual <a href="http://www.lua.org/pil/20.3.html">[2]</a>
+<p>
+<H3>Limitations of Lua patterns</H3>
+<p>
+Especially if you're used to other languages with regular expressions, you might expect to be able to do stuff like this:
+<DL>
+<dt><dd><pre class="code">
+<span class="string">'(foo)+'</span> <span class="comment">-- match the string "foo" repeated one or more times</span>
+
+<span class="string">'(foo|bar)'</span> <span class="comment">-- match either the string "foo" or the string "bar"</span>
+
+</pre>
+
+</DL>
+<p>
+Unfortunately Lua patterns do not support this, only single characters can be repeated or chosen between, not sub-patterns or strings. The solution is to either use multiple patterns and write some custom logic, use a regular expression library like lrexlib or Lua PCRE, or use LPeg <a href="http://www.inf.puc-rio.br/~roberto/lpeg/lpeg.html">[3]</a>. LPeg is a powerful text parsing library for Lua based on Parsing Expression Grammar <a href="https://en.wikipedia.org/wiki/Parsing_expression_grammar.html">[4]</a>. It offers functions to create and combine patterns in Lua code, and also a language somewhat like Lua patterns or regular expressions to conveniently create small parsers.
+<p>
+<H2>See Also</H2>
+<p>
+Again, now that you have an idea of how patterns work, see the patterns manual<a href="http://www.lua.org/manual/5.2/manual.html#6.4.1">[1]</a> to find out all the possibilities.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PatternsTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PatternsTutorial" >history</a><br>Last edited June 13, 2014 6:50 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PatternsTutorial" >(diff)</a>
+</body>
+</html>

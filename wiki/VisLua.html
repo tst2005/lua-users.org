@@ -1,0 +1,103 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Vis Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=VisLua&amp;body=1" title="List pages referring to VisLua">Vis Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a proposed design for a cross platform editor and debugger <em>fixme</em> for Lua.
+<p>
+<UL>
+<li> Motivation for the project is explained below.
+<li> <a href="../wiki/VisLuaDesign.html" >VisLuaDesign</a> gives details on features to be included.
+<li> <a href="../wiki/VisLuaImplementation.html" >VisLuaImplementation</a> is some notes on implementation issues.
+<li> <a href="../wiki/VisLuaGlossary.html" >VisLuaGlossary</a> lists all confusing terms used.
+</UL>
+<p>
+If you have any comments or would like to join the development of this project you should join the <strong><a href="../wiki/VisLua.html" >VisLua</a>-dev mailing list</strong> at: <a href="http://lists.sourceforge.net/lists/listinfo/visuallua-devs">http://lists.sourceforge.net/lists/listinfo/visuallua-devs</a>
+<p>
+<H2>Motivation</H2>
+<p>
+There are a number of Lua editors and debuggers <em>fixme</em> in circulation. Some have fallen by the wayside and some are platform specific. The idea is to produce a simple framework for an open source cross platform develop22ment system which will continue to be maintained by the Lua community. It would also be nice to support different locales.
+<p>
+<H3>Existing projects</H3>
+<p>
+Lua projects from which ideas could be drawn are :-
+<p>
+<UL>
+<li> <strong>Ldb</strong> - Command line driven debugger. <em>Maintained</em>. <a href="http://www.tecgraf.puc-rio.br/~tomas/ldb/">[1]</a>
+<li> <strong>Houston</strong> - GTK debugger. <em>canceled</em>. <a href="http://luagnome.free.fr/download.php3#houston">[2]</a> (broken link)
+<li> <strong>Titmouse</strong> - Win32 API debugger. <em>Maintained</em>. <a href="http://www.xtgsystems.com/lua/#titmouse">[3]</a>
+<li> <strong>LuaDev</strong> - Mac OSX project manager and debugger. <em>No longer exists</em>. <a href="http://www.dekorte.com/Software/OSX/LuaDev/">[4]</a> (broken link)
+<li> <strong>Lua Studio</strong> - MFC IDE. <em>Work cancelled</em>. <a href="http://sourceforge.net/projects/visuallua/">[5]</a>
+<li> <strong>LuaCmd</strong> - TecGraf IUP cross platform GUI library (Currently Win32 &amp; Motif). Supports Lua 3.2. <em>Dormant</em>. <a href="http://www.tecgraf.puc-rio.br/luacmd">[6]</a>
+<li> <strong>Stella</strong> - Mac OS. <em>Looks dormant</em>.  <a href="http://amianduri.com/stella/stella.html">[7]</a>
+<li> <strong>LuaScript</strong> - Win32 COM. Has debugging facilities. <em>Maintained</em>. <a href="http://www.users.waitrose.com/~winwood/LuaScript.htm">[8]</a> (broken link)
+<li> <strong>EDELua</strong> - Win32 embedded. <em>canceled</em>. <a href="http://home.t-online.de/home/KZerbe/edelua.htm">[9]</a> (broken link)
+<li> <strong>Lash</strong> - Win32 shell. <em>Maintained/In development</em>. <a href="http://cc904244-a.hntsvlle1.al.home.com/Projects/lash.html">[10]</a> (broken link)
+<li> <strong>wxLua</strong> - cross-platform GUI library bindings. <em>Active</em> <a href="http://wxlua.sourceforge.net/">[11]</a>
+</UL>
+<p>
+Other projects which could provide inspiration are listed below. There is not really much point listing every editor there is. Features for the editor can be discussed when it is designed and written.
+<p>
+<UL>
+<li> <strong>IDLE</strong> <a href="http://www.python.org/idle/">[12]</a>. A syntax highlighted interactive console written in Python <a href="http://www.python.org">[13]</a> and Tcl/Tk (Tkinter module).
+<li> <strong>SciTE</strong> <a href="http://www.scintilla.org/SciTE.html">[14]</a> is a simple syntax highlighted editor which supports Lua. The same code that is used here could be used in <a href="../wiki/VisLua.html" >VisLua</a>.
+<li> <strong>TextPad</strong> <a href="http://www.textpad.com/">[15]</a> is a very configurable editor. Such flexibility would be nice.
+</UL>
+<p>
+<H3>Platforms</H3>
+<p>
+Downloadable binaries of Lua are provided for the following platforms <a href="http://www.lua.org/download.html">[16]</a>. It would be nice to cover as many platforms as possible with any work done.
+<p>
+<UL>
+<li> Unix
+<li> Windows
+<li> MacOS &amp; OSX
+<li> RISC OS
+<li> EPOC
+<li> BeOS
+<li> Palm 
+</UL>
+<p>
+<H2>Feedback</H2>
+<p>
+Any general feedback, ideas, <em>volunteers</em> ;-) etc!! You can join the <strong><a href="../wiki/VisLua.html" >VisLua</a>-dev mailing list</strong> at: <a href="http://lists.sourceforge.net/lists/listinfo/visuallua-devs">http://lists.sourceforge.net/lists/listinfo/visuallua-devs</a>
+<p>
+<UL>
+<li> <em>great idea. the time is ripe for a LUA IDE. I'd personally prefer a wxWindows based solution.</em> --<a href="../wiki/PeterPrade.html" >PeterPrade</a>
+</UL>
+<p>
+<UL>
+<li> It might be useful to draw ideas from outside the Lua world, such as Python's IDLE <a href="http://www.python.org/idle/">[12]</a>.
+</UL><DL>
+<dt><dd>Right, I will mention some in the motivation. Pythons IDLE is mentioned below under interactive console --NDT
+<dt><dd>suggestion: either start using the standard term IDE, or give a rationale for why an editor and debugger is not the same as an IDE
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=VisLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=VisLua" >history</a><br>Last edited December 18, 2006 8:39 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=VisLua" >(diff)</a>
+</body>
+</html>

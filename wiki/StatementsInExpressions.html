@@ -1,0 +1,528 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Statements In Expressions</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=StatementsInExpressions&amp;body=1" title="List pages referring to StatementsInExpressions">Statements In Expressions</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+In Lua, statements (including assignments and local variable declarations) cannot normally be placed in expressions but rather must be in separate statements.  This contrasts to, for example, the C language, where one can have an expression that does an assignment as a side effect.  This is often used for things like
+<p>
+<DL>
+<dt><dd><pre>
+
+while((c = fgetc(fh)) != EOF) { fputc(c, fh2); }
+
+</pre>
+</DL>
+<p>
+or
+<p>
+<DL>
+<dt><dd><pre>
+
+double x, y, z;
+
+if (strcmp(v, "0,0,0") == 0) printf("zeros\n");
+
+else if(sscanf(v, "%f,%f,%f", &amp;x, &amp;y, &amp;z) == 3) {
+
+  printf("tuple (%d,%d,%d)\n", x, y, z);
+
+}
+
+else printf("unknown\n");
+
+</pre>
+</DL>
+<p>
+To take a Lua example consider this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> w = (x+y+z)^2 + (x+y+z) + 1
+
+</pre>
+
+</DL>
+<p>
+contains a single expression but is redundant and is normally simplified computationally only by moving code into an assignment in a separate statement:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> xyz = x+y+z
+
+<span class="keyword">local</span> w = xyz^2 + xyz + 1
+
+</pre>
+
+</DL>
+<p>
+or even
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> w; <span class="keyword">do</span> 
+
+  <span class="keyword">local</span> xyz = x+y+z
+
+  w = xyz^2 + xyz + 1
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+It's somewhat a matter of taste, but we lose the nicety of having the computation as a single expression (<code>w = ...</code>).  The style becomes more <a href="http://en.wikipedia.org/wiki/Imperative_programming.html">[imperative]</a>. 
+<p>
+There are various workarounds with closures and function/metatable side-effects (or even memoizing) to write it with a single expression, but they are not as efficient here and would typically be poor choices:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> w = (<span class="keyword">function</span>() <span class="keyword">local</span> xyz = x+y+z; <span class="keyword">return</span> xyz^2 + xyz + 1 <span class="keyword">end</span>)()
+
+</pre>
+
+</DL>
+<p>
+<em>Or one could do</em>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> w = (<span class="keyword">function</span>(xyz) <span class="keyword">return</span> xyz^2 + xyz + 1 <span class="keyword">end</span>)(x + y + z)
+
+</pre>
+
+</DL>
+<p>
+<em>which is the same transformation Scheme uses with <a href="http://en.wikipedia.org/wiki/Scheme_%28programming_language%29#Minimalism.html">[<code>let</code>]</a> and avoids creating the outmost upvalues.</em>
+<p>
+Though this is not valid Lua syntax, it could be preferable to write this as a single expression as follows:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> w = let xyz = x+y+z <span class="keyword">in</span> xyz^2 + xyz + 1
+
+</pre>
+
+</DL>
+<p>
+At least there are theoretical reasons why this would be useful, in writing programs in a functional style or for a program that modifies another Lua program, a la <a href="../wiki/MetaLua.html" >MetaLua</a>.  In fact Metalua incorporates a mechanism similar to this to allow more efficient code.
+<p>
+Notice the resemblance to Lisp:
+<p>
+<DL>
+<dt><dd><pre>
+
+(let ((xyz (+ x y z)))
+
+  (+ (* xyz xyz) xyz 1)
+
+)
+
+</pre>
+</DL>
+<p>
+and OCaml.
+<p>
+<H3>Pattern: Stored Expressions</H3>
+<p>
+We can achieve a similar effect to locals in expressions by having the expression call a function that then does some assignment.  It can have a syntax like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> ex = StoredExpression()
+
+<span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>{<span class="string">"4,5,6"</span>, <span class="string">"7,8,9"</span>, <span class="string">"0,0,0"</span>} <span class="keyword">do</span>
+
+  <span class="keyword">if</span> v == <span class="string">"0,0,0"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"zeros"</span>)
+
+  <span class="keyword">elseif</span> ex(<span class="library">string.match</span>(v, <span class="string">"(%d),(%d),(%d)"</span>)) <span class="keyword">then</span>
+
+    <span class="library">print</span>(<span class="string">"tuple"</span>, ex[1], ex[2], ex[3], <span class="string">"of size"</span>, ex.n)
+
+  <span class="keyword">else</span>
+
+    <span class="library">print</span>(<span class="string">"unknown"</span>)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Outputs: tuple   4       5       6       of size 3</span>
+
+<span class="comment">--          tuple   7       8       9       of size 3</span>
+
+<span class="comment">--          zeros</span>
+
+</pre>
+
+</DL>
+<p>
+Here is the implementation of <code>StoredExpression</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> call(self, ...)
+
+    self.__index = {n = <span class="library">select</span>(<span class="string">'#'</span>, ...), ...}
+
+    <span class="keyword">return</span> ...
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> StoredExpression()
+
+    <span class="keyword">local</span> self = {__call = call}
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>(self, self)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+This also allows things like
+<p>
+<DL>
+<dt><dd><pre class="code">
+result = ex(<span class="library">math.random</span>()) <span class="keyword">and</span> (ex[1] &lt; 0.3 <span class="keyword">and</span> <span class="string">"low"</span> <span class="keyword">or</span>
+
+                                ex[1] &gt; 0.7 <span class="keyword">and</span> <span class="string">"high"</span> <span class="keyword">or</span>
+
+                                <span class="string">"med"</span>)
+
+</pre>
+
+</DL>
+<p>
+Some care may be needed since the order of execution of sub-expressions is not always defined.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>, 2007-02.  <code>StoredExpression</code> implementation was improved by <a href="../wiki/RiciLake.html" >RiciLake</a>.
+<p>
+<H3>Proposal to extend Lua with "let"</H3>
+<p>
+The proposal as discussed with <a href="../wiki/RiciLake.html" >RiciLake</a> is to add a new "let" construct to the Lua language for embedding statements, including local variable declarations, in an expression.
+<p>
+The proposed syntax is
+<p>
+<DL>
+<dt><dd><pre>
+
+let &lt;chunk&gt; in &lt;expr&gt;
+
+</pre>
+</DL>
+<p>
+where "let &lt;chunk&gt; in &lt;expr&gt;" acts as an expression (or expression list?) and where "let &lt;chunk&gt; in" acts like a low-precedence prefix operator (like <code>not</code> or <code>#</code> not with low precedence):
+<p>
+Locals in &lt;chunk&gt; are visible in &lt;expr&gt;.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- typical usage</span>
+
+y = let <span class="keyword">local</span> t = complex_function(x) <span class="keyword">in</span> t <span class="keyword">and</span> g(t)
+
+
+
+<span class="comment">-- any statement (not just local variable declarations) can be used</span>
+
+y = let <span class="keyword">local</span> x = 5; <span class="library">print</span>(<span class="string">"hello"</span>) <span class="keyword">in</span> x*2
+
+
+
+<span class="comment">-- can be nested</span>
+
+y = let <span class="keyword">local</span> x = 5 <span class="keyword">in</span> let <span class="keyword">local</span> y = x <span class="keyword">in</span> y*2  <span class="comment">-- sets y=10</span>
+
+
+
+<span class="comment">-- useful when declaring closures this way</span>
+
+<span class="keyword">local</span> func =
+
+  let
+
+    <span class="keyword">local</span> x = 10
+
+  <span class="keyword">in</span> <span class="keyword">function</span>()
+
+    x = x + 1
+
+    <span class="keyword">return</span> x
+
+  <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> y =
+
+  let <span class="keyword">local</span> x = 0
+
+      <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span> x = x + v <span class="keyword">end</span>
+
+  <span class="keyword">in</span>  x+x^2+x^3
+
+
+
+<span class="comment">-- using let with tuple proposal</span>
+
+t[let x... = 1,2,3 <span class="keyword">in</span> x] = <span class="keyword">true</span>
+
+
+
+<span class="comment">-- if statments:</span>
+
+<span class="keyword">local</span> y
+
+<span class="keyword">if</span> x == 1 <span class="keyword">then</span>
+
+  <span class="library">print</span>(x)
+
+<span class="keyword">elseif</span> let y = compute(x) <span class="keyword">in</span> y &gt; z <span class="keyword">then</span>
+
+  <span class="library">print</span>(<span class="string">"more"</span>, y)
+
+<span class="keyword">elseif</span> y &lt; -z <span class="keyword">then</span>
+
+  <span class="library">print</span>(<span class="string">"less"</span>, y)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H3>Let...in with Metalua</H3>
+<p>
+The <code>let ... in ...</code> syntax has been implemented in Metalua.  See <a href="http://metalua.luaforge.net/quicktour.html">[1]</a>, and particularly this one <a href="http://metalua.luaforge.net/src/lib/ext-syntax/letin.lua.html">[2]</a>.
+<p>
+<H3>Alternative Metalua proposal</H3>
+In <a href="http://metalua.blogspot.com/2008/07/statements-as-expressions.html">[3]</a>, another way to put statements where an expression is expected is presented. This Metalua extension defines a stat...end block, which can be put in an expression context. Its value as an expression is the parameter of the first return statement executed in the stat...end block. 
+<p>
+Therefore, <code>stat &lt;foo&gt; bar</code> is semantically equivalent to <code>((function() foo end)())</code> in plain Lua. However, the Metalua implementation uses a much more efficient compilation, which doesn't involve the creation of a closure with upvalues.
+<p>
+For instance, <code>print(stat local x=21; return 2*x end)</code> will print 42, as would have the slower and less readable <code>print(((function()local x=21; return 2*x; end)()))</code>
+<p>
+<H3>Hack: Expression Stack</H3>
+<p>
+Warning: the following is academic and isn't really recommended for most situations.
+<p>
+Let's define the following functions:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> save, restore; <span class="keyword">do</span>
+
+  <span class="keyword">local</span> saved
+
+  save = <span class="keyword">function</span>(value) saved = value; <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+  restore = <span class="keyword">function</span>() <span class="keyword">return</span> saved <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+We can then do
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> z = save(x+y+z) <span class="keyword">and</span> restore()^3 + restore() + <span class="library">math.sqrt</span>(restore())
+
+</pre>
+
+</DL>
+<p>
+It's more terse, though at the expense of the function call overhead.  That overhead might be removed if we made save/restore a built-in operation in Lua.  It behaves somewhat like a stack as in <a href="http://en.wikipedia.org/wiki/Forth_programming_language.html">[Forth]</a> but with one element.
+<p>
+This concept might be extended to support more than one memory location:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> save, restore <span class="keyword">do</span>
+
+  <span class="keyword">local</span> saved = {}
+
+  let = <span class="keyword">function</span>(name, value) saved[name] = value; <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+  get = <span class="keyword">function</span>(name) <span class="keyword">return</span> saved[name] <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+We can then do things like
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> z =
+
+  let(<span class="string">'n'</span>, x+y+z) <span class="keyword">and</span>
+
+  let(<span class="string">'m'</span>, x^2+y^2+z^2) <span class="keyword">and</span>
+
+  get(<span class="string">'n'</span>)^3 + get(<span class="string">'n'</span>) + <span class="library">math.sqrt</span>(get(<span class="string">'m'</span>))
+
+</pre>
+
+</DL>
+<p>
+<em>That seems like a complicated way of inefficiently reimplementing local variables, in which the variables aren't really local</em>
+<p>
+Eventually we'd want to clear the saved table so it doesn't grow to infinity.  There may be various approaches, such as using a circular queue or periodically clearing this table.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<p>
+<H3>Related stuff (older)</H3>
+<p>
+Here's another example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- How I might like to write it</span>
+
+<span class="comment">-- Assuming rotate_coordinates() returns a tuple of three numbers.</span>
+
+<span class="comment">-- Note: Invalid Lua.</span>
+
+<span class="keyword">function</span> transform_object(o)
+
+  <span class="keyword">return</span> is_vector(o) <span class="keyword">and</span> <span class="keyword">do</span>
+
+    <span class="keyword">local</span> x, y, z = rotate_coordinates(o[x], o[y], o[z])
+
+    <span class="keyword">return</span> {x*2, y*2, z*2}
+
+  <span class="keyword">end</span> <span class="keyword">or</span> o*2
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The values x, y, and z must be stored away in temporary variables before we can operate on them--that is, assuming we don't want to call rotate_coordinates three times:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--Yuck</span>
+
+<span class="keyword">function</span> transform_object(o)
+
+  <span class="keyword">return</span> is_vector(o) <span class="keyword">and</span> {
+
+      <span class="library">select</span>(1, rotate_coordinates(o[x], o[y], o[z])) * 2,
+
+      <span class="library">select</span>(2, rotate_coordinates(o[x], o[y], o[z])) * 2,
+
+      <span class="library">select</span>(3, rotate_coordinates(o[x], o[y], o[z])) * 2
+
+  } <span class="keyword">or</span> o*2
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+This may not seem very reccomended, but it's the best I could think of, sorry for your expressions not having syntax highlighting...
+<p>
+<pre class="code">
+<span class="keyword">function</span> Let(statement)
+
+   <span class="keyword">local</span> locals = {}
+
+   <span class="keyword">return</span> <span class="keyword">function</span>(In)
+
+      <span class="keyword">return</span> <span class="keyword">function</span>(expression)
+
+         <span class="keyword">if</span> In == <span class="string">"In"</span> <span class="keyword">or</span> In == <span class="string">"in"</span> <span class="keyword">then</span>
+
+            <span class="library">table.insert</span>(locals, statement)
+
+            <span class="keyword">local</span> func = <span class="library">load</span>(locals[1] .. <span class="string">' return '</span> .. expression)
+
+            <span class="keyword">return</span> func()
+
+         <span class="keyword">else</span>
+
+            <span class="library">error</span>(<span class="string">"'In' or 'in' expected near "</span> .. In, 2)
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+val = Let <span class="string">'local x = 10'</span> <span class="string">'In'</span> <span class="string">'x - x'</span>
+
+<span class="keyword">local</span> val2 = Let <span class="string">'local x = 9'</span> <span class="string">'In'</span> <span class="string">'x * x'</span>
+
+<span class="library">print</span>(Let <span class="string">'local x = 5'</span> <span class="string">'In'</span> <span class="string">'x + x'</span>)
+
+
+
+<span class="library">print</span>(val + 1 + val2)
+
+
+
+</pre>
+
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> This is in <a href="../wiki/FeatureProposals.html" >FeatureProposals</a> and <a href="../wiki/LuaDesignPatterns.html" >LuaDesignPatterns</a>
+<li> <a href="../wiki/ExpressionsAsStatements.html" >ExpressionsAsStatements</a> - sort of the reverse of this
+<li> GCC has extension supporting statements in expressions<a href="http://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html">[4]</a>
+<li> <a href="/lists/lua-l/2004-01/msg00339.html">LuaList:2004-01/msg00339.html</a>
+<li> <a href="/lists/lua-l/2001-03/msg00188.html">LuaList:2001-03/msg00188.html</a>
+</UL>
+<p>
+<em>Lua 5.1</em>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=StatementsInExpressions" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=StatementsInExpressions" >history</a><br>Last edited August 19, 2014 5:11 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=StatementsInExpressions" >(diff)</a>
+</body>
+</html>

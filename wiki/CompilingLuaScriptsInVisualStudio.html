@@ -1,0 +1,76 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Compiling Lua Scripts In Visual Studio</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CompilingLuaScriptsInVisualStudio&amp;body=1" title="List pages referring to CompilingLuaScriptsInVisualStudio">Compiling Lua Scripts In Visual Studio</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a simple explanation on creating a Visual Studio Project for the lua scripts used in your project. The results of this should cause your scripts to be compiled (with a .o extension) and any errors will appear in the errors box in visual studio.  
+<p>
+Hope this helps
+-- AA
+<p>
+<strong>Step 1</strong>:  Create the project.
+<p>
+<strong>Step 2</strong>:  Download the following files 
+<p>
+<UL>
+<li> <a href="/files/wiki_insecure/users/slade/luacVS.bat">Files:wiki_insecure/users/slade/luacVS.bat</a>  <em>(updated 070418)</em>
+<li> <a href="/files/wiki_insecure/users/slade/Lua.Rules">Files:wiki_insecure/users/slade/Lua.Rules</a>
+</UL>
+<p>
+<UL>
+<li> put them in your project directory  (or somewhere global if you prefer)
+</UL>
+<p>
+<UL>
+<li> luaVS.bat is a simple wrapper for luac that outputs Visual Studio friendly errors
+<li> Lua.Rules is the rules file for handling .lua files
+</UL>
+<p>
+<strong>Step 3</strong>: Set up the project
+<p>
+<UL>
+<li> Goto Project-&gt;Custom Build Rules
+<li> Click Find Existing
+<li> Find the Lua.Rules file
+<li> Make sure its checked, and hit ok.
+</UL>
+<p>
+<p>
+<p>
+<hr>Some other things:
+A Microsoft demo on using lua with visual studio
+<a href="http://download.microsoft.com/download/2/5/b/25b58d70-11d2-4a40-8eda-1ee6a020a17e/VCPPIDE2005demo.wmv">[1]</a>
+<p>
+Also LuaLangPack<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaLangPack" >?</a> <a href="http://luaforge.net/projects/lualangpack/">[2]</a> for getting some good highlighting for VS2005. See this CodePlex<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CodePlex" >?</a> page <a href="http://vslua.codeplex.com/">[3]</a> for VS2008+ integration.
+<p>
+<p>
+Comments: I've removed my old method for doing this. If its useful to someone, Check out Revision 6 of this page.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CompilingLuaScriptsInVisualStudio" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CompilingLuaScriptsInVisualStudio" >history</a><br>Last edited December 5, 2009 3:49 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CompilingLuaScriptsInVisualStudio" >(diff)</a>
+</body>
+</html>

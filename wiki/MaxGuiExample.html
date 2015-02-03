@@ -1,0 +1,467 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Max Gui Example</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MaxGuiExample&amp;body=1" title="List pages referring to MaxGuiExample">Max Gui Example</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The source code shown below illustrates the use of the <a href="../wiki/BlitzLua.html" >BlitzLua</a> function interface. Running it under <a href="../wiki/BlitzLua.html" >BlitzLua</a> produces the following output (depending on your platform - and currently still including any platform-specific problems):
+<p>
+<img src="http://www.Andreas-Rozek.de/BlitzMax/ForumResources/MaxGUI_00_WinXP.png">
+<p>
+<img src="http://www.Andreas-Rozek.de/BlitzMax/ForumResources/MaxGUI_00_MacOSX.png">
+<p>
+<img src="http://www.Andreas-Rozek.de/BlitzMax/ForumResources/MaxGUI_00_Linux.png">
+<p>
+<pre class="code">
+blitzmax.import(brl.event);
+
+blitzmax.import(brl.eventqueue);
+
+blitzmax.import(brl.maxgui);
+
+blitzmax.import(brl.pixmap);
+
+
+
+<span class="comment">--------------------------------------------------------------------------------</span>
+
+<span class="comment">-- loadGuiFont                    Platform-independent "loadGuiFont" function --</span>
+
+<span class="comment">--------------------------------------------------------------------------------</span>
+
+
+
+  <span class="keyword">function</span> loadGuiFont(FontName, FontSize, isBold, isItalic, isUnderlined)
+
+    <span class="keyword">if</span> (blitzmax.Platform ~= <span class="string">"Win32"</span>) <span class="keyword">then</span>
+
+      FontSize = <span class="library">math.floor</span>(FontSize * 1.32);
+
+    <span class="keyword">end</span>;
+
+    <span class="keyword">return</span> brl.maxgui.loadGuiFont(FontName, FontSize, isBold, isItalic, isUnderlined);
+
+  <span class="keyword">end</span>;
+
+
+
+<span class="comment">--******************************************************************************</span>
+
+<span class="comment">--*                                                                            *</span>
+
+<span class="comment">--*                                Main Program                                *</span>
+
+<span class="comment">--*                                                                            *</span>
+
+<span class="comment">--******************************************************************************</span>
+
+
+
+<span class="comment">--**** provide a few application-specific definitions ****</span>
+
+
+
+  <span class="keyword">local</span> Title    = <span class="string">"MaxGUI_00"</span>;
+
+  <span class="keyword">local</span> Subtitle = <span class="string">"very first experiments with MaxGUI and Lua"</span>;
+
+
+
+<span class="comment">--**** load some application-specific images ****</span>
+
+
+
+  <span class="keyword">local</span> Icon = loadPixmap(<span class="string">"Lua-Logo.png"</span>);
+
+<span class="comment">--  Icon = maskPixmap(Icon, 212,208,200);    -- does not work</span>
+
+  <span class="keyword">if</span> (Icon == <span class="keyword">nil</span>) <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"unable to load 'Lua-Logo.png'"</span>); <span class="keyword">end</span>;
+
+
+
+  <span class="keyword">local</span> sunkenLine = loadPixmap(<span class="string">"sunkenLine.png"</span>);
+
+  <span class="keyword">if</span> (sunkenLine == <span class="keyword">nil</span>) <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"unable to load 'sunkenLine.png'"</span>); <span class="keyword">end</span>;
+
+
+
+<span class="comment">--**** load any application-specific fonts ****</span>
+
+
+
+  <span class="keyword">local</span> TitleFont    = loadGuiFont(<span class="string">"Arial"</span>, 12, <span class="keyword">true</span>, <span class="keyword">true</span>, <span class="keyword">false</span>);
+
+  <span class="keyword">local</span> SubtitleFont = loadGuiFont(<span class="string">"Arial"</span>,  9, <span class="keyword">true</span>, <span class="keyword">false</span>,<span class="keyword">false</span>);
+
+  <span class="keyword">local</span> TextFont     = loadGuiFont(<span class="string">"Arial"</span>,  8, <span class="keyword">false</span>,<span class="keyword">false</span>,<span class="keyword">false</span>);
+
+  <span class="keyword">local</span> BoldFont     = loadGuiFont(<span class="string">"Arial"</span>,  8, <span class="keyword">true</span>, <span class="keyword">false</span>,<span class="keyword">false</span>);
+
+  <span class="keyword">if</span> (TitleFont == <span class="keyword">nil</span>) <span class="keyword">or</span> (SubtitleFont == <span class="keyword">nil</span>) <span class="keyword">or</span> (TextFont == <span class="keyword">nil</span>) <span class="keyword">or</span> (BoldFont == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+    <span class="library">error</span>(<span class="string">"unable to load all requested fonts"</span>);
+
+  <span class="keyword">end</span>;
+
+
+
+<span class="comment">--**** setup the application window ****</span>
+
+
+
+  <span class="keyword">local</span> Window = createWindow(Title..<span class="string">" - "</span>..Subtitle, 20,20, 320,240, <span class="keyword">nil</span>,
+
+    WINDOW_TITLEBAR + WINDOW_RESIZABLE + WINDOW_CLIENTCOORDS); <span class="comment">-- + WINDOW_STATUS);</span>
+
+    setMinWindowSize(Window, 320,240);
+
+
+
+    <span class="keyword">local</span> IconView = createPanel(2,4, 32,32, Window);
+
+      setPanelPixmap (IconView, Icon, PANELPIXMAP_CENTER);
+
+      setGadgetLayout(IconView, EDGE_ALIGNED,0,EDGE_ALIGNED,0);
+
+    <span class="keyword">local</span> TitleLabel = createLabel(Title, 36,2, 282,18, Window, LABEL_RIGHT);
+
+      setGadgetFont  (TitleLabel,TitleFont);
+
+      setGadgetLayout(TitleLabel, 0,EDGE_ALIGNED,EDGE_ALIGNED,0);
+
+    <span class="keyword">local</span> SubtitleLabel = createLabel(Subtitle, 36,22, 282,16, Window, LABEL_RIGHT);
+
+      setGadgetFont  (SubtitleLabel,SubtitleFont);
+
+      setGadgetLayout(SubtitleLabel, 0,EDGE_ALIGNED,EDGE_ALIGNED,0);
+
+    <span class="keyword">local</span> UpperSeparator = createPanel(2,40, 316,2, Window);
+
+      setPanelPixmap (UpperSeparator, sunkenLine, PANELPIXMAP_TILE);
+
+      setGadgetLayout(UpperSeparator, EDGE_ALIGNED,EDGE_ALIGNED,EDGE_ALIGNED,0);
+
+    <span class="keyword">local</span> ClientArea = createTextArea(2,44, 316,174, Window, TEXTAREA_READONLY);
+
+      setGadgetLayout(ClientArea, EDGE_ALIGNED,EDGE_ALIGNED,EDGE_ALIGNED,EDGE_ALIGNED);
+
+      setGadgetColor (ClientArea, 128,128,128, <span class="keyword">true</span>)
+
+    <span class="keyword">local</span> LowerSeparator = createPanel(2,220, 316,2, Window);
+
+      setPanelPixmap (LowerSeparator, sunkenLine, PANELPIXMAP_TILE);
+
+      setGadgetLayout(LowerSeparator, EDGE_ALIGNED,EDGE_ALIGNED,0,EDGE_ALIGNED);
+
+    <span class="keyword">local</span> Statusbar = createLabel(<span class="string">"(no special action required)"</span>, 2,224, 316,18, Window);
+
+      setGadgetFont  (Statusbar,TextFont);
+
+      setGadgetLayout(Statusbar, EDGE_ALIGNED,EDGE_ALIGNED,0,EDGE_ALIGNED);
+
+<span class="comment">--  setStatusText(Window, "(no special action required)");</span>
+
+  showGadget(Window);
+
+
+
+<span class="comment">--**** handle any incoming events... ****</span>
+
+
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    waitEvent();
+
+    <span class="keyword">if</span> (EventId() == EVENT_WINDOWCLOSE) <span class="keyword">then</span> <span class="keyword">break</span>; <span class="keyword">end</span>;
+
+  <span class="keyword">end</span>;
+
+</pre>
+
+<p>
+<hr>The following output
+<p>
+<img src="http://www.Andreas-Rozek.de/BlitzMax/ForumResources/MaxGUI_01_WinXP.png">
+<p>
+<img src="http://www.Andreas-Rozek.de/BlitzMax/ForumResources/MaxGUI_01_MacOSX.png">
+<p>
+is produced by the script shown below (which currently crashes under Linux):
+<p>
+<pre class="code">
+blitzmax.import(brl.event);
+
+blitzmax.import(brl.eventqueue);
+
+blitzmax.import(brl.maxgui);
+
+blitzmax.import(brl.pixmap);
+
+
+
+<span class="comment">--------------------------------------------------------------------------------</span>
+
+<span class="comment">-- loadGuiFont                    Platform-independent "loadGuiFont" function --</span>
+
+<span class="comment">--------------------------------------------------------------------------------</span>
+
+
+
+  <span class="keyword">function</span> loadGuiFont(FontName, FontSize, isBold, isItalic, isUnderlined)
+
+    <span class="keyword">if</span> (blitzmax.Platform ~= <span class="string">"Win32"</span>) <span class="keyword">then</span>
+
+      FontSize = <span class="library">math.floor</span>(FontSize * 1.32);
+
+    <span class="keyword">end</span>;
+
+    <span class="keyword">return</span> brl.maxgui.loadGuiFont(FontName, FontSize, isBold, isItalic, isUnderlined);
+
+  <span class="keyword">end</span>;
+
+
+
+<span class="comment">--******************************************************************************</span>
+
+<span class="comment">--*                                                                            *</span>
+
+<span class="comment">--*                                Main Program                                *</span>
+
+<span class="comment">--*                                                                            *</span>
+
+<span class="comment">--******************************************************************************</span>
+
+
+
+<span class="comment">--**** provide a few application-specific definitions ****</span>
+
+
+
+  <span class="keyword">local</span> Title    = <span class="string">"MaxGUI_01"</span>;
+
+  <span class="keyword">local</span> Subtitle = <span class="string">"displays several System and Environment Parameters"</span>;
+
+
+
+<span class="comment">--**** load some application-specific images ****</span>
+
+
+
+  <span class="keyword">local</span> Icon = loadPixmap(<span class="string">"Lua-Logo.png"</span>);
+
+<span class="comment">--  Icon = maskPixmap(Icon, 212,208,200);    -- does not work</span>
+
+  <span class="keyword">if</span> (Icon == <span class="keyword">nil</span>) <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"unable to load 'Lua-Logo.png'"</span>); <span class="keyword">end</span>;
+
+
+
+  <span class="keyword">local</span> sunkenLine = loadPixmap(<span class="string">"sunkenLine.png"</span>);
+
+  <span class="keyword">if</span> (sunkenLine == <span class="keyword">nil</span>) <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"unable to load 'sunkenLine.png'"</span>); <span class="keyword">end</span>;
+
+
+
+<span class="comment">--**** load any application-specific fonts ****</span>
+
+
+
+  <span class="keyword">local</span> TitleFont    = loadGuiFont(<span class="string">"Arial"</span>, 12, <span class="keyword">true</span>, <span class="keyword">true</span>, <span class="keyword">false</span>);
+
+  <span class="keyword">local</span> SubtitleFont = loadGuiFont(<span class="string">"Arial"</span>,  9, <span class="keyword">true</span>, <span class="keyword">false</span>,<span class="keyword">false</span>);
+
+  <span class="keyword">local</span> TextFont     = loadGuiFont(<span class="string">"Arial"</span>,  8, <span class="keyword">false</span>,<span class="keyword">false</span>,<span class="keyword">false</span>);
+
+  <span class="keyword">local</span> BoldFont     = loadGuiFont(<span class="string">"Arial"</span>,  8, <span class="keyword">true</span>, <span class="keyword">false</span>,<span class="keyword">false</span>);
+
+  <span class="keyword">if</span> (TitleFont == <span class="keyword">nil</span>) <span class="keyword">or</span> (SubtitleFont == <span class="keyword">nil</span>) <span class="keyword">or</span> (TextFont == <span class="keyword">nil</span>) <span class="keyword">or</span> (BoldFont == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+    <span class="library">error</span>(<span class="string">"unable to load all requested fonts"</span>);
+
+  <span class="keyword">end</span>;
+
+
+
+<span class="comment">--**** setup the application window ****</span>
+
+
+
+  <span class="keyword">local</span> Window = createWindow(Title..<span class="string">" - "</span>..Subtitle, 20,20, 400,300, <span class="keyword">nil</span>,
+
+    WINDOW_TITLEBAR + WINDOW_RESIZABLE + WINDOW_CLIENTCOORDS); <span class="comment">-- + WINDOW_STATUS);</span>
+
+    setMinWindowSize(Window, 400,300);
+
+
+
+    <span class="keyword">local</span> IconView = createPanel(2,4, 32,32, Window);
+
+      setPanelPixmap (IconView, Icon, PANELPIXMAP_CENTER);
+
+      setGadgetLayout(IconView, EDGE_ALIGNED,0,EDGE_ALIGNED,0);
+
+    <span class="keyword">local</span> TitleLabel = createLabel(Title, 36,2, 362,18, Window, LABEL_RIGHT);
+
+      setGadgetFont  (TitleLabel,TitleFont);
+
+      setGadgetLayout(TitleLabel, 0,EDGE_ALIGNED,EDGE_ALIGNED,0);
+
+    <span class="keyword">local</span> SubtitleLabel = createLabel(Subtitle, 36,22, 362,16, Window, LABEL_RIGHT);
+
+      setGadgetFont  (SubtitleLabel,SubtitleFont);
+
+      setGadgetLayout(SubtitleLabel, 0,EDGE_ALIGNED,EDGE_ALIGNED,0);
+
+    <span class="keyword">local</span> UpperSeparator = createPanel(2,40, 396,2, Window);
+
+      setPanelPixmap (UpperSeparator, sunkenLine, PANELPIXMAP_TILE);
+
+      setGadgetLayout(UpperSeparator, EDGE_ALIGNED,EDGE_ALIGNED,EDGE_ALIGNED,0);
+
+    <span class="keyword">local</span> ClientArea = createTextArea(2,44, 396,234, Window, TEXTAREA_READONLY);
+
+      setGadgetLayout(ClientArea, EDGE_ALIGNED,EDGE_ALIGNED,EDGE_ALIGNED,EDGE_ALIGNED);
+
+      setTextAreaTabs(ClientArea, 10);
+
+    <span class="keyword">local</span> LowerSeparator = createPanel(2,280, 396,2, Window);
+
+      setPanelPixmap (LowerSeparator, sunkenLine, PANELPIXMAP_TILE);
+
+      setGadgetLayout(LowerSeparator, EDGE_ALIGNED,EDGE_ALIGNED,0,EDGE_ALIGNED);
+
+    <span class="keyword">local</span> Statusbar = createLabel(<span class="string">"(no special action required)"</span>, 2,284, 396,18, Window);
+
+      setGadgetFont  (Statusbar,TextFont);
+
+      setGadgetLayout(Statusbar, EDGE_ALIGNED,EDGE_ALIGNED,0,EDGE_ALIGNED);
+
+<span class="comment">--  setStatusText(Window, "(no special action required)");</span>
+
+  showGadget(Window);
+
+
+
+<span class="comment">--**** fill "ClientArea" with some information ****</span>
+
+
+
+  addTextAreaText(ClientArea,<span class="string">"Lua:\n"</span>);
+
+    formatTextAreaText(ClientArea, 0,0,0, TEXTFORMAT_BOLD, 0,1, TEXTAREA_LINES);
+
+  addTextAreaText(ClientArea,<span class="string">"  Version:\t"</span>.._VERSION..<span class="string">"\n"</span>);
+
+  addTextAreaText(ClientArea,<span class="string">"  Arguments:\t"</span>);
+
+    <span class="keyword">if</span> (#ArgList == 0) <span class="keyword">then</span>
+
+      addTextAreaText(ClientArea,<span class="string">"(none)\n"</span>);
+
+    <span class="keyword">else</span>
+
+      addTextAreaText(ClientArea,<span class="string">"\n"</span>);
+
+      <span class="keyword">for</span> i,Value <span class="keyword">in</span> <span class="library">ipairs</span>(ArgList) <span class="keyword">do</span>
+
+        addTextAreaText(ClientArea,<span class="string">"    "</span>..i..<span class="string">":\t\""</span>..Value..<span class="string">"\"\n"</span>);
+
+      <span class="keyword">end</span>;
+
+    <span class="keyword">end</span>;
+
+  addTextAreaText(ClientArea,<span class="string">"\n"</span>);
+
+  addTextAreaText(ClientArea,<span class="string">"BlitzMAX:\n"</span>);
+
+    formatTextAreaText(ClientArea, 0,0,0, TEXTFORMAT_BOLD,
+
+      TextAreaLen(ClientArea,TEXTAREA_LINES)-2,1, TEXTAREA_LINES);
+
+  addTextAreaText(ClientArea,<span class="string">"  AppDir:\t\""</span>..blitzmax.AppDir..<span class="string">"\"\n"</span>);
+
+  addTextAreaText(ClientArea,<span class="string">"  AppFile:\t\""</span>..blitzmax.AppFile..<span class="string">"\"\n"</span>);
+
+  addTextAreaText(ClientArea,<span class="string">"  LaunchDir:\t\""</span>..blitzmax.LaunchDir..<span class="string">"\"\n"</span>);
+
+  addTextAreaText(ClientArea,<span class="string">"\n"</span>);
+
+  addTextAreaText(ClientArea,<span class="string">"System:\n"</span>);
+
+    formatTextAreaText(ClientArea, 0,0,0, TEXTFORMAT_BOLD,
+
+      TextAreaLen(ClientArea,TEXTAREA_LINES)-2,1, TEXTAREA_LINES);
+
+  addTextAreaText(ClientArea,<span class="string">"  Platform:\t\""</span>..blitzmax.Platform..<span class="string">"\"\n"</span>);
+
+  addTextAreaText(ClientArea,<span class="string">"  Date:\t\""</span>..brl.system.currentDate()..<span class="string">"\"\n"</span>);
+
+  addTextAreaText(ClientArea,<span class="string">"  Time:\t\""</span>..brl.system.currentTime()..<span class="string">"\"\n"</span>);
+
+  addTextAreaText(ClientArea,<span class="string">"\n"</span>);
+
+  addTextAreaText(ClientArea,<span class="string">"Display:\n"</span>);
+
+    formatTextAreaText(ClientArea, 0,0,0, TEXTFORMAT_BOLD,
+
+      TextAreaLen(ClientArea,TEXTAREA_LINES)-2,1, TEXTAREA_LINES);
+
+    <span class="keyword">local</span> Display = Desktop();
+
+  addTextAreaText(ClientArea,<span class="string">"  Geometry:\t"</span>..GadgetWidth(Display)..<span class="string">"x"</span>..
+
+    GadgetHeight(Display)..<span class="string">"+"</span>..GadgetX(Display)..<span class="string">"+"</span>..GadgetY(Display)..<span class="string">"\n"</span>);
+
+
+
+<span class="comment">--**** handle any incoming events... ****</span>
+
+
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    waitEvent();
+
+    <span class="keyword">if</span> (EventId() == EVENT_WINDOWCLOSE) <span class="keyword">then</span> <span class="keyword">break</span>; <span class="keyword">end</span>;
+
+  <span class="keyword">end</span>;
+
+
+
+<span class="comment">--**** ...and - finally - close the application window ****</span>
+
+
+
+freeGadget(Window);
+
+</pre>
+
+<p>
+--<a href="../wiki/AndreasRozek.html" >AndreasRozek</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MaxGuiExample" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MaxGuiExample" >history</a><br>Last edited May 18, 2007 6:10 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MaxGuiExample" >(diff)</a>
+</body>
+</html>

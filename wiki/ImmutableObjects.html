@@ -1,0 +1,584 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Immutable Objects</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ImmutableObjects&amp;body=1" title="List pages referring to ImmutableObjects">Immutable Objects</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page concerns topics of immutability [6] / const-ness [4] in Lua.
+<p>
+<H2>Overview of Concepts</H2>
+<p>
+According to [Papurt, 1], "An immutable entity never changes value, but immutability manifests in two ways.  A <strong>strictly</strong> immutable entity gets an initial value at creation and holds that value until termination.  In <strong>contextual immutability</strong>, an otherwise modifiable entity is held modifiable in a specific context.".  Certain values in Lua have strict immutability, such as strings, numbers, and booleans (as well as functions barring upvalues and environments).  Lua tables are mutable, but strict immutability can be simulated to some extent (bar <code>rawset</code>) via metamethods, as shown in <a href="../wiki/ReadOnlyTables.html" >ReadOnlyTables</a>.  Userdata can provide stronger enforcement.  In contrast, Lua local variables are mutable (in terms of the <em>association</em> between variable and value, not the value itself), while global variables are implemented as tables and so share the same conditions as tables.  Though a variable might be thought of as a constant (e.g. <code>math.pi</code>) if it is not normally mutated in practice, this is only a convention not enforced by the Lua compiler or runtime.  Contextual immutability (or "<strong>const</strong> correctness") is less common in languages, though it is widely used in C/C++ and extended in D (<a href="http://en.wikipedia.org/wiki/Const_correctness.html">[Wikipedia:Const correctness]</a>).  Contextual immutability provides a read-only "view" of the object.  Here's an example of contextual immutability in C:
+<p>
+<DL>
+<dt><dd><pre>
+
+#include &lt;stdio.h&gt;
+
+struct Point { double x; double y; };
+
+
+
+void test(const Point p) {
+
+  printf("%f\n", p.x);
+
+  // p.x = 4.0; // fails: p is immutable here
+
+}
+
+
+
+int main() {
+
+  Point p = {2.0, 3.0};
+
+  test(p);
+
+  p.x = 5.0; // p is mutable here
+
+  return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+We also have the question of <strong>transitivity of immutability</strong>--if some object is immutable, whether other objects reachable from that object are also immutable.  For example, if <code>document.page[i]</code> retrieves the page <code>i</code> of a document, and if document is contextually immutable, then is the page retrieved from <code>document.page[i]</code> contextually immutable too?  In C, we have distinctions of const pointer, pointer to a const, and const pointer to a const, as well as const methods returning const pointers (allowing transitivity in the previous example).  In D, full transitivity is more builtin. [4][1][5]
+<p>
+Below are approaches of simulating various immutability effects in Lua.
+<p>
+<H2>Immutability of constants</H2>
+<p>
+A common convention (not enforced by the compiler) is to name variables that are never modified in <code>ALL_CAPS</code>.  See <a href="../wiki/LuaStyleGuide.html" >LuaStyleGuide</a>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> MAX_SIZE = 20
+
+
+
+<span class="keyword">for</span> i=1,MAX_SIZE <span class="keyword">do</span> <span class="library">print</span>(i) <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Immutability of tables (read-only tables)</H2>
+<p>
+Tables can be made mostly immutable via metamethods.  See <a href="../wiki/ReadOnlyTables.html" >ReadOnlyTables</a>.
+<p>
+<H2>Immutability of userdata</H2>
+<p>
+Userdata provides some of the characteristics of tables.  However, one possible advantage is that immutability of userdata can be more strongly enforced on the Lua-side compared to Lua tables.
+<p>
+<H2>Immutability of function objects</H2>
+<p>
+Functions can store data in upvalues, environment variables, or in storage areas accessible through other function calls (e.g. databases).  A function can be considered immutable when it is pure <a href="http://en.wikipedia.org/wiki/Pure_function.html">[1]</a>.  Things that can make a function impure include changes to upvalues (if it has upvalues), changes to the environment (if it uses environment variables), and calls to other impure functions (stored in upvalues or environment variables).  There are some simple steps a function implementation can take to prevent those things:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> sqrt = <span class="library">math.sqrt</span> <span class="comment">-- make the environment variable "math.sqrt"</span>
+
+                         <span class="comment">-- a lexical to ensure it is never redefined</span>
+
+  <span class="keyword">function</span> makepoint(x,y)
+
+    <span class="library">assert</span>(<span class="library">type</span>(x) == <span class="string">'number'</span> <span class="keyword">and</span> <span class="library">type</span>(y) == <span class="string">'number'</span>)
+
+    <span class="comment">-- the upvalues x and y are only accessible inside this scope.</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>()
+
+      <span class="keyword">return</span> x, y, sqrt(x^2 + y^2)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> x,y = 10,20
+
+<span class="keyword">local</span> p = makepoint(x,y)
+
+<span class="library">print</span>(p()) <span class="comment">--&gt; 10  20  22.360679774998</span>
+
+<span class="library">math.sqrt</span> = <span class="library">math.cos</span>  <span class="comment">-- this has no effect</span>
+
+x,y = 50,60           <span class="comment">-- this has no effect</span>
+
+<span class="library">print</span>(p()) <span class="comment">--&gt; 10  20  22.360679774998</span>
+
+</pre>
+
+</DL>
+<p>
+External routines may still have access to environment variables and upvalues of such a function.  The environment of a function can change via <code>setfenv</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-setfenv">[2]</a>.  Though the implementation of a function <code>f</code> might not use environment variables, this will still affect the result of any <code>getfenv(f)</code> calls from outside the function, so in this way functions are not immutable.  Secondly, the upvalues actually are modifiable via <code>debug.setupvalue</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-debug.setupvalue">[3]</a>, but the debug interface is considered a backdoor.
+<p>
+See <a href="../wiki/SimpleTuples.html" >SimpleTuples</a> for further description on using functions to represent immutable tuples.
+<p>
+<H2>Immutability of strings</H2>
+<p>
+Lua strings are immutable and interned.  This has some implications <a href="http://en.wikipedia.org/wiki/Immutable_object.html">[4]</a>.  To create a string that differs in only one-character from an existing 100 MB string requires creating an entirely new 100 MB string since the original string cannot be modified.
+<p>
+Some have implemented (mutable) string buffers in terms of userdata.
+<p>
+In the Lua C API, string buffers <a href="http://www.lua.org/manual/5.1/manual.html#luaL_Buffer">[5]</a> are mutable.
+<p>
+<H2>Simulating contextual immutability in Lua at run-time</H2>
+<p>
+Here's a quick example of how contextual immutability might be simulated at run-time in Lua: [2]
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- converts a mutable object to an immutable one (as a proxy)</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> const(obj)
+
+  <span class="keyword">local</span> mt = {}
+
+  <span class="keyword">function</span> mt.__index(proxy,k)
+
+    <span class="keyword">local</span> v = obj[k]
+
+    <span class="keyword">if</span> <span class="library">type</span>(v) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+      v = const(v)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> v
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> mt.__newindex(proxy,k,v)
+
+    <span class="library">error</span>(<span class="string">"object is constant"</span>, 2)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> tc = <span class="library">setmetatable</span>({}, mt)
+
+  <span class="keyword">return</span> tc
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- reimplementation of ipairs,</span>
+
+<span class="comment">-- from http://lua-users.org/wiki/GeneralizedPairsAndIpairs</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> _ipairs(t, var)
+
+  var = var + 1
+
+  <span class="keyword">local</span> value = t[var]
+
+  <span class="keyword">if</span> value == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+  <span class="keyword">return</span> var, value
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> <span class="library">ipairs</span>(t) <span class="keyword">return</span> _ipairs, t, 0 <span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- example usage:</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> test2(library)  <span class="comment">-- example function</span>
+
+  <span class="library">print</span>(library.books[1].title)
+
+  library:print()
+
+
+
+  <span class="comment">-- these fail with "object is constant"</span>
+
+  <span class="comment">-- library.address = 'brazil'</span>
+
+  <span class="comment">-- library.books[1].author = 'someone'</span>
+
+  <span class="comment">-- library:addbook {title='BP', author='larry'}</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> test(library)  <span class="comment">-- example function</span>
+
+  library = const(library)
+
+
+
+  test2(library)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- define an object representing a library, as an example.</span>
+
+<span class="keyword">local</span> library = {
+
+  books = {}
+
+}
+
+<span class="keyword">function</span> library:addbook(book)
+
+  self.books[#self.books+1] = book
+
+  <span class="comment">-- warning: rawset ignores __newindex metamethod on const proxy.</span>
+
+  <span class="comment">-- table.insert(self.books, book)</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> library:print()
+
+  <span class="keyword">for</span> i,book <span class="keyword">in</span> <span class="library">ipairs</span>(self.books) <span class="keyword">do</span>
+
+    <span class="library">print</span>(i, book.title, book.author)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+library:addbook {title=<span class="string">'PiL'</span>, author=<span class="string">'roberto'</span>}
+
+library:addbook {title=<span class="string">'BLP'</span>, author=<span class="string">'kurt'</span>}
+
+
+
+test(library)
+
+</pre>
+
+</DL>
+<p>
+The key line is "<code>library = const(library)</code>", which converts a mutable parameter to an immutable one.  <code>const</code> returns a proxy object that wraps the given object, allowing reading of the object's fields but not writing to them.  It provides a "view" of the object (think: databases).
+<p>
+Notice that recursive call <code>v = const(v)</code> provides a type of transitivity to the immutability.
+<p>
+There are some caveats to this approach noted in the above code.  The methods of the original object are not passed the original object but rather a proxy to the object.  Those methods therefore must avoid raw gets and sets (which don't trigger metamethods).  Until <a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a>, we also have the issues with <code>pairs</code>/<code>ipairs</code>/<code>#</code> (see <a href="../wiki/GeneralizedPairsAndIpairs.html" >GeneralizedPairsAndIpairs</a>).  The above could be extended to support operator overloads.
+<p>
+The above does impose some runtime overhead.  However, in production, you could define <code>const</code> as the identity function or even strip out these functions from the source code.
+<p>
+Note: the above is a proof-of-concept and is not necessarily suggested in practice for general use.
+<p>
+<H2>Simulating contextual immutability in Lua at compile-time</H2>
+<p>
+It might be more desirable to perform the const correctness checks at compile time (static analysis), as in C/C++.  A tool for this could be written, e.g., using <a href="../wiki/MetaLua.html" >MetaLua</a>'s gg/mlp, Leg, etc. (see <a href="../wiki/LuaGrammar.html" >LuaGrammar</a>), or perhaps a trick with <code>luac -p -l</code> could be done (e.g. see <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>).  Here's how such code "might" look like:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> test2(library)
+
+  <span class="library">print</span>(library.books[1].title)
+
+  library:print()
+
+
+
+  <span class="comment">-- these fail with "object is constant"</span>
+
+  <span class="comment">-- library.address = 'brazil'</span>
+
+  <span class="comment">-- library.books[1].author = 'someone'</span>
+
+  <span class="comment">-- library:addbook {title='BP', author='larry'}</span>
+
+  library:print()
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> test(library)  <span class="comment">--! const(library)</span>
+
+  test2(library)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> library = {
+
+  books = {}
+
+}
+
+<span class="keyword">function</span> library:addbook(book)
+
+  <span class="library">table.insert</span>(self.books[#self.books+1], book)
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> library:print()
+
+  <span class="keyword">for</span> i,book <span class="keyword">in</span> <span class="library">ipairs</span>(self.books) <span class="keyword">do</span>
+
+    <span class="library">print</span>(i, book.title, book.author)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+library:addbook {title=<span class="string">'PiL'</span>, author=<span class="string">'roberto'</span>}
+
+library:addbook {title=<span class="string">'BLP'</span>, author=<span class="string">'kurt'</span>}
+
+
+
+test(library)
+
+</pre>
+
+</DL>
+<p>
+Above, an annotation in the form of a specially formatted comment (<code>--!</code>) is used to indicate to the static analysis checking tool that the given parameter should be treated as constant.  How this would work in practice is less clear.  Obviously, due to the dynamic nature of Lua, this could only be done in a restricted set of cases (e.g. heavy use of locals that are not modified and assuming globals like <code>table.insert</code> retain their usual semantics).
+<p>
+<H2>Runtime constant check on tables</H2>
+<p>
+The following library can be used during debugging to ensure that function arguments with names postfixed by "_c" are unchanged across function calls.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- debugconstcheck.lua</span>
+
+<span class="comment">-- D.Manura, 2012-02, public domain.</span>
+
+<span class="comment">-- Lua 5.2. WARNING: not well tested; "proof-of-concept"; has big performance impact</span>
+
+<span class="comment">-- May fail with coroutines.</span>
+
+
+
+<span class="keyword">local</span> stack = {}
+
+<span class="keyword">local</span> depth = 0
+
+
+
+<span class="comment">-- Gets unique identifier for current state of Lua object `t`.</span>
+
+<span class="comment">-- This implementation could be improved.</span>
+
+<span class="comment">-- Currently it only does a shallow table traversal and ignores metatables.</span>
+
+<span class="comment">-- It could represent state with a smaller hash (less memory).</span>
+
+<span class="comment">-- Note: false negatives are not serious problems for purposes here.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> checksum(t)
+
+  <span class="keyword">if</span> <span class="library">type</span>(t) ~= <span class="string">'table'</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> (<span class="string">"(%q%q)"</span>):format(<span class="library">tostring</span>(<span class="library">type</span>(t)), <span class="library">tostring</span>(t))
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> ts = {}
+
+  <span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">next</span>, t <span class="keyword">do</span>
+
+    ts[#ts+1] = (<span class="string">'%q%q'</span>):format(<span class="library">tostring</span>(k), <span class="library">tostring</span>(v))
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="string">'("table"'</span>..<span class="library">table.concat</span>(ts)..<span class="string">')'</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Checks function parameters on call/returns with a debug hook.</span>
+
+<span class="library">debug.sethook</span>(<span class="keyword">function</span>(op)
+
+  <span class="keyword">if</span> op ~= <span class="string">'return'</span> <span class="keyword">then</span>
+
+
+
+    depth = depth + 1
+
+    <span class="keyword">local</span> info = <span class="library">debug.getinfo</span>(2, <span class="string">'ufn'</span>)
+
+    <span class="comment">--print('+', depth, info.name, op)</span>
+
+    <span class="keyword">local</span> nfound = 0
+
+    <span class="keyword">for</span> i=1, info.nparams <span class="keyword">do</span>
+
+      <span class="keyword">local</span> name, val = <span class="library">debug.getlocal</span>(2, i)
+
+      <span class="keyword">if</span> name:match(<span class="string">'_c$'</span>) <span class="keyword">then</span> <span class="comment">-- record state of param on function entry</span>
+
+        stack[#stack+1] = val
+
+        stack[#stack+1] = checksum(val)
+
+        <span class="comment">--print(name, stack[#stack])</span>
+
+        nfound = nfound + 1
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> nfound ~= 0 <span class="keyword">then</span> stack[#stack+1] = nfound; stack[#stack+1] = depth <span class="keyword">end</span>
+
+  
+
+  <span class="keyword">else</span> <span class="comment">-- 'call' or 'tail call'</span>
+
+
+
+    <span class="comment">--print('-', depth, debug.getinfo(2, 'n').name)</span>
+
+    <span class="keyword">if</span> depth == stack[#stack] <span class="keyword">then</span> <span class="comment">-- check state of params on function exit</span>
+
+      <span class="library">table.remove</span>(stack)
+
+      <span class="keyword">local</span> count = <span class="library">table.remove</span>(stack)
+
+      <span class="keyword">for</span> i=count,1,-1 <span class="keyword">do</span>
+
+        <span class="keyword">local</span> sum = <span class="library">table.remove</span>(stack)
+
+        <span class="keyword">local</span> val = <span class="library">table.remove</span>(stack)
+
+        <span class="keyword">local</span> current_sum = checksum(val)
+
+        <span class="comment">--print('check', '\n'..sum, '\n'..current_sum)</span>
+
+        <span class="keyword">if</span> sum ~= current_sum <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"const variable mutated"</span>) <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    depth = depth - 1
+
+  
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>, <span class="string">'cr'</span>)
+
+
+
+<span class="keyword">return</span> {}
+
+</pre>
+
+</DL>
+<p>
+Example (to be run with <code>lua -ldebugconstcheck example.lua</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- example.lua</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> g(a,b,c)
+
+  b.x=1 <span class="comment">-- ok</span>
+
+  <span class="library">table.sort</span>(a) <span class="comment">-- bad</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> f(a_c, b, c_c)
+
+  <span class="keyword">return</span> g(a_c, b, c_c)
+
+<span class="keyword">end</span>
+
+
+
+f({<span class="string">'b'</span>,<span class="string">'a'</span>}, {}, {})
+
+</pre>
+
+</DL>
+<p>
+Results:
+<p>
+<DL>
+<dt><dd><pre>
+
+lua52: ./debugconstcheck.lua:46: const variable mutated
+
+stack traceback:
+
+	[C]: in function 'error'
+
+	./debugconstcheck.lua:46: in function &lt;./debugconstcheck.lua:17&gt;
+
+	example.lua:10: in main chunk
+
+	[C]: in ?
+
+</pre>
+</DL>
+<p>
+<H2>See Also / References</H2>
+<p>
+<UL>
+<li> [1] Inside the Object Model: The Sensible Use of C++, by David M. Papurt.  Chapter 6. <a href="http://www.amazon.com/Inside-Object-Model-Sensible-Use/dp/0132073668">[amazon]</a><a href="http://books.google.com/books?id=Km39K9ld66EC">[google]</a>
+<li> [6] <a href="http://en.wikipedia.org/wiki/Immutable_object.html">[Wikipedia:Immutable object]</a>
+<li> [4] <a href="http://en.wikipedia.org/wiki/Const_correctness.html">[Wikipedia:Const correctness]</a>
+<li> [2] --<a href="../wiki/DavidManura.html" >DavidManura</a>
+<li> [3] <a href="http://www.hans-eric.com/2008/07/30/functional-d-is-transitive-const-fundamental/">[Functional D: Is Transitive Const Fundamental?]</a> <a href="http://www.digitalmars.com/d/2.0/const3.html">[Const and Invariant - D Programming Language]</a>
+<li> [5] <a href="http://www.digitalmars.com/d/2.0/const-faq.html#transitive-const">[D Programming Language - const(FAQ)]</a> <a href="http://while-nan.blogspot.com/2007/06/you-cant-touch-this.html">[You can't touch this]</a>
+<li> <a href="/lists/lua-l/2006-06/msg00223.html">LuaList:2006-06/msg00223.html</a> - const
+<li> <a href="/lists/lua-l/2006-11/msg00251.html">LuaList:2006-11/msg00251.html</a> - Read-Only Tables Patch
+<li> <a href="/lists/lua-l/2004-11/msg00255.html">LuaList:2004-11/msg00255.html</a> - source-code optimizer
+</UL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ImmutableObjects" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ImmutableObjects" >history</a><br>Last edited February 23, 2012 3:19 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ImmutableObjects" >(diff)</a>
+</body>
+</html>

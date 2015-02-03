@@ -1,0 +1,194 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Migrating To Five One</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MigratingToFiveOne&amp;body=1" title="List pages referring to MigratingToFiveOne">Migrating To Five One</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page attempts to provide more detail on <em>how</em> to move from 5.0 to 5.1 than the <em><a href="http://www.lua.org/manual/5.1/manual.html#7">[Incompatibilities with version 5.0]</a></em> section of the Lua 5.1 manual provides.
+<p>
+<H3>Living without table.setn() and table.getn()</H3>
+<UL>
+<li> <em>TODO - No more 'lying' about size...unless you roll your own</em>
+<li> <em>TODO - The length operator</em>
+<li> <em>TODO - table.maxn()</em>
+</UL>
+<p>
+<H3>Using vararg expressions rather than 'arg'</H3>
+<UL>
+<li> <strong>5.0</strong> 
+</UL><DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> catchall( ... )
+
+   <span class="keyword">for</span> i=1,arg.n <span class="keyword">do</span>
+
+      <span class="library">print</span>( <span class="string">"Argument #"</span>, i, <span class="string">"is"</span>, arg[ i ] )
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="comment">-- Pass all arguments to another function</span>
+
+   show3( <span class="library">unpack</span>( arg ) )
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> show3( a, b, c )
+
+   <span class="library">print</span>( a, b, c )
+
+<span class="keyword">end</span>
+
+
+
+catchall( <span class="keyword">nil</span>, <span class="string">'two'</span>, <span class="keyword">nil</span> )
+
+<span class="comment">--&gt; Argument #    1     is     nil</span>
+
+<span class="comment">--&gt; Argument #    2     is     two</span>
+
+<span class="comment">--&gt; Argument #    3     is     nil</span>
+
+<span class="comment">--&gt; nil     two     nil</span>
+
+</pre>
+
+</DL>
+<p>
+<UL>
+<li> <strong>5.1</strong> 
+</UL><DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> catchall( ... )
+
+   <span class="comment">-- Make a new table of values</span>
+
+   <span class="keyword">local</span> theArguments = { ... }
+
+
+
+   <span class="keyword">for</span> i=1,<span class="library">select</span>( <span class="string">'#'</span>, ... ) <span class="keyword">do</span>
+
+      <span class="library">print</span>( <span class="string">"Argument #"</span>, i, <span class="string">"is"</span>, theArguments[ i ] )
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="comment">-- Pass all arguments to another function</span>
+
+   show3( ... )
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> show3( a, b, c )
+
+   <span class="library">print</span>( a, b, c )
+
+<span class="keyword">end</span>
+
+
+
+catchall( <span class="keyword">nil</span>, <span class="string">'two'</span>, <span class="keyword">nil</span> )
+
+<span class="comment">--&gt; Argument #    1     is     nil</span>
+
+<span class="comment">--&gt; Argument #    2     is     two</span>
+
+<span class="comment">--&gt; Argument #    3     is     nil</span>
+
+<span class="comment">--&gt; nil     two     nil</span>
+
+</pre>
+
+</DL>
+<p>
+<UL>
+<li> <code>ipairs()</code> will stop at the first embedded <code>nil</code> value;
+<li> <code>#</code> (the length operator) <a href="http://lua-users.org/lists/lua-l/2006-03/msg00147.html">[may]</a> stop at the first embedded <code>nil</code> value;
+<li> <code>table.maxn()</code> will skip embedded <code>nil</code> values; but
+<li> Only <code>select( '#', ... )</code> will allow you to see that the user passed in <em>trailing</em> <code>nil</code> values.
+</UL>
+<p>
+<H3>Nesting long strings or block comments</H3>
+<UL>
+<li> <em>TODO - Must differentiate levels. Allows for XML CDATA, e.g.</em>
+</UL>
+<p>
+<H3>Working with Garbage Collection</H3>
+<UL>
+<li> <em>TODO - new arguments to collectgarbage()</em>
+</UL>
+<p>
+<H3>Simple Find/Replace Changes</H3>
+<UL>
+<li> <em>TODO - gfind to gmatch</em>
+<li> <em>TODO - loadlib to package.loadlib</em>
+<li> <em>TODO - math.mod to math.fmod or %</em>
+</UL>
+<p>
+<H3>Strings as 'objects'</H3>
+<UL>
+<li> <em>TODO - string.rep( 'x', 10 ) versus ('x'):rep( 10 )</em>
+</UL>
+<p>
+<H3>C API Changes</H3>
+<UL>
+<li> <em>???</em>
+<li> Roberto sez: All luaL_check* functions should be called only with positive indices (more specifically, with indices to parameters). Workaround:
+</UL><DL>
+<dt><dd><pre>
+
+if (index &lt; 0 &amp;&amp; -index &lt;= top)
+
+    index = top+index+1;
+
+my* = luaL_check*(L, index, ...);
+
+</pre>
+</DL>
+<p>
+<H3>Migrating with Specific Addons or Libraries</H3>
+<UL>
+<li> Copy the definitions of lua_boxpointer and lua_unboxpointer from the 5.0 lua.h
+<li> Replace the uses of luaL_findstring with luaL_checkoption. If necessary, copy the code of luaL_findstring from 5.0.
+</UL>
+<p>
+<H3>New Module System</H3>
+<UL>
+<li> <em>module("modulename", package.seeall)</em> - Unexpected results from just module("modulename")
+<li> Use 5.1 <code>package.loadlib</code> for 5.0 uses of <code>loadlib</code>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MigratingToFiveOne" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MigratingToFiveOne" >history</a><br>Last edited January 11, 2007 2:50 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MigratingToFiveOne" >(diff)</a>
+</body>
+</html>

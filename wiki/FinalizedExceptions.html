@@ -1,0 +1,439 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Finalized Exceptions</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FinalizedExceptions&amp;body=1" title="List pages referring to FinalizedExceptions">Finalized Exceptions</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Using finalized exceptions</H2>
+<H3>or How to get rid of all those if statements</H3>
+by <a href="../wiki/DiegoNehab.html" >DiegoNehab</a>
+<p>
+<pre>
+
+
+
+</pre>
+<p>
+<H2>Abstract</H2>
+This little LTN describes a simple exception scheme that greatly simplifies error checking in Lua programs. All the needed functionality ships standard with Lua, but is hidden between the <code>assert</code> and <code>pcall</code> functions.  To make it more evident, we stick to a convenient standard (you probably already use anyways) for Lua function return values, and define two very simple helper functions (either in C or in Lua itself). 
+<p>
+<H2>Introduction</H2>
+<p>
+Most Lua functions return <code>nil</code> in case of error, followed by a message describing the error. If you don't use this convention, you probably have good reasons. Hopefully, after reading on, you will realize your reasons are not good enough. 
+<p>
+If you are like me, you hate error checking. Most nice little code snippets that look beautiful when you first write them lose some of their charm when you add all that error checking code.  Yet, error checking is as important as  the rest of the code. How sad.
+<p>
+Even if you stick to a return convention, any complex task which involving several function calls makes error checking both boring and error-prone (do you see the <em>error</em> below?)
+<DL>
+<dt><dd><pre class="code">
+
+
+<span class="keyword">function</span> task(arg1, arg2, ...)
+
+    <span class="keyword">local</span> ret1, err = task1(arg1)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> ret1 <span class="keyword">then</span> 
+
+        cleanup1()
+
+        <span class="keyword">return</span> <span class="keyword">nil</span>, err 
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">local</span> ret2, err = task2(arg2)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> ret <span class="keyword">then</span> 
+
+        cleanup2()
+
+        <span class="keyword">return</span> <span class="keyword">nil</span>, err 
+
+    <span class="keyword">end</span>
+
+    ...
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The standard <code>assert</code> function provides an interesting alternative.  To use it, simply nest every function call to be error checked with a call to <code>assert</code>. The <code>assert</code> function checks the value of its first argument. If it is <code>nil</code>, <code>assert</code> throws the second argument as an error message. Otherwise, <code>assert</code> lets all arguments through as if had not been there. The idea greatly simplifies error checking:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> task(arg1, arg2, ...)
+
+    <span class="keyword">local</span> ret1 = <span class="library">assert</span>(task1(arg1))
+
+    <span class="keyword">local</span> ret2 = <span class="library">assert</span>(task2(arg2))
+
+    ...
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+If any task fails, the execution is aborted by <code>assert</code> and the error message is displayed to the user as the cause of the problem.  If no error happens, the task completes as before. There isn't a single <code>if</code> statement and this is great. However, there are some problems with the idea.
+<p>
+First, the topmost <code>task</code> function doesn't respect the protocol followed by the lower-level tasks: It raises an error instead of returning <code>nil</code> followed by the error messages. Here is where the standard <code>pcall</code> comes in handy. 
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> xtask(arg1, arg2, ...)
+
+    <span class="keyword">local</span> ret1 = <span class="library">assert</span>(task1(arg1))
+
+    <span class="keyword">local</span> ret2 = <span class="library">assert</span>(task2(arg2))
+
+    ...
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> task(arg1, arg2, ...)
+
+    <span class="keyword">local</span> ok, ret_or_err = <span class="library">pcall</span>(xtask, arg1, arg2, ...)
+
+    <span class="keyword">if</span> ok <span class="keyword">then</span> <span class="keyword">return</span> ret_or_err
+
+    <span class="keyword">else</span> <span class="keyword">return</span> <span class="keyword">nil</span>, ret_or_err <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Our new <code>task</code> function is well behaved. <code>Pcall</code> catches any error raised by the calls to <code>assert</code> and returns it after the status code. That way, errors don't get propagated to the user of the high level <code>task</code> function. 
+<p>
+These are the main ideas for our exception scheme, but there are still a few glitches to fix: 
+<p>
+<UL>
+<li> Directly using <code>pcall</code> ruined the simplicity of the code;
+<li> What happened to the cleanup function calls? What if we have to, say, close a file?
+<li> <code>Assert</code> messes with the error message before raising the error (it adds line number information).
+</UL>
+<p>
+Fortunately, all these problems are very easy to solve and that's what we do in the following sections. 
+<p>
+<H3>Introducing the <code>protect</code> factory</H3>
+<p>
+We used the <code>pcall</code> function to shield the user from errors that could be raised by the underlying implementation.  Instead of directly using <code>pcall</code> (and thus duplicating code) every time we prefer a factory that does the same job:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> pack(ok, ...)
+
+    <span class="keyword">return</span> ok, arg
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> protect(f)
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+        <span class="keyword">local</span> ok, ret = pack(<span class="library">pcall</span>(f, <span class="library">unpack</span>(arg)))
+
+        <span class="keyword">if</span> ok <span class="keyword">then</span> <span class="keyword">return</span> <span class="library">unpack</span>(ret)
+
+        <span class="keyword">else</span> <span class="keyword">return</span> <span class="keyword">nil</span>, ret[1] <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The <code>protect</code> factory receives a function that might raise exceptions and returns a function that respects our return value convention. Now we can rewrite the top-level <code>task</code> function in a much cleaner way:
+<DL>
+<dt><dd><pre class="code">
+task = protect(<span class="keyword">function</span>(arg1, arg2, ...)
+
+    <span class="keyword">local</span> ret1 = <span class="library">assert</span>(task1(arg1))
+
+    <span class="keyword">local</span> ret2 = <span class="library">assert</span>(task2(arg2))
+
+    ...
+
+<span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+The Lua implementation of the <code>protect</code> factory suffers with the creation of tables to hold multiple arguments and return values.  It is possible (and easy) to implement the same function in C, without any table creation. 
+<DL>
+<dt><dd><pre>
+
+static int safecall(lua_State *L) {
+
+    lua_pushvalue(L, lua_upvalueindex(1));
+
+    lua_insert(L, 1);
+
+    if (lua_pcall(L, lua_gettop(L) - 1, LUA_MULTRET, 0) != 0) {
+
+        lua_pushnil(L);
+
+        lua_insert(L, 1);
+
+        return 2;
+
+    } else return lua_gettop(L);
+
+}
+
+
+
+static int protect(lua_State *L) {
+
+    lua_pushcclosure(L, safecall, 1);
+
+    return 1;
+
+}
+
+</pre>
+</DL>
+<p>
+As of Lua 5.1 the temporary table can be avoided in pure Lua code, too:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+    <span class="keyword">local</span> <span class="keyword">function</span> fix_return_values(ok, ...)
+
+        <span class="keyword">if</span> ok <span class="keyword">then</span>
+
+            <span class="keyword">return</span> ...
+
+        <span class="keyword">else</span>
+
+            <span class="keyword">return</span> <span class="keyword">nil</span>, (...)
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> protect(f)
+
+        <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+            <span class="keyword">return</span> fix_return_values(<span class="library">pcall</span>(f, ...))
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>The <code>newtry</code> factory</H2>
+<p>
+Let's solve the two remaining issues with a single shot and use a concrete example to illustrate the proposed solution. Suppose you want to write a function to download an HTTP document. You have to connect, send the request and read the reply. Each of these tasks can fail, but if something goes wrong after you connected, you have to close the connection before returning the error message.
+<DL>
+<dt><dd><pre class="code">
+get = protect(<span class="keyword">function</span>(host, path)
+
+    <span class="keyword">local</span> c
+
+    <span class="comment">-- create a try function with a finalizer to close the socket</span>
+
+    <span class="keyword">local</span> try = newtry(<span class="keyword">function</span>() 
+
+        <span class="keyword">if</span> c <span class="keyword">then</span> c:close() <span class="keyword">end</span> 
+
+    <span class="keyword">end</span>)
+
+    <span class="comment">-- connect and send request</span>
+
+    c = try(connect(host, 80))
+
+    try(c:send(<span class="string">"GET "</span> .. path .. <span class="string">" HTTP/1.0\r\n\r\n"</span>))
+
+    <span class="comment">-- get headers</span>
+
+    <span class="keyword">local</span> h = {}
+
+    <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+        l = try(c:receive())
+
+        <span class="keyword">if</span> l == <span class="string">""</span> <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+        <span class="library">table.insert</span>(h, l)
+
+    <span class="keyword">end</span>
+
+    <span class="comment">-- get body</span>
+
+    <span class="keyword">local</span> b = try(c:receive(<span class="string">"*a"</span>))
+
+    c:close()
+
+    <span class="keyword">return</span> b, h
+
+<span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+The <code>newtry</code> factory returns a function that works just like <code>assert</code>. The differences are that the <code>try</code> function doesn't mess with the error message and it calls an optional <em>finalizer</em> before raising the error. In our example, the finalizer simply closes the socket.
+<p>
+Even with a simple example like this, we see that the finalized exceptions simplified our life. Let's see what we gain in general, not just in this example: 
+<p>
+<UL>
+<li> We don't need to declare dummy variables to hold error messages in case any ever shows up; 
+<li> We avoid using a variable to hold something that could either be a return value or an error message; 
+<li> We didn't have to use several <em>if</em> statements to check for errors;
+<li> If an error happens, we know our finalizer is going to be invoked automatically;
+<li> Exceptions get propagated, so we don't repeat these <em>if</em> statements until the error reaches the user.
+</UL>
+<p>
+Try writing the same function without the tricks we used above and you will see that the code gets ugly. Longer sequences of operations with error checking would get even uglier. So let's implement the <code>newtry</code> function in Lua:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> newtry(f)
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(...) 
+
+        <span class="keyword">if</span> <span class="keyword">not</span> arg[1] <span class="keyword">then</span> 
+
+            <span class="keyword">if</span> f <span class="keyword">then</span> f() <span class="keyword">end</span> 
+
+            <span class="library">error</span>(arg[2], 0)  
+
+        <span class="keyword">else</span> 
+
+            <span class="keyword">return</span> <span class="library">unpack</span>(arg) 
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Again, the implementation suffers from the creation of tables at each function call, so we prefer the C version:
+<DL>
+<dt><dd><pre>
+
+static int finalize(lua_State *L) {
+
+    if (!lua_toboolean(L, 1)) {
+
+        lua_pushvalue(L, lua_upvalueindex(1));
+
+        lua_pcall(L, 0, 0, 0);
+
+        lua_settop(L, 2);
+
+        lua_error(L);
+
+        return 0;
+
+    } else return lua_gettop(L);
+
+}
+
+
+
+static int do_nothing(lua_State *L) {
+
+    (void) L;
+
+    return 0;
+
+}
+
+
+
+static int newtry(lua_State *L) {
+
+    lua_settop(L, 1);
+
+    if (lua_isnil(L, 1)) 
+
+        lua_pushcfunction(L, do_nothing);
+
+    lua_pushcclosure(L, finalize, 1);
+
+    return 1;
+
+}
+
+</pre>
+</DL>
+<p>
+Again, starting with Lua 5.1 an efficient implementation without temporary tables is possible in plain Lua code:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> newtry(f)
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(ok, ...)
+
+        <span class="keyword">if</span> ok <span class="keyword">then</span>
+
+            <span class="keyword">return</span> ok, ...
+
+        <span class="keyword">else</span>
+
+            <span class="keyword">if</span> f <span class="keyword">then</span> f() <span class="keyword">end</span>
+
+            <span class="library">error</span>((...), 0)
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Final considerations</H2>
+<p>
+The <code>protect</code> and <code>newtry</code> functions saved a <em>lot</em> of work in the implementation of <code>LuaSocket</code><a href="http://www.tecgraf.puc-rio.br/luasocket">[1]</a>.  The size of some modules was cut in half by the these ideas.  It's true the scheme is not as generic as the exception mechanism of programming languages like C++ or Java, but the power/simplicity ratio is favorable and I hope it serves you as well as it served <code>LuaSocket</code>.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FinalizedExceptions" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FinalizedExceptions" >history</a><br>Last edited October 7, 2013 1:42 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FinalizedExceptions" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,393 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Bound Scalar Globals One</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BoundScalarGlobalsOne&amp;body=1" title="List pages referring to BoundScalarGlobalsOne">Bound Scalar Globals One</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The problem: how can one define a global variable such that accessing and setting its value actually calls a <code>C</code> function which manipulates an internal object. This is easy in Lua 4 but Lua 5 lacks most of the metamethods which would be used for a naive Lua 4 implementation.
+<p>
+Here is one solution, which requires that the globals be bound by name. See <a href="../wiki/BoundScalarGlobalsTwo.html" >BoundScalarGlobalsTwo</a> for a different implementation.
+<p>
+The idea here is simple: the bound scalars are not present in the globals table; instead, getter and setter functions are placed into two other tables, and these functions are called by the global table's <code>__index</code> and <code>__newindex</code> metamethods. This has no performance impact on global variables which have values, and hopefully reasonably limited impact on bound variables. (Proxied would be a better name, probably -- the phrase "bound scalar" comes from Perl. [1])
+<p>
+Here, I take care to use any existing <code>__index</code> and <code>__newindex</code> metamethods from the existing globals table. Hopefully, other existing metamethods don't matter, but they could be handled too.
+<p>
+<pre class="code">
+<span class="comment">-- BindScalar1</span>
+
+<span class="comment">-- Version 0.2</span>
+
+<span class="comment">-- RiciLake</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Change history</span>
+
+<span class="comment">-- --------------</span>
+
+<span class="comment">-- Fixed the case where the globals table didn't have a metatable</span>
+
+<span class="comment">-- Corrected the behaviour on set where there was no existing</span>
+
+<span class="comment">--   __newindex metamethod so that it now rawsets the table</span>
+
+<span class="comment">-- Check to see if the old __index method is not a function</span>
+
+<span class="comment">--   to mimic the default behaviour</span>
+
+<span class="comment">-- Wrote a couple of quick example getters and setters</span>
+
+<span class="comment">-- Actually made sure it compiles and runs</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- TODO</span>
+
+<span class="comment">-- ----</span>
+
+<span class="comment">-- Actually debug it with real metatables</span>
+
+<span class="comment">-- Think of a setter that lets you set something</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- BUGS</span>
+
+<span class="comment">-- ----</span>
+
+<span class="comment">-- If you specify a getter and don't specify a setter, the binding stops</span>
+
+<span class="comment">-- working. It should be necessary to specify both.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- The API needs to be improved</span>
+
+
+
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> meta, getters, setters = {}, {}, {}
+
+  <span class="keyword">local</span> old_meta = <span class="library">getmetatable</span>(<span class="library">getfenv</span>())
+
+  <span class="keyword">local</span> old_index, old_newindex
+
+  <span class="keyword">if</span> old_meta <span class="keyword">then</span>
+
+    old_index, old_newindex = old_meta.__index, old_meta.__newindex
+
+  <span class="keyword">end</span>
+
+  
+
+  <span class="comment">-- at this point you have to populate the getters and setters table</span>
+
+  <span class="comment">-- somehow, probably by getting them from your C code.</span>
+
+  <span class="comment">-- Here is an example without C:</span>
+
+
+
+  <span class="comment">-- the getter receives the name of the global as an argument</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> get_time(k)
+
+    <span class="keyword">if</span> k == <span class="string">"gmt"</span>
+
+      <span class="keyword">then</span> <span class="keyword">return</span> <span class="library">os.date</span>(<span class="string">"!%c"</span>)
+
+      <span class="keyword">else</span> <span class="keyword">return</span> <span class="library">os.date</span>(<span class="string">"%c"</span>)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- the setter actually receives the name and the proposed value</span>
+
+  <span class="comment">-- but in this example we don't need them.</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> set_time()
+
+    <span class="library">error</span> <span class="string">"You cannot change the time"</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- now put them into getters and setters. There should probably</span>
+
+  <span class="comment">-- be a function to do that, something like:</span>
+
+  <span class="comment">--   bind_scalar("now", get_time, set_time)</span>
+
+
+
+  getters.now = get_time
+
+  getters.gmt = get_time
+
+  setters.now = set_time
+
+  setters.gmt = set_time
+
+
+
+  <span class="comment">-- Another example. Particular environment variables are made</span>
+
+  <span class="comment">-- into globals. (Change this to USERNAME for Windows NT.)</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> get_env(k)
+
+    <span class="keyword">return</span> <span class="library">os.getenv</span>(k)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> set_env(k, v)
+
+    <span class="keyword">if</span> <span class="library">os.setenv</span>
+
+      <span class="keyword">then</span>
+
+        <span class="library">os.setenv</span>(k, v)
+
+      <span class="keyword">else</span>
+
+        <span class="library">error</span> <span class="string">"You cannot change environment variables on this platform."</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  getters.USER = get_env
+
+  setters.USER = set_env <span class="comment">-- hmm? it's just an example</span>
+
+
+
+  <span class="comment">-- It might be nice to change the calls below to object calls,</span>
+
+  <span class="comment">-- such as getters[k](getters[k], k)</span>
+
+  <span class="comment">-- For efficiency, you probably only want to do that lookup once.</span>
+
+
+
+  <span class="comment">-- Here is the actual implementation of the metamethods.</span>
+
+
+
+  meta = {}
+
+
+
+  <span class="keyword">if</span> <span class="library">type</span>(old_index) == <span class="string">"function"</span> <span class="keyword">then</span>
+
+      <span class="keyword">function</span> meta.__index(t, k)
+
+        <span class="keyword">if</span> getters[k]
+
+          <span class="keyword">then</span> <span class="keyword">return</span> getters[k](k)
+
+          <span class="keyword">else</span> <span class="keyword">return</span> old_index(t, k)
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">elseif</span> <span class="library">type</span>(old_index) == <span class="string">"nil"</span> <span class="keyword">then</span>
+
+      <span class="keyword">function</span> meta.__index(t, k)
+
+        <span class="keyword">if</span> getters[k] <span class="keyword">then</span> <span class="keyword">return</span> getters[k](k) <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">function</span> meta.__index(t, k)
+
+        <span class="keyword">if</span> getters[k]
+
+          <span class="keyword">then</span> <span class="keyword">return</span> getters[k](k)
+
+          <span class="keyword">else</span> <span class="keyword">return</span> old_index[k]
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">if</span> old_newindex
+
+    <span class="keyword">then</span>
+
+      <span class="keyword">function</span> meta.__newindex(t, k, v)
+
+        <span class="keyword">if</span> setters[k]
+
+          <span class="keyword">then</span> setters[k](k, v)
+
+          <span class="keyword">else</span> old_newindex(t, k, v)
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">function</span> meta.__newindex(t, k, v)
+
+        <span class="keyword">if</span> setters[k]
+
+          <span class="keyword">then</span>
+
+            setters[k](k, v)
+
+          <span class="keyword">else</span>
+
+            <span class="library">rawset</span>(t, k, v)
+
+          <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="library">setmetatable</span>(<span class="library">getfenv</span>(), meta)
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+Sample output:
+<p>
+<pre>
+
+-- now is deferred to a function.
+
+&gt; print(now)
+
+Thu Jan 16 12:34:40 2003
+
+-- so is gmt
+
+&gt; print(gmt)
+
+Thu Jan 16 17:35:34 2003
+
+-- setting "works"; the variable is read-only
+
+&gt; now = "tomorrow"
+
+glue.lua:27: You cannot change the time
+
+stack traceback:
+
+        [C]: in function `error'
+
+        glue.lua:27: in function `?'
+
+        glue.lua:91: in function &lt;glue.lua:88&gt;
+
+        stdin:1: in main chunk
+
+        [C]:[C]
+
+
+
+-- This mechanism might be useful in a CGI script, for example
+
+&gt; print(USER)
+
+rlake
+
+-- Most platforms implement setenv but it's not ANSI standard. This
+
+-- would work if you patched the os library.
+
+&gt; USER="root"
+
+glue.lua:44: You cannot change environment variables on this platform.
+
+stack traceback:
+
+        [C]: in function `error'
+
+        glue.lua:44: in function `?'
+
+        glue.lua:91: in function &lt;glue.lua:88&gt;
+
+        stdin:1: in main chunk
+
+        [C]:[C]
+
+-- Ordinary globals continue to be ordinary.
+
+&gt; print(j)
+
+nil
+
+&gt; j = 7
+
+&gt; print(j)
+
+7
+
+</pre>
+<p>
+Footnotes:
+<p>
+<DL>
+<dt><dd>[1] In Perl, these are formally called <a href="http://perldoc.perl.org/functions/tie.html">[tied variables]</a> (see also <a href="http://www-128.ibm.com/developerworks/linux/library/l-cptied.html">[Cultured Perl: Tied variables]</a>), which are defined as a type of binding. You're tying (binding) the identity (name or address) of a variable to a particular implementation defined in a class. This class could be considered a proxy to something else, but there may be something to be said about the binding of the proxy to an identifier in the language, which may require special language support. See <a href="http://en.wikipedia.org/wiki/Binding_(computer_science).html">[Wikipedia Binding_(computer_science)]</a> (particularly name binding) and <a href="http://en.wikipedia.org/wiki/Proxy_pattern.html">[Wikipedia Proxy Pattern]</a>. See also the term as in <a href="http://en.wikipedia.org/wiki/Free_variables_and_bound_variables.html">[Wikiepdia Free variables and bound variables]</a>. In particular, Perl's TIEHASH and TIEARRAY are somewhat analogous to Lua's metatable mechanism. Perl's TIESCALAR seems to have no such analog in Lua, but a similar effect, as described in this page, is to modify the metatable of the global environment (possibly a disadvantage unless some general framework as given above is developed to prevent clashes). --<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+This has only one problem: __newindex is only called on values that were not set before, e.g. x = "bla"; x = "more bla" will call __newindex only once. --Anon
+<p>
+Yes, that's why it doesn't actually set the value if it users the setter function. However, when you create the setter functions, you must first ensure that the corresponding global is not set; if you want to add a setter function later on, the same thing applies. Give it a try :) --<a href="../wiki/RiciLake.html" >RiciLake</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BoundScalarGlobalsOne" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BoundScalarGlobalsOne" >history</a><br>Last edited March 22, 2007 10:52 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BoundScalarGlobalsOne" >(diff)</a>
+</body>
+</html>

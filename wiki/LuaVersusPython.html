@@ -1,0 +1,348 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Versus Python</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaVersusPython&amp;body=1" title="List pages referring to LuaVersusPython">Lua Versus Python</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Introduction</H3>
+<p>
+Python <a href="http://www.python.org/">[1]</a> is a popular programming language. Both Python and Lua are commonly embedded in applications to provide scripting support.
+<p>
+Scripting is more frequently being used in games. There are many factors to take into account when choosing a scripting language. It may be a simple decision based on the architecture of the target platform like whether you are on a PC or game console. Assuming you have the luxury of a fast CPU, virtual memory, and hard disk storage, the vast library resources of Python could help get your project completed sooner. If you don't have those luxuries, Python is not an option as it is quite large.
+<p>
+<H2>General Comparison</H2>
+<p>
+The following is a simple comparison, with advantages of both Python and Lua over each other listed:
+<p>
+<H3>Python</H3>
+<p>
+<UL>
+<li> Is better equipped. Huge library of very useful functionality. Very useful for off line work, e.g. tool scripting. Huge catalog of example scripts <a href="http://www.vex.net/parnassus/">[2]</a>, tutorials <a href="http://python.org/doc/current/tut/tut.html">[3]</a>, help <a href="http://python.org/doc/">[4]</a> and general reference material <a href="http://python.foundries.sourceforge.net/index.pl">[5]</a>. 
+</UL>
+<p>
+<UL>
+<li> Extremely high performance numeric computing (ala scientific and graphics) is possible with an add-on module that implements true multidimensional arrays.  Strictly speaking, Lua has no arrays and must use a table structure for them.
+<UL>
+<li> <em>Lua arrays are tables, that's true. The implementation has dual nature, however, and array usage (1..N indices) is optimized as it should be.</em> -ak
+<li> <em>Also, it's not really true that Lua </em>must<em> use a table for arrays. It's possible to create optimized arrays like the ones you describe with userdata... there's an example in the Blue PiL of this.</em> -nw
+</UL>
+</UL>
+<p>
+<UL>
+<li> ctypes (a module available for Python 2.4 and scheduled for core inclusion in 2.5) allows access to existing shared libraries (.so or .dll) without writing a C wrapper.
+<UL>
+<li> <em>See Alien for this functionality in Lua.</em> <a href="http://alien.luaforge.net/">[6]</a> -nw
+</UL>
+<li> Has a remote debugger <a href="http://hapdebugger.sourceforge.net/">[7]</a>. 
+<UL>
+<li> <em>See list of remote debuggers for Lua</em>: <a href="http://lua-users.org/wiki/DebuggingLuaCode.html">[8]</a>
+</UL>
+</UL>
+<p>
+<UL>
+<li> Lua has a simpler though more minimalistic syntax (and could not have been made much simpler).  The difference is not huge though.  Compare <a href="http://www.python.org/doc/2.5.2/ref/grammar.txt">[9]</a><a href="http://www.lua.org/manual/5.1/manual.html#8">[10]</a>.
+</UL>
+<p>
+<UL>
+<li> Python has extensive slicing for strings and lists, which is a big productivity gain. I would recommend a slicing library be used by those who want to be more productive in Lua.
+<UL>
+<li> <em>Lua list comprehension libraries</em>: <a href="http://www.wowace.com/addons/liblinq-1-0/pages/api/enumerable-generators/">[11]</a>, <a href="https://github.com/hagish/lua-list">[12]</a>, <a href="https://code.google.com/p/lualinq/">[13]</a>
+</UL>
+</UL>
+<p>
+<UL>
+<li> Python has more extensive (though by no means perfect) Unicode support.
+</UL>
+<p>
+<UL>
+<li> Python is whitespace sensitive.  Experienced Python developers know that this isn't an issue once the point of <em>this feels weird</em> is gone.  Besides not being a problem, it collaborates to standardizing the way code looks, thus facilitating the readability across different code bases.  FUD about this being a problem is usually spread by people not using it in a daily basis, as some  sampling in Google can easily demonstrate.
+<UL>
+<li><em>A pretty-printer exists for Lua, so code could be "standardized" just as easily as for Python. -SharkD</em>
+<li><em>Yeah, but you're not forced to use it. Python forces your code to look at least half-way decent. Big difference.</em> &#8212;MR
+</UL>
+</UL>
+<p>
+<UL>
+<li> Python has binary operators (or, and, xor, ...) built in.  Embedded systems really benefit from these, though Lua can be extended to include these with addon libraries or using LuaX enumerations. 
+</UL>
+<p>
+<UL>
+<li> Python has the ability to reduce errors though somewhat more static type checking.  Lua programs are much more error prone, due to automatic coercion, accessing of unset variables without an exception, and having to check most functions for nil values, rather than just catching the exceptions. There may be some advantages to some of these points however.
+<UL>
+<li> <em>IMO the only decent way of solving this is static analysis.  Most of my catastrophic globals typos have been in less-used codepaths, and even had <code>-w</code> survived, they would have blown up on people at the worst times.  Hence <a href="../wiki/LuaLint.html" >LuaLint</a>, which I suppose I should have a go at for 5.1...</em> --<a href="../wiki/JayCarlson.html" >JayCarlson</a>
+<li> <em>This is an issue of stronger/weaker<a href="http://en.wikipedia.org/wiki/Strong_typing.html">[14]</a> typing, not static/dynamic<a href="http://en.wikipedia.org/wiki/Type_system#Static_typing.html">[15]</a>.</em> -- xlq
+</UL>
+</UL>
+<p>
+<UL>
+<li> Python has much more beginner documentation.  There is still a lack of introductory material for Lua.
+</UL>
+<p>
+<H3>Lua</H3>
+<p>
+<UL>
+<li> Smaller footprint than Python. e.g. Look at the size of python22.dll, 824kb.  A basic Lua engine, including parser/compiler/interpreter, but excluding standard libraries, weighs in at under 100kb.
+</UL>
+<p>
+<UL>
+<li> Uses less memory <a href="http://shootout.alioth.debian.org/gp4sandbox/benchmark.php?test=all&amp;lang=all&amp;xfullcpu=0&amp;xmem=1&amp;xloc=0">[16]</a>
+</UL>
+<p>
+<UL>
+<li> Seems to lack any use or implementation of pointers, (References?)
+<UL>
+<li> <em>What about USERDATA and light USERDATA?</em>
+</UL>
+</UL>
+<p>
+<UL>
+<li> Faster interpreter (Lua vs. Python) and faster JIT compiler (LuaJIT vs. Psyco ) <a href="http://shootout.alioth.debian.org/gp4sandbox/benchmark.php?test=all&amp;lang=all&amp;xfullcpu=1&amp;xmem=0&amp;xloc=0">[17]</a>.
+<UL>
+<li> How about PyPy<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PyPy" >?</a>?
+</UL>
+</UL>
+<p>
+<UL>
+<li> Has a nice simple API for talking between script and C, with very little generation of glue code required. Try creating and manipulating lists and dictionaries in Python and then doing it in Lua. 
+</UL>
+<p>
+<UL>
+<li> Doesn't use reference counting for objects which can get complex and error prone. Although you can use things like the Python Boost library <a href="http://www.boost.org/libs/python/doc/">[18]</a> if you're into C++.
+</UL>
+<p>
+<UL>
+<li> Lua started off as a configuration language. This has some nice quirks in that it's great for creating and configuring things - which is what you want to do in a game.
+</UL>
+<p>
+<UL>
+<li> Has a nice, simple, and very powerful syntax. I find you can write the same thing in Lua with less code than Python and you have more flexibilty because of Lua's metamechanisms. e.g. tables are lists and dictionaries combined in Lua (although you can make them behave like <a href="../wiki/PythonLists.html" >PythonLists</a> and <a href="../wiki/PythonDictionaries.html" >PythonDictionaries</a>). Anonymous functions are also particularly nice for configuring things. In Python you get their poor cousin, lambda functions.
+</UL>
+<p>
+<UL>
+<li> Small, simple, stable codebase. Easy to poke around inside and modify if need be. Probably not as well documented and commented as Python.
+<UL>
+<li> It's really not that easy to poke around. And there really aren't that many comments. -jv
+<UL>
+<li> I disagree. I found it refreshingly simple to poke around in the Lua sources and make changes to the compiler and VM. The codebase is very clean and well thought out. - bp
+</UL>
+</UL>
+</UL>
+<p>
+<UL>
+<li> Few external modules make Lua easier to bundle for a specialized purpose, even if the vanilla build has less functionality than required.  Compare this with python's numerous modules which include libraries that come with the standard distribution.
+</UL>
+<p>
+<UL>
+<li> Lua does support multiple threading. Multiple Lua intrepreters can exist in the same process and each one can run independently in its own thread. Thus Lua is more suitable for embedding in multithreaded programs.
+</UL>
+<p>
+<UL>
+<li> Lua is not whitespace sensitive.  While this has its downsides when compared with Python, there is no need to worry about automatic editor space-to-tab conversion or vice versa.  When using a proportional width font, Lua allows use of as much indentation as necessary to make the code easy to read.
+</UL>
+<p>
+<UL>
+<li> Lua has out-of-the-box support for multiple threads and multiple interpreters in a single thread or process.  Python does not support multiple threads with multiple interpreters in a single process.  Multiple threads can access the Python interpreter but each thread must hold a global lock while doing so.
+<UL>
+<li> <em>This is incorrect.  The global interpreter lock" (GIL) is per-interpreter as its name implies, not per process; you could indeed embed multiple interpreters in a single process.</em> -JonathanEllis<a href="/cgi-bin/wiki.pl?action=edit&amp;id=JonathanEllis" >?</a>
+<UL>
+<li> <em>The original author is correct, the GIL is per process.  You can have multiple interpreters, but they're just a scoping thing, they do not allow multiple concurrent threads to run.  See <a href="http://effbot.org/pyfaq/can-t-we-get-rid-of-the-global-interpreter-lock.htm">[19]</a> for the most concise discussion I've found on this.</em>
+<UL>
+<li> But original author is still wrong in the statement 'Python does not support multiple threads with multiple interpreters in a single process', depending on how you want to interpret it. The GIL is per process. You can have multiple interpreters. You can also have multiple threads. These can be running in the same or different sub interpreters within the one process at the same time. When any one specific thread is running in Python code though it will acquire the GIL, in doing this you lock out any other threads which need to have the GIL at that time when running. Thus, although you can have multiple threads at the same time, for Python bound code you can't effectively run them concurrently. This means for example that two Python threads can't at the same time make use of two distinct CPUs or cores in the system. The only time this isn't the case is when Python code enters C code and because of the GIL not being required the thread releases it. At that point, the thread operating in the C code portion can run concurrent to the Python bound thread. As such, Python extension modules should always release the GIL if not required when calling out to C code. Python extension modules which wrap a significant C library where data is sufficiently distinct from Python to allow the GIL to be released can thus still see true concurrency.
+</UL>
+</UL>
+<li> Even with the corrections above, this only applies to the CPython interpreter. Other Python implementations such as Jython, <code>IronPython</code> and <code>PyPy</code> do not have a global interpreter lock.
+<UL>
+<li> The last statement is incorrect; <code>PyPy</code> has a GIL just like CPython. See <a href="http://readthedocs.org/docs/pypy/en/latest/faq.html?highlight=gil#does-pypy-have-a-gil-why">[20]</a>
+<UL>
+<li> The rest of the statement is correct though. The GIL limitation is not present in all implementations. It is definately not a limitation in <code>IronPython</code>. I would assume it is also not a limitation in Jython since there is a lot of similarity there, though I have no personal experience with Jython. - KJR
+</UL>
+</UL>
+</UL>
+</UL>
+<H2>Object Orientation</H2>
+<p>
+Comparison based on OO models will follow here:
+<p>
+<H3>Python</H3>
+<p>
+<UL>
+<li> dictates a specific model for object-oriented programming. Python has rich OO capabilities, including metaclasses, multiple inheritance, and so on.
+</UL>
+<p>
+<H3>Lua</H3>
+<p>
+<UL>
+<li> does not dictate any particular OO system. Instead you can build your own (using meta-methods) and tailor it to your needs.
+</UL>
+<p>
+<H2>On the fence</H2>
+<p>
+<UL>
+<li> They both have automatic binding generators. SWIG works for both. Lua also has toLua (which hasnt been developed for a while but works for 4.0 - not sure about 4.1). Update: There is now a toLua 5.0a, which works great!
+</UL>
+<p>
+<UL>
+<li> Lua starts table indices at 1, which is strange for a language designed to interface with C where arrays start at 0. (Comment: Ad-hoc , there is no problem to use index 0 or even -1 ... So if you are a C programmer, you can use "t[0]=t[-1]" etc. But if you are not programmer... for example, for technical computing, you will feel familiar with tables t[1..n] )
+<UL>
+<li> <em>This isn't strictly true anymore, as in Lua 5.1 the length operator # for tables does not count elements at 0, and cannot be made to do so via metatables.  See <a href="../wiki/CountingFromOne.html" >CountingFromOne</a>.</em> -<a href="../wiki/VeLoSo.html" >VeLoSo</a>
+</UL>
+</UL>
+<p>
+<UL>
+<li> Lua handles only one type of numbers, usually C doubles or floats, which can lead to overwhelming processing.
+<UL>
+<li> <em>You should look at the work Python does to add two integers, and think about what overwhelming processing might mean. (In Python, every integer outside of the range [-1, 100) is freshly allocated, for example.)</em>
+<UL>
+<li> <em>Lua number type can easily be changed at compile time to double, float, even long or int (if one doesn't care for floating points..). But there is a genuine need to have separate int and number types, I agree.</em> -ak
+</UL>
+</UL>
+</UL>
+<p>
+<UL>
+<li> The CPython interpreter has an extension language called Cython <a href="http://cython.org">[21]</a> that uses the same syntax and semantics as Python, but uses an optimising compiler that translates it into C code. This allows for easy integration with C, C++ and Fortran code through wrappers that integrate well with the Python language. This is unmatched in the Lua world. Cython also provides a straight forward optimisation path for Python code towards fast, hand-optimised computational code that usually beats the available JIT compilers. Lua with LuaJIT is very fast for computational code already, so that such a manual optimisation path may not be required here.
+<UL>
+<li> Pypy, also a JIT compiler, already outperforms CPython and is used extensively by the Python community, without needing manual optimizations. <a href="http://speed.pypy.org/">http://speed.pypy.org/</a>
+<li> LuaJIT is the equivalent for Lua
+</UL>
+</UL>
+<p>
+<H2>References</H2>
+<p>
+<UL>
+<li> Crystal Space <a href="http://crystal.sourceforge.net/">[22]</a> supports both languages. The source code available may provide useful information to help decide on suitability. Update: lua may be stagnant due to lack of swig
+<li> The Nebula Device <a href="http://nebuladevice.sourceforge.net/">[23]</a> also supports both languages in addition to TCL.
+</UL>
+<p>
+<p>
+<H2>User opinion</H2>
+<p>
+Please let's not start a flamewar here. Please feel free to make a simple objective statement about your experience.
+<p>
+<UL>
+<li>  Where can I read about this "-w" option for Lua? Google turns up nothing. -- Alex
+</UL>
+<p>
+<DL>
+<DL>
+<dt><dd>Doesn't exist anymore.  Search "lua -w" (in quotes) in <a href="http://lua-users.org/lists/lua-l/">http://lua-users.org/lists/lua-l/</a> . See <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a> instead. --<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+</DL>
+<p>
+<UL>
+<li>  IMHO I've dabbled with putting both in games and tools. Python is better for offline tools, Lua is better for embedding and configuration. Python has a mass of very useful libraries for most tasks and Lua is small, fast and very configurable, ideal for embedding. -- <a href="../wiki/NickTrout.html" >NickTrout</a>
+</UL>
+<p>
+<UL>
+<li> <em>Everything</em> is an object allocated on the heap in Python, including numbers. (So 123+456 creates a new heap object). I think this might be a big part of the speed difference. --<a href="../wiki/JeffPetkau.html" >JeffPetkau</a>
+</UL>
+<p>
+<UL>
+<li> Lua 5.0 has excellent coroutine (or latent function or whatever you call it) support, which is very important for game scripting. Stackless Python had them too, but they never made it into the core. (This was *the* issue that decided us on Lua over Python in our engine.) --<a href="../wiki/JeffPetkau.html" >JeffPetkau</a>
+</UL><DL>
+<DL>
+<dt><dd>A strange point to base your entire decision upon.  Python's <strong>generators</strong> are the same as the upcoming Lua's limited coroutines.  See <a href="/lists/lua-l/2002-07/msg00174.html">LuaList:2002-07/msg00174.html</a>.
+<dt><dd><em>They're related, but not the same. Lua's coroutines are much more general. Also, we didn't base the entire decision upon this point; it was just the issue that tipped the balance.</em>
+<DL>
+<dt><dd>Python generators historically were <em>not</em> "the same" as coroutines: see <a href="http://www.python.org/dev/peps/pep-0342/">http://www.python.org/dev/peps/pep-0342/</a> for recent changes to Python to support coroutines.
+</DL>
+<dt><dd>Very good coroutine support is available for Python, without going down the full blown Stackless route, by using greenlets from the Codespeak library (Debian package python-codespeak-lib). --<a href="../wiki/SeanHoldsworth.html" >SeanHoldsworth</a>
+</DL>
+<dt><dd><em>But does that really help with recursive generators? See <a href="../wiki/LuaCoroutinesVersusPythonGenerators.html" >LuaCoroutinesVersusPythonGenerators</a></em>
+</DL><UL>
+<li>Python seems to be (From me, a person learning Lua for Gary's mod, and an avid python user) what Lua almost wants to be, for example Python's everything is a pointer attitude rules, its import rather then include stuff, and the whole fact that everything you do is an object, there are rumours about its memory management being quite...well crap, but it would apear that python 3000 clears this up
+</UL><DL>
+<dt><dd>i will be adding a note about python's pointer attitude, and how i have not found; well lua does "references" which are...strange, in python one can still quite easily copy variables
+</DL>
+<p>
+<UL>
+<li> Lua is ideal when you want a small footprint being added to your code: it's the smaller scripting engine available at the moment, afaik. That was because I have chosen it to develop Lixoo, a 2D adventure game engine. One of my goals is that a ready-to-use Lixoo distribution (including the engine and basic development tools) must weight less than one megabyte. -- <a href="../wiki/AdrianPerez.html" >AdrianPerez</a>
+</UL>
+<p>
+<UL>
+<li> Lua has the power of Lisp/Scheme, but a simple syntax and also a great implementation. I am very interested in how Lua performs in embedded (real-time) applications. Its core is small, its design allows for flexibility. Special language features, such as state-depend sets of methods in an object, can easily be implemented through metatables. State can also be kept in coroutines. Those are all things which I had wished to have in Python. However Python shines with its plentiful libraries, its excellent documentation and its beautiful syntax. I do not like it to close every block with an "end" I am not used to it anymore ;-) Last but not least some bugs cause exceptions in Python like division by zero, regardless of the number type (double/integer), whereas I think Lua catches more errors during compilation. However I assume Python will catch up. Tools like PyChecker<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PyChecker" >?</a> are already available and some ideas will be hopefully integrated into the core. I like both languages and use them for different purposes. -- Dominic  
+</UL>
+<p>
+<UL>
+<li> I have been, and still am, an avid Python user.  I have never used Python in an embedding scenario, however, because I found it to be too painful to work with.  When I encountered Lua 3.2, I felt like someone had opened up my skull, found all my criticisms of Python's embedding and then used that to make a language and environment that did what I wanted it to.
+</UL><DL>
+<dt><dd>Since then I have continued to use Python, of course.  I find Python--because of its huge set of libraries--to be a more suited to general-purpose scripting and RAD work.  I'm also very comfortable with Python's syntax, quirks and all, so find that my fingers just naturally do things The Python Way.  (The number of times I've been burned by using '.' instead of ':' as a method accessor in Lua would make most people choke with laughter.)  I laugh, however, at even a hint of the slightest possibility of using Python for anything embedded.  Lua is my tool of choice there. -- <a href="../wiki/MichaelRichter.html" >MichaelRichter</a>
+</DL>
+<p>
+<UL>
+<li> The Pythonic way is to extend rather than embed. Embedding is regarded as something which should never be done, in the Python community.  ( For a brief explanation of why, see <a href="http://www.twistedmatrix.com/users/glyph/rant/extendit.html">http://www.twistedmatrix.com/users/glyph/rant/extendit.html</a> .) Lua fills the niche which Python avoids here quite neatly. On the other hand I think some nice dynamic library support in Lua wouldn't go astray. (<em>I'm the author of that rant, and I don't think that it necessarily reflects the mainstream view of the Python community.  I wish it did - I really do think most embedding just plays to the insecurities and misconceptions of C programmers rather than filling a real technical need.  On a related note, I have been waiting for Lua to realize it's a real programming language and stop messing around with this "script" garbage...</em>) (I'm not the author of the rant, and it's the first time I read that it should "never be done".  Blender, OpenOffice<a href="/cgi-bin/wiki.pl?action=edit&amp;id=OpenOffice" >?</a>, and others would certainly make it clear that this isn't true.  You can also read <a href="http://www.python.org/doc/ext/embedding.html">[24]</a> to see that this isn't the case).
+</UL>
+<p>
+<UL>
+<li> I use Python extensively for game development and I think that Lua may be a better choice if you are looking for a language you can easily embbed into your engine to create entity logic or configuration/tweaking scripts. Python is a powerful general-purpouse language and you will pay a price for that in terms of integration complexity, performance and memory requirement. If, however, you are shopping for a high productivity language that can replace C or C++ in many of your modules, Python is clearly a better choice (as noted above, this is better done in Python through extensions instead of embedding). Lua was desinged for small scale scripts and can't compete with Python for large scale development. -- Camelo
+</UL>
+<p>
+<UL>
+<li> New to scripting, I intended to compare different alternatives before settling on a one to use in my 3D game engine. I spent three hours getting basic Lua 5 embedding and extending to work. I though to myself, "this scripting thing isn't that hard!", and turned to Python. Four days of pain and frustration later, after having miserated with the Python C-API, trying to get Boost.Python to compile with Python 2.3, trying CXX and SWIG and God knows what else, and trying to get these to run using windows.h under Visual Studio 6 (which caused multiple mutual incompatabilities) I found luabind and I don't think I'll ever look back to Python again. -- Mike
+<UL>
+<li> Just a comment for Mike : although I never used it, Boost.Python does not work with Python 2.3 but 2.2. See <a href="http://www.boost.org/libs/python/doc/index.html">[25]</a>. -- Thomas
+<UL>
+<li> I'm not sure when this reference was made, however you can easily switch the version of Python Boost.Python compiles against, currently. However, Python is a somewhat pain to embed, I've found. Most notably, it's Global Interpreter Lock mechanism is a bit of a pain for multithreaded C++ apps.
+<li> Boost.Python 1.33.1 news: build now assumes Python 2.4 by default, rather than 2.2. -- AnonymousDonor<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AnonymousDonor" >?</a>
+</UL>
+</UL>
+</UL>
+<p>
+<UL>
+<li> Python's scoping, even with the "new" nested scoping, is very limited and error-prone.  Loops and such constructs do not open a new scope, so there is no way to create private variables within them.  This is a problem, for example, if you happen to make a variable in your loop that has the same name as something preceeding the loop: you will overwrite that outer variable.  There is no way around this in Python other than to be wary of name clashes, or to use lots of nested functions in order open new scopes.  In contrast, Lua gives you precise control in this situation:  within the loop you can either use <code>local</code> and make a private variable, or omit it and write to the outer variable.  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>
+<UL>
+<li> In my experience, hiding a variable from an outer scope is what is error-prone, and Python prevents this. A single name within a single function referring to two separate objects is bound to confuse people. In fact, many C++ style guides advice against hiding variables like this. Python emphasizes readable code, and disallowing this behaviour you want is actually a step in that direction.  --AnonymousDonor<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AnonymousDonor" >?</a>
+<li> In C#, hiding variables that way is an <em>error</em>. I like it that way - I want the compiler to notify me of any ambiguities, and let me disambiguate them (by making variable names unique within a function) -- <a href="../wiki/BjarkeDahlEbert.html" >BjarkeDahlEbert</a>
+<li> Yeah, hiding a variable from an outer could be a problem, but everyone of us like to use descriptive name for the variables, so, at the end you'll run to problem like i cannot take the name value_index, because it was used above, and i will need to type local_value_index, and at the end we come to the solution what Lua uses.
+</UL>
+<li> I'm new in the both languages, but I would say that both languages seem as powerful, but they don't do the same job. I would say that the difference between python and lua is the same as the difference between java and C. Like java, python is big, with large libraries, quite slow, but works well to use a lot of functionalities. On the other side, like C, lua is light, implemented on nearly all platforms, but helps the user less to have a good design. --Xavier
+</UL>
+<p>
+<UL>
+<li> I spent a good amount time researching a scripting language to embed in a C++ program and it all came down to Python or Lua. After spending more than a day trying to get boost.python to work, I gave up since I couldn't even get a trivial Hello World program to compile with bjam. On top of that I didn't find a decent way to just add in some global variables (that were pointers to C++ classes) to a python interpreter and didn't like the boost.python syntax or methods for implementing virtual functions. Anyways, I decided to spend a few hours and see how far I could get with lua and using tolua++ I able to expose all public methods and vars in dozens of classes and everything worked as I expected. Yea, the virtual function implementation doesn't work and I can't derive from a C++ interface to create a new lua class, but I'll live. Neither are a complete solution, but anything is better than implementing all this in C++. --Tom
+</UL>
+<p>
+<UL>
+<li> Just a quick point to all those who struggled with SWIG or Boost etc with Python -- I found <code>PyInline</code> <a href="http://pyinline.sourceforge.net/">[26]</a>, it's like magic.  I just make a string with some C code, call "make", and I have callable Python routines!  It works great on XP and Fedora, with the exact same source code.  Some quirks regarding includes, but for simple gluing to a .so or DLL, it's killer.  That said, I'm on the prowl for a super-small core embeddable language for some robotics stuff, and Lua looks very nice so far.
+</UL>
+<p>
+<UL>
+<li> Those complaining about the hazardous nature of the Python-C API should look at Pyrex. I haven't worked with it myself but I think I'll end up doing that for my upcoming game. It has Pythonic syntax but can use C datatypes, and thus you can much more easily write C modules for Python. Of course, this is still extending Python rather than embedding it. I might use Lua instead if I find out that I'm not using a lot of the added functionality or stability of Python.
+</UL>
+<p>
+<UL>
+<li> For Python, use Elmer.  <a href="http://elmer.sourceforge.net/">http://elmer.sourceforge.net/</a> .  It really makes embedding and extending Python easy.
+</UL>
+<p>
+<H2>See Also</H2>
+<UL>
+<li> <a href="../wiki/LuaComparison.html" >LuaComparison</a> - how Lua compares to other languages
+<li> <a href="http://the4thwiki.com/lua/index.html">[Lua Compared to Python]</a> : a readability, writability, reliability comparison.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaVersusPython" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaVersusPython" >history</a><br>Last edited May 16, 2014 10:27 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaVersusPython" >(diff)</a>
+</body>
+</html>

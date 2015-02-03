@@ -1,0 +1,382 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Text Template</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TextTemplate&amp;body=1" title="List pages referring to TextTemplate">Text Template</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+A good exercise for new Lua programmers is to implement Jon Bentley's
+Simple Macro Processor
+<a href="/files/wiki_insecure/users/pshook/template/m1.pdf">[4]</a>
+in Lua.
+You can find it at the end of chapter 13 of O'Reilly's <em>sed &amp; awk</em> book
+<a href="http://www.oreilly.com/catalog/sed2/index.html">[1]</a>
+, or on the web
+<a href="http://www.google.ca/search?q=Jon+Bentley+m1.awk">[2]</a>
+<a href="http://www.google.ca/search?q=Jon+Bentley+m1.ps">[3]</a>.
+<p>
+One drawback of macro processors is they don't have data structures.
+An example provided in an older release of Lua
+(lua-4.0.1/test/examples/www/db.lua)
+shows a good technique for filling in a template file
+with values from data structures in a configuration file.
+<p>
+If all you want to do is substitute variables within a string with values
+from a table, then see <a href="../wiki/StringInterpolation.html" >StringInterpolation</a>.
+<p>
+The following module, <code>Expand.lua</code>
+<a href="/files/wiki_insecure/users/pshook/template/Expand.lua">[5]</a>
+, uses Bentley's algorithm for macro expansion,
+and the GNU make syntax for variable references
+within the template string.
+It also has a few enhancements taken from Mark J. Dominus's
+<code>Text::Template.pm</code> and Sriram Srinivasan's template-driven code generator
+<code>Jeeves</code> in chapter 17 of O'Reilly's <em>Advanced Perl Programming</em>.
+<p>
+The goal is to have one function called <code>expand</code> which scans a template
+string for variable references, and recursively replaces them with values
+found in one of the listed tables or functions.
+<p>
+The template syntax is pretty simple.
+References to table members and variables are expressed as either
+<code>${varname</code>} or <code>$(varname)</code>,
+or as <code>$x</code> if it is a one character variable name.
+<p>
+Simple Lua expression that return a string can also be wrapped in either
+<code>${ expr </code>} or <code>$( expr )</code>.
+<p>
+Lua statements can be wrapped in one the following:
+<p>
+<UL>
+<li> <code>$(do ... end)</code>
+<li> <code>$(if ... end)</code>
+<li> <code>$(for ... end)</code>
+<li> <code>$(while ... end)</code>
+<li> <code>$(repeat ... until ...)</code>
+</UL>
+<p>
+The Lua code can set a variable named <code>OUT</code> which will be substituted
+in place of the code in the template string.
+<p>
+Lua expressions and statements are evaluated by <code>loadstring</code>
+with the function environment set to the first table.
+<p>
+The following example shows how to use <code>expand</code>.
+Note that <code>Expand.lua</code> only works with Lua 5.0.
+<DL>
+<dt><dd><pre class="code">
+expand = <span class="library">require</span><span class="string">'Expand'</span>
+
+
+
+template = <span class="string">[[
+
+you can access variables: $v
+
+or environment variables: ${HOME}
+
+
+
+you can call functions: ${table.concat(list, ', ')}
+
+this list has ${list.n} elements
+
+   ${string.rep('=', list.n)}
+
+   ${table.concat(list)}
+
+   ${string.rep('=', list.n)}
+
+
+
+or evaluate code inline
+
+${for i=1,list.n do
+
+    OUT = table.concat{ OUT, ' list[', i, '] = ', list[i], '\n'}
+
+  end}
+
+you can access global variables:
+
+This example is from ${mjd} at $(mjdweb)
+
+
+
+The Lord High Chamberlain has gotten ${L.n}
+
+things for me this year.
+
+${do diff = L.n - 5
+
+    more = 'more'
+
+    if diff == 0 then
+
+      diff = 'no'
+
+    elseif diff &lt; 0 then
+
+      diff = -diff
+
+      more = 'fewer'
+
+    end
+
+  end}
+
+That is $(diff) $(more) than he gave me last year.
+
+
+
+values can have other variables: $(ref)
+
+]]</span>
+
+
+
+mjd = <span class="string">"Mark J. Dominus"</span>
+
+mjdweb = <span class="string">'http://perl.plover.com/'</span>
+
+L = { <span class="string">'A'</span>, <span class="string">'B'</span>, <span class="string">'C'</span>, <span class="string">'D'</span>, n=4}
+
+<span class="keyword">local</span> x = {
+
+  v = <span class="string">'this is v'</span>,
+
+  list = L,
+
+  ref = <span class="string">"$(mjd) made Text::Template.pm"</span>
+
+}
+
+<span class="comment">-- fill in the template with values in table x</span>
+
+<span class="library">io.write</span>(expand(template, x, <span class="library">_G</span>, <span class="library">os.getenv</span>))
+
+</pre>
+
+</DL>
+Variable are found by first searching the local table <code>x</code>,
+then the global environment, and lastly by calling the os.getenv function.
+<p>
+Here is the output generated by the example above:
+<DL>
+<dt><dd><pre>
+
+you can access variables: this is v
+
+or environment variables: /home/pshook
+
+
+
+you can call functions: A, B, C, D
+
+this list has 4 elements
+
+   ====
+
+   ABCD
+
+   ====
+
+
+
+or evaluate code inline
+
+ list[1] = A
+
+ list[2] = B
+
+ list[3] = C
+
+ list[4] = D
+
+
+
+you can access global variables:
+
+This example is from Mark J. Dominus at http://perl.plover.com/
+
+
+
+The Lord High Chamberlain has gotten 4
+
+things for me this year.
+
+
+
+That is 1 fewer than he gave me last year.
+
+
+
+values can have other variables: Mark J. Dominus made Text::Template.pm
+
+</pre>
+</DL>
+If you want to conditionally expand some parts of the template string,
+then you can use the <code>$(when varname ...)</code> syntax.
+If <em>varname</em> is not <code>false</code>,
+then the enclosed string will undergo macro expansion.
+If <em>varname</em> is a table,
+then it will be the first table searched when
+the enclosed string undergoes macro expansion.
+<p>
+A useful feature for code generation is the <code>$(foreach tabname ...)</code> syntax.
+If <em>tabname</em> is a table that contains a list of tables,
+then macro expansion will be performed on the enclosed string for each
+of the tables in <code>tabname</code>, and the results will be concatenated together.
+<p>
+<DL>
+<dt><dd><pre class="code">
+expand = <span class="library">require</span><span class="string">'Expand'</span>
+
+
+
+fun_temp = <span class="string">[[
+
+==============================================================================
+
+$(foreach funcs
+
+
+
+  ${type} x = ${name}( ${table.concat(args, ', ')} ) {
+
+    $(code)
+
+$(when stuff
+
+    x = $x;
+
+    y = $y;
+
+)    reutrn $(exit);
+
+  }
+
+)
+
+==============================================================================
+
+]]</span>
+
+
+
+fun_list = {
+
+  exit = 1;
+
+  stuff = <span class="keyword">false</span>;
+
+
+
+  funcs = {
+
+    { <span class="library">type</span> = <span class="string">'int'</span>;
+
+      name = <span class="string">'bill'</span>;
+
+      args = { <span class="string">'a'</span>, <span class="string">'b'</span>, <span class="string">'c'</span> };
+
+      code = <span class="string">'something'</span>;
+
+      stuff = { x=99, y=34 };
+
+    };
+
+    { <span class="library">type</span> = <span class="string">'char *'</span>;
+
+      name = <span class="string">'bert'</span>;
+
+      args = { <span class="string">'one'</span>, <span class="string">'two'</span>, <span class="string">'three'</span> };
+
+      code = <span class="string">'something else'</span>;
+
+      exit = 2
+
+    };
+
+  };
+
+}
+
+
+
+<span class="library">io.write</span>(expand(fun_temp, fun_list, <span class="library">_G</span>))
+
+</pre>
+
+</DL>
+The output is:
+<DL>
+<dt><dd><pre>
+
+==============================================================================
+
+
+
+  int x = bill( a, b, c ) {
+
+    something
+
+    x = 99;
+
+    y = 34;
+
+    reutrn 1;
+
+  }
+
+
+
+  char * x = bert( one, two, three ) {
+
+    something else
+
+    reutrn 2;
+
+  }
+
+
+
+==============================================================================
+
+</pre>
+</DL>
+<p>
+The first version of this page was <a href="../wiki/OldTextTemplate.html" >OldTextTemplate</a>.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/SlightlyLessSimpleLuaPreprocessor.html" >SlightlyLessSimpleLuaPreprocessor</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TextTemplate" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TextTemplate" >history</a><br>Last edited May 28, 2007 7:41 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TextTemplate" >(diff)</a>
+</body>
+</html>

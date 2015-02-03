@@ -1,0 +1,227 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Access Hidden Tables</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=AccessHiddenTables&amp;body=1" title="List pages referring to AccessHiddenTables">Access Hidden Tables</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+When one needs to add extra info to a table that shouldn't be seen, one can use metatables to access these tables. Here are some approaches to accessing these and a comparison to a normal indexing of a table.
+<p>
+<DL>
+<dt><dd><pre class="code">
+
+
+<span class="comment">-- Access inside table over __call</span>
+
+<span class="comment">-- This is a very nice access since it only can be called over &lt;this&gt;()</span>
+
+<span class="keyword">function</span> newT()
+
+	<span class="comment">-- create access to a table</span>
+
+	<span class="keyword">local</span> _t = {}
+
+	<span class="comment">-- metatable</span>
+
+	<span class="keyword">local</span> mt = {}
+
+	mt.__call = <span class="keyword">function</span>()
+
+		<span class="comment">-- hold access to the table over function call</span>
+
+		<span class="keyword">return</span> _t
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">return</span> <span class="library">setmetatable</span>( {},mt )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Access inside table over commonly used variable self[self], inside __index</span>
+
+<span class="keyword">function</span> newT2()
+
+	<span class="keyword">local</span> t = {}
+
+	<span class="keyword">local</span> mt = {}
+
+	mt.__index = {
+
+		[t] = {}
+
+		}
+
+	<span class="keyword">return</span> <span class="library">setmetatable</span>( t,mt )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Access inside table over nomal variable</span>
+
+<span class="comment">-- disadvantage is that setting a key to _t will override</span>
+
+<span class="comment">-- the access to the hidden table</span>
+
+<span class="keyword">function</span> newT3()
+
+	<span class="keyword">local</span> mt = {}
+
+	mt.__index = {
+
+		_t = {}
+
+		}
+
+	<span class="keyword">return</span> <span class="library">setmetatable</span>( {},mt )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Access over nomal variable inside table</span>
+
+<span class="keyword">function</span> newT4()
+
+	<span class="keyword">local</span> t = {}
+
+	t._t = {}
+
+	<span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+<span class="comment">-- CHILLCODE</span>
+
+</pre>
+
+</DL>
+Testcode:
+<DL>
+<dt><dd><pre class="code">
+t = newT()
+
+t1 = <span class="library">os.clock</span>()
+
+<span class="keyword">for</span> i = 1, 1000000 <span class="keyword">do</span>
+
+	<span class="comment">-- set var </span>
+
+	t()[i] = i
+
+	<span class="comment">--access var</span>
+
+	<span class="library">assert</span>( t()[i] == i )
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>(<span class="string">"TIME1:"</span>,<span class="library">os.clock</span>()-t1)
+
+
+
+t = newT2()
+
+t1 = <span class="library">os.clock</span>()
+
+<span class="keyword">for</span> i = 1, 1000000 <span class="keyword">do</span>
+
+	<span class="comment">-- set var </span>
+
+	t[t][i] = i
+
+	<span class="comment">--access var</span>
+
+	<span class="library">assert</span>( t[t][i] == i )
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>(<span class="string">"TIME2:"</span>,<span class="library">os.clock</span>()-t1)
+
+
+
+t = newT3()
+
+t1 = <span class="library">os.clock</span>()
+
+<span class="keyword">for</span> i = 1, 1000000 <span class="keyword">do</span>
+
+	<span class="comment">-- set var </span>
+
+	t._t[i] = i
+
+	<span class="comment">--access var</span>
+
+	<span class="library">assert</span>( t._t[i] == i )
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>(<span class="string">"TIME3:"</span>,<span class="library">os.clock</span>()-t1)
+
+
+
+t = newT4()
+
+t1 = <span class="library">os.clock</span>()
+
+<span class="keyword">for</span> i = 1, 1000000 <span class="keyword">do</span>
+
+	<span class="comment">-- set var </span>
+
+	t._t[i] = i
+
+	<span class="comment">--access var</span>
+
+	<span class="library">assert</span>( t._t[i] == i )
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>(<span class="string">"TIME4:"</span>,<span class="library">os.clock</span>()-t1)
+
+</pre>
+
+</DL>
+Output:
+<pre>
+
+TIME1:  0.67200000000003
+
+TIME2:  0.86000000000001
+
+TIME3:  0.60900000000004
+
+TIME4:  0.56200000000001
+
+</pre>
+<p>
+So the indexing over a hidden variable is the second fastest,
+where as one should avoid tables as index to call a variable,
+and in certain cases access over __call could be the most appropriate
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AccessHiddenTables" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=AccessHiddenTables" >history</a><br>Last edited December 3, 2012 11:22 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=AccessHiddenTables" >(diff)</a>
+</body>
+</html>

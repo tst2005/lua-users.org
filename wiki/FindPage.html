@@ -1,0 +1,78 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Find Page</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FindPage&amp;body=1" title="List pages referring to FindPage">Find Page</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+</td></tr> </table>
+<br clear=all>
+
+<script type="text/javascript">
+function show_ele(id, show) {
+  var e = document.getElementById(id);
+  if (!e || !e.style) return;
+  e.style.display = show ? 'block' : 'none';
+}
+function toggle(show_google) {
+  show_ele("search1", ! show_google);
+  show_ele("search2",   show_google);
+  show_ele("local_results",  ! show_google);
+  var ele1 = document.getElementById("search_query1");
+  var ele2 = document.forms[1].elements["search"];
+  if (show_google) {
+    ele2.focus();
+    ele2.value = ele1.value;
+  }
+  else {
+    ele1.focus();
+    ele1.value = ele2.value;
+  }
+}
+</script>
+<table style="width:50%"><tr><td id="search1" style="width:100%"><form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<table style="width:100%"><tr><td style="width:100%"><input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="width:100%" id="search_query1" /><input type="hidden" name="title" value="1"  /></td><td><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr></table></td><td id="search2" style="display:none;width:100%">
+<div id="cse-search-form" style="width: 100%;">Loading</div>
+<script src="http://www.google.com/jsapi" type="text/javascript"></script>
+<script type="text/javascript"> 
+  google.load('search', '1', {language : 'en', style : google.loader.themes.ESPRESSO});
+  google.setOnLoadCallback(function() {
+    var customSearchOptions = {};  var customSearchControl = new google.search.CustomSearchControl(
+      '010347484773393673473:m4ahm3f_ras', customSearchOptions);
+    customSearchControl.setResultSetSize(google.search.Search.FILTERED_CSE_RESULTSET);
+    var options = new google.search.DrawOptions();
+    options.setSearchFormRoot('cse-search-form');
+    options.setAutoComplete(true);
+    customSearchControl.setAutoCompletionId('010347484773393673473:m4ahm3f_ras+qptype:1');
+    customSearchControl.draw('cse', options);
+  }, true);
+</script>
+  
+</td><td style="white-space:nowrap">
+<input type="checkbox" onchange="toggle(this.checked)"> Search with google
+</td></tr>
+</table><div id="cse" style="width:100%;"></div>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FindPage" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FindPage" >history</a><br>Last edited February 8, 2012 1:45 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FindPage" >(diff)</a>
+</body>
+</html>

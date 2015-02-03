@@ -1,0 +1,49 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Application Binary Interface</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ApplicationBinaryInterface&amp;body=1" title="List pages referring to ApplicationBinaryInterface">Application Binary Interface</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+An <a href="http://en.wikipedia.org/wiki/Application_binary_interface.html">[application Binary Interface (ABI)]</a> is the interface between functions on a binary level.  ABI compatibility in Lua typically means that a binary module compiled with one instance of Lua works in another instance of Lua without the need to recompile anything.
+<p>
+"Usually new Lua versions [i.e. 4.0, 5.0, 5.1, 5.2, etc.] break the ABI in several other ways..." <a href="/lists/lua-l/2011-06/msg00975.html">[4]</a>  However, Lua x.y.z releases are ABI compatible with x.y.w releases <a href="/lists/lua-l/2006-02/msg00137.html">[5]</a>.
+<p>
+Concering <a href="../wiki/LuaJit.html" >LuaJit</a>, "LuaJIT is also fully ABI-compatible to Lua 5.1 at the linker/dynamic loader level. This means you can compile a C module against the standard Lua headers and load the same shared library from either Lua or LuaJIT." <a href="http://luajit.org/extensions.html">[1]</a>
+<p>
+Some compile-time settings in <code>luaconf.h</code> (e.g. <code>LUA_COMPAT</code>) can affect ABI compatibility.
+<p>
+<a href="/lists/lua-l/2011-06/msg00979.html">LuaList:2011-06/msg00979.html</a> has a discussion regarding ABI compatibility / opaque structures in 5.2 and <a href="../wiki/LuaJit.html" >LuaJit</a>.
+<p>
+Related topics include how binary modules link to a C runtime library (e.g. <code>msvcrt.dll</code> or <code>msvcr100.dll</code>), how the Lua library is linked (e.g. statically, dynamically or via <a href="../wiki/LuaProxyDll.html" >LuaProxyDll</a>), and how the Lua library is named (e.g. <code>lua51.dll</code> or otherwise).  See <a href="../wiki/BuildingModules.html" >BuildingModules</a>.  How binary modules find other binary modules (e.g. see <a href="../wiki/LoadLibrary.html" >LoadLibrary</a>) also affects whether using an ABI will be successful.
+<p>
+Inconsistent FPU state <a href="http://luajit.org/faq.html">[2]</a> has sometimes caused ABI problems.
+<p>
+Some efforts on ABI standardization in Lua have been done by <a href="../wiki/LuaBinaries.html" >LuaBinaries</a> <a href="http://luabinaries.sourceforge.net/manual.html#LuaBinariesCompatible">[3]</a>, LuaForWindows<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaForWindows" >?</a>, and <a href="../wiki/LuaDist.html" >LuaDist</a> (partly predetermined by CMake conventions).
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ApplicationBinaryInterface" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ApplicationBinaryInterface" >history</a><br>Last edited October 15, 2011 10:03 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ApplicationBinaryInterface" >(diff)</a>
+</body>
+</html>

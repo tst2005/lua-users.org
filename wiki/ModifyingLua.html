@@ -1,0 +1,430 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Modifying Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ModifyingLua&amp;body=1" title="List pages referring to ModifyingLua">Modifying Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following provides some first steps to altering the functionality of Lua itself by modifying its source code. The examples below are not necessarily good choices of things to modify, nor the best way to make these modifications.  However, they have been chosen due to both their impact and the nature of the code being altered. This tutorial was written for Lua 5.1.1.
+<p>
+<H2>The task</H2>
+<UL>
+<li> Create a new metamethod (<code>__settable</code>) that will be called anytime a value of a table is changed.
+<li> <code>__settable</code>, if it exists, will override <code>__newindex</code>.
+<li> The modified Lua should be backwards compatible.
+</UL>
+<p>
+This is best illustrated below.  We want to modify Lua so that the following code will run as shown.
+<p>
+test1.lua
+<DL>
+<dt><dd><pre class="code">
+
+
+<span class="keyword">function</span> configmodified(t,k,v)
+
+	<span class="library">print</span>(<span class="string">"Config Modified, call reload"</span>)
+
+	<span class="library">rawset</span>(t,k,v)
+
+<span class="keyword">end</span>
+
+
+
+config = { maxthreads = 10, minthreads = 2 }
+
+<span class="library">setmetatable</span>(config, {__setindex = configmodified})
+
+
+
+</pre>
+
+</DL>
+<p>
+<p>
+And the results
+<p>
+<DL>
+<dt><dd><pre>
+
+D:\code\lua\mod\bin&gt;lua -i test1.lua
+
+Lua 5.1.1  Copyright (C) 1994-2006 Lua.org, PUC-Rio
+
+table: 00940180
+
+&gt; =config.minthreads
+
+2
+
+&gt; config.minthreads = 3
+
+Config Modified, call reload
+
+&gt; =config.minthreads
+
+3
+
+&gt; config.sleepdelay = 100
+
+Config Modified, call reload
+
+</pre>
+</DL>
+<p>
+<p>
+<H2>The Modifications</H2>
+<p>
+The internal code calls metamethods 'tag methods' the base list is located in ltm.h
+<p>
+<DL>
+<dt><dd><pre>
+
+/*
+
+* WARNING: if you change the order of this enumeration,
+
+* grep "ORDER TM"
+
+*/
+
+typedef enum {
+
+  TM_INDEX,
+
+  TM_NEWINDEX,
+
+  TM_GC,
+
+  TM_MODE,
+
+  TM_EQ,  /* last tag method with `fast' access */
+
+  TM_ADD,
+
+  TM_SUB,
+
+  TM_MUL,
+
+  TM_DIV,
+
+  TM_MOD,
+
+  TM_POW,
+
+  TM_UNM,
+
+  TM_LEN,
+
+  TM_LT,
+
+  TM_LE,
+
+  TM_CONCAT,
+
+  TM_CALL,
+
+  TM_N		/* number of elements in the enum */
+
+} TMS;
+
+
+
+</pre>
+</DL>
+<p>
+The comment of TM_EQ is pretty important. Since setting a value needs to be high performance, we need to look at this.
+<p>
+The way 'fast' access works is by storing a flag on each table and marking if the flag exists. 
+<p>
+Tables are defined in lobject.h
+<p>
+<DL>
+<dt><dd><pre>
+
+typedef struct Table {
+
+  CommonHeader;
+
+  lu_byte flags;  /* 1&lt;&lt;p means tagmethod(p) is not present */ 
+
+  lu_byte lsizenode;  /* log2 of size of `node' array */
+
+  struct Table *metatable;
+
+  TValue *array;  /* array part */
+
+  Node *node;
+
+  Node *lastfree;  /* any free position is before this position */
+
+  GCObject *gclist;
+
+  int sizearray;  /* size of `array' array */
+
+} Table;
+
+
+
+</pre>
+</DL>
+<p>
+Table.flags is 1 byte, since each flag takes 1 bit, we can have up to 8 'fast access' metamethods. Base Lua comes with 5 setup as fast access, giving us room for 3 more. We will use one of them for SETINDEX. as such
+<p>
+ltm.h - mods
+<p>
+<DL>
+<dt><dd><pre>
+
+
+
+
+
+typedef enum {
+
+  TM_INDEX,
+
+  TM_NEWINDEX,
+
+  TM_SETINDEX,	// AA - new metatag that is called everytime a value is set, its use disables TM_NEWINDEX'''
+
+  TM_GC,
+
+  TM_MODE,
+
+  TM_EQ,  /* last tag method with `fast' access */
+
+  ...
+
+</pre>
+</DL>
+<p>
+<p>
+<p>
+We also need to give this new tag a name this is found inside
+<p>
+ltm.c  -  luaT_init
+<p>
+<DL>
+<dt><dd><pre>
+
+
+
+  static const char *const luaT_eventname[] = {  /* ORDER TM */
+
+    "__index", "__newindex", 
+
+    "__gc", "__mode", "__eq",
+
+    "__add", "__sub", "__mul", "__div", "__mod",
+
+    "__pow", "__unm", "__len", "__lt", "__le",
+
+    "__concat", "__call"
+
+  };
+
+
+
+</pre>
+</DL>
+<p>
+We will change it to
+<p>
+<p>
+<DL>
+<dt><dd><pre>
+
+  static const char *const luaT_eventname[] = {  /* ORDER TM */
+
+    "__index", "__newindex", "__setindex",   // AA - Added name for setindex
+
+    "__gc", "__mode", "__eq",
+
+    ...
+
+</pre>
+</DL>
+<p>
+<p>
+Finally we need to make this code work. Most of the heavy work occurs in lvm.c  Standard calls for setting values (not rawset) go through luaV_settable.  Lets look
+<p>
+<DL>
+<dt><dd><pre>
+
+
+
+void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val) {
+
+  int loop;
+
+  for (loop = 0; loop &lt; MAXTAGLOOP; loop++) {
+
+    const TValue *tm;
+
+    if (ttistable(t)) {  /* `t' is a table? */
+
+      Table *h = hvalue(t);
+
+      TValue *oldval = luaH_set(L, h, key); /* do a primitive set */
+
+      if (!ttisnil(oldval) ||  /* result is no nil? */
+
+          (tm = fasttm(L, h-&gt;metatable, TM_NEWINDEX)) == NULL) { /* or no TM? */
+
+        setobj2t(L, oldval, val);
+
+        luaC_barriert(L, h, val);
+
+        return;
+
+      }
+
+      /* else will try the tag method */
+
+    }
+
+    else if (ttisnil(tm = luaT_gettmbyobj(L, t, TM_NEWINDEX)))
+
+      luaG_typeerror(L, t, "index");
+
+    if (ttisfunction(tm)) {
+
+      callTM(L, tm, t, key, val);
+
+      return;
+
+    }
+
+    t = tm;  /* else repeat with `tm' */ 
+
+  }
+
+  luaG_runerror(L, "loop in settable");
+
+}
+
+
+
+</pre>
+</DL>
+<p>
+<p>
+We will modify this like so.
+<p>
+<p>
+<DL>
+<dt><dd><pre>
+
+
+
+
+
+void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val) {
+
+  int loop;
+
+  for (loop = 0; loop &lt; MAXTAGLOOP; loop++) {
+
+    const TValue *tm;
+
+    if (ttistable(t)) {  /* `t' is a table? */
+
+      Table *h = hvalue(t);
+
+
+
+      TValue *oldval;	// AA -- Have to declare this here
+
+
+
+	  // AA - Our new code here
+
+	  tm = fasttm(L, h-&gt;metatable, TM_SETINDEX);
+
+	  if(tm != NULL)  {
+
+		if (ttisfunction(tm)) {
+
+		  callTM(L, tm, t, key, val);
+
+		  return;
+
+		}
+
+	  }
+
+
+
+      oldval = luaH_set(L, h, key); /* do a primitive set */
+
+      if (!ttisnil(oldval) ||  /* result is no nil? */
+
+          (tm = fasttm(L, h-&gt;metatable, TM_NEWINDEX)) == NULL) { /* or no TM? */
+
+        setobj2t(L, oldval, val);
+
+        luaC_barriert(L, h, val);
+
+        return;
+
+      }
+
+      ...
+
+
+
+
+
+</pre>
+</DL>
+<p>
+<p>
+<p>
+Now we compile and test.  The code at top should now work as advertised.
+<p>
+<H2>Comments</H2>
+This should be a pretty basic but effective first mod to Lua. One other thing I suggest doing is altering the Version and Release constants so its easy to spot this is a modified version of lua. They are located in lua.h
+<p>
+<em>Do not alter the numbers in LUA_VERSION or LUA_RELEASE! Append a string such as '(Kirk3)' .</em> --lhf
+<p>
+One of the problems with this is that every set takes an additional test this can be mitigated somewhat with the following design considerations.       
+<UL>
+<li> Break compatibility by removing __newindex, its metatag and the relevant test
+<li> Provide for a way to allow the settable to proceed normally after a call to __newindex, thus avoiding the extra rawset
+</UL>
+<p>
+---
+<p>
+There are papers describing the implementation of Lua<a href="http://www.lua.org/docs.html">[1]</a>.  See also A No-Frills Introduction to Lua 5.1 VM Instructions<a href="http://luaforge.net/docman/index.php?group_id=83&amp;selected_doc_group_id=102">[2]</a>.  Yueliang<a href="http://yueliang.luaforge.net/">[3]</a> (an implementation of Lua in Lua) can also be helpful.
+<p>
+Alternatives to modifying Lua yourself include <a href="../wiki/MetaLua.html" >MetaLua</a><a href="http://metalua.luaforge.net/">[4]</a> and <a href="../wiki/LuaTokenParsing.html" >LuaTokenParsing</a>.  You may not need to even modify Lua given Lua's powerful metaprogramming capabilities (see in particular <a href="../wiki/CodeGeneration.html" >CodeGeneration</a>).
+<p>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ModifyingLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ModifyingLua" >history</a><br>Last edited November 7, 2007 7:52 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ModifyingLua" >(diff)</a>
+</body>
+</html>

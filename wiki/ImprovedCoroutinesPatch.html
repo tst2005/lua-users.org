@@ -1,0 +1,486 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Improved Coroutines Patch</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ImprovedCoroutinesPatch&amp;body=1" title="List pages referring to ImprovedCoroutinesPatch">Improved Coroutines Patch</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a patch to improve support of coroutines in Lua 5.0.2.
+Its main purpose is to remove the restrictions on yielding coroutines
+from within metamethods or C functions to largest degree possible
+without introducing operating system-dependence or reliance on
+OS facilities such as threading libraries or C stack allocations.
+<p>
+Here is the patch: <a href="/files/wiki_insecure/power_patches/5.0/ejcoro.patch">Files:wiki_insecure/power_patches/5.0/ejcoro.patch</a>
+<p>
+What follows here is a poorly Wikified rendition of the readme file...
+<p>
+-Eric Jacobs
+<p>
+<hr>It is backwards compatible except to programs that look for the
+specific error message "attempt to yield across metamethod/C-call boundary",
+which has been changed to be more accurate and state which Lua API call
+was used that was incompatible with yielding.
+<p>
+<H3>Theory of operation:</H3>
+<p>
+This patch uses a slightly different strategy to allow yielding than
+Lua does in the standard case (Lua functions calling Lua functions).
+In the standard case, Lua maintains a single set of C stack frames
+for as many Lua frame (CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a>'s) that are invoked using normal
+function calls. The bottommost of these C stack frames is the main
+loop of the interpreter, luaV_execute(). Calls from Lua to Lua are
+accomplished without reentering luaV_execute; instead, the new
+Lua frame is added or removed from the stack and a "goto" is executed
+to restart the luaV_execute() C frame at an appropriate point.
+<pre>
+
+                                  /&lt;+------------+
+
+                                 /  |  luaFunc3  |
+
+                                /   |            |
+
+                               /    +------------+
+
+                              /     |  luaFunc2  |
+
+                             /      | CI_CALLING |
+
+                            /       +------------+
+
+            +--------------+  1:n   |  luaFunc1  |
+
+            | luaV_execute |        | CI_CALLING |
+
+            +--------------+&lt;======&gt;+------------+
+
+                C stack              Lua CallInfo's
+
+</pre>                
+This figure illustrates how the C stack and the Lua CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a> frame
+stack line up for the case of Lua functions calling Lua functions.
+A single C frame of luaV_execute() maps to any number of Lua frames.
+Note that the CI_CALLING flag is set in the functions which have made
+calls this way.
+<p>
+When a metamethod or C function calls back into standard Lua, the
+luaV_execute() function is reentered, and yields are prohibited.
+<pre>                                                  
+
+                                    +------------+
+
+                                    |  luaFunc2  |
+
+            +--------------+        |            |
+
+            | luaV_execute |&lt;======&gt;|            |
+
+  ..........+--------------+........+------------+  
+
+            |   callTMxxx  |        |  luaFunc1  |
+
+            +--------------+        |            |
+
+            | luaV_execute |&lt;======&gt;|            |
+
+            +--------------+        +------------+
+
+                C stack              Lua CallInfo's
+
+
+
+                                    +------------+
+
+                                    |  luaFunc2  |
+
+            +--------------+        |            |
+
+            | luaV_execute |&lt;======&gt;|            |
+
+  ..........+--------------+........+------------+  
+
+            |    cFunc     |        |   cFunc   C|
+
+            +--------------+        +------------+
+
+            | luaV_execute |&lt;======&gt;|  luaFunc1  |
+
+            +--------------+        +------------+
+
+                C stack              Lua CallInfo's
+
+</pre>
+This figure shows how the C stack and Lua CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a>'s line up for
+the case of a metamethod or C function that calls Lua code. The
+CI_CALLING flag is not set in this case. The dotted line represents
+how the C stack is divided into two sets of C frames, one for each
+of the Lua CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a>'s. This line is exactly the boundary that standard
+Lua won't let you yield across.                
+<p>
+One strategy for removing this limitation for metamethods would be to
+make metamethod calls behave similarly to normal function calls for
+Lua; i.e., they would not reenter luaV_execute() but simply "goto"
+to the start of the luaV_execute() C frame that is already running.
+While possibly feasible for pure Lua metamethods, this approach is
+not satisfactory for use with C functions for the following two reasons:
+<p>
+<UL>
+<li> Local variables
+</UL>
+<p>
+C functions often store local variables on the C stack. In order to
+maintain a single instance of luaV_execute(), those variables would
+have to be moved off the C stack to somewhere else (e.g., the Lua
+stack) in order to let the C stack unwind. This is not an issue for
+Lua functions because Lua functions store their local variables on the
+Lua stack anyway. However, for C functions, it would be mandatory to
+unwind the stack in order to call back into Lua. This is an undesirable
+requirement for C functions. Although it is necessary that the C
+function be able to do in order to take full advantage of coroutines,
+it is not necessary that they actually do it every time they want to
+call back into Lua. If the called code never yields, it's simply a
+waste of CPU time to transfer the variables back and forth.
+<p>
+<p>
+This patch solves these problems by using an optimistic strategy. When
+a call is made from a C function into Lua code, it is first assumed that
+the Lua code will not yield, and the C stack is built up recursively
+just as in standard Lua. If the called function completes without yielding,
+the situation is exactly as it is in standard Lua. But suppose that the Lua
+code instead yields:
+<pre>
+
+                +-----------------+        +------------+
+
+            /---| coroutine.yield |        |  luaFunc2  |
+
+            |   +-----------------+        |            |
+
+       -1   |   |  luaV_execute   |&lt;======&gt;|            |  &lt;-
+
+      Yield |   +-----------------+        +------------+    \
+
+      return|   |     cFunc       |        |   cFunc   C|  &lt;-- CI_CALLING flag becomes set
+
+      value |   +-----------------+        +------------+    /
+
+            |   |  luaV_execute   |&lt;======&gt;|  luaFunc1  |  &lt;-
+
+            v   +-----------------+        +------------+
+
+                     C stack                Lua CallInfo's
+
+</pre>                
+The yield function generates a return value of -1. At this point, the
+interpreter knows that the optimistic strategy won't work, and begins to
+unwind the C stack. As the yield return value is propagated downwards,
+each C frame is required to either save its state in the corresponding
+Lua frame(s), set the CI_CALLING flag, and return -1, or else throw
+an error saying that the yield can't be completed. It is at this point
+that the error regarding an illegal yield will occur.
+<p>
+If the yield is successful, then the C stack is back to its unwound state,
+and the Lua stack contains all of the state information. By waiting until
+the -1 yield return value appears before asking C functions to save state,
+we optimize for the case that a yield does not occur, while giving C functions
+to opportunity to handle it if it does occur.
+<p>
+When the coroutine is resumed, the top CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a> is examined just as in
+current Lua. Because the stack has successfully unwound, the CI_CALLING
+flag is set. This indicates that the code to complete the function call
+(the call to luaD_poscall) isn't waiting on the C continuation, and we
+need to figure out how to complete the function call and resume the
+function based on CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a> state. For Lua functions, this involves looking at
+the opcode of the instruction at (ci-&gt;savedpc - 1). There is a switch
+in a new function called luaV_return() that does this. For a C function,
+it involves calling the C function again to ask it to resume itself.
+There is a new user-defined integer/pointer union field in the CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a>
+structure that can be used by C functions in order to do this. This is
+also handled by luaV_return().
+<p>
+Here's a summary of what the patch changes:
+<p>
+<UL>
+<li> It is no longer automatically an error to call coroutine.yield() from within a metamethod or C function. Instead, the yield proceeds to try to unwind the C stack, and an error only occurs if at some point, a C function is unable to handle the yield request.
+</UL>
+<p>
+The error message indicates which API call was used that could not
+handle a yield.
+<p>
+<UL>
+<li> All metamethods except __gc can be yielded from without error.
+</UL>
+<p>
+<UL>
+<li> An iterator function can yield without error.
+</UL>
+<p>
+<UL>
+<li> C functions which callback into Lua code will throw the error if the Lua code yields unless those functions are adapted to use the new "yp" (yield possible) API.
+</UL>
+<p>
+<H2>New API functions:</H2>
+<p>
+int lua_call_yp (lua_State *L, int nargs, int nresults, int tailcall);
+<p>
+This function has the same meaning as lua_call(), except that it
+will not prevent the called code from yielding. If a yield occurs,
+the return value is -1. Otherwise, the return value is the actual
+number of results.
+<p>
+The tailcall parameter should be set to 1 if this call is the
+last operation that the C function is to do. In this case, if the
+code yields, when it resumes, the results returned by the called
+function will become the results of the C function. In this case,
+the API can be called simply like this:
+<p>
+<DL>
+<dt><dd>return lua_call_yp(..., 1);
+</DL>
+<p>
+If the tailcall parameter is set to 0, and the code yields, when
+it resumes, the C function will be reinvoked. The lua_call_yp()
+returns -1 in this case, and the C function will need to save
+the state of its local variables and other state to be able to
+reconstruct them when the C function is reinvoked. It may use
+the Lua stack for this purpose; however, it _may not push_ values
+onto the Lua stack, as the called function(s) have taken the space
+directly above the stack.
+<p>
+Probably the easiest way to do this for a lot of C functions is
+to reserve a couple of slots in the stack which can be filled in
+with numbers or perhaps userdata (with __gc metamethod set if
+necessary for cleanup.)
+<p>
+When the C function is reinvoked, the Lua stack is how it would
+be had the original lua_call_yp() succeeded, and it is legal to
+push values on the stack again.
+<p>
+<p>
+void *lua_get_frame_state (lua_State *L);
+<p>
+This function returns a pointer to a variable in the Lua stack
+frame which may be used by C functions to retain state across
+reinvocations of the C function. The return value may be cast to
+an int * or void **. When the C function is first invoked, the
+value of the frame state is always 0. Prior to returning -1 in case
+of an API call that yielded, the C function should set the frame
+state to a non-zero value, so that it will recognize that it is
+being resumed the next time it is called.
+<p>
+Possible uses for the frame state value are: numeric counter for
+simple loops, stack index of stored variables, or pointer to
+userdata (the userdata must of course be stored in the stack somewhere
+to prevent it from being collected.)
+<p>
+<p>
+<UL>
+<li> The following functions in the standard library have been converted to
+</UL>
+use the YP API:
+<pre>
+
+  table.foreachi()
+
+  table.foreach()
+
+  tostring()
+
+  print()
+
+  dofile()
+
+  string.gsub()
+
+</pre>
+Consequently, the callback functions invoked from these functions are
+able to yield.
+<p>
+<p>
+<H2>Internal changes:</H2>
+<p>
+<UL>
+<li> The code to finsh the execution of OP_CALL/OP_TAILCALL that appeared in resume() and luaV_execute() has been consolidated into a new function called luaV_return() which generalizes this operation for all opcodes which may be yielded out of, and for C functions which use the YP API calls to allow yields.
+</UL>
+<p>
+These opcodes are:
+<pre>  
+
+      OP_CALL
+
+      OP_TAILCALL
+
+      OP_GETTABLE
+
+      OP_GETGLOBAL
+
+      OP_SELF
+
+      OP_ADD
+
+      OP_SUB
+
+      OP_MUL
+
+      OP_DIV
+
+      OP_POW
+
+      OP_CONCAT
+
+      OP_UNM
+
+      OP_LT
+
+      OP_LE
+
+      OP_EQ
+
+      OP_SETTABLE
+
+      OP_SETGLOBAL
+
+      OP_TFORLOOP
+
+</pre>      
+luaV_return() is called from luaV_execute() during the
+execution of OP_RETURN, and from resume() when a coroutine
+is resumed.
+<p>
+<UL>
+<li> luaD_precall() is no longer guaranteed to set up exactly one new CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a> frame on the Lua stack. Instead, it may end up creating any number of frames. This is because luaD_precall() will try to invoke a C function immediately, which may call-back into Lua code and continue to set up CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a> frames until it encounters a yield.
+</UL>
+<p>
+<UL>
+<li> The meaning of the CI_CALLING CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a> flag has been slightly altered/clarified: (The name is not that descriptive anymore; not sure if it ever was...)
+</UL>
+<p>
+0 = There exists an active C stack frame for this CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a>,
+<DL>
+<dt><dd>which is waiting for the return value of the next higher
+<dt><dd>CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a> to be returned to it via C-return, and which
+<dt><dd>will execute luaD_poscall() with that return value to
+<dt><dd>deactivate that next higher CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a>.
+<dt><dd>
+
+<dt><dd>References: luaD_call, luaD_call_yp, resume, luaV_execute
+<dt><dd>
+
+</DL>
+1 = There does not exist an active C stack frame for this
+<DL>
+<dt><dd>CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a>. When the next higher CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a> returns, the
+<dt><dd>luaV_return() function must be called with a pointer
+<dt><dd>to this CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a> in order to resume it. luaV_return()
+<dt><dd>handles the luaD_poscall() to deactivate that next
+<dt><dd>higher CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a>.
+<dt><dd>
+
+</DL>
+Using this description, it is easy to see where CI_CALLING
+must be set. It should be set by a function that calls
+luaD_precall() and would be about to call luaD_poscall(),
+but it will not get a chance to because the called function
+yielded (either luaD_precall() &gt; L-&gt;top or luaV_execute()
+returned NULL) and the function must return.
+<p>
+The CI_CALLING flag is set -
+<p>
+in lvm.c, during execution of OP_CALL and OP_TAILCALL, when
+<DL>
+<dt><dd>they call a C function that yields;
+<dt><dd>
+
+</DL>
+in lvm.c, during execution of OP_CALL into a Lua function;
+<p>
+in lvm.c, during execution of opcodes which call a metamethod
+<DL>
+<dt><dd>to get a value, and the metamethod yields.
+<dt><dd>(via the SETOBJ2S_YP macro, which also saves the PC.)
+<dt><dd>
+
+</DL>
+in lvm.c, during execution of opcodes which call a metamethod
+<DL>
+<dt><dd>but don't need a value, and the metamethod yields.
+<dt><dd>(via the YP macro which also saves the PC.)
+<dt><dd>
+
+</DL>
+in lvm.c, during execution of OP_UNM, OP_EQ, OP_LE, OP_LT
+<DL>
+<dt><dd>opcodes which operate similarly but don't use macros.
+<dt><dd>
+
+</DL>
+in lapi.c, when the C function calls lua_call_yp(), and the
+<DL>
+<dt><dd>called function yields. In this case, there is no PC
+<dt><dd>to save; the C function is responsible for saving its
+<dt><dd>own state. However, the stack pointer and the number
+<dt><dd>of results requested from the lua_call_yp() are saved
+<dt><dd>into the CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a> so that the call can be completed
+<dt><dd>in the future.
+</DL>
+<p>
+<UL>
+<li> Note that due to the change in luaD_precall (that it may go ahead and add as many CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a>'s as it can onto the stack until it encounters a yield), the CI_CALLING flags should not be set using (L-&gt;ci-1) as was done previously. The CallInfo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CallInfo" >?</a> pointer must be saved _prior_ to calling luaD_precall.
+</UL>
+<p>
+<UL>
+<li> The nCcalls counter is no longer used to prohibit yields from occuring. Instead, the error from an invalid yield is generated by the API call that could not handle the yield. The nCcalls counter is still maintained; however, its value may not be that useful as it counts C functions that have been suspended (removed from the C stack); therefore it may not have any relevance to the size of the C stack.
+</UL>
+<p>
+<p>
+TODO:
+<p>
+<UL>
+<li> Complete set of YP API functions:
+</UL>
+<pre>
+
+  lua_gettable_yp()
+
+  lua_settable_yp()
+
+  ...
+
+  etc
+
+</pre>
+<UL>
+<li> Find some way to give C functions the ability to allocate stack space when they need to suspend?? That might be very difficult, as the next higher function has already come in on top of us. For now, C functions have to preallocate any stack space they might need.
+</UL>
+<p>
+Tests:
+<p>
+Currently in testmeta.lua. More needed.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ImprovedCoroutinesPatch" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ImprovedCoroutinesPatch" >history</a><br>Last edited March 29, 2005 9:40 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ImprovedCoroutinesPatch" >(diff)</a>
+</body>
+</html>

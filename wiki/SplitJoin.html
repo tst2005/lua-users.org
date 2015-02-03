@@ -1,0 +1,1356 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Split Join</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SplitJoin&amp;body=1" title="List pages referring to SplitJoin">Split Join</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+"split" <a href="http://en.wikipedia.org/wiki/String_manipulation_algorithm#split.html">[1]</a> and "join" <a href="http://en.wikipedia.org/wiki/Comparison_of_programming_languages_%28string_functions%29#join.html">[2]</a> are two common string operators that are essentially inverse operations of each other.  Split separates a string containing a delimiter into the list of substrings between that delimiter.  Join combines a list of strings into a new string by inserting a delimiter between each string.
+<p>
+There are various ways to design and implement these functions in Lua, as described below.
+<p>
+<H2>Joining list of strings</H2>
+<p>
+With Lua 5.x you can use
+table.concat<a href="http://www.lua.org/manual/5.1/manual.html#pdf-table.concat">[3]</a> for
+joining: <code>table.concat(tbl, delimiter_str)</code>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">table.concat</span>({<span class="string">"a"</span>, <span class="string">"b"</span>, <span class="string">"c"</span>}, <span class="string">","</span>) <span class="comment">--&gt; "a,b,c"</span>
+
+</pre>
+
+</DL>
+<p>
+Other interfaces are possible, largely dependent on the choice of split interface since join is often intended to be the inverse operation of split.
+<p>
+<H2>Splitting Strings</H2>
+<p>
+First of all, although Lua does not have a split function is its standard library, it does have <code>string.gmatch</code><a href="http://www.lua.org/manual/5.2/manual.html#pdf-string.gmatch">[4]</a>, which can be used instead of a split function in many cases. Unlike a split function, <code>string.gmatch</code> takes a pattern to match the non-delimiter text, instead of the delimiters themselves:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> example = <span class="string">"an example string"</span>
+
+<span class="keyword">for</span> i <span class="keyword">in</span> <span class="library">string.gmatch</span>(example, <span class="string">"%S+"</span>) <span class="keyword">do</span>
+
+  <span class="library">print</span>(i)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- output:</span>
+
+<span class="comment">-- an</span>
+
+<span class="comment">-- example</span>
+
+<span class="comment">-- string</span>
+
+</pre>
+
+</DL>
+<p>
+A <code>split</code><a href="http://en.wikipedia.org/wiki/String_manipulation_algorithm#split.html">[1]</a> function
+separates a string into a list of substrings, 
+breaking the original string on occurrences of some separator (character, 
+character set, or pattern).  There are various ways to design a string split function.  A summary of the design decisions is listed below.
+<p>
+Should split return a table array, a list, or an iterator?
+<p>
+<DL>
+<dt><dd><pre class="code">
+split(<span class="string">"a,b,c"</span>, <span class="string">","</span>) <span class="comment">--&gt; {"a", "b", "c"}</span>
+
+split(<span class="string">"a,b,c"</span>, <span class="string">","</span>) <span class="comment">--&gt; "a","b","c" (not scalable: Lua has a limit of a few thousand return values)</span>
+
+<span class="keyword">for</span> x <span class="keyword">in</span> split(<span class="string">"a,b,c"</span>, <span class="string">","</span>) <span class="keyword">do</span> ..... <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Should the separator be a string, Lua pattern, LPeg pattern, or regular expression?
+<p>
+<DL>
+<dt><dd><pre class="code">
+split(<span class="string">"a  +b c"</span>, <span class="string">" +"</span>) <span class="comment">--&gt; {"a ", "b c"}</span>
+
+split(<span class="string">"a  +b c"</span>, <span class="string">" +"</span>) <span class="comment">--&gt; {"a", "+b", "c"}</span>
+
+split(<span class="string">"a  +b c"</span>, some_other_object) <span class="comment">--&gt; .....</span>
+
+</pre>
+
+</DL>
+<p>
+How should empty separators be handled?
+<p>
+<DL>
+<dt><dd><pre class="code">
+split(<span class="string">"abc"</span>, <span class="string">""</span>) <span class="comment">--&gt; {"a", "b", "c"} </span>
+
+split(<span class="string">"abc"</span>, <span class="string">""</span>) <span class="comment">--&gt; {"", "a", "b", "c", ""}</span>
+
+split(<span class="string">"abc"</span>, <span class="string">""</span>) <span class="comment">--&gt; error</span>
+
+split(<span class="string">"abc"</span>, <span class="string">"%d*"</span>) <span class="comment">--&gt; what about patterns that can evaluate to empty strings?</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd>Note: <code>split(s,"")</code> is a convenient idiom for splitting a string into characters.  In Lua, we can alternately do <code>for c in s:gmatch"." do ..... end</code>.
+</DL>
+<p>
+How should empty values be handled?
+<p>
+<DL>
+<dt><dd><pre class="code">
+split(<span class="string">",,a,b,c,"</span>, <span class="string">","</span>) <span class="comment">--&gt; {"a", "b", "c"}</span>
+
+split(<span class="string">",,a,b,c,"</span>, <span class="string">","</span>) <span class="comment">--&gt; {"", "", "a", "b", "c", ""}</span>
+
+split(<span class="string">","</span>, <span class="string">","</span>) <span class="comment">--&gt; {} or {""} or {"", ""} ?</span>
+
+split(<span class="string">""</span>, <span class="string">","</span>) <span class="comment">--&gt; {} or {""} ?</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd>Note: Although splitting and joining are roughly inverses, the operations are not necessarily uniquely determined, particularly when there are empty strings.  <code>join({"",""}, "")</code>, <code>join({""}, "")</code> and <code>join({}, "")</code> all result in the same string <code>""</code>.  Therefore, the choice of what the inverse operation <code>split("", "")</code> should return is not immediately clear.
+</DL>
+<p>
+<DL>
+<dt><dd>Note: completely ignoring empty values can be undesirable, such as for rows in a CSV file where column positions matter.  A CSV file with empty rows "" is unclear: is this an column containing an empty value or are there zero columns?  A zero column CSV file is unlikely though perhaps not impossible.
+</DL>
+<p>
+Should there be an argument to limit the number of splits?
+<p>
+<DL>
+<dt><dd><pre class="code">
+split(<span class="string">"a,b,c"</span>, <span class="string">","</span>, 2) <span class="comment">--&gt; {"a", "b,c"}</span>
+
+</pre>
+
+</DL>
+<p>
+Should the separator be returned?  This is more useful when the separator is a pattern, in which case the separator can vary:
+<p>
+<DL>
+<dt><dd><pre class="code">
+split(<span class="string">"a  b c"</span>, <span class="string">" +"</span>) <span class="comment">--&gt; {"a", "  ", "b", " ", "c"}</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd>Note: Note also that <code>string.gmatch</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-string.gmatch">[5]</a> is in a way a dual of <code>split</code>, returning the substrings that match a pattern and discarding strings between them rather than the other way around.  A function that returns both is sometimes called <code>partition</code> <a href="http://en.wikipedia.org/wiki/Comparison_of_programming_languages_%28string_functions%29#partition.html">[6]</a>.
+</DL>
+<p>
+<hr><H3>Method: Split by pattern using <code>string.gsub</code>/<code>string.match</code></H3>
+<p>
+Break a string up at occurrences of a single character.  If the number of
+fields is known:
+<p>
+<DL>
+<dt><dd><pre class="code">
+str:match( (<span class="string">"([^"</span>..sep..<span class="string">"]*)"</span>..sep):rep(nsep) )
+
+</pre>
+
+</DL>
+<p>
+If the number of fields is not known
+<p>
+<DL>
+<dt><dd><pre class="code">
+fields = {str:match((str:gsub(<span class="string">"[^"</span>..sep..<span class="string">"]*"</span>..sep, <span class="string">"([^"</span>..sep..<span class="string">"]*)"</span>..sep)))}
+
+</pre>
+
+</DL>
+<p>
+Some might call the above a hack :) <code>sep</code> will need to be escaped if it is a 
+pattern metacharacter, and you'd probably be better off precomputing and/or
+memoizing the patterns.
+<p>
+<hr><H3>Method: Using only <code>string.gsub</code></H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+fields = {}
+
+str:gsub(<span class="string">"([^"</span>..sep..<span class="string">"]*)"</span>..sep, <span class="keyword">function</span>(c) <span class="library">table.insert</span>(fields, c) <span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+<strong>Does not work as expected:</strong>
+<DL>
+<dt><dd><pre class="code">
+str, sep = <span class="string">"1:2:3"</span>, <span class="string">":"</span>
+
+fields = {}
+
+str:gsub(<span class="string">"([^"</span>..sep..<span class="string">"]*)"</span>..sep, <span class="keyword">function</span>(c) <span class="library">table.insert</span>(fields, c) <span class="keyword">end</span>)
+
+<span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(fields) <span class="keyword">do</span> <span class="library">print</span>(i,v) <span class="keyword">end</span>
+
+
+
+<span class="comment">-- output:</span>
+
+<span class="comment">-- 1        1</span>
+
+<span class="comment">-- 2        2</span>
+
+</pre>
+
+</DL>
+<p>
+<strong>Fix:</strong>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> <span class="library">string</span>:split(sep)
+
+        <span class="keyword">local</span> sep, fields = sep <span class="keyword">or</span> <span class="string">":"</span>, {}
+
+        <span class="keyword">local</span> pattern = <span class="library">string.format</span>(<span class="string">"([^%s]+)"</span>, sep)
+
+        self:gsub(pattern, <span class="keyword">function</span>(c) fields[#fields+1] = c <span class="keyword">end</span>)
+
+        <span class="keyword">return</span> fields
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+<strong>Example:</strong> split a string into words, or return nil
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> justWords(str)
+
+  <span class="keyword">local</span> t = {}
+
+  <span class="keyword">local</span> <span class="keyword">function</span> helper(word) <span class="library">table.insert</span>(t, word) <span class="keyword">return</span> <span class="string">""</span> <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> str:gsub(<span class="string">"%w+"</span>, helper):find<span class="string">"%S"</span> <span class="keyword">then</span> <span class="keyword">return</span> t <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<hr><H3>Method: Split a string with a pattern, Take One</H3>
+<p>
+This splits a string using the pattern <code>sep</code>. It calls <code>func</code> for each 
+segment. When <code>func</code> is called, the first argument is the segment and the 
+remaining arguments are the captures from <code>sep</code>, if any. On the last 
+segment, <code>func</code> will be called with just one argument. (This could be used 
+as a flag, or you could use two different functions). <code>sep</code> must not match 
+the empty string. Enhancements are left as an exercise :)
+<p>
+<DL>
+<dt><dd><pre class="code">
+func((str:gsub(<span class="string">"(.-)("</span>..sep..<span class="string">")"</span>, func)))
+
+</pre>
+
+</DL>
+<p>
+<strong>Example:</strong> Split a string into lines separated by either DOS or Unix line 
+endings, creating a table out of the results.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> lines(str)
+
+  <span class="keyword">local</span> t = {}
+
+  <span class="keyword">local</span> <span class="keyword">function</span> helper(line) <span class="library">table.insert</span>(t, line) <span class="keyword">return</span> <span class="string">""</span> <span class="keyword">end</span>
+
+  helper((str:gsub(<span class="string">"(.-)\r?\n"</span>, helper)))
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Function: Split a string with a pattern, Take Two</H3>
+<p>
+The problem with using gsub as above is that it can't handle the case when the 
+separator pattern doesn't appear at the end of the string.  In that case the 
+final "(.-)" never gets to capture the end of the string, because the overall 
+pattern fails to match.  To handle that case you have to do something a little 
+more complicated.  The split function below behaves more or less like split in 
+perl or python.  In particular, single matches at the beginning and end of the 
+string do not create new elements.  Multiple matches in a row create empty 
+string elements.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Compatibility: Lua-5.1</span>
+
+<span class="keyword">function</span> split(str, pat)
+
+   <span class="keyword">local</span> t = {}  <span class="comment">-- NOTE: use {n = 0} in Lua-5.0</span>
+
+   <span class="keyword">local</span> fpat = <span class="string">"(.-)"</span> .. pat
+
+   <span class="keyword">local</span> last_end = 1
+
+   <span class="keyword">local</span> s, e, cap = str:find(fpat, 1)
+
+   <span class="keyword">while</span> s <span class="keyword">do</span>
+
+      <span class="keyword">if</span> s ~= 1 <span class="keyword">or</span> cap ~= <span class="string">""</span> <span class="keyword">then</span>
+
+	 <span class="library">table.insert</span>(t,cap)
+
+      <span class="keyword">end</span>
+
+      last_end = e+1
+
+      s, e, cap = str:find(fpat, last_end)
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">if</span> last_end &lt;= #str <span class="keyword">then</span>
+
+      cap = str:sub(last_end)
+
+      <span class="library">table.insert</span>(t, cap)
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<strong>Example:</strong> Split a file path string into components.
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> split_path(str)
+
+   <span class="keyword">return</span> split(str,<span class="string">'[\\/]+'</span>)
+
+<span class="keyword">end</span>
+
+
+
+parts = split_path(<span class="string">"/usr/local/bin"</span>)
+
+<span class="comment">--&gt; {'usr','local','bin'}</span>
+
+</pre>
+
+</DL>
+<p>
+<strong>Test Cases:</strong>
+<DL>
+<dt><dd><pre class="code">
+split(<span class="string">'foo/bar/baz/test'</span>,<span class="string">'/'</span>)
+
+<span class="comment">--&gt; {'foo','bar','baz','test'}</span>
+
+split(<span class="string">'/foo/bar/baz/test'</span>,<span class="string">'/'</span>)
+
+<span class="comment">--&gt; {'foo','bar','baz','test'}</span>
+
+split(<span class="string">'/foo/bar/baz/test/'</span>,<span class="string">'/'</span>)
+
+<span class="comment">--&gt; {'foo','bar','baz','test'}</span>
+
+split(<span class="string">'/foo/bar//baz/test///'</span>,<span class="string">'/'</span>)
+
+<span class="comment">--&gt; {'foo','bar','','baz','test','',''}</span>
+
+split(<span class="string">'//foo////bar/baz///test///'</span>,<span class="string">'/+'</span>)
+
+<span class="comment">--&gt; {'foo','bar','baz','test'}</span>
+
+split(<span class="string">'foo'</span>,<span class="string">'/+'</span>)
+
+<span class="comment">--&gt; {'foo'}</span>
+
+split(<span class="string">''</span>,<span class="string">'/+'</span>)
+
+<span class="comment">--&gt; {}</span>
+
+split(<span class="string">'foo'</span>,<span class="string">''</span>)  <span class="comment">-- opps! infinite loop!</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Function: Split a string with a pattern, Take Three</H3>
+<p>
+After a discussion on this topic in the mailing list, I made my own function...
+I took, unknowingly, a way similar to the function above, except I use gfind 
+to iterate, and I see the single matches at beginning and end of string as 
+empty fields. As above, multiple successive delimiters create empty string 
+elements.
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Compatibility: Lua-5.0</span>
+
+<span class="keyword">function</span> Split(str, delim, maxNb)
+
+    <span class="comment">-- Eliminate bad cases...</span>
+
+    <span class="keyword">if</span> <span class="library">string.find</span>(str, delim) == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+        <span class="keyword">return</span> { str }
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> maxNb == <span class="keyword">nil</span> <span class="keyword">or</span> maxNb &lt; 1 <span class="keyword">then</span>
+
+        maxNb = 0    <span class="comment">-- No limit</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">local</span> result = {}
+
+    <span class="keyword">local</span> pat = <span class="string">"(.-)"</span> .. delim .. <span class="string">"()"</span>
+
+    <span class="keyword">local</span> nb = 0
+
+    <span class="keyword">local</span> lastPos
+
+    <span class="keyword">for</span> part, pos <span class="keyword">in</span> <span class="library">string.gfind</span>(str, pat) <span class="keyword">do</span>
+
+        nb = nb + 1
+
+        result[nb] = part
+
+        lastPos = pos
+
+        <span class="keyword">if</span> nb == maxNb <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="comment">-- Handle the last field</span>
+
+    <span class="keyword">if</span> nb ~= maxNb <span class="keyword">then</span>
+
+        result[nb + 1] = <span class="library">string.sub</span>(str, lastPos)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> result
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<strong>Test Cases:</strong>
+<DL>
+<dt><dd><pre class="code">
+ShowSplit(<span class="string">"abc"</span>, <span class="string">''</span>)
+
+<span class="comment">--&gt; { [1] = "", [2] = "", [3] = "", [4] = "", [5] = "" }</span>
+
+<span class="comment">-- No infite loop... but garbage in, garbage out...</span>
+
+ShowSplit(<span class="string">""</span>, <span class="string">','</span>)
+
+<span class="comment">--&gt; { [1] = "" }</span>
+
+ShowSplit(<span class="string">"abc"</span>, <span class="string">','</span>)
+
+<span class="comment">--&gt; { [1] = "abc" }</span>
+
+ShowSplit(<span class="string">"a,b,c"</span>, <span class="string">','</span>)
+
+<span class="comment">--&gt; { [1] = "a", [2] = "b", [3] = "c" }</span>
+
+ShowSplit(<span class="string">"a,b,c,"</span>, <span class="string">','</span>)
+
+<span class="comment">--&gt; { [1] = "a", [2] = "b", [3] = "c", [4] = "" }</span>
+
+ShowSplit(<span class="string">",a,b,c,"</span>, <span class="string">','</span>)
+
+<span class="comment">--&gt; { [1] = "", [2] = "a", [3] = "b", [4] = "c", [5] = "" }</span>
+
+ShowSplit(<span class="string">"x,,,y"</span>, <span class="string">','</span>)
+
+<span class="comment">--&gt; { [1] = "x", [2] = "", [3] = "", [4] = "y" }</span>
+
+ShowSplit(<span class="string">",,,"</span>, <span class="string">','</span>)
+
+<span class="comment">--&gt; { [1] = "", [2] = "", [3] = "", [4] = "" }</span>
+
+ShowSplit(<span class="string">"x!yy!zzz!@"</span>, <span class="string">'!'</span>, 4)
+
+<span class="comment">--&gt; { [1] = "x", [2] = "yy", [3] = "zzz", [4] = "@" }</span>
+
+ShowSplit(<span class="string">"x!yy!zzz!@"</span>, <span class="string">'!'</span>, 3)
+
+<span class="comment">--&gt; { [1] = "x", [2] = "yy", [3] = "zzz" }</span>
+
+ShowSplit(<span class="string">"x!yy!zzz!@"</span>, <span class="string">'!'</span>, 1)
+
+<span class="comment">--&gt; { [1] = "x" }</span>
+
+
+
+ShowSplit(<span class="string">"a:b:i:p:u:random:garbage"</span>, <span class="string">":"</span>, 5)
+
+<span class="comment">--&gt; { [1] = "a", [2] = "b", [3] = "i", [4] = "p", [5] = "u" }</span>
+
+ShowSplit(<span class="string">"hr , br ;  p ,span, div"</span>, <span class="string">'%s*[;,]%s*'</span>)
+
+<span class="comment">--&gt; { [1] = "hr", [2] = "br", [3] = "p", [4] = "span", [5] = "div" }</span>
+
+</pre>
+
+</DL>
+<p>
+(<a href="../wiki/PhilippeLhoste.html" >PhilippeLhoste</a>)
+<p>
+<hr><H3>Function: Perl-like split/join</H3>
+<p>
+Many people miss Perl-like split/join functions in Lua. Here are mine:
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Concat the contents of the parameter list,</span>
+
+<span class="comment">-- separated by the string delimiter (just like in perl)</span>
+
+<span class="comment">-- example: strjoin(", ", {"Anna", "Bob", "Charlie", "Dolores"})</span>
+
+<span class="keyword">function</span> strjoin(delimiter, list)
+
+  <span class="keyword">local</span> len = getn(list)
+
+  <span class="keyword">if</span> len == 0 <span class="keyword">then</span> 
+
+    <span class="keyword">return</span> <span class="string">""</span> 
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> <span class="library">string</span> = list[1]
+
+  <span class="keyword">for</span> i = 2, len <span class="keyword">do</span> 
+
+    <span class="library">string</span> = <span class="library">string</span> .. delimiter .. list[i] 
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">string</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Split text into a list consisting of the strings in text,</span>
+
+<span class="comment">-- separated by strings matching delimiter (which may be a pattern). </span>
+
+<span class="comment">-- example: strsplit(",%s*", "Anna, Bob, Charlie,Dolores")</span>
+
+<span class="keyword">function</span> strsplit(delimiter, text)
+
+  <span class="keyword">local</span> list = {}
+
+  <span class="keyword">local</span> pos = 1
+
+  <span class="keyword">if</span> strfind(<span class="string">""</span>, delimiter, 1) <span class="keyword">then</span> <span class="comment">-- this would result in endless loops</span>
+
+    <span class="library">error</span>(<span class="string">"delimiter matches empty string!"</span>)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+    <span class="keyword">local</span> first, last = strfind(text, delimiter, pos)
+
+    <span class="keyword">if</span> first <span class="keyword">then</span> <span class="comment">-- found?</span>
+
+      tinsert(list, strsub(text, pos, first-1))
+
+      pos = last+1
+
+    <span class="keyword">else</span>
+
+      tinsert(list, strsub(text, pos))
+
+      <span class="keyword">break</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> list
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+(<a href="../wiki/PeterPrade.html" >PeterPrade</a>)
+<p>
+<hr><H3>Function: Perl-like split/join, alternative</H3>
+<p>
+Here's my own split function, for comparison. It's largely the same as the 
+above; not quite as DRY but (IMO) slightly cleaner. It doesn't use gfind (as 
+suggested below) because I wanted to be able to specify a pattern for the 
+split string, not a pattern for the data sections. If speed is paramount, it 
+might be made faster by caching string.find as a local 'strfind' variable, as 
+the above does.
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--Written for 5.0; could be made slightly cleaner with 5.1</span>
+
+<span class="comment">--Splits a string based on a separator string or pattern;</span>
+
+<span class="comment">--returns an array of pieces of the string.</span>
+
+<span class="comment">--(May optionally supply a table as the third parameter which will be filled </span>
+
+with the results.)
+
+<span class="keyword">function</span> <span class="library">string</span>:split( inSplitPattern, outResults )
+
+  <span class="keyword">if</span> <span class="keyword">not</span> outResults <span class="keyword">then</span>
+
+    outResults = { }
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> theStart = 1
+
+  <span class="keyword">local</span> theSplitStart, theSplitEnd = <span class="library">string.find</span>( self, inSplitPattern, 
+
+theStart )
+
+  <span class="keyword">while</span> theSplitStart <span class="keyword">do</span>
+
+    <span class="library">table.insert</span>( outResults, <span class="library">string.sub</span>( self, theStart, theSplitStart-1 ) )
+
+    theStart = theSplitEnd + 1
+
+    theSplitStart, theSplitEnd = <span class="library">string.find</span>( self, inSplitPattern, theStart )
+
+  <span class="keyword">end</span>
+
+  <span class="library">table.insert</span>( outResults, <span class="library">string.sub</span>( self, theStart ) )
+
+  <span class="keyword">return</span> outResults
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+(<a href="../wiki/GavinKistner.html" >GavinKistner</a>)
+<p>
+<hr><H3>Function: PHP-like explode</H3>
+<p>
+Explode string into table with seperator (moved from Table<code></code>Utils):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- explode(seperator, string)</span>
+
+<span class="keyword">function</span> explode(d,p)
+
+  <span class="keyword">local</span> t, ll
+
+  t={}
+
+  ll=0
+
+  <span class="keyword">if</span>(#p == 1) <span class="keyword">then</span> <span class="keyword">return</span> {p} <span class="keyword">end</span>
+
+    <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+      l=<span class="library">string.find</span>(p,d,ll,<span class="keyword">true</span>) <span class="comment">-- find the next d in the string</span>
+
+      <span class="keyword">if</span> l~=<span class="keyword">nil</span> <span class="keyword">then</span> <span class="comment">-- if "not not" found then..</span>
+
+        <span class="library">table.insert</span>(t, <span class="library">string.sub</span>(p,ll,l-1)) <span class="comment">-- Save it in our array.</span>
+
+        ll=l+1 <span class="comment">-- save just after where we found it for searching next time.</span>
+
+      <span class="keyword">else</span>
+
+        <span class="library">table.insert</span>(t, <span class="library">string.sub</span>(p,ll)) <span class="comment">-- Save what's left in our array.</span>
+
+        <span class="keyword">break</span> <span class="comment">-- Break at end, as it should be, according to the lua manual.</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Here's my version of PHP style explode, supporting limit
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> explode(sep, str, limit)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> sep <span class="keyword">or</span> sep == <span class="string">""</span> <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> str <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+    limit = limit <span class="keyword">or</span> mhuge
+
+    <span class="keyword">if</span> limit == 0 <span class="keyword">or</span> limit == 1 <span class="keyword">then</span> <span class="keyword">return</span> {str},1 <span class="keyword">end</span>
+
+
+
+    <span class="keyword">local</span> r = {}
+
+    <span class="keyword">local</span> n, init = 0, 1
+
+
+
+    <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+        <span class="keyword">local</span> s,e = strfind(str, sep, init, <span class="keyword">true</span>)
+
+        <span class="keyword">if</span> <span class="keyword">not</span> s <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+        r[#r+1] = strsub(str, init, s - 1)
+
+        init = e + 1
+
+        n = n + 1
+
+        <span class="keyword">if</span> n == limit - 1 <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">if</span> init &lt;= strlen(str) <span class="keyword">then</span>
+
+        r[#r+1] = strsub(str, init)
+
+    <span class="keyword">else</span>
+
+        r[#r+1] = <span class="string">""</span>
+
+    <span class="keyword">end</span>
+
+    n = n + 1
+
+
+
+    <span class="keyword">if</span> limit &lt; 0 <span class="keyword">then</span>
+
+        <span class="keyword">for</span> i=n, n + limit + 1, -1 <span class="keyword">do</span> r[i] = <span class="keyword">nil</span> <span class="keyword">end</span>
+
+        n = n + limit
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">return</span> r, n
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+(Lance Li)
+<p>
+<hr><H3>Function: Using metatable and __index</H3>
+<p>
+This function uses a metatable's __index function to populate the table of 
+split parts. This function does not try to (correctly) invert the pattern, and
+so really doesn't work as most string split functions do.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--[[ written for Lua 5.1
+
+split a string by a pattern, take care to create the "inverse" pattern 
+
+yourself. default pattern splits by white space.
+
+]]</span>
+
+<span class="library">string.split</span> = <span class="keyword">function</span>(str, pattern)
+
+  pattern = pattern <span class="keyword">or</span> <span class="string">"[^%s]+"</span>
+
+  <span class="keyword">if</span> pattern:len() == 0 <span class="keyword">then</span> pattern = <span class="string">"[^%s]+"</span> <span class="keyword">end</span>
+
+  <span class="keyword">local</span> parts = {__index = <span class="library">table.insert</span>}
+
+  <span class="library">setmetatable</span>(parts, parts)
+
+  str:gsub(pattern, parts)
+
+  <span class="library">setmetatable</span>(parts, <span class="keyword">nil</span>)
+
+  parts.__index = <span class="keyword">nil</span>
+
+  <span class="keyword">return</span> parts
+
+<span class="keyword">end</span>
+
+<span class="comment">-- example 1</span>
+
+str = <span class="string">"no separators in this string"</span>
+
+parts = str:split( <span class="string">"[^,]+"</span> )
+
+<span class="library">print</span>( # parts )
+
+<span class="library">table.foreach</span>(parts, <span class="library">print</span>)
+
+<span class="comment">--[[ output:
+
+1
+
+1	no separators in this string
+
+]]</span>
+
+
+
+<span class="comment">-- example 2</span>
+
+str = <span class="string">"   split, comma, separated  , , string   "</span>
+
+parts = str:split( <span class="string">"[^,%s]+"</span> )
+
+<span class="library">print</span>( # parts )
+
+<span class="library">table.foreach</span>(parts, <span class="library">print</span>)
+
+<span class="comment">--[[ output:
+
+4
+
+1	split
+
+2	comma
+
+3	separated
+
+4	string
+
+]]</span>
+
+</pre>
+
+</DL>
+<p>
+<hr><H3>Function: true Python semantics for split</H3>
+<p>
+This is the Python behavior:
+<p>
+<DL>
+<dt><dd><pre>Python 2.5.1 (r251:54863, Jun 15 2008, 18:24:51) 
+
+[GCC 4.3.0 20080428 (Red Hat 4.3.0-8)] on linux2
+
+&gt;&gt;&gt; 'x!yy!zzz!@'.split('!')
+
+['x', 'yy', 'zzz', '@']
+
+&gt;&gt;&gt; 'x!yy!zzz!@'.split('!', 3)
+
+['x', 'yy', 'zzz', '@']
+
+&gt;&gt;&gt; 'x!yy!zzz!@'.split('!', 2)
+
+['x', 'yy', 'zzz!@']
+
+&gt;&gt;&gt; 'x!yy!zzz!@'.split('!', 1)
+
+['x', 'yy!zzz!@']
+
+</pre>
+</DL>
+<p>
+And IMHO this Lua function implements this semantics:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> <span class="library">string</span>:split(sSeparator, nMax, bRegexp)
+
+	<span class="library">assert</span>(sSeparator ~= <span class="string">''</span>)
+
+	<span class="library">assert</span>(nMax == <span class="keyword">nil</span> <span class="keyword">or</span> nMax &gt;= 1)
+
+
+
+	<span class="keyword">local</span> aRecord = {}
+
+
+
+	<span class="keyword">if</span> self:len() &gt; 0 <span class="keyword">then</span>
+
+		<span class="keyword">local</span> bPlain = <span class="keyword">not</span> bRegexp
+
+		nMax = nMax <span class="keyword">or</span> -1
+
+
+
+		<span class="keyword">local</span> nField=1 nStart=1
+
+		<span class="keyword">local</span> nFirst,nLast = self:find(sSeparator, nStart, bPlain)
+
+		<span class="keyword">while</span> nFirst <span class="keyword">and</span> nMax ~= 0 <span class="keyword">do</span>
+
+			aRecord[nField] = self:sub(nStart, nFirst-1)
+
+			nField = nField+1
+
+			nStart = nLast+1
+
+			nFirst,nLast = self:find(sSeparator, nStart, bPlain)
+
+			nMax = nMax-1
+
+		<span class="keyword">end</span>
+
+		aRecord[nField] = self:sub(nStart)
+
+	<span class="keyword">end</span>
+
+
+
+	<span class="keyword">return</span> aRecord
+
+<span class="keyword">end</span>
+
+</pre>
+        
+</DL>
+<p>
+Observe the possibility to use simple strings or regular expressions as delimiters.
+<p>
+<strong>Test Cases:</strong>
+<DL>
+<dt><dd><pre class="code">
+Lua 5.1.4  Copyright (C) 1994-2008 Lua.org, PUC-Rio
+
+...
+
+&gt; <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">next</span>, <span class="library">string.split</span>(<span class="string">'x!yy!zzz!@'</span>, <span class="string">'!'</span>) <span class="keyword">do</span> <span class="library">print</span>(v) <span class="keyword">end</span>
+
+x
+
+yy
+
+zzz
+
+@
+
+&gt; <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">next</span>, <span class="library">string.split</span>(<span class="string">'x!yy!zzz!@'</span>, <span class="string">'!'</span>, 3) <span class="keyword">do</span> <span class="library">print</span>(v) <span class="keyword">end</span>
+
+x
+
+yy
+
+zzz
+
+@
+
+&gt; <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">next</span>, <span class="library">string.split</span>(<span class="string">'x!yy!zzz!@'</span>, <span class="string">'!'</span>, 2) <span class="keyword">do</span> <span class="library">print</span>(v) <span class="keyword">end</span>
+
+x
+
+yy
+
+zzz!@
+
+&gt; <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">next</span>, <span class="library">string.split</span>(<span class="string">'x!yy!zzz!@'</span>, <span class="string">'!'</span>, 1) <span class="keyword">do</span> <span class="library">print</span>(v) <span class="keyword">end</span>
+
+x
+
+yy!zzz!@
+
+</pre>
+
+</DL>
+<p>
+(<a href="../wiki/JoanOrdinas.html" >JoanOrdinas</a>)
+<p>
+<hr>If we define split simply as "return all 0-n character occurences followed by a separator, plus what's left of the string", which I think results in the most intuitive splitting logic, then we get a simple implementation using just gmatch which covers all cases and still allows the separator to be a pattern:
+<p>
+<pre class="code">
+<span class="keyword">function</span> gsplit(s,sep)
+
+	<span class="keyword">return</span> <span class="library">coroutine.wrap</span>(<span class="keyword">function</span>()
+
+		<span class="keyword">if</span> s == <span class="string">''</span> <span class="keyword">or</span> sep == <span class="string">''</span> <span class="keyword">then</span> <span class="library">coroutine.yield</span>(s) <span class="keyword">return</span> <span class="keyword">end</span>
+
+		<span class="keyword">local</span> lasti = 1
+
+		<span class="keyword">for</span> v,i <span class="keyword">in</span> s:gmatch(<span class="string">'(.-)'</span>..sep..<span class="string">'()'</span>) <span class="keyword">do</span>
+
+		   <span class="library">coroutine.yield</span>(v)
+
+		   lasti = i
+
+		<span class="keyword">end</span>
+
+		<span class="library">coroutine.yield</span>(s:sub(lasti))
+
+	<span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--same idea without coroutines</span>
+
+
+
+<span class="keyword">function</span> gsplit2(s,sep)
+
+	<span class="keyword">local</span> lasti, done, g = 1, <span class="keyword">false</span>, s:gmatch(<span class="string">'(.-)'</span>..sep..<span class="string">'()'</span>)
+
+	<span class="keyword">return</span> <span class="keyword">function</span>()
+
+		<span class="keyword">if</span> done <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+		<span class="keyword">local</span> v,i = g()
+
+		<span class="keyword">if</span> s == <span class="string">''</span> <span class="keyword">or</span> sep == <span class="string">''</span> <span class="keyword">then</span> done = <span class="keyword">true</span> <span class="keyword">return</span> s <span class="keyword">end</span>
+
+		<span class="keyword">if</span> v == <span class="keyword">nil</span> <span class="keyword">then</span> done = <span class="keyword">true</span> <span class="keyword">return</span> s:sub(lasti) <span class="keyword">end</span>
+
+		lasti = i
+
+		<span class="keyword">return</span> v
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+The gsplit() above returns an iterator, so other API variants can be easily derived from it:
+
+
+
+{{{!Lua
+
+<span class="keyword">function</span> iunpack(i,s,v1)
+
+   <span class="keyword">local</span> <span class="keyword">function</span> pass(...)
+
+	  <span class="keyword">local</span> v1 = i(s,v1)
+
+	  <span class="keyword">if</span> v1 == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> ... <span class="keyword">end</span>
+
+	  <span class="keyword">return</span> v1, pass(...)
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> pass()
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> split(s,sep)
+
+   <span class="keyword">return</span> iunpack(gsplit(s,sep))
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> accumulate(t,i,s,v)
+
+    <span class="keyword">for</span> v <span class="keyword">in</span> i,s,v <span class="keyword">do</span>
+
+        t[#t+1] = v
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> tsplit(s,sep)
+
+   <span class="keyword">return</span> accumulate({}, gsplit(s,sep))
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+Note that the above implementation does not allow captures in the separator. To allow for that, another closure must be created to pass along the additional captured strings (see <a href="../wiki/VarargTheSecondClassCitizen.html" >VarargTheSecondClassCitizen</a>). The semantics also get muddy (I suppose one use case would be wanting to know what the actual separator was for each string, eg. for a separator pattern like [%.,;]). 
+<p>
+<pre class="code">
+<span class="keyword">function</span> gsplit(s,sep)
+
+	<span class="keyword">local</span> i, done, g = 1, <span class="keyword">false</span>, s:gmatch(<span class="string">'(.-)'</span>..sep..<span class="string">'()'</span>)
+
+	<span class="keyword">local</span> <span class="keyword">function</span> pass(...)
+
+		<span class="keyword">if</span> ... == <span class="keyword">nil</span> <span class="keyword">then</span> done = <span class="keyword">true</span> <span class="keyword">return</span> s:sub(i) <span class="keyword">end</span>
+
+		i = <span class="library">select</span>(<span class="library">select</span>(<span class="string">'#'</span>,...),...)
+
+		<span class="keyword">return</span> ...
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">return</span> <span class="keyword">function</span>()
+
+		<span class="keyword">if</span> done <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+		<span class="keyword">if</span> s == <span class="string">''</span> <span class="keyword">or</span> sep == <span class="string">''</span> <span class="keyword">then</span> done = <span class="keyword">true</span> <span class="keyword">return</span> s <span class="keyword">end</span>
+
+		<span class="keyword">return</span> pass(g())
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+The problem with the above implementation is that however easy to read, the (.-) pattern in Lua has awful performance, hence the following implementation based on only string.find (allows for captures in the separator and adds a third argument "plain", similar to string.find):
+<p>
+<pre class="code">
+<span class="keyword">function</span> <span class="library">string.gsplit</span>(s, sep, plain)
+
+	<span class="keyword">local</span> start = 1
+
+	<span class="keyword">local</span> done = <span class="keyword">false</span>
+
+	<span class="keyword">local</span> <span class="keyword">function</span> pass(i, j, ...)
+
+		<span class="keyword">if</span> i <span class="keyword">then</span>
+
+			<span class="keyword">local</span> seg = s:sub(start, i - 1)
+
+			start = j + 1
+
+			<span class="keyword">return</span> seg, ...
+
+		<span class="keyword">else</span>
+
+			done = <span class="keyword">true</span>
+
+			<span class="keyword">return</span> s:sub(start)
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">return</span> <span class="keyword">function</span>()
+
+		<span class="keyword">if</span> done <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+		<span class="keyword">if</span> sep == <span class="string">''</span> <span class="keyword">then</span> done = <span class="keyword">true</span> <span class="keyword">return</span> s <span class="keyword">end</span>
+
+		<span class="keyword">return</span> pass(s:find(sep, start, plain))
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+Unit testing:
+<p>
+<pre>
+
+local function test(s,sep,expect)
+
+	local t={} for c in s:gsplit(sep) do table.insert(t,c) end
+
+	assert(#t == #expect)
+
+	for i=1,#t do assert(t[i] == expect[i]) end
+
+	test(t, expect)
+
+end
+
+test('','',{''})
+
+test('','asdf',{''})
+
+test('asdf','',{'asdf'})
+
+test('', ',', {''})
+
+test(',', ',', {'',''})
+
+test('a', ',', {'a'})
+
+test('a,b', ',', {'a','b'})
+
+test('a,b,', ',', {'a','b',''})
+
+test(',a,b', ',', {'','a','b'})
+
+test(',a,b,', ',', {'','a','b',''})
+
+test(',a,,b,', ',', {'','a','','b',''})
+
+test('a,,b', ',', {'a','','b'})
+
+test('asd  ,   fgh  ,;  qwe, rty.   ,jkl', '%s*[,.;]%s*', {'asd','fgh','','qwe','rty','','jkl'})
+
+test('Spam eggs spam spam and ham', 'spam', {'Spam eggs ',' ',' and ham'})
+
+</pre>
+<p>
+(<a href="../wiki/CosminApreutesei.html" >CosminApreutesei</a>)
+<p>
+<hr><pre>
+
+
+
+-- single char string splitter, sep *must* be a single char pattern
+
+-- *probably* escaped with % if it has any special pattern meaning, eg "%." not "."
+
+-- so good for splitting paths on "/" or "%." which is a common need
+
+
+
+local function csplit(str,sep)
+
+        local ret={}
+
+        local n=1
+
+        for w in str:gmatch("([^"..sep.."]*)") do
+
+                        ret[n]=ret[n] or w -- only set once (so the blank after a string is ignored)
+
+                        if w=="" then n=n+1 end -- step forwards on a blank but not a string
+
+        end
+
+        return ret
+
+end
+
+
+
+-- the following is true of any string, csplit will do the reverse of a concat
+
+
+
+local str=""
+
+print(str , assert( table.concat( csplit(str,"/") , "/" ) == str ) )
+
+
+
+local str="only"
+
+print(str , assert( table.concat( csplit(str,"/") , "/" ) == str ) )
+
+
+
+local str="/test//ok/"
+
+print(str , assert( table.concat( csplit(str,"/") , "/" ) == str ) )
+
+
+
+local str=".test..ok."
+
+print(str , assert( table.concat( csplit(str,"%.") , "." ) == str ) )
+
+
+
+</pre>
+<p>
+<hr><H3>Comparison to Other Languages</H3>
+<p>
+<UL>
+<li> <a href="http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-262.pdf">[7]</a> ECMA <a href="../wiki/JavaScript.html" >JavaScript</a> "15.5.4.14 String.prototype.split (separator, limit)"
+<li> <a href="http://perldoc.perl.org/functions/split.html">[8]</a> Perl split
+<li> <a href="http://en.wikipedia.org/wiki/Comparison_of_programming_languages_%28string_functions%29#split.html">[9]</a> Wikipedia: Comparison_of_programming_languages_(string_functions)#split
+</UL>
+<p>
+<H3>User Comments</H3>
+<p>
+<em>I mean no disrespect, of course, but.. does anyone actually have a working split function without glitches like infinite loops, wrong matches, or error cases? Are all those "takes" of any help here? -- <a href="../wiki/CosminApreutesei.html" >CosminApreutesei</a></em>
+<p>
+<em>Try Rici Lake's split function: <a href="/lists/lua-l/2006-12/msg00414.html">LuaList:2006-12/msg00414.html</a> -- Jörg Richter</em>
+<p>
+<DL>
+<dt><dd>That version fails again when the pattern is an empty string.  Specifications for split functions in other languages define how these corner cases should behave (see "Comparison to Other Languages" above). --David Manura
+</DL>
+<p>
+<H3>See Also</H3>
+<UL>
+<li> table.concat<a href="http://www.lua.org/manual/5.1/manual.html#pdf-table.concat">[3]</a>
+<li> <a href="../wiki/StringRecipes.html" >StringRecipes</a>
+<li> An LPeg example "Splitting a String"<a href="http://www.inf.puc-rio.br/~roberto/lpeg.html#ex">[10]</a>.
+<li> Split code by <a href="../wiki/RiciLake.html" >RiciLake</a>: <a href="/lists/lua-l/2006-12/msg00414.html">LuaList:2006-12/msg00414.html</a>
+<li> <a href="../wiki/MakingLuaLikePhp.html" >MakingLuaLikePhp</a> (explode function)
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SplitJoin" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SplitJoin" >history</a><br>Last edited May 11, 2013 8:10 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SplitJoin" >(diff)</a>
+</body>
+</html>

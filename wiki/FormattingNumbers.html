@@ -1,0 +1,287 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Formatting Numbers</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FormattingNumbers&amp;body=1" title="List pages referring to FormattingNumbers">Formatting Numbers</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following implementation provides a function '<code>format_num</code>' that allows one to format numbers as monetary values, e.g 12000000 as $12,000,000.00.  This can be useful to format numeric values in reports.
+<p>
+Alternative code further down.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- from sam_lie</span>
+
+<span class="comment">-- Compatible with Lua 5.0 and 5.1.</span>
+
+<span class="comment">-- Disclaimer : use at own risk especially for hedge fund reports :-)</span>
+
+
+
+<span class="comment">---============================================================</span>
+
+<span class="comment">-- add comma to separate thousands</span>
+
+<span class="comment">-- </span>
+
+<span class="keyword">function</span> comma_value(amount)
+
+  <span class="keyword">local</span> formatted = amount
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>  
+
+    formatted, k = <span class="library">string.gsub</span>(formatted, <span class="string">"^(-?%d+)(%d%d%d)"</span>, <span class="string">'%1,%2'</span>)
+
+    <span class="keyword">if</span> (k==0) <span class="keyword">then</span>
+
+      <span class="keyword">break</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> formatted
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">---============================================================</span>
+
+<span class="comment">-- rounds a number to the nearest decimal places</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">function</span> round(val, decimal)
+
+  <span class="keyword">if</span> (decimal) <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="library">math.floor</span>( (val * 10^decimal) + 0.5) / (10^decimal)
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">return</span> <span class="library">math.floor</span>(val+0.5)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--===================================================================</span>
+
+<span class="comment">-- given a numeric value formats output with comma to separate thousands</span>
+
+<span class="comment">-- and rounded to given decimal places</span>
+
+<span class="comment">--</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">function</span> format_num(amount, decimal, prefix, neg_prefix)
+
+  <span class="keyword">local</span> str_amount,  formatted, famount, remain
+
+
+
+  decimal = decimal <span class="keyword">or</span> 2  <span class="comment">-- default 2 decimal places</span>
+
+  neg_prefix = neg_prefix <span class="keyword">or</span> <span class="string">"-"</span> <span class="comment">-- default negative sign</span>
+
+
+
+  famount = <span class="library">math.abs</span>(round(amount,decimal))
+
+  famount = <span class="library">math.floor</span>(famount)
+
+
+
+  remain = round(<span class="library">math.abs</span>(amount) - famount, decimal)
+
+
+
+        <span class="comment">-- comma to separate the thousands</span>
+
+  formatted = comma_value(famount)
+
+
+
+        <span class="comment">-- attach the decimal portion</span>
+
+  <span class="keyword">if</span> (decimal &gt; 0) <span class="keyword">then</span>
+
+    remain = <span class="library">string.sub</span>(<span class="library">tostring</span>(remain),3)
+
+    formatted = formatted .. <span class="string">"."</span> .. remain ..
+
+                <span class="library">string.rep</span>(<span class="string">"0"</span>, decimal - <span class="library">string.len</span>(remain))
+
+  <span class="keyword">end</span>
+
+
+
+        <span class="comment">-- attach prefix string e.g '$' </span>
+
+  formatted = (prefix <span class="keyword">or</span> <span class="string">""</span>) .. formatted 
+
+
+
+        <span class="comment">-- if value is negative then format accordingly</span>
+
+  <span class="keyword">if</span> (amount&lt;0) <span class="keyword">then</span>
+
+    <span class="keyword">if</span> (neg_prefix==<span class="string">"()"</span>) <span class="keyword">then</span>
+
+      formatted = <span class="string">"("</span>..formatted ..<span class="string">")"</span>
+
+    <span class="keyword">else</span>
+
+      formatted = neg_prefix .. formatted 
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> formatted
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+amount = 1333444.1
+
+<span class="library">print</span>(format_num(amount,2))
+
+<span class="library">print</span>(format_num(amount,-2,<span class="string">"US$"</span>))
+
+
+
+amount = -22333444.5634
+
+<span class="library">print</span>(format_num(amount,2,<span class="string">"$"</span>))
+
+<span class="library">print</span>(format_num(amount,2,<span class="string">"$"</span>,<span class="string">"()"</span>))
+
+<span class="library">print</span>(format_num(amount,3,<span class="string">"$"</span>,<span class="string">"NEG "</span>))
+
+</pre>
+
+</DL>
+<p>
+Output:
+<p>
+<DL>
+<dt><dd><pre>
+
+1,333,444.10
+
+US$1,333,400
+
+-$22,333,444.56
+
+($22,333,444.56)
+
+NEG $22,333,444.563
+
+</pre>
+</DL>
+<p>
+<a href="../wiki/RichardWarburton.html" >RichardWarburton</a> alternate version:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> comma_value(n) <span class="comment">-- credit http://richard.warburton.it</span>
+
+	<span class="keyword">local</span> left,num,right = <span class="library">string.match</span>(n,<span class="string">'^([^%d]*%d)(%d*)(.-)$'</span>)
+
+	<span class="keyword">return</span> left..(num:reverse():gsub(<span class="string">'(%d%d%d)'</span>,<span class="string">'%1,'</span>):reverse())..right
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(comma_value(9))
+
+<span class="library">print</span>(comma_value(999))
+
+<span class="library">print</span>(comma_value(1000))
+
+<span class="library">print</span>(comma_value(<span class="string">'1333444.10'</span>))
+
+<span class="library">print</span>(comma_value(<span class="string">'US$1333400'</span>))
+
+<span class="library">print</span>(comma_value(<span class="string">'-$22333444.56'</span>))
+
+<span class="library">print</span>(comma_value(<span class="string">'($22333444.56)'</span>))
+
+<span class="library">print</span>(comma_value(<span class="string">'NEG $22333444.563'</span>))
+
+</pre>
+
+</DL>
+<p>
+Output:
+<p>
+<DL>
+<dt><dd><pre>
+
+9
+
+999
+
+1,000
+
+1,333,444.10
+
+US$1,333,400
+
+-$22,333,444.56
+
+($22,333,444.56)
+
+NEG $22,333,444.563
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FormattingNumbers" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FormattingNumbers" >history</a><br>Last edited April 20, 2011 10:06 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FormattingNumbers" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,1616 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lpeg Recipes</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LpegRecipes&amp;body=1" title="List pages referring to LpegRecipes">Lpeg Recipes</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua recipes for LPeg (<a href="../wiki/LuaPeg.html" >LuaPeg</a>), a new pattern-matching library for Lua.
+<p>
+See <a href="../wiki/LpegTutorial.html" >LpegTutorial</a> for an introduction.
+<p>
+Place examples of Lua code using LPeg for parsing to help further the understanding of how to use parsing expression grammars.
+<p>
+<H2>Number Patterns</H2>
+<p>
+Written by Caleb Place of Gymbyl Coding
+<p>
+A table of number patterns to use for matching.
+<p>
+<pre class="code">
+<span class="keyword">local</span> number = {}
+
+
+
+<span class="keyword">local</span> digit = R(<span class="string">"09"</span>)
+
+
+
+<span class="comment">-- Matches: 10, -10, 0</span>
+
+number.integer =
+
+	(S(<span class="string">"+-"</span>) ^ -1) *
+
+	(digit   ^  1)
+
+
+
+<span class="comment">-- Matches: .6, .899, .9999873</span>
+
+number.fractional =
+
+	(P(<span class="string">"."</span>)   ) *
+
+	(digit ^ 1)
+
+
+
+<span class="comment">-- Matches: 55.97, -90.8, .9 </span>
+
+number.decimal =	
+
+	(number.integer *              <span class="comment">-- Integer</span>
+
+	(number.fractional ^ -1)) +    <span class="comment">-- Fractional</span>
+
+	(S(<span class="string">"+-"</span>) * number.fractional)  <span class="comment">-- Completely fractional number</span>
+
+
+
+<span class="comment">-- Matches: 60.9e07, 9e-4, 681E09 </span>
+
+number.scientific = 
+
+	number.decimal * <span class="comment">-- Decimal number</span>
+
+	S(<span class="string">"Ee"</span>) *        <span class="comment">-- E or e</span>
+
+	number.integer   <span class="comment">-- Exponent</span>
+
+
+
+<span class="comment">-- Matches all of the above</span>
+
+number.number =
+
+	number.decimal + number.scientific <span class="comment">-- Decimal number allows for everything else, and scientific matches scientific</span>
+
+</pre>
+
+<p>
+<H2>C Comment Parser</H2>
+<pre class="code">
+<span class="keyword">local</span> BEGIN_COMMENT = lpeg.P(<span class="string">"/*"</span>)
+
+<span class="keyword">local</span> END_COMMENT = lpeg.P(<span class="string">"*/"</span>)
+
+<span class="keyword">local</span> NOT_BEGIN = (1 - BEGIN_COMMENT)^0
+
+<span class="keyword">local</span> NOT_END = (1 - END_COMMENT)^0
+
+<span class="keyword">local</span> FULL_COMMENT_CONTENTS = BEGIN_COMMENT * NOT_END * END_COMMENT
+
+
+
+<span class="comment">-- Parser to find comments from a string</span>
+
+<span class="keyword">local</span> searchParser = (NOT_BEGIN * lpeg.C(FULL_COMMENT_CONTENTS))^0
+
+<span class="comment">-- Parser to find non-comments from a string</span>
+
+<span class="keyword">local</span> filterParser = (lpeg.C(NOT_BEGIN) * FULL_COMMENT_CONTENTS)^0 * lpeg.C(NOT_BEGIN)
+
+
+
+<span class="comment">-- Simpler version, although empirically it is slower.... (why?) ... any optimization</span>
+
+<span class="comment">-- suggestions are desired as well as optimum integration w/ C++ comments and other</span>
+
+<span class="comment">-- syntax elements</span>
+
+<span class="keyword">local</span> searchParser = (lpeg.C(FULL_COMMENT_CONTENTS) + 1)^0
+
+<span class="comment">-- Suggestion by Roberto to make the search faster</span>
+
+<span class="comment">-- Works because it loops fast over all non-slashes, then it begins the slower match phase</span>
+
+<span class="keyword">local</span> searchParser = ((1 - lpeg.P<span class="string">"/"</span>)^0 * (lpeg.C(FULL_COMMENT_CONTENTS) + 1))^0
+
+</pre>
+
+<p>
+<H2>Evaluate Standard Roman Numerals</H2>
+The numeral is given in the variable <code>text</code>.
+<pre class="code">
+<span class="keyword">do</span>
+
+<span class="keyword">local</span> add = <span class="keyword">function</span> (x,y) <span class="keyword">return</span> x+y <span class="keyword">end</span>
+
+<span class="keyword">local</span> P,Ca,Cc= lpeg.P,lpeg.Ca,lpeg.Cc
+
+<span class="keyword">local</span> symbols = { I=1,V=5,X=10,L=50,C=100,D=500,M=1000,
+
+   IV=4,IX=9,XL=40,XC=90,CD=400,CM=900}
+
+<span class="keyword">local</span> env = <span class="library">getfenv</span>(1)
+
+<span class="keyword">for</span> s,n <span class="keyword">in</span> <span class="library">pairs</span>(symbols) <span class="keyword">do</span> env[s:lower()] = P(s)*Cc(n)/add <span class="keyword">end</span>
+
+<span class="library">setfenv</span>(1,env)
+
+<span class="keyword">local</span> MS = m^0
+
+<span class="keyword">local</span> CS = (d*c^(-4)+cd+cm+c^(-4))^(-1)
+
+<span class="keyword">local</span> XS = (l*x^(-4)+xl+xc+x^(-4))^(-1)
+
+<span class="keyword">local</span> IS = (v*i^(-4)+ix+iv+i^(-4))^(-1)
+
+<span class="keyword">local</span> p = Ca(Cc(0)*MS*CS*XS*IS)
+
+<span class="keyword">local</span> result = p:match(text:upper())
+
+<span class="library">print</span>(result <span class="keyword">or</span> <span class="string">"?"</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<H2>Match Sequences of Consecutive Integers</H2>
+Needs Lpeg version 8.
+<pre class="code">
+<span class="keyword">do</span>
+
+<span class="keyword">local</span> C,Cb,Cmt,R,S = lpeg.C,lpeg.Cb,lpeg.Cmt,lpeg.R,lpeg.S
+
+<span class="keyword">local</span> some = <span class="keyword">function</span> (p) <span class="keyword">return</span> (p+1)^1 <span class="keyword">end</span>
+
+<span class="keyword">local</span> digit,space = R <span class="string">"09"</span>,S <span class="string">" "</span>
+
+<span class="keyword">local</span> num = C(digit^1)/<span class="library">tonumber</span>
+
+<span class="keyword">local</span> check = Cmt(Cb(1)*num,<span class="keyword">function</span> (s,i,x,y)
+
+      <span class="keyword">if</span> y == x+1 <span class="keyword">then</span> <span class="keyword">return</span> i,y <span class="keyword">end</span> <span class="keyword">end</span>)
+
+<span class="keyword">local</span> monotone = some(C(num*(space^1*check)^0))
+
+<span class="keyword">local</span> m = monotone:match(text)
+
+<span class="library">print</span> (m <span class="keyword">or</span> <span class="string">"?"</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<H2>Match a list of integers or ranges</H2>
+Recognise a list of integer values or ranges of integer values.
+<p>
+Return a table containing
+<UL>
+<li> for each individual integer, a table of length 1
+<li> for each range, a table of length 2, giving the limits of the range
+</UL>
+<p>
+Return nil if no integer values or ranges are found
+<p>
+<H3>Examples</H3>
+<p>
+<UL>
+<li> '1'       --&gt; { {1} }
+<li> '1-5'     --&gt; { {1, 5} }
+<li> '1,2,3'   --&gt; { {1}, {2}, {3} }
+<li> '1,4-8'   --&gt; { {1}, {4, 8 } }
+<li> '4-8,4,8' --&gt; { {4, 8}, {4}, {8} }
+<li> '6-2'     --&gt; { {6, 2} }
+</UL>
+<p>
+<pre class="code">
+<span class="keyword">local</span> re = <span class="library">require</span> <span class="string">'re'</span>
+
+
+
+<span class="keyword">local</span> list_parser = re.compile <span class="string">[[
+
+   list &lt;- ( singleint_or_range ( ',' singleint_or_range ) * ) -&gt; {}
+
+   singleint_or_range &lt;- range / singleint
+
+   singleint &lt;- { int } -&gt; {}
+
+   range &lt;- ( { int } '-' { int } ) -&gt; {}
+
+   int &lt;- %d+
+
+]]</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> parse_list(list_string)
+
+   <span class="keyword">local</span> t = list_parser:match(list_string)
+
+   <span class="comment">-- further processing to remove overlaps, duplicates, sort into ascending order, etc</span>
+
+   <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<p>
+<H2>Match a fixed number of repetitions of a pattern</H2>
+Matching a precise number of occurrences of a certain pattern. -- ValeriuPalos<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ValeriuPalos" >?</a>
+<pre class="code">
+<span class="keyword">function</span> multiply_pattern(item, count)
+
+    <span class="keyword">return</span> lpeg.Cmt(lpeg.P(<span class="keyword">true</span>),
+
+               <span class="keyword">function</span>(s, i)
+
+                   <span class="keyword">local</span> set, offset = {}, i
+
+                   <span class="keyword">for</span> j = 1, count <span class="keyword">do</span>
+
+                       set[j], offset = lpeg.match(item * lpeg.Cp(), s, offset)
+
+                       <span class="keyword">if</span> <span class="keyword">not</span> offset <span class="keyword">then</span>
+
+                           <span class="keyword">return</span> <span class="keyword">false</span>
+
+                       <span class="keyword">end</span>
+
+                   <span class="keyword">end</span>
+
+                   <span class="keyword">return</span> offset, set
+
+               <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+A detailed explanation <a href="http://valeriu.palos.ro/755/case-study-fixed-number-of-iterations-with-lpeg/">[is described here]</a> along with a method to match between a minimum and a maximum number of pattern occurrences.
+<p>
+<H2>Lua Lexer</H2>
+<p>
+This is a Lua lexer in LPeg.  The original author is <a href="../wiki/PeterOdding.html" >PeterOdding</a>.  This lexer eventually became <a href="http://peterodding.com/code/lua/lxsh/">[LXSH]</a> which includes Lua and C lexers and syntax highlighters.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--[[
+
+
+
+= ABOUT
+
+This module uses Roberto Ierusalimschy's powerful new pattern matching library
+
+LPeg[1] to tokenize Lua source-code in to a table of tokens. I think it handles
+
+all of Lua's syntax, but if you find anything missing I would appreciate a mail
+
+at peter@peterodding.com. This lexer is based on the BNF[2] from the Lua manual.
+
+
+
+= USAGE
+
+I've saved my copy of this module under [$LUA_PATH/lexers/lua.lua] which means
+
+I can use it like in the following interactive prompt:
+
+
+
+   Lua 5.1.1  Copyright (C) 1994-2006 Lua.org, PUC-Rio
+
+   &gt; require 'lexers.lua'
+
+   &gt; tokens = lexers.lua [=[
+
+   &gt;&gt; 42 or 0
+
+   &gt;&gt; -- some Lua source-code in a string]=]
+
+   &gt; = tokens
+
+   table: 00422E40
+
+   &gt; lexers.lua.print(tokens)
+
+   line 1, number: `42`
+
+   line 1, whitespace: ` `
+
+   line 1, keyword: `or`
+
+   line 1, whitespace: ` `
+
+   line 1, number: `0`
+
+   line 1, whitespace: `
+
+   `
+
+   line 2, comment: `-- some Lua source-code in a string`
+
+   total of 7 tokens, 2 lines
+
+
+
+The returned table [tokens] looks like this:
+
+
+
+{
+
+   -- type       , text, line
+
+   { 'number'    , '42', 1 },
+
+   { 'whitespace', ' ' , 1 },
+
+   { 'keyword'   , 'or', 1 },
+
+   { 'whitespace', ' ' , 1 },
+
+   { 'number'    , '0' , 1 },
+
+   { 'whitespace', '\n', 1 },
+
+   { 'comment'   , '-- some Lua source-code in a string', 2 },
+
+}
+
+
+
+= CREDITS
+
+Written by Peter Odding, 2007/04/04
+
+
+
+= THANKS TO
+
+- the Lua authors for a wonderful language;
+
+- Roberto for LPeg;
+
+- caffeine for keeping me awake :)
+
+
+
+= LICENSE
+
+Shamelessly ripped from the SQLite[3] project:
+
+
+
+   The author disclaims copyright to this source code.  In place of a legal
+
+   notice, here is a blessing:
+
+
+
+      May you do good and not evil.
+
+      May you find forgiveness for yourself and forgive others.
+
+      May you share freely, never taking more than you give.
+
+
+
+[1] http://www.inf.puc-rio.br/~roberto/lpeg.html
+
+[2] http://lua.org/manual/5.1/manual.html#8
+
+[3] http://sqlite.org
+
+
+
+--]]</span>
+
+
+
+<span class="comment">-- since this module is intended to be loaded with require() we receive the</span>
+
+<span class="comment">-- name used to load us in ... and pass it on to module()</span>
+
+<span class="library">module</span>(..., <span class="library">package.seeall</span>)
+
+
+
+<span class="comment">-- written for LPeg .5, by the way</span>
+
+<span class="keyword">local</span> lpeg = <span class="library">require</span> <span class="string">'lpeg'</span>
+
+<span class="keyword">local</span> P, R, S, C, Cc, Ct = lpeg.P, lpeg.R, lpeg.S, lpeg.C, lpeg.Cc, lpeg.Ct
+
+
+
+<span class="comment">-- create a pattern which captures the lua value [id] and the input matching</span>
+
+<span class="comment">-- [patt] in a table</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> token(id, patt) <span class="keyword">return</span> Ct(Cc(id) * C(patt)) <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> digit = R(<span class="string">'09'</span>)
+
+
+
+<span class="comment">-- range of valid characters after first character of identifier</span>
+
+<span class="keyword">local</span> idsafe = R(<span class="string">'AZ'</span>, <span class="string">'az'</span>, <span class="string">'\127\255'</span>) + P <span class="string">'_'</span>
+
+
+
+<span class="comment">-- operators</span>
+
+<span class="keyword">local</span> operator = token(<span class="string">'operator'</span>, P <span class="string">'=='</span> + P <span class="string">'~='</span> + P <span class="string">'&lt;='</span> + P <span class="string">'&gt;='</span> + P <span class="string">'...'</span>
+
+                                          + P <span class="string">'..'</span> + S <span class="string">'+-*/%^#=&lt;&gt;;:,.{}[]()'</span>)
+
+<span class="comment">-- identifiers</span>
+
+<span class="keyword">local</span> ident = token(<span class="string">'identifier'</span>, idsafe * (idsafe + digit + P <span class="string">'.'</span>) ^ 0)
+
+
+
+<span class="comment">-- keywords</span>
+
+<span class="keyword">local</span> keyword = token(<span class="string">'keyword'</span>, (P <span class="string">'and'</span> + P <span class="string">'break'</span> + P <span class="string">'do'</span> + P <span class="string">'else'</span> +
+
+   P <span class="string">'elseif'</span> + P <span class="string">'end'</span> + P <span class="string">'false'</span> + P <span class="string">'for'</span> + P <span class="string">'function'</span> + P <span class="string">'if'</span> +
+
+   P <span class="string">'in'</span> + P <span class="string">'local'</span> + P <span class="string">'nil'</span> + P <span class="string">'not'</span> + P <span class="string">'or'</span> + P <span class="string">'repeat'</span> + P <span class="string">'return'</span> +
+
+   P <span class="string">'then'</span> + P <span class="string">'true'</span> + P <span class="string">'until'</span> + P <span class="string">'while'</span>) * -(idsafe + digit))
+
+
+
+<span class="comment">-- numbers</span>
+
+<span class="keyword">local</span> number_sign = S<span class="string">'+-'</span>^-1
+
+<span class="keyword">local</span> number_decimal = digit ^ 1
+
+<span class="keyword">local</span> number_hexadecimal = P <span class="string">'0'</span> * S <span class="string">'xX'</span> * R(<span class="string">'09'</span>, <span class="string">'AF'</span>, <span class="string">'af'</span>) ^ 1
+
+<span class="keyword">local</span> number_float = (digit^1 * P<span class="string">'.'</span> * digit^0 + P<span class="string">'.'</span> * digit^1) *
+
+                     (S<span class="string">'eE'</span> * number_sign * digit^1)^-1
+
+<span class="keyword">local</span> number = token(<span class="string">'number'</span>, number_hexadecimal +
+
+                               number_float +
+
+                               number_decimal)
+
+
+
+<span class="comment">-- callback for [=[ long strings ]=]</span>
+
+<span class="comment">-- ps. LPeg is for Lua what regex is for Perl, which makes me smile :)</span>
+
+<span class="keyword">local</span> longstring = #(P <span class="string">'[['</span> + (P <span class="string">'['</span> * P <span class="string">'='</span> ^ 0 * P <span class="string">'['</span>))
+
+<span class="keyword">local</span> longstring = longstring * P(<span class="keyword">function</span>(input, index)
+
+   <span class="keyword">local</span> level = input:match(<span class="string">'^%[(=*)%['</span>, index)
+
+   <span class="keyword">if</span> level <span class="keyword">then</span>
+
+      <span class="keyword">local</span> _, stop = input:find(<span class="string">']'</span> .. level .. <span class="string">']'</span>, index, <span class="keyword">true</span>)
+
+      <span class="keyword">if</span> stop <span class="keyword">then</span> <span class="keyword">return</span> stop + 1 <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>)
+
+
+
+<span class="comment">-- strings</span>
+
+<span class="keyword">local</span> singlequoted_string = P <span class="string">"'"</span> * ((1 - S <span class="string">"'\r\n\f\\"</span>) + (P <span class="string">'\\'</span> * 1)) ^ 0 * <span class="string">"'"</span>
+
+<span class="keyword">local</span> doublequoted_string = P <span class="string">'"'</span> * ((1 - S <span class="string">'"\r\n\f\\'</span>) + (P <span class="string">'\\'</span> * 1)) ^ 0 * <span class="string">'"'</span>
+
+<span class="keyword">local</span> <span class="library">string</span> = token(<span class="string">'string'</span>, singlequoted_string +
+
+                               doublequoted_string +
+
+                               longstring)
+
+
+
+<span class="comment">-- comments</span>
+
+<span class="keyword">local</span> singleline_comment = P <span class="string">'--'</span> * (1 - S <span class="string">'\r\n\f'</span>) ^ 0
+
+<span class="keyword">local</span> multiline_comment = P <span class="string">'--'</span> * longstring
+
+<span class="keyword">local</span> comment = token(<span class="string">'comment'</span>, multiline_comment + singleline_comment)
+
+
+
+<span class="comment">-- whitespace</span>
+
+<span class="keyword">local</span> whitespace = token(<span class="string">'whitespace'</span>, S(<span class="string">'\r\n\f\t '</span>)^1)
+
+
+
+<span class="comment">-- ordered choice of all tokens and last-resort error which consumes one character</span>
+
+<span class="keyword">local</span> any_token = whitespace + number + keyword + ident +
+
+                  <span class="library">string</span> + comment + operator + token(<span class="string">'error'</span>, 1)
+
+
+
+<span class="comment">-- private interface</span>
+
+<span class="keyword">local</span> table_of_tokens = Ct(any_token ^ 0)
+
+
+
+<span class="comment">-- increment [line] by the number of line-ends in [text]</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> sync(line, text)
+
+   <span class="keyword">local</span> index, limit = 1, #text
+
+   <span class="keyword">while</span> index &lt;= limit <span class="keyword">do</span>
+
+      <span class="keyword">local</span> start, stop = text:find(<span class="string">'\r\n'</span>, index, <span class="keyword">true</span>)
+
+      <span class="keyword">if</span> <span class="keyword">not</span> start <span class="keyword">then</span>
+
+         start, stop = text:find(<span class="string">'[\r\n\f]'</span>, index)
+
+         <span class="keyword">if</span> <span class="keyword">not</span> start <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+      index = stop + 1
+
+      line = line + 1
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> line
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- we only need to synchronize the line-counter for these token types</span>
+
+<span class="keyword">local</span> multiline_tokens = { comment = <span class="keyword">true</span>, <span class="library">string</span> = <span class="keyword">true</span>, whitespace = <span class="keyword">true</span> }
+
+
+
+<span class="comment">-- public interface</span>
+
+<span class="library">getmetatable</span>(<span class="library">getfenv</span>(1)).__call = <span class="keyword">function</span>(self, input)
+
+   <span class="library">assert</span>(<span class="library">type</span>(input) == <span class="string">'string'</span>, <span class="string">'bad argument #1 (expected string)'</span>)
+
+   <span class="keyword">local</span> line = 1
+
+   <span class="keyword">local</span> tokens = lpeg.match(table_of_tokens, input)
+
+   <span class="keyword">for</span> i, token <span class="keyword">in</span> <span class="library">pairs</span>(tokens) <span class="keyword">do</span>
+
+      token[3] = line
+
+      <span class="keyword">if</span> multiline_tokens[token[1]] <span class="keyword">then</span> line = sync(line, token[2]) <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> tokens
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- if you really want to try it out before writing any code :P</span>
+
+<span class="keyword">function</span> <span class="library">print</span>(tokens)
+
+   <span class="keyword">local</span> <span class="library">print</span>, format = <span class="library">_G</span>.print, <span class="library">_G</span>.string.format
+
+   <span class="keyword">for</span> _, token <span class="keyword">in</span> <span class="library">pairs</span>(tokens) <span class="keyword">do</span>
+
+      <span class="library">print</span>(format(<span class="string">'line %i, %s: `%s`'</span>, token[3], token[1], token[2]))
+
+   <span class="keyword">end</span>
+
+   <span class="library">print</span>(format(<span class="string">'total of %i tokens, %i lines'</span>, #tokens, tokens[#tokens][3]))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Lua Parser</H2>
+<p>
+A Lua 5.1 parser in LPeg. Improvements welcome. -- Patrick Donnelly (batrick)
+<p>
+<pre class="code">
+<span class="keyword">local</span> lpeg = <span class="library">require</span> <span class="string">"lpeg"</span>;
+
+
+
+<span class="keyword">local</span> locale = lpeg.locale();
+
+
+
+<span class="keyword">local</span> P, S, V = lpeg.P, lpeg.S, lpeg.V;
+
+
+
+<span class="keyword">local</span> C, Cb, Cc, Cg, Cs, Cmt =
+
+    lpeg.C, lpeg.Cb, lpeg.Cc, lpeg.Cg, lpeg.Cs, lpeg.Cmt;
+
+
+
+<span class="keyword">local</span> shebang = P <span class="string">"#"</span> * (P(1) - P <span class="string">"\n"</span>)^0 * P <span class="string">"\n"</span>;
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> K (k) <span class="comment">-- keyword</span>
+
+  <span class="keyword">return</span> P(k) * -(locale.alnum + P <span class="string">"_"</span>);
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> lua = P {
+
+  (shebang)^-1 * V <span class="string">"space"</span> * V <span class="string">"chunk"</span> * V <span class="string">"space"</span> * -P(1);
+
+
+
+  <span class="comment">-- keywords</span>
+
+
+
+  keywords = K <span class="string">"and"</span> + K <span class="string">"break"</span> + K <span class="string">"do"</span> + K <span class="string">"else"</span> + K <span class="string">"elseif"</span> +
+
+             K <span class="string">"end"</span> + K <span class="string">"false"</span> + K <span class="string">"for"</span> + K <span class="string">"function"</span> + K <span class="string">"if"</span> +
+
+             K <span class="string">"in"</span> + K <span class="string">"local"</span> + K <span class="string">"nil"</span> + K <span class="string">"not"</span> + K <span class="string">"or"</span> + K <span class="string">"repeat"</span> +
+
+             K <span class="string">"return"</span> + K <span class="string">"then"</span> + K <span class="string">"true"</span> + K <span class="string">"until"</span> + K <span class="string">"while"</span>;
+
+
+
+  <span class="comment">-- longstrings</span>
+
+
+
+  longstring = P { <span class="comment">-- from Roberto Ierusalimschy's lpeg examples</span>
+
+    V <span class="string">"open"</span> * C((P(1) - V <span class="string">"closeeq"</span>)^0) *
+
+        V <span class="string">"close"</span> / <span class="keyword">function</span> (o, s) <span class="keyword">return</span> s <span class="keyword">end</span>;
+
+
+
+    open = <span class="string">"["</span> * Cg((P <span class="string">"="</span>)^0, <span class="string">"init"</span>) * P <span class="string">"["</span> * (P <span class="string">"\n"</span>)^-1;
+
+    close = <span class="string">"]"</span> * C((P <span class="string">"="</span>)^0) * <span class="string">"]"</span>;
+
+    closeeq = Cmt(V <span class="string">"close"</span> * Cb <span class="string">"init"</span>, <span class="keyword">function</span> (s, i, a, b) <span class="keyword">return</span> a == b <span class="keyword">end</span>)
+
+  };
+
+
+
+  <span class="comment">-- comments &amp; whitespace</span>
+
+
+
+  comment = P <span class="string">"--"</span> * V <span class="string">"longstring"</span> +
+
+            P <span class="string">"--"</span> * (P(1) - P <span class="string">"\n"</span>)^0 * (P <span class="string">"\n"</span> + -P(1));
+
+
+
+  space = (locale.space + V <span class="string">"comment"</span>)^0;
+
+
+
+  <span class="comment">-- Types and Comments</span>
+
+
+
+  Name = (locale.alpha + P <span class="string">"_"</span>) * (locale.alnum + P <span class="string">"_"</span>)^0 - V <span class="string">"keywords"</span>;
+
+  Number = (P <span class="string">"-"</span>)^-1 * V <span class="string">"space"</span> * P <span class="string">"0x"</span> * locale.xdigit^1 *
+
+               -(locale.alnum + P <span class="string">"_"</span>) +
+
+           (P <span class="string">"-"</span>)^-1 * V <span class="string">"space"</span> * locale.digit^1 *
+
+               (P <span class="string">"."</span> * locale.digit^1)^-1 * (S <span class="string">"eE"</span> * (P <span class="string">"-"</span>)^-1 *
+
+                   locale.digit^1)^-1 * -(locale.alnum + P <span class="string">"_"</span>) +
+
+           (P <span class="string">"-"</span>)^-1 * V <span class="string">"space"</span> * P <span class="string">"."</span> * locale.digit^1 *
+
+               (S <span class="string">"eE"</span> * (P <span class="string">"-"</span>)^-1 * locale.digit^1)^-1 *
+
+               -(locale.alnum + P <span class="string">"_"</span>);
+
+  String = P <span class="string">"\""</span> * (P <span class="string">"\\"</span> * P(1) + (1 - P <span class="string">"\""</span>))^0 * P <span class="string">"\""</span> +
+
+           P <span class="string">"'"</span> * (P <span class="string">"\\"</span> * P(1) + (1 - P <span class="string">"'"</span>))^0 * P <span class="string">"'"</span> +
+
+           V <span class="string">"longstring"</span>;
+
+
+
+  <span class="comment">-- Lua Complete Syntax</span>
+
+
+
+  chunk = (V <span class="string">"space"</span> * V <span class="string">"stat"</span> * (V <span class="string">"space"</span> * P <span class="string">";"</span>)^-1)^0 *
+
+              (V <span class="string">"space"</span> * V <span class="string">"laststat"</span> * (V <span class="string">"space"</span> * P <span class="string">";"</span>)^-1)^-1;
+
+
+
+  block = V <span class="string">"chunk"</span>;
+
+
+
+  stat = K <span class="string">"do"</span> * V <span class="string">"space"</span> * V <span class="string">"block"</span> * V <span class="string">"space"</span> * K <span class="string">"end"</span> +
+
+         K <span class="string">"while"</span> * V <span class="string">"space"</span> * V <span class="string">"exp"</span> * V <span class="string">"space"</span> * K <span class="string">"do"</span> * V <span class="string">"space"</span> *
+
+             V <span class="string">"block"</span> * V <span class="string">"space"</span> * K <span class="string">"end"</span> +
+
+         K <span class="string">"repeat"</span> * V <span class="string">"space"</span> * V <span class="string">"block"</span> * V <span class="string">"space"</span> * K <span class="string">"until"</span> *
+
+             V <span class="string">"space"</span> * V <span class="string">"exp"</span> +
+
+         K <span class="string">"if"</span> * V <span class="string">"space"</span> * V <span class="string">"exp"</span> * V <span class="string">"space"</span> * K <span class="string">"then"</span> *
+
+             V <span class="string">"space"</span> * V <span class="string">"block"</span> * V <span class="string">"space"</span> *
+
+             (K <span class="string">"elseif"</span> * V <span class="string">"space"</span> * V <span class="string">"exp"</span> * V <span class="string">"space"</span> * K <span class="string">"then"</span> *
+
+              V <span class="string">"space"</span> * V <span class="string">"block"</span> * V <span class="string">"space"</span>
+
+             )^0 *
+
+             (K <span class="string">"else"</span> * V <span class="string">"space"</span> * V <span class="string">"block"</span> * V <span class="string">"space"</span>)^-1 * K <span class="string">"end"</span> +
+
+         K <span class="string">"for"</span> * V <span class="string">"space"</span> * V <span class="string">"Name"</span> * V <span class="string">"space"</span> * P <span class="string">"="</span> * V <span class="string">"space"</span> *
+
+             V <span class="string">"exp"</span> * V <span class="string">"space"</span> * P <span class="string">","</span> * V <span class="string">"space"</span> * V <span class="string">"exp"</span> *
+
+             (V <span class="string">"space"</span> * P <span class="string">","</span> * V <span class="string">"space"</span> * V <span class="string">"exp"</span>)^-1 * V <span class="string">"space"</span> *
+
+             K <span class="string">"do"</span> * V <span class="string">"space"</span> * V <span class="string">"block"</span> * V <span class="string">"space"</span> * K <span class="string">"end"</span> +
+
+         K <span class="string">"for"</span> * V <span class="string">"space"</span> * V <span class="string">"namelist"</span> * V <span class="string">"space"</span> * K <span class="string">"in"</span> * V <span class="string">"space"</span> *
+
+             V <span class="string">"explist"</span> * V <span class="string">"space"</span> * K <span class="string">"do"</span> * V <span class="string">"space"</span> * V <span class="string">"block"</span> *
+
+             V <span class="string">"space"</span> * K <span class="string">"end"</span> +
+
+         K <span class="string">"function"</span> * V <span class="string">"space"</span> * V <span class="string">"funcname"</span> * V <span class="string">"space"</span> *  V <span class="string">"funcbody"</span> +
+
+         K <span class="string">"local"</span> * V <span class="string">"space"</span> * K <span class="string">"function"</span> * V <span class="string">"space"</span> * V <span class="string">"Name"</span> *
+
+             V <span class="string">"space"</span> * V <span class="string">"funcbody"</span> +
+
+         K <span class="string">"local"</span> * V <span class="string">"space"</span> * V <span class="string">"namelist"</span> *
+
+             (V <span class="string">"space"</span> * P <span class="string">"="</span> * V <span class="string">"space"</span> * V <span class="string">"explist"</span>)^-1 +
+
+         V <span class="string">"varlist"</span> * V <span class="string">"space"</span> * P <span class="string">"="</span> * V <span class="string">"space"</span> * V <span class="string">"explist"</span> +
+
+         V <span class="string">"functioncall"</span>;
+
+
+
+  laststat = K <span class="string">"return"</span> * (V <span class="string">"space"</span> * V <span class="string">"explist"</span>)^-1 + K <span class="string">"break"</span>;
+
+
+
+  funcname = V <span class="string">"Name"</span> * (V <span class="string">"space"</span> * P <span class="string">"."</span> * V <span class="string">"space"</span> * V <span class="string">"Name"</span>)^0 *
+
+      (V <span class="string">"space"</span> * P <span class="string">":"</span> * V <span class="string">"space"</span> * V <span class="string">"Name"</span>)^-1;
+
+
+
+  namelist = V <span class="string">"Name"</span> * (V <span class="string">"space"</span> * P <span class="string">","</span> * V <span class="string">"space"</span> * V <span class="string">"Name"</span>)^0;
+
+
+
+  varlist = V <span class="string">"var"</span> * (V <span class="string">"space"</span> * P <span class="string">","</span> * V <span class="string">"space"</span> * V <span class="string">"var"</span>)^0;
+
+
+
+  <span class="comment">-- Let's come up with a syntax that does not use left recursion</span>
+
+  <span class="comment">-- (only listing changes to Lua 5.1 extended BNF syntax)</span>
+
+  <span class="comment">-- value ::= nil | false | true | Number | String | '...' | function |</span>
+
+  <span class="comment">--           tableconstructor | functioncall | var | '(' exp ')'</span>
+
+  <span class="comment">-- exp ::= unop exp | value [binop exp]</span>
+
+  <span class="comment">-- prefix ::= '(' exp ')' | Name</span>
+
+  <span class="comment">-- index ::= '[' exp ']' | '.' Name</span>
+
+  <span class="comment">-- call ::= args | ':' Name args</span>
+
+  <span class="comment">-- suffix ::= call | index</span>
+
+  <span class="comment">-- var ::= prefix {suffix} index | Name</span>
+
+  <span class="comment">-- functioncall ::= prefix {suffix} call</span>
+
+
+
+  <span class="comment">-- Something that represents a value (or many values)</span>
+
+  value = K <span class="string">"nil"</span> +
+
+          K <span class="string">"false"</span> +
+
+          K <span class="string">"true"</span> +
+
+          V <span class="string">"Number"</span> +
+
+          V <span class="string">"String"</span> +
+
+          P <span class="string">"..."</span> +
+
+          V <span class="string">"function"</span> +
+
+          V <span class="string">"tableconstructor"</span> +
+
+          V <span class="string">"functioncall"</span> +
+
+          V <span class="string">"var"</span> +
+
+          P <span class="string">"("</span> * V <span class="string">"space"</span> * V <span class="string">"exp"</span> * V <span class="string">"space"</span> * P <span class="string">")"</span>;
+
+
+
+  <span class="comment">-- An expression operates on values to produce a new value or is a value</span>
+
+  exp = V <span class="string">"unop"</span> * V <span class="string">"space"</span> * V <span class="string">"exp"</span> +
+
+        V <span class="string">"value"</span> * (V <span class="string">"space"</span> * V <span class="string">"binop"</span> * V <span class="string">"space"</span> * V <span class="string">"exp"</span>)^-1;
+
+
+
+  <span class="comment">-- Index and Call</span>
+
+  index = P <span class="string">"["</span> * V <span class="string">"space"</span> * V <span class="string">"exp"</span> * V <span class="string">"space"</span> * P <span class="string">"]"</span> +
+
+          P <span class="string">"."</span> * V <span class="string">"space"</span> * V <span class="string">"Name"</span>;
+
+  call = V <span class="string">"args"</span> +
+
+         P <span class="string">":"</span> * V <span class="string">"space"</span> * V <span class="string">"Name"</span> * V <span class="string">"space"</span> * V <span class="string">"args"</span>;
+
+
+
+  <span class="comment">-- A Prefix is a the leftmost side of a var(iable) or functioncall</span>
+
+  prefix = P <span class="string">"("</span> * V <span class="string">"space"</span> * V <span class="string">"exp"</span> * V <span class="string">"space"</span> * P <span class="string">")"</span> +
+
+           V <span class="string">"Name"</span>;
+
+  <span class="comment">-- A Suffix is a Call or Index</span>
+
+  suffix = V <span class="string">"call"</span> +
+
+           V <span class="string">"index"</span>;
+
+
+
+  var = V <span class="string">"prefix"</span> * (V <span class="string">"space"</span> * V <span class="string">"suffix"</span> * #(V <span class="string">"space"</span> * V <span class="string">"suffix"</span>))^0 *
+
+            V <span class="string">"space"</span> * V <span class="string">"index"</span> +
+
+        V <span class="string">"Name"</span>;
+
+  functioncall = V <span class="string">"prefix"</span> *
+
+                     (V <span class="string">"space"</span> * V <span class="string">"suffix"</span> * #(V <span class="string">"space"</span> * V <span class="string">"suffix"</span>))^0 *
+
+                 V <span class="string">"space"</span> * V <span class="string">"call"</span>;
+
+
+
+  explist = V <span class="string">"exp"</span> * (V <span class="string">"space"</span> * P <span class="string">","</span> * V <span class="string">"space"</span> * V <span class="string">"exp"</span>)^0;
+
+
+
+  args = P <span class="string">"("</span> * V <span class="string">"space"</span> * (V <span class="string">"explist"</span> * V <span class="string">"space"</span>)^-1 * P <span class="string">")"</span> +
+
+         V <span class="string">"tableconstructor"</span> +
+
+         V <span class="string">"String"</span>;
+
+
+
+  [<span class="string">"function"</span>] = K <span class="string">"function"</span> * V <span class="string">"space"</span> * V <span class="string">"funcbody"</span>;
+
+
+
+  funcbody = P <span class="string">"("</span> * V <span class="string">"space"</span> * (V <span class="string">"parlist"</span> * V <span class="string">"space"</span>)^-1 * P <span class="string">")"</span> *
+
+                 V <span class="string">"space"</span> *  V <span class="string">"block"</span> * V <span class="string">"space"</span> * K <span class="string">"end"</span>;
+
+
+
+  parlist = V <span class="string">"namelist"</span> * (V <span class="string">"space"</span> * P <span class="string">","</span> * V <span class="string">"space"</span> * P <span class="string">"..."</span>)^-1 +
+
+            P <span class="string">"..."</span>;
+
+
+
+  tableconstructor = P <span class="string">"{"</span> * V <span class="string">"space"</span> * (V <span class="string">"fieldlist"</span> * V <span class="string">"space"</span>)^-1 * P <span class="string">"}"</span>;
+
+
+
+  fieldlist = V <span class="string">"field"</span> * (V <span class="string">"space"</span> * V <span class="string">"fieldsep"</span> * V <span class="string">"space"</span> * V <span class="string">"field"</span>)^0
+
+                  * (V <span class="string">"space"</span> * V <span class="string">"fieldsep"</span>)^-1;
+
+
+
+  field = P <span class="string">"["</span> * V <span class="string">"space"</span> * V <span class="string">"exp"</span> * V <span class="string">"space"</span> * P <span class="string">"]"</span> * V <span class="string">"space"</span> * P <span class="string">"="</span> *
+
+              V <span class="string">"space"</span> * V <span class="string">"exp"</span> +
+
+          V <span class="string">"Name"</span> * V <span class="string">"space"</span> * P <span class="string">"="</span> * V <span class="string">"space"</span> * V <span class="string">"exp"</span> +
+
+          V <span class="string">"exp"</span>;
+
+
+
+  fieldsep = P <span class="string">","</span> +
+
+             P <span class="string">";"</span>;
+
+
+
+  binop = K <span class="string">"and"</span> + <span class="comment">-- match longest token sequences first</span>
+
+          K <span class="string">"or"</span> +
+
+          P <span class="string">".."</span> +
+
+          P <span class="string">"&lt;="</span> +
+
+          P <span class="string">"&gt;="</span> +
+
+          P <span class="string">"=="</span> +
+
+          P <span class="string">"~="</span> +
+
+          P <span class="string">"+"</span> +
+
+          P <span class="string">"-"</span> +
+
+          P <span class="string">"*"</span> +
+
+          P <span class="string">"/"</span> +
+
+          P <span class="string">"^"</span> +
+
+          P <span class="string">"%"</span> +
+
+          P <span class="string">"&lt;"</span> +
+
+          P <span class="string">"&gt;"</span>;
+
+
+
+  unop = P <span class="string">"-"</span> +
+
+         P <span class="string">"#"</span> +
+
+         K <span class="string">"not"</span>;
+
+};
+
+</pre>
+
+<p>
+Also see <a href="../wiki/LuaFish.html" >LuaFish</a>, Leg<a href="http://leg.luaforge.net/">[1]</a>, or the <a href="http://github.com/drahosp/TrollEdit/blob/master/data/grammars/lua_grammar.lua">[Lua parser in trolledit]</a>.
+<p>
+<H2>C Lexer</H2>
+<p>
+This lexes ANSI C.  Improvements welcome. --<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Lua LPeg lexer for C.</span>
+
+<span class="comment">-- Note:</span>
+
+<span class="comment">--   Does not handle C preprocessing macros.</span>
+
+<span class="comment">--   Not well tested.</span>
+
+<span class="comment">-- </span>
+
+<span class="comment">-- David Manura, 2007, public domain.  Based on ANSI C Lex</span>
+
+<span class="comment">--   specification in http://www.quut.com/c/ANSI-C-grammar-l-1998.html</span>
+
+<span class="comment">--   (Jutta Degener, 2006; Tom Stockfisch, 1987, Jeff Lee, 1985)</span>
+
+
+
+<span class="keyword">local</span> lpeg = <span class="library">require</span> <span class="string">'lpeg'</span>
+
+
+
+<span class="keyword">local</span> P, R, S, C =
+
+  lpeg.P, lpeg.R, lpeg.S, lpeg.C
+
+
+
+<span class="keyword">local</span> whitespace = S<span class="string">' \t\v\n\f'</span>
+
+
+
+<span class="keyword">local</span> digit = R<span class="string">'09'</span>
+
+<span class="keyword">local</span> letter = R(<span class="string">'az'</span>, <span class="string">'AZ'</span>) + P<span class="string">'_'</span>
+
+<span class="keyword">local</span> alphanum = letter + digit
+
+<span class="keyword">local</span> hex = R(<span class="string">'af'</span>, <span class="string">'AF'</span>, <span class="string">'09'</span>)
+
+<span class="keyword">local</span> exp = S<span class="string">'eE'</span> * S<span class="string">'+-'</span>^-1 * digit^1
+
+<span class="keyword">local</span> fs = S<span class="string">'fFlL'</span>
+
+<span class="keyword">local</span> is = S<span class="string">'uUlL'</span>^0
+
+
+
+<span class="keyword">local</span> hexnum = P<span class="string">'0'</span> * S<span class="string">'xX'</span> * hex^1 * is^-1
+
+<span class="keyword">local</span> octnum = P<span class="string">'0'</span> * digit^1 * is^-1
+
+<span class="keyword">local</span> decnum = digit^1 * is^-1
+
+<span class="keyword">local</span> floatnum = digit^1 * exp * fs^-1 +
+
+                 digit^0 * P<span class="string">'.'</span> * digit^1 * exp^-1 * fs^-1 +
+
+                 digit^1 * P<span class="string">'.'</span> * digit^0 * exp^-1 * fs^-1
+
+<span class="keyword">local</span> numlit = hexnum + octnum + floatnum + decnum
+
+
+
+<span class="keyword">local</span> charlit =
+
+  P<span class="string">'L'</span>^-1 * P<span class="string">"'"</span> * (P<span class="string">'\\'</span> * P(1) + (1 - S<span class="string">"\\'"</span>))^1 * P<span class="string">"'"</span>
+
+
+
+<span class="keyword">local</span> stringlit =
+
+  P<span class="string">'L'</span>^-1 * P<span class="string">'"'</span> * (P<span class="string">'\\'</span> * P(1) + (1 - S<span class="string">'\\"'</span>))^0 * P<span class="string">'"'</span>
+
+
+
+<span class="keyword">local</span> ccomment = P<span class="string">'/*'</span> * (1 - P<span class="string">'*/'</span>)^0 * P<span class="string">'*/'</span>
+
+<span class="keyword">local</span> newcomment = P<span class="string">'//'</span> * (1 - P<span class="string">'\n'</span>)^0
+
+<span class="keyword">local</span> comment = (ccomment + newcomment)
+
+              / <span class="keyword">function</span>(...) <span class="library">print</span>(<span class="string">'COMMENT'</span>, ...) <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> literal = (numlit + charlit + stringlit)
+
+              / <span class="keyword">function</span>(...) <span class="library">print</span>(<span class="string">'LITERAL'</span>, ...) <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> keyword = C(
+
+  P<span class="string">"auto"</span> + 
+
+  P<span class="string">"_Bool"</span> +
+
+  P<span class="string">"break"</span> +
+
+  P<span class="string">"case"</span> +
+
+  P<span class="string">"char"</span> +
+
+  P<span class="string">"_Complex"</span> +
+
+  P<span class="string">"const"</span> +
+
+  P<span class="string">"continue"</span> +
+
+  P<span class="string">"default"</span> +
+
+  P<span class="string">"do"</span> +
+
+  P<span class="string">"double"</span> +
+
+  P<span class="string">"else"</span> +
+
+  P<span class="string">"enum"</span> +
+
+  P<span class="string">"extern"</span> +
+
+  P<span class="string">"float"</span> +
+
+  P<span class="string">"for"</span> +
+
+  P<span class="string">"goto"</span> +
+
+  P<span class="string">"if"</span> +
+
+  P<span class="string">"_Imaginary"</span> +
+
+  P<span class="string">"inline"</span> +
+
+  P<span class="string">"int"</span> +
+
+  P<span class="string">"long"</span> +
+
+  P<span class="string">"register"</span> +
+
+  P<span class="string">"restrict"</span> +
+
+  P<span class="string">"return"</span> +
+
+  P<span class="string">"short"</span> +
+
+  P<span class="string">"signed"</span> +
+
+  P<span class="string">"sizeof"</span> +
+
+  P<span class="string">"static"</span> +
+
+  P<span class="string">"struct"</span> +
+
+  P<span class="string">"switch"</span> +
+
+  P<span class="string">"typedef"</span> +
+
+  P<span class="string">"union"</span> +
+
+  P<span class="string">"unsigned"</span> +
+
+  P<span class="string">"void"</span> +
+
+  P<span class="string">"volatile"</span> +
+
+  P<span class="string">"while"</span>
+
+) / <span class="keyword">function</span>(...) <span class="library">print</span>(<span class="string">'KEYWORD'</span>, ...) <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> identifier = (letter * alphanum^0 - keyword * (-alphanum))
+
+                 / <span class="keyword">function</span>(...) <span class="library">print</span>(<span class="string">'ID'</span>,...) <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> op = C(
+
+  P<span class="string">"..."</span> +
+
+  P<span class="string">"&gt;&gt;="</span> +
+
+  P<span class="string">"&lt;&lt;="</span> +
+
+  P<span class="string">"+="</span> +
+
+  P<span class="string">"-="</span> +
+
+  P<span class="string">"*="</span> +
+
+  P<span class="string">"/="</span> +
+
+  P<span class="string">"%="</span> +
+
+  P<span class="string">"&amp;="</span> +
+
+  P<span class="string">"^="</span> +
+
+  P<span class="string">"|="</span> +
+
+  P<span class="string">"&gt;&gt;"</span> +
+
+  P<span class="string">"&lt;&lt;"</span> +
+
+  P<span class="string">"++"</span> +
+
+  P<span class="string">"--"</span> +
+
+  P<span class="string">"-&gt;"</span> +
+
+  P<span class="string">"&amp;&amp;"</span> +
+
+  P<span class="string">"||"</span> +
+
+  P<span class="string">"&lt;="</span> +
+
+  P<span class="string">"&gt;="</span> +
+
+  P<span class="string">"=="</span> +
+
+  P<span class="string">"!="</span> +
+
+  P<span class="string">";"</span> +
+
+  P<span class="string">"{"</span> + P<span class="string">"&lt;%"</span> +
+
+  P<span class="string">"}"</span> + P<span class="string">"%&gt;"</span> +
+
+  P<span class="string">","</span> +
+
+  P<span class="string">":"</span> +
+
+  P<span class="string">"="</span> +
+
+  P<span class="string">"("</span> +
+
+  P<span class="string">")"</span> +
+
+  P<span class="string">"["</span> + P<span class="string">"&lt;:"</span> +
+
+  P<span class="string">"]"</span> + P<span class="string">":&gt;"</span> +
+
+  P<span class="string">"."</span> +
+
+  P<span class="string">"&amp;"</span> +
+
+  P<span class="string">"!"</span> +
+
+  P<span class="string">"~"</span> +
+
+  P<span class="string">"-"</span> +
+
+  P<span class="string">"+"</span> +
+
+  P<span class="string">"*"</span> +
+
+  P<span class="string">"/"</span> +
+
+  P<span class="string">"%"</span> +
+
+  P<span class="string">"&lt;"</span> +
+
+  P<span class="string">"&gt;"</span> +
+
+  P<span class="string">"^"</span> +
+
+  P<span class="string">"|"</span> +
+
+  P<span class="string">"?"</span>
+
+) / <span class="keyword">function</span>(...) <span class="library">print</span>(<span class="string">'OP'</span>, ...) <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> tokens = (comment + identifier + keyword +
+
+                literal + op + whitespace)^0
+
+
+
+<span class="comment">-- frontend</span>
+
+<span class="keyword">local</span> filename = arg[1]
+
+<span class="keyword">local</span> fh = <span class="library">assert</span>(<span class="library">io.open</span>(filename))
+
+<span class="keyword">local</span> input = fh:read<span class="string">'*a'</span>
+
+fh:close()
+
+<span class="library">print</span>(lpeg.match(tokens, input))
+
+</pre>
+
+</DL>
+<p>
+~~ <a href="../wiki/ThomasHarningJr.html" >ThomasHarningJr</a> : Suggestion for optimization of the 'op' matcher in the C preprocessor...
+This should be faster due to the use of sets instead of making tons of 'basic' string comparisons.  Not sure 'how' much faster...
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> shiftOps = P<span class="string">"&gt;&gt;"</span> + P<span class="string">"&lt;&lt;"</span>
+
+<span class="keyword">local</span> digraphs = P<span class="string">"&lt;%"</span> + P<span class="string">"%&gt;"</span> + P<span class="string">"&lt;:"</span> + P<span class="string">":&gt;"</span> <span class="comment">-- {, }, [, ]</span>
+
+<span class="keyword">local</span> op = C(
+
+<span class="comment">-- First match the multi-char items</span>
+
+  P<span class="string">"..."</span> +
+
+  ((shiftOps + S(<span class="string">"+-*/%&amp;^|&lt;&gt;=!"</span>)) * P<span class="string">"="</span>) +
+
+  shiftOps +
+
+  P<span class="string">"++"</span> +
+
+  P<span class="string">"--"</span> +
+
+  P<span class="string">"&amp;&amp;"</span> +
+
+  P<span class="string">"||"</span> +
+
+  P<span class="string">"-&gt;"</span> +
+
+  digraphs +
+
+  S(<span class="string">";{},:=()[].&amp;!~-+*/%&lt;&gt;^|?"</span>)
+
+) / <span class="keyword">function</span>(...) <span class="library">print</span>(<span class="string">'OP'</span>, ...) <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+See also Peter "Corsix" Cawley's <a href="http://code.google.com/p/corsix-th/source/browse/trunk/LDocGen/c_tokenise.lua">http://code.google.com/p/corsix-th/source/browse/trunk/LDocGen/c_tokenise.lua</a> and the <a href="http://github.com/drahosp/TrollEdit/blob/master/data/grammars/c_grammar.lua">[C parser in trolledit]</a>.
+<p>
+<H2>C Parser</H2>
+<p>
+<a href="http://article.gmane.org/gmane.comp.lang.lua.general/58453">[ceg]</a> - Wesley Smith's C99 parser
+<p>
+<H2>XML Parser</H2>
+<p>
+See the <a href="http://github.com/TrollEdit/TrollEdit/blob/master/data/grammars/xml_grammar.lua">[XML parser in trolledit]</a>.
+<p>
+<H2>SciTE Lexers</H2>
+<p>
+<a href="http://code.google.com/p/scintillua/">[Scintillua]</a> supports LPeg lexers.  A number of <a href="http://code.google.com/p/scintillua/source/browse/#hg/lexers">[examples]</a> are included.
+<p>
+<H2>Parsing UTF-8</H2>
+<p>
+Like Lua itself, LPeG only works with single bytes, not potentially-multibyte characters (which can occur in UTF-8). Here are some tricks that help you parse UTF-8 text.
+<p>
+<strong>lpeg.S()</strong>
+<p>
+The set function assumes that every byte is a character, so you can't use it to match UTF-8 characters. However, you can emulate it with the + operator.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> currency_symbol = lpeg.P(<span class="string">'$'</span>) + lpeg.P(<span class="string">'£'</span>) + lpeg.P(<span class="string">'¥'</span>) + lpeg.P(<span class="string">'¢'</span>)
+
+</pre>
+
+</DL>
+<p>
+<strong>lpeg.R()</strong>
+<p>
+Likewise, the range operator works on single bytes only, so it cannot be used to match UTF-8 characters outside ASCII.
+<p>
+<strong>Character classes</strong>
+<p>
+The character classes provided by lpeg.locale() only work on single bytes, even under a UTF-8 locale. By using <a href="https://github.com/duncanc/icu4lua">[ICU4Lua]</a>, you can create equivalent character classes which will match UTF-8 characters (regardless of the current locale):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- lpeg_unicode_locale.lua</span>
+
+
+
+<span class="keyword">local</span> lpeg = <span class="library">require</span> <span class="string">'lpeg'</span>
+
+<span class="keyword">local</span> U    = <span class="library">require</span> <span class="string">'icu.ustring'</span>
+
+<span class="keyword">local</span> re   = <span class="library">require</span> <span class="string">'icu.regex'</span>
+
+
+
+<span class="keyword">local</span> utf8_codepoint
+
+<span class="keyword">do</span>
+
+  <span class="comment">-- decode a two-byte UTF-8 sequence</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> f2 (s)
+
+    <span class="keyword">local</span> c1, c2 = <span class="library">string.byte</span>(s, 1, 2)
+
+    <span class="keyword">return</span> c1 * 64 + c2 - 12416
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- decode a three-byte UTF-8 sequence</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> f3 (s)
+
+    <span class="keyword">local</span> c1, c2, c3 = <span class="library">string.byte</span>(s, 1, 3)
+
+    <span class="keyword">return</span> (c1 * 64 + c2) * 64 + c3 - 925824
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- decode a four-byte UTF-8 sequence</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> f4 (s)
+
+    <span class="keyword">local</span> c1, c2, c3, c4 = <span class="library">string.byte</span>(s, 1, 4)
+
+    <span class="keyword">return</span> ((c1 * 64 + c2) * 64 + c3) * 64 + c4 - 63447168
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> cont = lpeg.R(<span class="string">"\128\191"</span>)   <span class="comment">-- continuation byte</span>
+
+
+
+  utf8_codepoint = lpeg.R(<span class="string">"\0\127"</span>) / <span class="library">string.byte</span>
+
+    + lpeg.R(<span class="string">"\194\223"</span>) * cont / f2
+
+    + lpeg.R(<span class="string">"\224\239"</span>) * cont * cont / f3
+
+    + lpeg.R(<span class="string">"\240\244"</span>) * cont * cont * cont / f4
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> alnum = re.compile(<span class="string">'^\\p{alnum}$'</span>)
+
+<span class="keyword">local</span> alpha = re.compile(<span class="string">'^\\p{alpha}$'</span>)
+
+<span class="keyword">local</span> cntrl = re.compile(<span class="string">'^\\p{cntrl}$'</span>)
+
+<span class="keyword">local</span> digit = re.compile(<span class="string">'^\\p{digit}$'</span>)
+
+<span class="keyword">local</span> graph = re.compile(<span class="string">'^\\p{graph}$'</span>)
+
+<span class="keyword">local</span> lower = re.compile(<span class="string">'^\\p{lower}$'</span>)
+
+<span class="keyword">local</span> <span class="library">print</span> = re.compile(<span class="string">'^\\p{print}$'</span>)
+
+<span class="keyword">local</span> punct = re.compile(<span class="string">'^\\p{punct}$'</span>)
+
+<span class="keyword">local</span> space = re.compile(<span class="string">'^\\p{space}$'</span>)
+
+<span class="keyword">local</span> upper = re.compile(<span class="string">'^\\p{upper}$'</span>)
+
+<span class="keyword">local</span> xdigit = re.compile(<span class="string">'^\\p{xdigit}$'</span>)
+
+
+
+<span class="keyword">return</span> {
+
+  alnum = lpeg.Cmt ( utf8_codepoint , <span class="keyword">function</span> (s,i,c) <span class="keyword">return</span> <span class="keyword">not</span> <span class="keyword">not</span> re.match(alnum, U.char(c)) <span class="keyword">end</span> ) ;
+
+  alpha = lpeg.Cmt ( utf8_codepoint , <span class="keyword">function</span> (s,i,c) <span class="keyword">return</span> <span class="keyword">not</span> <span class="keyword">not</span> re.match(alpha, U.char(c)) <span class="keyword">end</span> ) ;
+
+  cntrl = lpeg.Cmt ( utf8_codepoint , <span class="keyword">function</span> (s,i,c) <span class="keyword">return</span> <span class="keyword">not</span> <span class="keyword">not</span> re.match(cntrl, U.char(c)) <span class="keyword">end</span> ) ;
+
+  digit = lpeg.Cmt ( utf8_codepoint , <span class="keyword">function</span> (s,i,c) <span class="keyword">return</span> <span class="keyword">not</span> <span class="keyword">not</span> re.match(digit, U.char(c)) <span class="keyword">end</span> ) ;
+
+  graph = lpeg.Cmt ( utf8_codepoint , <span class="keyword">function</span> (s,i,c) <span class="keyword">return</span> <span class="keyword">not</span> <span class="keyword">not</span> re.match(graph, U.char(c)) <span class="keyword">end</span> ) ;
+
+  lower = lpeg.Cmt ( utf8_codepoint , <span class="keyword">function</span> (s,i,c) <span class="keyword">return</span> <span class="keyword">not</span> <span class="keyword">not</span> re.match(lower, U.char(c)) <span class="keyword">end</span> ) ;
+
+  <span class="library">print</span> = lpeg.Cmt ( utf8_codepoint , <span class="keyword">function</span> (s,i,c) <span class="keyword">return</span> <span class="keyword">not</span> <span class="keyword">not</span> re.match(<span class="library">print</span>, U.char(c)) <span class="keyword">end</span> ) ;
+
+  punct = lpeg.Cmt ( utf8_codepoint , <span class="keyword">function</span> (s,i,c) <span class="keyword">return</span> <span class="keyword">not</span> <span class="keyword">not</span> re.match(punct, U.char(c)) <span class="keyword">end</span> ) ;
+
+  space = lpeg.Cmt ( utf8_codepoint , <span class="keyword">function</span> (s,i,c) <span class="keyword">return</span> <span class="keyword">not</span> <span class="keyword">not</span> re.match(space, U.char(c)) <span class="keyword">end</span> ) ;
+
+  upper = lpeg.Cmt ( utf8_codepoint , <span class="keyword">function</span> (s,i,c) <span class="keyword">return</span> <span class="keyword">not</span> <span class="keyword">not</span> re.match(upper, U.char(c)) <span class="keyword">end</span> ) ;
+
+  xdigit = lpeg.Cmt ( utf8_codepoint , <span class="keyword">function</span> (s,i,c) <span class="keyword">return</span> <span class="keyword">not</span> <span class="keyword">not</span> re.match(digit, U.char(c)) <span class="keyword">end</span> ) ;
+
+}
+
+</pre>
+
+</DL>
+<p>
+In your code, you might use it like this:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> lpeg = <span class="library">require</span> <span class="string">'lpeg'</span>
+
+<span class="keyword">local</span> utf8 = <span class="library">require</span> <span class="string">'lpeg_utf8_locale'</span>
+
+<span class="keyword">local</span> EOF = lpeg.P(-1)
+
+<span class="keyword">local</span> word = lpeg.C(utf8.alnum^1)
+
+<span class="keyword">local</span> tokenise = ( word * (utf8.space^1 + EOF ) )^0 * EOF
+
+<span class="library">print</span>(tokenise:match(<span class="string">'þetta eru æðisleg orð'</span>))
+
+</pre>
+
+</DL>
+<p>
+<H2>Date/Time</H2>
+<a href="https://github.com/mozilla-services/lua_sandbox/blob/dev/modules/date_time.lua">https://github.com/mozilla-services/lua_sandbox/blob/dev/modules/date_time.lua</a>
+<p>
+LPeg Grammar Tester: <a href="http://lpeg.trink.com/share/date_time">http://lpeg.trink.com/share/date_time</a>
+<p>
+<H2>Common Log Format</H2>
+<a href="https://github.com/mozilla-services/lua_sandbox/blob/dev/modules/common_log_format.lua">https://github.com/mozilla-services/lua_sandbox/blob/dev/modules/common_log_format.lua</a>
+<p>
+Nginx meta grammar generator: <a href="http://lpeg.trink.com/share/clf">http://lpeg.trink.com/share/clf</a>
+<p>
+<H2>Rsyslog</H2>
+<a href="https://github.com/mozilla-services/lua_sandbox/blob/dev/modules/syslog.lua">https://github.com/mozilla-services/lua_sandbox/blob/dev/modules/syslog.lua</a>
+<p>
+Rsyslog meta grammar generator: <a href="http://lpeg.trink.com/share/syslog">http://lpeg.trink.com/share/syslog</a>
+<p>
+<H2>IP Address</H2>
+<a href="https://github.com/mozilla-services/lua_sandbox/blob/dev/modules/ip_address.lua">https://github.com/mozilla-services/lua_sandbox/blob/dev/modules/ip_address.lua</a>
+<p>
+<p>
+<p>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LpegRecipes" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LpegRecipes" >history</a><br>Last edited March 9, 2014 4:14 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LpegRecipes" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,757 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Detecting Undefined Variables</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=DetectingUndefinedVariables&amp;body=1" title="List pages referring to DetectingUndefinedVariables">Detecting Undefined Variables</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>The Question</H2>
+<p>
+<strong>How can access of <a href="http://en.wikipedia.org/wiki/Undefined_variable.html">[undefined variables]</a> (undeclared variables) be caught in Lua?</strong> is a frequently asked question.
+<p>
+Various approaches have been used as described below.  These approaches differ in terms of when and how access to undefined global variables are detected.  First, let's consider the nature of the problem...
+<p>
+<H2>The Problem</H2>
+<p>
+In Lua programs, typos in variable names can be hard to spot because,
+in general, Lua will not complain that a variable is undefined.
+For example, consider this program that defines two functions:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> f(x) <span class="library">print</span>(X) <span class="keyword">end</span>
+
+<span class="keyword">function</span> g(x) <span class="library">print</span>(X + 1) <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Lua gives no error when loading this code.  The first two lines
+might be wrong (e.g. "<code>x</code>" mistyped as "<code>X</code>") or it might not be (maybe
+<code>X</code> is some other global variable).  In fact, Lua has no way of
+knowing if the code is wrong.  The reason is that if a variable is
+not recognized by Lua as a local variable (e.g. by static
+declaration of the variable using a "local" keyword or function parameter definition), the variable is instead
+interpreted as a global variable (as is the case for "<code>X</code>").  Now,
+whether a global variable is defined is not as easy to determine or
+describe.  <code>X</code> has the value <code>t['X']</code> where <code>t = getfenv()</code> is the "environment table"
+of the currently running function.  <code>X</code> always has a value, though it
+is probably <code>nil</code> if <code>X</code> was a typo.  We might interpret <code>X</code> being <code>nil</code> as
+<code>X</code> being undefined, but whether <code>X</code> is nil can only be determined at
+run-time.  For example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+        <span class="comment">-- X is "undefined"</span>
+
+f(X)    <span class="comment">-- print nil</span>
+
+X = 2   <span class="comment">-- X is defined</span>
+
+f(X)    <span class="comment">-- prints 2</span>
+
+X = <span class="keyword">nil</span> <span class="comment">-- X is "undefined" again</span>
+
+f(X)    <span class="comment">-- prints nil</span>
+
+</pre>
+
+</DL>
+<p>
+Even the above runs without error.  When <code>X</code> is <code>nil</code>, <code>print(X)</code> becomes
+<code>print(nil)</code>, and it is valid to print a <code>nil</code> value.  However, consider
+calling the function <code>g</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+g(X)
+
+</pre>
+
+</DL>
+<p>
+This fails with the error <code>"attempt to perform arithmetic on global 'X' (a nil value)"</code>.  The reason is that <code>print(X + 1)</code> becomes
+<code>print(nil + 1)</code>, and it is invalid to add <code>nil</code> to a number.  The error
+is not observed, however, until the code <code>nil + 1</code> actually executes.
+<p>
+Obviously, we may want to detect undefined global variables more proactively, such as detecting them at compile time or at least prior to production release (e.g. inside a test suite).  The following methods have been devised.
+<p>
+<H2>Approach #1: Run-time Checking</H2>
+<p>
+Reads from and writes to undefined globals can be detected when they happen, at run-time.  These approaches operate by overriding the <code>__index</code> and <code>__newindex</code> metamethods in the environment table of the currently running function.  Lua sends reads and writes to undefined global variables to these metamethods that in turn can be programmed to raise run-time errors.
+<p>
+This approach is taken by the "strict" module in the Lua distribution (<code>etc/strict.lua</code> (downloads for <a href="http://www.lua.org/extras/5.1/strict.lua">[Lua 5.1]</a> and <a href="http://www.lua.org/extras/5.2/strict.lua">[Lua 5.2]</a>). Alternately, see <a href="http://thomaslauer.com/comp/LuaStrict">[LuaStrict]</a> by <a href="../wiki/ThomasLauer.html" >ThomasLauer</a> for an extension of the <code>strict</code> approach.
+<p>
+Here are some advantages and disadvantages of this approach:
+<p>
+Advantages:
+<p>
+<UL>
+<li> Correctly detects undefined variables in all code executed.
+<li> Does not require any external tools or patches.
+</UL>
+<p>
+Disadvantages:
+<p>
+<UL>
+<li> Does not detect undefined variables in a section of code until when that code is executed (late detection).
+<li> The above implies it can fail to detect undefined variables in code not (yet) executed.  Unless you have comprehensive code coverage (e.g. in a test suite), some code may not be executed until, maybe, after the production release of your software when a user triggers some corner case that causes such code to execute.
+<li> Modifies the environment table.  This may be a source of conflict since the environment table and its metamethods are a shared resource that might be used for other things.
+</UL>
+<p>
+<H3>The below was moved from Enforcing<code></code>Local<code></code>Declaration</H3>
+<p>
+The code below written by Niklas Frykholm was found in the Lua mail archive.  I thought it would
+nice to document it in the wiki as gems like this can be easily lost or forgotten amongst the hundreds of mails.
+The concept about enforcing local variable declaration is to stop yourself from using a variable that
+hasn't been declared.  This in effect also stops you from accidentally using an undeclared variable that
+was meant to be local in scope but gets treated as global which can come back and haunt you while debugging.
+<p>
+<DL>
+<dt><dd><em>SR - Could you explain what this solution offers that <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a> does not? Are you aware of etc/strict.lua, but believe this approach to be better?</em>
+</DL>
+<p>
+There are many effective solution to enforcing variable declaration, however, personally I have found
+Niklas Frykholm solution to be most elegant and unintrusive (also hardly a hit on performance
+as most variables declared in programs are local scope and the code only gets hit when declaring global variables).
+<p>
+Basically anytime you call <code>GLOBAL_lock(_G)</code>  (note the <code>_G</code> is for the global variables table) somewhere in your code,
+from that point onwards anytime you try to use a variable without explicitly declaring it as 'local'
+Lua will return an error.
+<p>
+I have made a slight modification to the code to enable the convenience for one to also explicitly allow global declarations 
+by prefixing variables with double underscore (eg. <code>__name</code>, <code>__global_count</code>), however you may choose to change the 
+code for another naming method to suit your own taste (eg <code>G_name</code>, <code>G_global_count</code>).
+<p>
+<DL>
+<dt><dd><pre class="code">
+
+
+<span class="comment">--===================================================</span>
+
+<span class="comment">--=  Niklas Frykholm </span>
+
+<span class="comment">-- basically if user tries to create global variable</span>
+
+<span class="comment">-- the system will not let them!!</span>
+
+<span class="comment">-- call GLOBAL_lock(_G)</span>
+
+<span class="comment">--</span>
+
+<span class="comment">--===================================================</span>
+
+<span class="keyword">function</span> GLOBAL_lock(t)
+
+  <span class="keyword">local</span> mt = <span class="library">getmetatable</span>(t) <span class="keyword">or</span> {}
+
+  mt.__newindex = lock_new_index
+
+  <span class="library">setmetatable</span>(t, mt)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--===================================================</span>
+
+<span class="comment">-- call GLOBAL_unlock(_G)</span>
+
+<span class="comment">-- to change things back to normal.</span>
+
+<span class="comment">--===================================================</span>
+
+<span class="keyword">function</span> GLOBAL_unlock(t)
+
+  <span class="keyword">local</span> mt = <span class="library">getmetatable</span>(t) <span class="keyword">or</span> {}
+
+  mt.__newindex = unlock_new_index
+
+  <span class="library">setmetatable</span>(t, mt)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> lock_new_index(t, k, v)
+
+  <span class="keyword">if</span> (k~=<span class="string">"_"</span> <span class="keyword">and</span> <span class="library">string.sub</span>(k,1,2) ~= <span class="string">"__"</span>) <span class="keyword">then</span>
+
+    GLOBAL_unlock(<span class="library">_G</span>)
+
+    <span class="library">error</span>(<span class="string">"GLOBALS are locked -- "</span> .. k ..
+
+          <span class="string">" must be declared local or prefix with '__' for globals."</span>, 2)
+
+  <span class="keyword">else</span>
+
+    <span class="library">rawset</span>(t, k, v)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> unlock_new_index(t, k, v)
+
+  <span class="library">rawset</span>(t, k, v)
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+--SamLie<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SamLie" >?</a>
+<p>
+<p>
+<H2>Approach #2: Static Analysis (Compile-time Checking)</H2>
+<p>
+An alternative method is to detect undefined globals at compile time.  Of course, Lua can be used as an interpreted language without an explicit compilation step (though internally it does compile to bytecode).  What we mean by this, however, is that undefined globals are detected before the code executes as normal.  It can be done without really executing all the code but rather only parsing it.  This is sometimes called "static analysis" of source code.
+<p>
+To detect these at compile time you may (under a *nix-like operating system) use the following command-line trick with the Lua compiler (luac):
+<p>
+<DL>
+<dt><dd>luac -p -l myprogram.lua | grep ETGLOBAL
+</DL>
+<p>
+This lists all gets and sets to global variables (both defined and undefined ones).  You may find that some gets/sets are interpreted as globals when you really wanted them to be locals (missing "<code>local</code>" statement or misspelling variable name).  The above approach works well if you follow a coding style of "avoiding globals like the plague" (i.e. using locals (lexicals) whenever possible).
+<p>
+An extension to this approach is in <code>tests/globals.lua</code> in the Lua 5.1.2 distribution, which implements the *nix pipe " | grep ETGLOBAL" instead in Lua and does so more effectively by filtering out pre-defined globals (e.g. <code>print</code>, <code>math</code>, <code>string</code>, etc.).  See also <a href="/lists/lua-l/2006-05/msg00306.html">LuaList:2006-05/msg00306.html</a>, as well as <a href="../wiki/LuaLint.html" >LuaLint</a>.  Also see Egil Hjelmeland's <a href="https://github.com/hjelmeland/globals">[globals]</a>.  A more advanced version of globals.lua is <a href="https://gist.github.com/davidm/5126010">[globalsplus.lua]</a> (<a href="../wiki/DavidManura.html" >DavidManura</a>), which looks in fields of global tables too.  A yet more advanced bytecode analysis is done in <a href="https://github.com/stevedonovan/lglob">[lglob]</a> <a href="/lists/lua-l/2013-01/msg00537.html">[3]</a> (<a href="../wiki/SteveDonovan.html" >SteveDonovan</a>).
+<p>
+An external "linter" tool or semantically aware text editor (like <a href="https://bitbucket.org/sylvanaar2/lua-for-idea/wiki/Home.html">[Lua for IntelliJ IDEA]</a>, <a href="../wiki/LuaInspect.html" >LuaInspect</a>, the older <a href="../wiki/LuaFish.html" >LuaFish</a>, or the Metalua code below) that parses and statically analyzes Lua code can achieve a similar effect, as well as detecting other classes of coding errors or questionable coding practices.  For example, Lua<code></code>Fish (which is fairly experimental) can even detect that <code>string:length()</code> or <code>math.cos("hello")</code> are invalid.
+<p>
+<a href="http://code.google.com/p/lua-checker/">[Lua Checker]</a> (5.1) is one such tool, which analyzes Lua source for common programming errors, much as the "lint" program does for C.  It contains a Lua 5.1 bison parser.
+<p>
+love-studio <a href="https://bitbucket.org/kevinclancy/love-studio/wiki/OptionalTypeSystem.html">[OptionalTypeSystem]</a> allows type annotations in regular Lua comments:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- this is a description</span>
+
+<span class="comment">-- @param(a : number) some parameter </span>
+
+<span class="comment">-- @ret(number) first return value</span>
+
+<span class="comment">-- @ret(string) second return value</span>
+
+<span class="keyword">function</span> Thing:Method(a)
+
+        <span class="keyword">return</span> 3,<span class="string">"blarg"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--@var(number) The x coordinate</span>
+
+<span class="comment">--@var(number) The y coordinate</span>
+
+<span class="keyword">local</span> x,y = 0,0
+
+</pre>
+
+</DL>
+<p>
+It is described as an "optional type system (as defined by Gilad Bracha in his paper Pluggable Type Systems) is a type system that a.) has no effect on the run-time semantics of the programming language, and b.) does not mandate type annotations in the syntax."
+<p>
+<p>
+<p>
+Another approach is to patch the Lua parser itself.  See <a href="/lists/lua-l/2006-10/msg00206.html">LuaList:2006-10/msg00206.html</a> for such an example.
+<p>
+<DL>
+<dt><dd>Note: modify lparser.c:singlevar as follows for more correct error handling: --<a href="../wiki/DavidManura.html" >DavidManura</a>
+<dt><dd><pre>
+
+/* based on 5.1.4 */
+
+static void singlevar (LexState *ls, expdesc *var) {
+
+  TString *varname;
+
+  FuncState *fs;
+
+  check(ls, TK_NAME);
+
+  varname = ls-&gt;t.seminfo.ts;
+
+  fs = ls-&gt;fs;
+
+  singlevaraux(fs, varname, var, 1);
+
+  luaX_next(ls);
+
+  /* luaX_next should occur after any luaX_syntaxerror */
+
+}
+
+</pre>
+</DL>
+<p>
+Here are some advantages and disadvantages of this approach:
+<p>
+Advantages:
+<p>
+<UL>
+<li> Detects undefined variables even in sections of code prior to execution, including code not executed (early detection)
+<li> Does not alter the code, such as by modifying environment tables.  This approach does, however, "encourage" a style of heavy use of local variables, which itself is considered good in style and performance.  Globals that you wanted to define as locals are also detected.
+</UL>
+<p>
+Disadvantages:
+<p>
+<UL>
+<li> May wrongly flag global variables as undefined (false positive) or, more rarely depending how the tool is implemented, not undefined (false negative).  The problem is that whether a global is defined or not can only fully, in general, be known at run-time.
+<li> Requires external tools, parsers, or patches.
+</UL>
+<p>
+<H3>A Lua Lint Tool</H3>
+<p>
+The following utility will lint Lua source code, detecting undefined variables (and could be expanded to do other interesting things).
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- lint.lua - A lua linter.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Warning: In a work in progress.  Not currently well tested.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- This relies on Metalua 0.2 ( http://metalua.luaforge.net/ )</span>
+
+<span class="comment">-- libraries (but doesn't need to run under Metalua).</span>
+
+<span class="comment">-- The metalua parsing is a bit slow, but does the job well.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Usage:</span>
+
+<span class="comment">--   lua lint.lua myfile.lua</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Features:</span>
+
+<span class="comment">--   - Outputs list of undefined variables used.</span>
+
+<span class="comment">--     (note: this works well for locals, but globals requires</span>
+
+<span class="comment">--      some guessing)</span>
+
+<span class="comment">--   - TODO: add other lint stuff.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- David Manura, 2007-03</span>
+
+<span class="comment">-- Licensed under the same terms as Lua itself.</span>
+
+
+
+<span class="comment">-- Capture default list of globals.</span>
+
+<span class="keyword">local</span> globals = {}; <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(<span class="library">_G</span>) <span class="keyword">do</span> globals[k] = <span class="string">"global"</span> <span class="keyword">end</span>
+
+
+
+<span class="comment">-- Metalua imports</span>
+
+<span class="library">require</span> <span class="string">"mlp_stat"</span>
+
+<span class="library">require</span> <span class="string">"mstd"</span>  <span class="comment">--debug</span>
+
+<span class="library">require</span> <span class="string">"disp"</span>  <span class="comment">--debug</span>
+
+
+
+<span class="keyword">local</span> filename = <span class="library">assert</span>(arg[1])
+
+
+
+<span class="comment">-- Load source.</span>
+
+<span class="keyword">local</span> fh = <span class="library">assert</span>(<span class="library">io.open</span>(filename))
+
+<span class="keyword">local</span> source = fh:read(<span class="string">"*a"</span>)
+
+fh:close()
+
+
+
+<span class="comment">-- Convert source to AST (syntax tree).</span>
+
+<span class="keyword">local</span> c = mlp.block(mll.new(source))
+
+
+
+<span class="comment">--Display AST.</span>
+
+<span class="comment">--print(tostringv(c))</span>
+
+<span class="comment">--print(disp.ast(c))</span>
+
+<span class="comment">--print("---")</span>
+
+<span class="comment">--for k,v in pairs(c) do print(k,disp.ast(v)) end</span>
+
+
+
+<span class="comment">-- Helper function: Parse current node in AST recursively.</span>
+
+<span class="keyword">function</span> traverse(ast, scope, level)
+
+  level = level <span class="keyword">or</span> 1
+
+  scope = scope <span class="keyword">or</span> {}
+
+
+
+  <span class="keyword">local</span> blockrecurse
+
+
+
+  <span class="keyword">if</span> ast.tag == <span class="string">"Local"</span> <span class="keyword">or</span> ast.tag == <span class="string">"Localrec"</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> vnames, vvalues = ast[1], ast[2]
+
+    <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(vnames) <span class="keyword">do</span>
+
+      <span class="library">assert</span>(v.tag == <span class="string">"Id"</span>)
+
+      <span class="keyword">local</span> vname = v[1]
+
+      <span class="comment">--print(level, "deflocal",v[1])</span>
+
+      <span class="keyword">local</span> parentscope = <span class="library">getmetatable</span>(scope).__index
+
+      parentscope[vname] = <span class="string">"local"</span>
+
+    <span class="keyword">end</span>
+
+    blockrecurse = 1
+
+  <span class="keyword">elseif</span> ast.tag == <span class="string">"Id"</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> vname = ast[1]
+
+    <span class="comment">--print(level, "ref", vname, scope[vname])</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> scope[vname] <span class="keyword">then</span>
+
+      <span class="library">print</span>(<span class="library">string.format</span>(<span class="string">"undefined %s at line %d"</span>, vname, ast.line))
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> ast.tag == <span class="string">"Function"</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> params = ast[1]
+
+    <span class="keyword">local</span> body = ast[2]
+
+    <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(params) <span class="keyword">do</span>
+
+      <span class="keyword">local</span> vname = v[1]
+
+      <span class="library">assert</span>(v.tag == <span class="string">"Id"</span> <span class="keyword">or</span> v.tag == <span class="string">"Dots"</span>)
+
+      <span class="keyword">if</span> v.tag == <span class="string">"Id"</span> <span class="keyword">then</span>
+
+        scope[vname] = <span class="string">"local"</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    blockrecurse = 1
+
+  <span class="keyword">elseif</span> ast.tag == <span class="string">"Let"</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> vnames, vvalues = ast[1], ast[2]
+
+    <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(vnames) <span class="keyword">do</span>
+
+      <span class="keyword">local</span> vname = v[1]
+
+      <span class="keyword">local</span> parentscope = <span class="library">getmetatable</span>(scope).__index
+
+      parentscope[vname] = <span class="string">"global"</span> <span class="comment">-- note: imperfect</span>
+
+    <span class="keyword">end</span>
+
+    blockrecurse = 1
+
+  <span class="keyword">elseif</span> ast.tag == <span class="string">"Fornum"</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> vname = ast[1][1]
+
+    scope[vname] = <span class="string">"local"</span>
+
+    blockrecurse = 1
+
+  <span class="keyword">elseif</span> ast.tag == <span class="string">"Forin"</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> vnames = ast[1]
+
+    <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(vnames) <span class="keyword">do</span>
+
+      <span class="keyword">local</span> vname = v[1]
+
+      scope[vname] = <span class="string">"local"</span>
+
+    <span class="keyword">end</span>
+
+    blockrecurse = 1
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- recurse (depth-first search through AST)</span>
+
+  <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(ast) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> i ~= blockrecurse <span class="keyword">and</span> <span class="library">type</span>(v) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+      <span class="keyword">local</span> scope = <span class="library">setmetatable</span>({}, {__index = scope})
+
+      traverse(v, scope, level+1)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Default list of defined variables.</span>
+
+<span class="keyword">local</span> scope = <span class="library">setmetatable</span>({}, {__index = globals})
+
+
+
+traverse(c, scope) <span class="comment">-- Start check.</span>
+
+</pre>
+
+</DL>
+<p>
+Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- test1.lua</span>
+
+<span class="keyword">local</span> y = 5
+
+<span class="keyword">local</span> <span class="keyword">function</span> test(x)
+
+  <span class="library">print</span>(<span class="string">"123"</span>,x,y,z)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> factorial
+
+<span class="keyword">function</span> factorial(n)
+
+  <span class="keyword">return</span> n == 1 <span class="keyword">and</span> 1 <span class="keyword">or</span> n * factorial(n-1)
+
+<span class="keyword">end</span>
+
+
+
+g = <span class="keyword">function</span>(w) <span class="keyword">return</span> w*2 <span class="keyword">end</span>
+
+
+
+<span class="keyword">for</span> k=1,2 <span class="keyword">do</span> <span class="library">print</span>(k) <span class="keyword">end</span>
+
+
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>{1,2} <span class="keyword">do</span> <span class="library">print</span>(v) <span class="keyword">end</span>
+
+
+
+test(2)
+
+<span class="library">print</span>(g(2))
+
+</pre>
+
+</DL>
+<p>
+Output:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua lint.lua test1.lua
+
+undefined z at line 4
+
+</pre>
+</DL>
+<p>
+A much more extensive version is in <a href="../wiki/LuaInspect.html" >LuaInspect</a>.  Another more Metalua-ish (and possibly better) Metalua implementation given by Fabien is in <a href="http://lists.luaforge.net/pipermail/metalua-list/2007-December/000029.html">[1]</a>, and and even simpler one is below.  See also <a href="../wiki/MetaLua.html" >MetaLua</a> info.
+<p>
+Something similar could be down using other Lua parsers (see <a href="../wiki/LuaGrammar.html" >LuaGrammar</a> and in particular <a href="../wiki/LpegRecipes.html" >LpegRecipes</a>), such as Leg <a href="http://leg.luaforge.net/">[2]</a>.
+<p>
+<H3>Another Metalua solution</H3>
+<p>
+This piece of Metalua code uses the standard walker libraries to print a list of all global variables used in the program where it's inserted:
+<DL>
+<dt><dd><pre class="code">
+-{ block:
+
+   <span class="library">require</span> <span class="string">'walk.id'</span> <span class="comment">-- Load scope-aware walker library</span>
+
+   <span class="comment">-- This function lists all the free variables used in `ast'</span>
+
+   <span class="keyword">function</span> list_globals (ast)
+
+      <span class="comment">-- Free variable names will be accumulated as keys in table `globals'</span>
+
+      <span class="keyword">local</span> walk_cfg, globals = { id = { } }, { }
+
+      <span class="keyword">function</span> walk_cfg.id.free(v) globals[v[1]] = <span class="keyword">true</span> <span class="keyword">end</span>
+
+      walk_id.block(walk_cfg, ast)
+
+            <span class="comment">-- accumulate global var names in the table "globals"</span>
+
+      <span class="library">print</span> <span class="string">"Global vars used in this chunk:"</span>
+
+      <span class="keyword">for</span> v <span class="keyword">in</span> keys(globals) <span class="keyword">do</span> <span class="library">print</span>(<span class="string">" - "</span>..v) <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+   <span class="comment">-- Hook the globals lister after the generation of a chunk's AST:</span>
+
+   mlp.chunk.transformers:add(list_globals) }
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/FabienFleutot.html" >FabienFleutot</a>
+<p>
+<H3>Another Metalua solution: Metalint</H3>
+<p>
+"Metalint <a href="/lists/lua-l/2008-04/msg00082.html">[4]</a> is a utility that checks Lua and Metalua source files for global variables usage. Beyond checking toplevel global variables, it also checks
+fields in modules: for instance, it will catch typos such as taable.insert(),
+both also table.iinsert(). Metalint works with declaration files, which list which globals are declared, and what can be done with them...." <a href="/lists/lua-l/2008-04/msg00082.html">[4]</a>
+<p>
+<H2>Approach #3: Mixed Run-time/Compile-time Approach</H2>
+<p>
+Hybrid approaches are possible.  Note that detection of global variable accesses (at least direct ones not through <code>_G</code> or <code>getfenv()</code>) is best done at compile time, while determination of whether those global variables are defined may best be done at run-time (or possibly, sufficiently so, at "load time", about when <code>loadfile</code> is done).  So, a compromise would be to split these two concerns and do them when most appropriate.  Such a mixed approach is taken by the <a href="https://gist.github.com/davidm/5126086">["checkglobals" module+patch]</a>, which provides a <code>checkglobals(f, env)</code> function (implemented entirely in Lua).  In short, <code>checkglobals</code> validates that the function <code>f</code> (which by default is taken to be the calling function) uses only global variables defined in the table <code>env</code> (which by default is taken to be the environment of <code>f</code>).  checkglobals requires a small patch to add an additional <code>'g'</code> option to the debug library's
+<code>debug.getinfo / lua_getinfo</code> function to list the global variable accesses lexically inside the
+function <code>f</code>.
+<p>
+<H2>Semantically Aware Editors</H2>
+<p>
+See editors/IDE's under <a href="../wiki/ProgramAnalysis.html" >ProgramAnalysis</a> for editors that highlight undefined variables.  This can be implemented by static analysis and/or by invoking the Lua interpreter.  This manner is convenient because any errors are immediately displayed in context on the screen without invoking any external build tool and browsing through its output.
+<p>
+<H2>Lua Syntax Extensions</H2>
+<p>
+A few syntax extensions have been proposed to handle undefined variables more automatically by the Lua compiler:
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2010-07/msg00202.html">LuaList:2010-07/msg00202.html</a>
+<li> <a href="/lists/lua-l/2010-07/msg00215.html">LuaList:2010-07/msg00215.html</a>
+</UL>
+<p>
+<H2>Historical: Old Lua 4 Notes</H2>
+<p>
+Here's a quick and crude solution to prevent assignment to undefined globals, in Lua 4.0:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> undefed_global(varname, newvalue)
+
+  <span class="library">error</span>(<span class="string">"assignment to undefined global "</span> .. varname)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> guard_globals()
+
+  settagmethod(tag(<span class="keyword">nil</span>), <span class="string">"setglobal"</span>, undefed_global)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Once <code>guard_globals()</code> has been called, any assignment to a global with a nil value will generate an error.  So typically you would call <code>guard_globals()</code> after you've loaded your scripts, and before you run them.  For example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+SomeVariable = 0
+
+
+
+<span class="keyword">function</span> ClearVariable()
+
+  SomeVariabl = 1      <span class="comment">-- typo here</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- now demonstrate that we catch the typo</span>
+
+guard_globals()
+
+
+
+ClearVariable()        <span class="comment">-- generates an error at the typo line</span>
+
+</pre>
+
+</DL>
+<p>
+The "getglobal" tag method can similarly be used to catch reads of undefined globals.  Also, with more code, a separate table can be used to distinguish between "defined" globals that happen to have a nil value, and "undefined" globals which have never been accessed before.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaScoping.html" >LuaScoping</a>
+<li> <a href="../wiki/LocalByDefault.html" >LocalByDefault</a> - notes on why Lua does not use "local by default" scoping rules
+<li> <a href="http://pychecker.sourceforge.net/">[pychecker]</a> - a Python-implemented tool for checking for bugs in Python (uses AST walker).  (For comparison since there has been interest in doing similar things in Lua.)
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DetectingUndefinedVariables" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=DetectingUndefinedVariables" >history</a><br>Last edited February 5, 2014 2:07 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=DetectingUndefinedVariables" >(diff)</a>
+</body>
+</html>

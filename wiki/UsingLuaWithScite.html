@@ -1,0 +1,580 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Using Lua With Scite</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=UsingLuaWithScite&amp;body=1" title="List pages referring to UsingLuaWithScite">Using Lua With Scite</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Any <em>global Lua function</em> can be used as a SciTE command.  These functions appear on the Tools Menu, and may have an associated shortcut key.  
+<p>
+Here is a simple example; put this in your properties file (could be local,user or global):
+<p>
+<pre>
+
+command.name.1.*=Load Lua
+
+command.subsystem.1.*=3
+
+command.1.*=dofile $(FilePath)
+
+
+
+</pre>
+<p>
+You will now have a menu item called 'Load Lua' on the Tools menu, and by default it will have a shortcut Ctrl+1.  <code>command.subsystem</code> must be set to 3, which is the Lua extension.  In this case, the global Lua function is <code>dofile</code> which has been kept in SciTE's Lua 5 precisely because it's so useful in this case; please note  that there is no argument list after <code>dofile</code>.  There can be at most one argument passed to your function, but like anything in a SciTE properties file, it can contain references to other SciTE properties, like <code>FilePath</code>, which is the full path of the currently shown file.  (See the section called 'Properties File' in the SciTE manual for a full list of these dynamic properties)
+<p>
+Now, if you edit a file containing this:
+<p>
+<pre class="code">
+  <span class="library">print</span> (<span class="string">"Hello, World!"</span>)
+
+</pre>
+
+<p>
+and pressed Ctrl+1, "Hello, World" will be shown in the SciTE output window.  If you have modified this file, then SciTE will prompt you first to save; this is the default behaviour. This is a powerful way to begin Lua programming in the SciTE environment.
+<p>
+There is a potential problem with this definition; some other script may have defined the command 1; you can have commands from 0 to 9 with this method, bound to Ctrl+0 .. Ctrl+9.  But you can use any number less than 50 in these definitions, as long as you give an explicit shortcut key:
+<p>
+<pre>
+
+command.name.11.*=Load Lua
+
+command.subsystem.11.*=3
+
+command.11.*=dofile $(FilePath)
+
+command.mode.11.*=savebefore:yes
+
+command.shortcut.11.*=F9
+
+</pre>
+<p>
+You <em>can</em> rebind a key that has already been defined by SciTE or Scintilla. There are a lot of these, so consult the documentation.
+<p>
+<em>Here is an alternative which doesn't require the document to be on disk - it executes all the source in the current buffer:</em>
+<pre>
+
+command.name.1.*=Run Document as Lua Extension
+
+command.subsystem.1.*=3
+
+command.1.*=dostring dostring(editor:GetText())
+
+command.mode.1.*=savebefore:no
+
+</pre>
+<p>
+<p>
+<H3>A simple SciTE Macro</H3>
+<p>
+Put this in a Lua file (say test.lua) in your home directory
+<p>
+<pre class="code">
+<span class="keyword">function</span> make_uppercase()
+
+  <span class="keyword">local</span> sel = editor:GetSelText()
+
+  editor:ReplaceSel(<span class="library">string.upper</span>(sel))
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+and in your properties file, put this
+<p>
+<pre>
+
+ext.lua.startup.script=$(SciteUserHome)/test.lua
+
+
+
+command.name.12.*=Make Selection Uppercase
+
+command.subsystem.12.*=3
+
+command.12.*=make_uppercase
+
+command.mode.12.*=savebefore:no
+
+command.shortcut.12.*=Ctrl+M
+
+</pre>
+<p>
+Now, after selecting text, you can make it uppercase with Ctrl+M.  Because of the <code>savebefore:no</code>, it won't prompt you to save first before executing.
+<p>
+OK, it's true that SciTE already has such an operation. But you can do just about anything with Lua in SciTE!  I would suggest that a good way to learn is to experiment using the <code>dofile</code> trick.
+<p>
+<H3>Looking up the correct form of a Scintilla function</H3>
+<p>
+The best reference for the Lua Scintilla bindings is <code>scintilla.iface</code>, which is in the Scintilla include directory.  If you look for <code>GetLength</code> you will find:
+<p>
+<pre>
+
+ # Returns the number of characters in the document.
+
+ get int GetLength=2006(,)
+
+</pre>
+<p>
+The 'get' means that there is a read-only property called <code>Length</code>. It will be called like this: <code>editor.Length</code>.
+<p>
+whereas looking for <code>GetText</code> we get:
+<p>
+<pre>
+
+ # Retrieve all the text in the document.
+
+ # Returns number of characters retrieved.
+
+ fun int GetText=2182(int length, stringresult text)
+
+</pre>
+<p>
+So <code>GetText</code> is a plain function, which is passed a string. It will be <code>editor:GetText()</code> - note the colon!
+<p>
+The Lua bindings are not always consistent, for example <code>GetSelText</code> is a function, not a property.
+<p>
+An annotated version of the Scintilla documentation for the Lua interface can be found here: <a href="http://scite-interest.googlegroups.com/web/ScintillaSciteDoc.html">http://scite-interest.googlegroups.com/web/ScintillaSciteDoc.html</a>
+<p>
+<p>
+<H3>Getting and Modifying Document Text</H3>
+<p>
+<code>editor:GetText()</code> will return the full text of the current document, and <code>editor:SetText(s)</code> will replace the current contents of the document with the string <code>s</code>.
+<p>
+<code>editor:GetLine(n)</code> will get all the text of the line <code>n</code>, including any end-of-line characters. Remember that under Windows there will be two of these ('\r\n');  all line numbers are zero-based. The following is a simple function to remove the end-of-line characters:
+<p>
+<pre class="code">
+  <span class="comment">-- removes end-of-line characters in a string</span>
+
+  <span class="keyword">function</span> Chomp(line)
+
+    <span class="keyword">return</span> <span class="library">string.gsub</span>(line, <span class="string">"[\r\n]+$"</span>, <span class="string">""</span>)
+
+  <span class="keyword">end</span>
+
+</pre>
+
+<p>
+<code>editor:GetSelText()</code> will retrieve the currently selected text.
+<p>
+The length of the document in characters is <code>editor.Length</code> and in lines is <code>editor.LineCount</code>; note the different syntax used here, since <code>Length</code> and <code>LineCount</code> are <em>properties</em>. Another example is <code>editor.CharAt[p]</code> which will get the <em>character</em> at position <code>p</code>. This will be the character code, so use <code>string.char(ch)</code> to generate a string:
+<p>
+<pre class="code">
+  <span class="comment">-- returns the character at position p as a string</span>
+
+  <span class="keyword">function</span> char_at(p)
+
+     <span class="keyword">return</span> <span class="library">string.char</span>(editor.CharAt[p])
+
+  <span class="keyword">end</span>
+
+</pre>
+
+<p>
+<code>editor:textrange(p1,p2)</code> will get the text between <code>p1</code> and <code>p2</code>; (this is a SciTE pane function). So an alternative way to get the character as a string at a position <code>p</code> is <code>editor:textrange(p,p+1)</code>.
+<p>
+<code>editor:ClearAll()</code> will clear the document.
+<p>
+<code>editor:AppendText(s)</code> will append <code>s</code> to the end of the document, and <code>editor:InsertText(p,s)</code> will insert <code>s</code> at the position <code>p</code>; a position of -1 means the <em>current</em> position. This is where the caret is currently displayed;  in all cases, please note that <code>InsertText</code> won't scroll the text into view. <code>editor:ScrollCaret()</code> will do that for you.
+<p>
+<code>editor:ReplaceSel(s)</code> will replace the selection with <code>s</code>. Here is a function that will enclose the selected text in bold tags:
+<p>
+<pre class="code">
+  <span class="keyword">function</span> make_bold()
+
+    <span class="keyword">local</span> txt = editor:GetSelText();
+
+    editor:ReplaceSel(<span class="string">'&lt;b&gt;'</span>..txt..<span class="string">'&lt;/b&gt;'</span>)
+
+  <span class="keyword">end</span>
+
+</pre>
+
+<p>
+<H3>Selection and Position Information</H3>
+<p>
+To move to a new position, use <code>editor:GotoPos(p)</code> or <code>editor:GotoLine(l)</code>. They will always make the caret visible.
+<p>
+Given a position <code>p</code>, <code>editor:LineFromPosition(p)</code> will give you the line, and <code>editor:PositionFromLine(l)</code> will give you the position at the <em>start</em> of the line.  If you need the position at line end, use <code>editor.LineEndPosition[l]</code> (note that properties are accessed as if they were arrays). 
+<p>
+<code>editor.CurrentPos</code> will return the current caret position; this is a <em>writeable</em> property, so <code>editor.CurrentPos = p</code> also works, but it doesn't have the same meaning as <code>editor:GotoPos(p)</code>.  The selection in Scintilla is between the <em>anchor</em> and the <em>position</em>, so if there was an existing selection, then setting the position directly would change the selection. <code>editor:SetSel(p1,p2)</code> is the best way to explicitly set the selection.
+<p>
+To find out the currently visible part of the document, use <code>editor.FirstVisibleLine</code> to find out the starting line number, and <code>editor.LinesOnScreen</code> to find out the number of lines visible on the page.
+<p>
+<code>center_pos()</code> is a useful function that uses this information to center the display around a position.
+<p>
+<pre class="code">
+ <span class="comment">-- this centers the cursor position</span>
+
+ <span class="keyword">function</span> center_pos(line)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> line <span class="keyword">then</span> 
+
+     <span class="comment">-- this is the current line</span>
+
+     line = editor:LineFromPosition(editor.CurrentPos)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> top = editor.FirstVisibleLine
+
+  <span class="keyword">local</span> middle = top + editor.LinesOnScreen/2
+
+  editor:LineScroll(0,line - middle)
+
+ <span class="keyword">end</span>
+
+</pre>
+
+<p>
+<H3>SciTE Properties</H3>
+<p>
+There is a pseudo-array called <code>props</code> which can access any defined SciTE property. For example, <code>props['FilePath']</code> will give you the full path to the file currently being edited. Here is a very simple function which will swap a C++ file with its header, assuming that the extensions are only .cpp and .h:
+<p>
+<pre class="code">
+  <span class="keyword">function</span> swap_header()
+
+    <span class="keyword">local</span> cpp_ext = <span class="string">'cpp'</span>
+
+    <span class="keyword">local</span> h_ext = <span class="string">'h'</span>
+
+    <span class="keyword">local</span> f = props[<span class="string">'FileName'</span>]    <span class="comment">-- e.g 'test'</span>
+
+    <span class="keyword">local</span> ext = props[<span class="string">'FileExt'</span>]   <span class="comment">-- e.g 'cpp'</span>
+
+    <span class="keyword">local</span> path = props[<span class="string">'FileDir'</span>]  <span class="comment">-- e.g. '/home/steve/progs'</span>
+
+    <span class="keyword">if</span> ext == cpp_ext <span class="keyword">then</span>
+
+       ext = h_ext
+
+    <span class="keyword">elseif</span> ext == h_ext <span class="keyword">then</span>
+
+       ext = cpp_ext
+
+    <span class="keyword">end</span>
+
+    scite.Open(path..<span class="string">'/'</span>..f..<span class="string">'.'</span>..ext)
+
+  <span class="keyword">end</span>
+
+</pre>
+
+<p>
+Please see the section called 'Properties File' in the SciTE documentation for a full list of properties set by the environment.
+<p>
+Remember that parameters as defined by <code>View|Parameters</code> are accessable as prop[1],prop[2],prop[3] and prop[4].
+<p>
+You can of course access any defined properties, for example <code>props['position.height']</code> will give the initial height of the SciTE window. Special properties may be defined which are meant to be read only by scripts. To make <code>swop_header()</code> more general, define a property called 'cpp.swop.ext' to be your C++ source extension of choice and set <code>cpp_ext</code> to this.
+<pre class="code">
+  <span class="keyword">local</span> cpp_ext = props[<span class="string">'cpp.swop.ext'</span>]
+
+  ...
+
+</pre>
+
+Then define 'cpp.swop.ext=cxx' (or whatever) in your Local properties file.
+<p>
+It is possible for a script to change properties, although of course this will be only temporary. Here is something that makes life easier for script developers;  normally, each Lua function to be called needs to be specified in a property file, but there's no reason why those properties can't be autogenerated.  Here is the important part of <code>scite_Command</code> from <a href="../wiki/SciteExtMan.html" >SciteExtMan</a>.
+<p>
+<pre class="code">
+     <span class="comment">-- we are fed something like 'Process File|ProcessFile|Ctrl+M'</span>
+
+     <span class="keyword">local</span> name,cmd,shortcut = split3(v,<span class="string">'|'</span>)
+
+     <span class="keyword">local</span> which = <span class="string">'.'</span>..idx..<span class="string">'.*'</span>
+
+     props[<span class="string">'command.name'</span>..which] = name
+
+     props[<span class="string">'command'</span>..which] = cmd     
+
+     props[<span class="string">'command.subsystem'</span>..which] = <span class="string">'3'</span>
+
+     props[<span class="string">'command.mode'</span>..which] = <span class="string">'savebefore:no'</span>
+
+     props[<span class="string">'command.shortcut'</span>..which] = shortcut
+
+</pre>
+
+<p>
+<H3>Searching and Replacing</H3>
+<p>
+To find text in the current document, use <code>editor:findtext()</code>. It returns two positions representing the returned range, nil if no match is possible. This function prints out all lines having some given text:
+<p>
+<pre class="code">
+  <span class="keyword">function</span> all_lines_with_text(txt,flags)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> flags <span class="keyword">then</span> flags = 0 <span class="keyword">end</span>
+
+    <span class="keyword">local</span> s,e = editor:findtext(txt,flags,0)
+
+    <span class="keyword">while</span> s <span class="keyword">do</span> 
+
+      <span class="keyword">local</span> l = editor:LineFromPosition(s)
+
+      trace(l..<span class="string">' '</span>..editor:GetLine(l))
+
+      s,e = editor:findtext(txt,flags,e+1)
+
+    <span class="keyword">end</span>    
+
+  <span class="keyword">end</span>
+
+</pre>
+
+<p>
+(Here I'm using <code>trace()</code> instead of <code>print()</code> because the line already has a line feed)
+<p>
+The <em>search flags</em> are a combination of SCFIND_MATCHCASE, SCFIND_WHOLEWORD, SCFIND_WORDSTART, and SCFIND_REGEXP.  By default, the search is a plain case-sensitive search. <code>all_lines_with_text('for',SCFIND_WHOLEWORD)</code> would show all for-statements in a C file, <code>all_lines_with_text('^#',SCFIND_REGEXP)</code> would show all preprocessor statements (i.e. all occurances of '#' which occur at the start of the line).  Please note that SciTE regular expressions are different from Lua's - see 'Searching' in <a href="http://scintilla.sourceforge.net/ScintillaDoc.html">http://scintilla.sourceforge.net/ScintillaDoc.html</a> for details.
+<p>
+The easiest way to do a search-and-replace is using <code>editor:match()</code>, which gives us an iterator:
+<p>
+<pre class="code">
+  <span class="keyword">function</span> replace_all(target,repl)
+
+    editor:BeginUndoAction()
+
+    <span class="keyword">for</span> m <span class="keyword">in</span> editor:match(target) <span class="keyword">do</span>
+
+      m:replace(repl)
+
+    <span class="keyword">end</span>
+
+    editor:EndUndoAction()
+
+  <span class="keyword">end</span>
+
+</pre>
+
+<p>
+<code>Using BeginUndoAction()</code> is the general way to make sure that a number of changes can be undone at once.
+<p>
+<H3>Markers</H3>
+<p>
+SciTE uses markers to implement things like bookmarks and for marking lines with errors.  There are 32 possible markers, and Scintilla makes markers 0 to 24 available for general use; SciTE uses 0 for error lines and 1 for bookmarks. For example, <code>editor:MarkerAdd(line,1)</code> will put a bookmark at <code>line</code>, and SciTE will treat it just like any other bookmark, since it finds bookmarks using the internal Scintilla list.  Please remember, as always, that Scintilla counts lines from zero.
+<p>
+Here is a useful function for defining a custom marker:
+<p>
+<pre class="code">
+  <span class="keyword">local</span> colours = {red = <span class="string">"#FF0000"</span>, blue = <span class="string">'#0000FF'</span>, green = <span class="string">'#00FF00'</span>,pink =<span class="string">"#FFAAAA"</span> ,
+
+					black = <span class="string">'#000000'</span>, lightblue = <span class="string">'#AAAAFF'</span>,lightgreen = <span class="string">'#AAFFAA'</span>}
+
+
+
+  <span class="keyword">function</span> colour_parse(str)
+
+    <span class="keyword">if</span> sub(str,1,1) ~= <span class="string">'#'</span> <span class="keyword">then</span>
+
+      str = colours[str]
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="library">tonumber</span>(sub(str,6,7)..sub(str,4,5)..sub(str,2,4),16)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">function</span> marker_define(idx,typ,fore,back)
+
+    editor:MarkerDefine(idx,typ)
+
+    <span class="keyword">if</span> fore <span class="keyword">then</span> editor:MarkerSetFore(idx,colour_parse(fore)) <span class="keyword">end</span>
+
+    <span class="keyword">if</span> back <span class="keyword">then</span> editor:MarkerSetBack(idx,colour_parse(back)) <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+</pre>
+
+<p>
+<p>
+<H3>User Lists</H3>
+<p>
+These are drop-down lists which allow the user to choose from a number of items, which SciTE uses for 'Complete Symbol', etc.  They are not difficult to use; you supply a string with a specified separator character, and the <code>OnUserListSelection</code> event is fired when the user selects an item.  
+<p>
+<pre class="code">
+ <span class="keyword">function</span> UserListShow(list)
+
+   <span class="keyword">local</span> s = <span class="string">''</span>
+
+   <span class="keyword">local</span> sep = <span class="string">';'</span>
+
+   <span class="keyword">local</span> n = <span class="library">table.getn</span>(list)
+
+   <span class="keyword">for</span> i = 1,n-1 <span class="keyword">do</span>
+
+      s = s..list[i]..sep
+
+   <span class="keyword">end</span>
+
+   s = s..list[n]
+
+   editor.AutoCSeparator = <span class="library">string.byte</span>(sep)
+
+   editor:UserListShow(12,s)
+
+   editor.AutoCSeparator = <span class="library">string.byte</span>(<span class="string">' '</span>)
+
+ <span class="keyword">end</span>
+
+</pre>
+
+<p>
+The tricky thing here is that the property <code>AutoCSeparator</code> is passed a <em>character code</em>, not a string.  The '12' is just a number that SciTE doesn't use internally.
+<p>
+Here is an event handler which assumes that the strings represent Lua scripts in some directory. The idea here is to present the user with a list of little-used 'once-off' scripts, which would otherwise clutter the Tools menu.
+<p>
+<pre class="code">
+ <span class="keyword">function</span> OnUserListSelection(tp,script)
+
+   <span class="keyword">if</span> tp == 12 <span class="keyword">then</span> 
+
+      <span class="library">dofile</span>(path..<span class="string">'/'</span>..script..<span class="string">'.lua'</span>)
+
+   <span class="keyword">end</span>
+
+ <span class="keyword">end</span>
+
+</pre>
+
+<p>
+Building up the list of files requires a little work. Here is a non-Windows solution to this problem:
+<p>
+<pre class="code">
+ <span class="keyword">function</span> GetFiles(mask)
+
+   <span class="keyword">local</span> files = {}
+
+   <span class="keyword">local</span> tmpfile = <span class="string">'/tmp/stmp.txt'</span>
+
+   <span class="library">os.execute</span>(<span class="string">'ls -1 '</span>..mask..<span class="string">' &gt; '</span>..tmpfile)
+
+   <span class="keyword">local</span> f = <span class="library">io.open</span>(tmpfile)
+
+   <span class="keyword">if</span> <span class="keyword">not</span> f <span class="keyword">then</span> <span class="keyword">return</span> files <span class="keyword">end</span>  
+
+   <span class="keyword">local</span> k = 1
+
+   <span class="keyword">for</span> line <span class="keyword">in</span> f:lines() <span class="keyword">do</span>
+
+      files[k] = line
+
+      k = k + 1
+
+   <span class="keyword">end</span>
+
+   f:close()
+
+   <span class="keyword">return</span> files
+
+ <span class="keyword">end</span>
+
+</pre>
+
+<p>
+Code that works on both Unix and Windows is a little tricky. See <code>scite_Files()</code> in <a href="../wiki/SciteExtMan.html" >SciteExtMan</a> for a more complete solution.
+<p>
+<H3>Indicators</H3>
+<p>
+Indicators are not currently used in SciTE, but scripts can easily add them. They could be used by a spell check utility to underline misspelt words with a red line, or dodgy syntax with a squiggly green line.  There are three available indicators with the usual SciTE settings.  Here is a function which will use the given indicator (0,1 or 2) to underline <code>len</code> characters starting at <code>pos</code>.
+<p>
+<pre class="code">
+ <span class="keyword">function</span> underline_text(pos,len,ind)
+
+   <span class="keyword">local</span> es = editor.EndStyled
+
+   editor:StartStyling(pos,INDICS_MASK)
+
+   editor:SetStyling(len,INDIC0_MASK + ind)
+
+   editor:SetStyling(2,31)
+
+ <span class="keyword">end</span>
+
+</pre>
+
+<p>
+To remove underlining, use <code>underline_text(pos,len,-1)</code>.  The last <code>SetStyling()</code> call is necessary to restore the lexer state; 31 is the mask for the lower 5 bits, which are used for styling. The defaults can be changed, if necessary.
+<p>
+The default indicators are
+<p>
+<pre>
+
+   0 green squiggly line
+
+   1 light blue line of small T shapes
+
+   2 light red line
+
+</pre>
+<p>
+The available indicator styles are
+<pre>
+
+  INDIC_PLAIN   Underlined with a single, straight line.
+
+  INDIC_SQUIGGLE  	A squiggly underline.
+
+  INDIC_TT  A line of small T shapes.
+
+  INDIC_DIAGONAL  	Diagonal hatching.
+
+  INDIC_STRIKE  	Strike out.
+
+  INDIC_HIDDEN	An indicator with no visual effect.
+
+  INDIC_BOX 	A rectangle around the text.
+
+</pre>
+<p>
+<H3>Indicators with version 1.70 and maybe previous</H3>
+You have these flags available :
+<pre>
+
+   0 resets the style
+
+   INDIC0_MASK green word processing-like line
+
+   INDIC1_MASK bizarre blue line
+
+   INDIC2_MASK blue round background box
+
+</pre>
+And you case use it like this :
+<pre class="code">
+editor:StartStyling(editor.SelectionStart,INDICS_MASK)
+
+editor:SetStyling(<span class="library">string.len</span>(editor:GetSelText()),flag)
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=UsingLuaWithScite" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=UsingLuaWithScite" >history</a><br>Last edited February 10, 2013 1:20 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=UsingLuaWithScite" >(diff)</a>
+</body>
+</html>

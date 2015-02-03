@@ -1,0 +1,82 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Program Analysis</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ProgramAnalysis&amp;body=1" title="List pages referring to ProgramAnalysis">Program Analysis</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here are various resources related to <a href="http://en.wikipedia.org/wiki/Program_analysis_%28computer_science%29.html">[program analysis]</a> (both static code analysis or dynamic program analysis) of Lua code.
+<p>
+<UL>
+<li> <strong>editor/IDE related:</strong>
+<UL>
+<li> <a href="http://luaeclipse.luaforge.net/">[LuaEclipse 2]</a> - Eclipse IDE plugin for Lua, doing Lua code analysis through <a href="../wiki/MetaLua.html" >MetaLua</a> and Lua<code></code>Java <a href="http://www.keplerproject.org/luajava/">[1]</a>
+<li> <a href="http://plugins.jetbrains.net/plugin/?idea&amp;id=4683">[Lua for JetBrains IntelliJ IDEA]</a><a href="http://lua-users.org/lists/lua-l/2010-06/msg00231.html">[2]</a> Lua for Jet<code></code>Brains IntelliJ IDEA IDE <a href="http://www.jetbrains.com/idea/index.html">[3]</a>.
+<li> <a href="../wiki/LuaInspect.html" >LuaInspect</a> - Lua code analysis, with plugins for SciTE (<a href="http://www.scintilla.org/SciTE.html">[4]</a>,<a href="../wiki/SciteScripts.html" >SciteScripts</a>), vim, and DHTML, based on <a href="../wiki/MetaLua.html" >MetaLua</a>
+<li> <a href="http://vslua.codeplex.com/">[vslua]</a> Visual Studio addon for with syntax highlighting and some code analysis
+<li> <a href="http://www.enyo.de/fw/software/lua-emacs/lua2-mode.html">[emacs semantic highlighting]</a> for global usages
+<li> <a href="http://studio.zerobrane.com/">[ZeroBrane Studio]</a> A lightweight Lua IDE with code analysis based on lua-inspect (Win32, Mac OSX, Linux).
+<li> <a href="http://blua.sourceforge.net/">[BLua]</a> - Lua IDE with code analysis, from WoW community (dormant?)
+<li> <a href="http://bitbucket.org/kevinclancy/love-studio/">[Löve Studio]</a> - Love2d IDE with optional type system
+</UL>
+<li> <strong>parsing:</strong>
+<UL>
+<li> <a href="../wiki/LuaGrammar.html" >LuaGrammar</a> - resources on lexing/compiling Lua.  Some specifically used for static analysis include
+<UL>
+<li> <a href="../wiki/MetaLua.html" >MetaLua</a> - among other things, includes pure Lua libraries for Lua code (optionally with syntax extensions) to AST conversion.
+<li> <a href="http://luaparse.luaforge.net/">[LuaParse]</a><a href="/lists/lua-l/2004-08/msg00509.html">[5]</a> - pure Lua lexer/parser, with semantically aware HTML highlighter
+<li> <a href="../wiki/LuaFish.html" >LuaFish</a> - Lua source to AST converter (via <a href="../wiki/LuaPeg.html" >LuaPeg</a>), plus some analysis support
+</UL>
+</UL>
+<li> <strong>linting:</strong>
+<UL>
+<li> <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>
+<li> <a href="http://code.google.com/p/lua-checker/">[lua-checker]</a> - lint-like analysis tool for Lua.  Does basic checks.
+<li> luaanalyze (bottom of <a href="../wiki/LuaFish.html" >LuaFish</a> page) - new version of <a href="../wiki/LuaFish.html" >LuaFish</a>, based on <a href="../wiki/MetaLua.html" >MetaLua</a>.
+<li> <a href="../wiki/LuaInspect.html" >LuaInspect</a>, mentioned above, is also usable outside an editor
+<li> <a href="https://github.com/mpeterv/luacheck">[luacheck]</a> - simple static checker. Supports Lua 5.1/5.2 and is available via <a href="../wiki/LuaRocks.html" >LuaRocks</a>.
+</UL>
+<li> <strong>optimization/refactoring:</strong>
+<UL>
+<li> <a href="../wiki/SourceOptimizer.html" >SourceOptimizer</a> - source code transformation, mainly inlining functions.
+<li> Some such things are done in LuaJIT2 <a href="/lists/lua-l/2008-06/msg00224.html">[6]</a>
+</UL>
+<li> <strong>coverage:</strong>
+<UL>
+<li> <a href="http://luacov.luaforge.net/">[LuaCov]</a> - coverage analyzer for Lua scripts
+<li> <a href="http://www.softwareverify.com/lua/coverage/index.html">[Software Verification Lua Coverage Validator]</a>
+</UL>
+<li> <strong>profiling:</strong> <a href="../wiki/ProfilingLuaCode.html" >ProfilingLuaCode</a> (dynamic analysis)
+<li> <strong>debugging:</strong> <a href="../wiki/DebuggingLuaCode.html" >DebuggingLuaCode</a> (dynamic analysis)
+<li> <strong>unit testing:</strong> <a href="../wiki/UnitTesting.html" >UnitTesting</a>
+<li> <strong>miscellaneous:</strong> <a href="http://www.softwareverify.com/productsLua.html">[Software Verification]</a> has various commercial program analysis tools for Lua.
+<li> <strong>mining/content analysis:</strong> <a href="../wiki/MiningLuaCode.html" >MiningLuaCode</a>
+<li> <a href="../wiki/LuaImplementationVerification.html" >LuaImplementationVerification</a> - validating the correctness of the Lua implementations themselves
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ProgramAnalysis" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ProgramAnalysis" >history</a><br>Last edited March 26, 2014 11:42 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ProgramAnalysis" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Versus Perl</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaVersusPerl&amp;body=1" title="List pages referring to LuaVersusPerl">Lua Versus Perl</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Introduction</H2>
+Perl <a href="http://www.perl.org/">[1]</a> is a general-purpose dynamic programming language supporting multiple programming paradigms (procedural, object-oriented, and functional styles), automatic memory management, built-in support for text processing, and a large collection of third-party modules. <a href="http://en.wikipedia.org/wiki/Perl.html">[2]</a>
+<p>
+<H2>Semantics</H2>
+<p>
+<strong>Expressiveness:</strong> Lua is remarkably expressive, despite its small size, providing even coroutines, closures, and metamechanisms for OO and other paradigms.  Perl is arguably one of the most expressive languages available <a href="http://en.wikipedia.org/wiki/Comparison_of_programming_languages#Expressiveness.html">[3]</a><a href="http://xahlee.org/perl-python/what_is_expresiveness.html">[4]</a> but is much larger in size and complexity. <a href="http://shootout.alioth.debian.org/gp4sandbox/benchmark.php?test=all&amp;lang=all">[5]</a>
+<p>
+<strong>Coroutine Support:</strong> Lua has built-in coroutine support.  There are some modules for adding this in Perl <a href="http://search.cpan.org/search?query=coroutine">[6]</a>.  Perl 6 supports something similar to coroutines <a href="http://perlcabal.org/syn/S07.html#Coroutines">[7]</a><a href="http://search.cpan.org/~dconway/Perl6-Gather-0.04/Gather.pm">[8]</a>, though as of Aug 2009, Rakudo doesn't yet support laziness, which is required for this.
+<p>
+<H2>Performance, Efficiency, and Implementation</H2>
+<p>
+<strong>Performance:</strong> Lua is one of the fastest interpreted scripting languages.  Perl is generally more heavyweight though is optimized for some text processing functions <a href="http://en.wikipedia.org/wiki/Perl#Comparative_performance.html">[9]</a>.
+<p>
+<strong>Code Footprint:</strong> Lua has a much smaller footprint: about 120K binary.  Perl 5.6 is about 1.1M. One of the smallest builds of Perl, TinyPerl<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TinyPerl" >?</a> <a href="http://tinyperl.sourceforge.net/">[10]</a> 5.8.0/Win32, is 94K tinyperl.exe + 356K perl58.dll (~3.8x) (and optional 262K lib.zip).
+<p>
+<strong>Portability:</strong> Lua compiles on nearly any ANSI C compiler.  This and its small size allows it to run even on many embedded platforms.  Perl, despite running on numerous operating systems, has stricter requirements <a href="http://perldoc.perl.org/perlport.html">[11]</a>.
+<p>
+<strong>Virtual Machine:</strong> The Lua VM is an efficient register based virtual machine.  Perl works on an Stack Based VM <a href="http://search.cpan.org/~nwclark/perl-5.8.8/pod/perlcompile.pod">[12]</a><a href="http://search.cpan.org/~nwclark/perl-5.8.8/ext/B/B.pm">[13]</a> (Perl 6 will have a register VM called Parrot <a href="http://en.wikipedia.org/wiki/Parrot_virtual_machine.html">[14]</a>).  LuaJIT <a href="http://luajit.org">[15]</a> is an a JIT version of the VM for x86.
+<p>
+There are alternative, though in many cases partial, implementations of Lua on other VMs--see "Alternative Implementations of Lua" in <a href="../wiki/LuaAddons.html" >LuaAddons</a>.  Perl's complexity, lack of a formal language specification, and lack of an independent VM are reasons that only one real implementation exists (though this is changing in Perl 6, which, though is even more complex, does have a formal language specification and separate VM, and one compiler is written in Haskell).
+<p>
+<strong>Memory Management:</strong> Lua 5.1 has an incremental garbage collector (<a href="../wiki/GarbageCollectionTutorial.html" >GarbageCollectionTutorial</a>).  Perl uses a simple but efficient reference-based garbage collection that will leak on cycles <a href="http://search.cpan.org/dist/perl/pod/perlobj.pod">[16]</a> (though Perl 6/Parrot will use garbage collection <a href="http://www.parrotcode.org/faq/">[17]</a>).
+<p>
+<strong>Stability:</strong> Very few bugs can be found in Lua. <a href="http://www.lua.org/bugs.html">[18]</a>  The code is small, highly stable, and extensively reviewed.  The Perl core is larger, does more, and is much more complex, so naturally it would be harder to ensure validity.  That said, Perl is widely used and tested, and the core is generally quite stable.  If one includes non-core modules, then Perl may be more stable/mature in general.
+<p>
+<H2>Extending/Embedding/Customizing</H2>
+<p>
+<strong>Embedding and Extending with C:</strong> Lua has a very clean and simple interface for embedding or extending C.  Perl has XS, which has commonly recognized deficiencies and complexities <a href="http://en.wikipedia.org/wiki/XS_(Perl).html">[19]</a>, but there is a cleaner Inline interface <a href="http://search.cpan.org/search?query=inline">[20]</a> to various languages.
+<p>
+The Lua compiler and VM are more readily understood and customized.  Perl is much more complex.
+<p>
+<H2>Syntax</H2>
+<p>
+<strong>Syntax:</strong> Perl is in full a quite complicated language.  Complex syntax can allow more expressivity if mastered <a href="http://www.oreilly.com/catalog/perlbp/">[21]</a> but can also be more difficult to learn and easier to abuse. Some parts of Perl syntax are awkward, such as its use of sigils <a href="http://en.wikipedia.org/wiki/Sigil_(computer_programming).html">[22]</a>, though this is being addressed in Perl 6 <a href="http://www.programmersheaven.com/2/Perl6-FAQ-Variables">[23]</a>.
+<UL>
+<UL>
+<li> <em>IMHO this part should be removed or changed, sigils are part of the most basic syntax in perl, and wether you like or dislike them is more of a personal matter. In any case, the compiler will warn you if you use them incorrectly.</em>
+</UL>
+</UL>
+<p>
+Lua has a simple, clean syntax, whose core language can be described in 25 pages and standard libaries in another 25 pages <a href="http://www.lua.org/manual/5.1/">[24]</a>.  The Lua grammar fits in a page or two (see <a href="../wiki/LuaGrammar.html" >LuaGrammar</a>).
+<p>
+<strong>Grammar Specification/External Parsers:</strong> Lua's grammar is defined according to a specification, and a simple one at that (see <a href="../wiki/LuaGrammar.html" >LuaGrammar</a>).  Perl is defined by an implementation rather than a formal language specification (though Perl 6 will be defined according to a specification).  Due to both the lack of formal specification and complexity, Perl is only reasonably fully parseable in Perl itself (see <a href="http://search.cpan.org/~adamk/PPI/lib/PPI.pm">[PPI]</a>) or partially parsable with some difficulty <a href="http://search.cpan.org/~dconway/Text-Balanced/lib/Text/Balanced.pm">[25]</a> (Perl 6 will be fully parsable with some difficulty <a href="http://en.wikipedia.org/wiki/Perl_6#A_specification.html">[26]</a>).
+<p>
+It is far easier to write a Lua parser than a Perl parser for reasons noted above.  This makes writing tools that operate on the language easier--e.g. syntax highlighters, source code analyzers, source code translators, source code filters, documentation extractors, metaprogramming tools (e.g. Metalua <a href="http://metalua.luaforge.net/">[27]</a>), and alternative implementations (see "Alternative Implementations of Lua" in <a href="../wiki/LuaAddons.html" >LuaAddons</a>).  However, it should be noted that Lua, being a highly dynamic language, makes it difficult to extract source code meaning from syntax alone.
+<p>
+<H2>Functionality / Application Areas</H2>
+<p>
+<strong>Database Support:</strong> Perl database support <a href="http://search.cpan.org/search?dist=DBI">[28]</a> is much more mature and includes support for bind value/placeholders <a href="http://en.wikipedia.org/wiki/SQL_injection#Securing_applications_against_SQL_injection.html">[29]</a>.    Lua does have LuaSQL though <a href="http://www.keplerproject.org/luasql/">[30]</a>.
+<p>
+<strong>Regular Expressions:</strong> Perl has built-in support for regular expressions in the language.  Lua has includes a more limited but still quite functional pattern matching library, and there are various regular expression library addons <a href="http://lua-users.org/wiki/LibrariesAndBindings.html">[31]</a>.  Lua's LPeg <a href="http://www.inf.puc-rio.br/~roberto/lpeg.html">[32]</a> for PEGs has gotten a lot of attention, though Perl has a variety of modules for grammars, e.g. <code>Parse::RecDescent</code> <a href="http://search.cpan.org/dist/Parse-RecDescent/">[33]</a>.
+<p>
+<strong>Web Development:</strong> Since the creation of the web, Perl has been widely used for web programming, first with CGI and then with mod_perl and various other frameworks.  There are extensive support modules (e.g. <a href="http://search.cpan.org/modlist/World_Wide_Web">[34]</a>).  Lua has Kepler <a href="http://www.keplerproject.org/">[35]</a>.
+<p>
+<strong>Threading:</strong> Perl has built-in threading <a href="http://search.cpan.org/~rgarcia/perl-5.10.0/pod/perlthrtut.pod">[36]</a>.  Lua has built-in coroutine support (cooperative multitasking) and encourages the use of it over threads, or at least using one thread per Lua state (see <a href="../wiki/ThreadsTutorial.html" >ThreadsTutorial</a> ).  There are a few add-ons supporting preemptive multithreading in Lua, such as LuaLanes<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaLanes" >?</a> <a href="http://luaforge.net/frs/shownotes.php?release_id=732">[37]</a>.
+<UL>
+<UL>
+<li> ''It's kinda awkward to compare perls threading with luas co-routines (which are, as the text states later, cooperative and not preemptive). Perl has (as mentioned in this article as well) coroutine modules as well (as well as other cooperative multitasking models, see CPAN), and those are usually preferred by the community over threads.
+</UL>
+</UL>
+<p>
+<H2>Modules and Software Engineering</H2>
+<p>
+<strong>Modules:</strong> Perl has a huge number of modules in <a href="http://search.cpan.org">[CPAN]</a> for facilitating a broad range of scripting and programming tasks (15 million lines of code in CPAN as of 2005 <a href="http://www.perlmonks.org/?node_id=495379">[38]</a>).  Lua module offerings are more specialized and limited, but many are maintained at <a href="../wiki/LuaForge.html" >LuaForge</a>.
+<p>
+Lua lacks a comprehensive standard library (partly due to the design requirement of ANSI compatibility), but see <a href="../wiki/ExtensionProposal.html" >ExtensionProposal</a>.
+<p>
+<strong>Community:</strong> Perl has a large and well organized user community (e.g. CPAN, CPANTS <a href="http://cpants.perl.org">[39]</a>, use.perl.org, perl.com, perlmonks.org, more than a hundred mailing lists <a href="http://lists.cpan.org/">[40]</a>, ...).  Still, Lua has active mail lists, wiki, <a href="../wiki/LuaForge.html" >LuaForge</a>, Kepler, ....
+<p>
+<strong>Packaging/Deployment:</strong> Perl has a mature packaging, versioning, distribution, and installation mechanism through <code>CPAN/ExtUtils::MakeMaker</code>.  Something similar for Lua is beginning via the <a href="../wiki/LuaRocks.html" >LuaRocks</a> effort.
+<p>
+<strong>Documentation Format:</strong> Perl has a standard module documentation format, POD <a href="http://en.wikipedia.org/wiki/Plain_Old_Documentation.html">[41]</a>.  Lua documentation methods are a bit more fragmented (e.g. Lua<code></code>Doc <a href="http://www.tecgraf.puc-rio.br/~tomas/luadoc/">[42]</a> and LuaPOD <a href="http://www.lua.inf.puc-rio.br/~sergio/luapod/index.html">[43]</a>).
+<p>
+<strong>Testing:</strong> Perl has CPANTS <a href="http://cpants.perl.org/">[44]</a>/Kwalitee.  Most modules on CPAN come with a test suite.  There are version testing modules, including the popular Test::More <a href="http://search.cpan.org/dist/Test-Simple/">[45]</a>.  Lua does have at a few testing modules itself (<a href="../wiki/UnitTesting.html" >UnitTesting</a>).
+<p>
+<H2>Combining Perl and Lua</H2>
+<p>
+There is an implementation of Lua on Parrot.  <a href="http://search.cpan.org/~vparseval/Inline-Lua/lib/Inline/Lua.pm">[Inline::Lua]</a>, <a href="http://search.cpan.org/~altreus/Outline-Lua/lib/Outline/Lua.pm">[Outline::Lua]</a>, <a href="http://search.cpan.org/~djerius/Lua-API/lib/Lua/API.pm">[Lua::API]</a>, and <a href="http://www.equi4.com/lux/LUXDOC.html">[Lux]</a> (not recently maintained) embed Lua in Perl.  <a href="http://thomaslauer.com/comp/Calling_Perl_from_Lua">[perlembed]</a> and <a href="https://github.com/hoelzro/luaperl">[luaperl]</a> embed Lua in Perl.  re::engine::Lua <a href="http://code.google.com/p/re-engine-lua/">[46]</a><a href="http://search.cpan.org/~perrad/re-engine-Lua/">[47]</a> supplies Perl 5.10 with Lua patterns via a pluggable regex engine.  LuaPOD <a href="http://www.lua.inf.puc-rio.br/~sergio/luapod/index.html">[43]</a> parses POD in Lua.  Syntax::Highlight::Engine::Kate::Lua <a href="http://search.cpan.org/dist/Syntax-Highlight-Engine-Kate/lib/Syntax/Highlight/Engine/Kate/Lua.pm">[48]</a> syntax highlights Lua from Perl.
+<UL>
+<UL>
+<li> <em>I've found Inline::Lua to be rather useless (it does not allow you to dynamically execute lua-code and breaks when you mix it with require and/or eval), but there is another module, called 'Outline::Lua', which allows you to do that; though, as of this writing it seems to be incomplete.</em>
+</UL>
+</UL>
+<p>
+<H2>Additional Notes</H2>
+<p>
+Though some improvements are made from Perl 5 to Perl 6 are noted above, Perl 6 is a massive undertaking, and it's not known how many years away it will be before the final Perl 6 release. <a href="http://en.wikipedia.org/wiki/Perl_6.html">[49]</a>.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaComparison.html" >LuaComparison</a> - how Lua compares to other languages
+<li> <a href="http://vtatila.kapsi.fi/luatut.html">[Lua for Perl Programmers]</a> (<em>Please note that from skimming "Lua for Perl Programmers" I've found quite a few factual errors, so take what you read there with a grain of salt.</em> - <a href="../wiki/PeterOdding.html" >PeterOdding</a>)
+<li> Contributors: <a href="../wiki/DavidManura.html" >DavidManura</a> et al
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaVersusPerl" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaVersusPerl" >history</a><br>Last edited April 20, 2011 2:53 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaVersusPerl" >(diff)</a>
+</body>
+</html>

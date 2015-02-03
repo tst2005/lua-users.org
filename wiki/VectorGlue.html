@@ -1,0 +1,587 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Vector Glue</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=VectorGlue&amp;body=1" title="List pages referring to VectorGlue">Vector Glue</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here is a simple wrapper around Lua tables that provides the restricted semantics of <code>Vectors</code>. This is not necessarily the most inspired code, nor the most bug-free, but it might prove useful to someone. Aside from the Vector stuff, it shows a few examples of using functionals.  This came up from a mailing list discussion on <code>getn</code> and the use of the key <code>n</code> to hold the length of the list (well, I would say <code>Vector</code>).
+<p>
+<strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  Certain features used like tag methods (<code>settagmethod</code>) are no longer present in Lua 5 but have been replaced with metamethods.</strong>
+<p>
+Some sample output appears at the end. Reading the last function (<code>tmap</code>) might show the value of the redefined / and ^ operators.
+<p>
+<H3>Code</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+    <span class="keyword">local</span> TAG = newtag()
+
+
+
+    <span class="keyword">local</span> bless = <span class="keyword">function</span>(t)
+
+                      t.n = getn(t)
+
+                      <span class="keyword">return</span> settag(t, %TAG)
+
+                  <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> vector_seti(t, i, v)
+
+        <span class="keyword">if</span> <span class="library">type</span>(i) == <span class="string">"number"</span> <span class="keyword">and</span> i &gt; 0 <span class="keyword">and</span> i == floor(i)
+
+            <span class="keyword">then</span> <span class="library">rawset</span>(t, i, v)
+
+                <span class="keyword">if</span> t.n &lt; i <span class="keyword">then</span> <span class="library">rawset</span>(t, <span class="string">"n"</span>, i) <span class="keyword">end</span>
+
+        <span class="keyword">elseif</span> i == <span class="string">"n"</span> <span class="keyword">and</span> <span class="library">type</span>(v) == <span class="string">"number"</span>
+
+               <span class="keyword">and</span> v &gt;= 0 <span class="keyword">and</span> v == floor(v)
+
+            <span class="keyword">then</span> <span class="library">rawset</span>(t, <span class="string">"n"</span>, v)
+
+        <span class="keyword">else</span> <span class="library">error</span>(<span class="string">"Invalid index to vector"</span>)
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+
+
+    settagmethod(TAG, <span class="string">"settable"</span>, vector_seti)
+
+
+
+    <span class="keyword">function</span> vector(...)
+
+        <span class="keyword">return</span> settag(arg, %TAG)
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> vector_concat(t1, t2)
+
+        <span class="keyword">if</span> tag(t1) ~= %TAG <span class="keyword">or</span> tag(t2) ~= %TAG
+
+            <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"Can't concat a vector with a non-vector"</span>)
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">local</span> t3 = {}
+
+        <span class="keyword">for</span> i = 1, t1.n <span class="keyword">do</span> t3[i] = t1[i] <span class="keyword">end</span>
+
+        <span class="keyword">for</span> i = 1, t2.n <span class="keyword">do</span> t3[t1.n + i] = t2[i] <span class="keyword">end</span>
+
+        <span class="keyword">return</span> %bless(t3)
+
+    <span class="keyword">end</span>
+
+
+
+    settagmethod(TAG, <span class="string">"concat"</span>, vector_concat)
+
+
+
+<span class="comment">-- this should be safe from optimizations since 1*t is defined</span>
+
+<span class="comment">-- to be t. Consequently, it doesn't guarantee to create a</span>
+
+<span class="comment">-- new vector</span>
+
+
+
+    <span class="keyword">function</span> vector_repeat(t, n)
+
+        <span class="keyword">if</span> tag(t) ~= %TAG <span class="keyword">then</span> n, t = t, n <span class="keyword">end</span>
+
+        <span class="keyword">if</span> <span class="keyword">not</span> <span class="library">tonumber</span>(n)
+
+            <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"Repeat needs a vector and a number"</span>)
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">local</span> tt = {}
+
+        <span class="keyword">if</span> n == 1 <span class="keyword">then</span>
+
+            <span class="keyword">return</span> t
+
+        <span class="keyword">elseif</span> n &gt; 0 <span class="keyword">then</span>
+
+            <span class="keyword">for</span> j = 1, t.n <span class="keyword">do</span>
+
+                <span class="keyword">local</span> v = t[j]
+
+                <span class="keyword">for</span> i = 1, n <span class="keyword">do</span> tt[(i-1)*t.n + j] = v <span class="keyword">end</span>
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">elseif</span> n &lt; 0 <span class="keyword">then</span>
+
+            <span class="keyword">for</span> j = 0, t.n - 1 <span class="keyword">do</span>
+
+                <span class="keyword">local</span> v = t[j + 1]
+
+                <span class="keyword">for</span> i = 1, -n <span class="keyword">do</span> tt[i*t.n - j] = v <span class="keyword">end</span>
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> %bless(tt)
+
+    <span class="keyword">end</span>
+
+
+
+    settagmethod(TAG, <span class="string">"mul"</span>, vector_repeat)
+
+    settagmethod(TAG, <span class="string">"unm"</span>,
+
+        <span class="keyword">function</span>(t) <span class="keyword">return</span> vector_repeat(t, -1) <span class="keyword">end</span>)
+
+
+
+    <span class="keyword">function</span> vector_reduce(t, fn)
+
+        <span class="keyword">if</span> tag(t) ~= %TAG <span class="keyword">then</span> fn, t = t, fn <span class="keyword">end</span>
+
+        <span class="keyword">if</span> <span class="library">type</span>(fn) ~= <span class="string">"function"</span> <span class="keyword">then</span>
+
+            <span class="library">error</span> (<span class="string">"Reduce needs a function of two arguments"</span>)
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">if</span> t.n == 0 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span> <span class="keyword">end</span>
+
+        <span class="keyword">local</span> val = t[1]
+
+        <span class="keyword">for</span> i = 2, t.n <span class="keyword">do</span>
+
+            val = fn(val, t[i])
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> val
+
+    <span class="keyword">end</span>
+
+
+
+    settagmethod(TAG, <span class="string">"div"</span>, vector_reduce)
+
+
+
+    <span class="keyword">function</span> tjoin(t, str)
+
+        str = str <span class="keyword">or</span> <span class="string">" "</span>
+
+        <span class="keyword">return</span> t / <span class="keyword">function</span>(a, b) <span class="keyword">return</span> a .. %str .. b <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> vector_map(t, fn)
+
+        <span class="keyword">if</span> tag(t) ~= %TAG <span class="keyword">then</span> fn, t = t, fn <span class="keyword">end</span>
+
+        <span class="keyword">if</span> <span class="library">type</span>(fn) ~= <span class="string">"function"</span> <span class="keyword">then</span>
+
+            <span class="library">error</span> (<span class="string">"Map needs a function of one argument"</span>)
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">local</span> tt = {}
+
+        <span class="keyword">for</span> i = 1, t.n <span class="keyword">do</span>
+
+            tt[i] = fn(t[i])
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> %bless(tt)
+
+    <span class="keyword">end</span>
+
+
+
+    settagmethod(TAG, <span class="string">"pow"</span>, vector_map)
+
+
+
+    <span class="keyword">function</span> andf(a, b) <span class="keyword">return</span> a <span class="keyword">and</span> b <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> vectorp(a) <span class="keyword">return</span> tag(a) == %TAG <span class="keyword">end</span>
+
+
+
+    <span class="keyword">function</span> tmap(fn, ...)
+
+        <span class="keyword">local</span> targ = %bless(arg)
+
+        <span class="keyword">if</span> <span class="library">type</span>(fn) ~= <span class="string">"function"</span> <span class="keyword">then</span>
+
+            <span class="library">error</span>(<span class="string">"tmap requires a function"</span>) <span class="keyword">end</span>
+
+        <span class="keyword">if</span> 0 == andf/ vectorp^targ <span class="keyword">then</span>
+
+            <span class="library">error</span>(<span class="string">"map only works on vectors"</span>) <span class="keyword">end</span>
+
+        <span class="keyword">local</span> tt = {}
+
+        <span class="keyword">for</span> i = 1, min/ getn^targ <span class="keyword">do</span>
+
+            <span class="keyword">local</span> sel = <span class="keyword">function</span>(t) <span class="keyword">return</span> t[%i] <span class="keyword">end</span>
+
+            tt[i] = call(fn, sel^targ)
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> %bless(tt)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+<H3>Sample Usage</H3>
+<p>
+Here's some sample output. The function <code>p</code> just
+makes it a little easier to see the results.
+<p>
+<DL>
+<dt><dd><pre>&gt; function p(t) print(tjoin(t)) end
+
+&gt;
+
+</pre>
+</DL>
+Create a vector
+<p>
+<DL>
+<dt><dd><pre>&gt; a = vector("this", "is", "a", "vector")
+
+&gt; p(a)
+
+this is a vector
+
+</pre>
+</DL>
+repeat, concatenate:
+<DL>
+<dt><dd><pre>&gt; p(2 * a)
+
+this is a vector this is a vector
+
+&gt; p(a .. a)
+
+this is a vector this is a vector
+
+</pre>
+</DL>
+works backwards, too, so we define unary minus as well
+<DL>
+<dt><dd><pre>&gt; p(-3 * a)
+
+vector a is this vector a is this vector a is this
+
+&gt; p(-a)
+
+vector a is this
+
+</pre>
+</DL>
+<p>
+<code>getn</code> is possible, but it's just as easy to use the <code>n</code> key.
+<DL>
+<dt><dd><pre>&gt; print(a.n)
+
+4
+
+</pre>
+</DL>
+<p>
+We can use <code>tinsert</code> and <code>tremove</code> normally, and index the vector by an integer.
+<DL>
+<dt><dd><pre>
+
+&gt; tinsert(a, ".")
+
+&gt; print(a.n)
+
+5
+
+&gt; p(a)
+
+this is a vector .
+
+&gt; tremove(a, 3)
+
+&gt; p(a)
+
+this is vector .
+
+&gt; a[4] = "a"
+
+&gt; p(a)
+
+this is vector a
+
+&gt; a[3], a[4] = a[4], a[3]
+
+&gt; p(a)
+
+this is a vector
+
+</pre>
+</DL>
+<p>
+But the vector doesn't like be used as a table
+<DL>
+<dt><dd><pre>&gt; a.note = 27
+
+error: Invalid index to vector
+
+stack traceback:
+
+   1:  function `error' [C]
+
+   2:  function `vector_seti' at line 16 [file `table.lua']
+
+   3:  main of string "a.note = 27" at line 1
+
+</pre>
+</DL>
+<p>
+We can also set <code>n</code> to "truncate" the vector, and then change it back to restore the truncated values
+<DL>
+<dt><dd><pre>&gt; a.n = 2
+
+&gt; p(a)
+
+this is
+
+&gt; a.n = 3
+
+&gt; p(a)
+
+this is a
+
+&gt; a.n = 4
+
+&gt; p(a)
+
+this is a test
+
+</pre>
+</DL>
+However, setting n beyond the end doesn't create any values, so we can get ourselves into trouble:
+<DL>
+<dt><dd><pre>&gt; a.n = 5
+
+&gt; p(a)
+
+error: attempt to concat local `b' (a nil value)
+
+stack traceback:
+
+   1:  function `fn' at line 82 [file `table.lua']
+
+   2:  function `vector_reduce' at line 73 [file `table.lua']
+
+   3:  function `tjoin' at line 82 [file `table.lua']
+
+   4:  function `p' at line 116 [file `table.lua']
+
+   5:  main of string "p(a)" at line 1
+
+</pre>
+</DL>
+As you might see from the code, the reduce (/) and map (^) operators can be extremely expressive...
+<p>
+<DL>
+<dt><dd><pre>&gt; p(strupper^ a)
+
+THIS IS A TEST
+
+&gt; b = vector(4, 8, -3.4, 7)
+
+&gt; print (max/ b)
+
+8
+
+</pre>
+</DL>
+<p>
+Unfortunately, we have to define primitives ourselves
+<DL>
+<dt><dd><pre>
+
+&gt; function sum(a, b) return a + b end
+
+&gt; print (sum/ b)
+
+15.6
+
+</pre>
+</DL>
+<p>
+So it's quite handy to have some functional manipulators around
+<DL>
+<dt><dd><pre>
+
+&gt; function bind2(fn, b) return function(a) return %fn(a, %b) end end
+
+&gt; add1 = bind2(sum, 1)
+
+&gt; p(add1^ b)
+
+5 9 -2.4 8
+
+&gt; function average(a) return (sum/ a) / a.n end
+
+&gt; print(average(b))
+
+3.9
+
+</pre>
+</DL>
+<p>
+<code>tmap</code> is defined to allow mapping over more than one argument
+<DL>
+<dt><dd><pre>&gt; function ratio(a, b) return a / b end
+
+&gt; p(tmap(ratio, b, add1^ b))
+
+0.8 0.8888888888888888 1.416666666666667 0.875
+
+</pre>
+</DL>
+<p>
+The definition of <code>tjoin</code> shows another use of reduce. (Note that the reduce operator is commutative, if not symmetrical)
+<DL>
+<dt><dd><pre>&gt; p(a)
+
+this is a test
+
+&gt; print(tjoin(a, ", "))
+
+this, is, a, test
+
+&gt; print(tjoin(a, "\n"))
+
+this
+
+is
+
+a
+
+test
+
+</pre>
+</DL>
+<p>
+But this little functional might be useful, too...
+<DL>
+<dt><dd><pre>&gt; function joiner(s) return function(a, b) return a .. %s .. b end end
+
+&gt; print(joiner("\n")/ tmap(joiner("\t"), a, b))
+
+this    4
+
+is      8
+
+a       -3.4
+
+test    7
+
+</pre>
+</DL>
+<p>
+And following up on that theme, I leave you with the following possibly revealing bit of code:
+<DL>
+<dt><dd><pre>&gt; function tab2vec(t) \
+
+      local v = vector() \
+
+      for key, val in t do tinsert(v, vector(key, val)) end \
+
+      return v \
+
+end
+
+&gt; family = {juan = 23, marie = 16, alfonso = 45, silvana = 42}
+
+&gt; -- sort by age
+
+&gt; sort(ft, function(a, b) return a[2] &lt; b[2] end)
+
+&gt; print(joiner("\n")/ bind2(tjoin, "\t")^ ft)
+
+marie   16
+
+juan    23
+
+silvana 42
+
+alfonso 45
+
+&gt; -- sort by name
+
+&gt; sort(ft, function(a, b) return a[1] &lt; b[1] end)
+
+&gt; print(joiner("\n")/ bind2(tjoin, "\t")^ ft)
+
+alfonso 45
+
+juan    23
+
+marie   16
+
+silvana 42
+
+</pre>
+</DL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=VectorGlue" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=VectorGlue" >history</a><br>Last edited January 6, 2007 6:43 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=VectorGlue" >(diff)</a>
+</body>
+</html>

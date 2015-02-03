@@ -1,0 +1,162 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Getting The Title From Html Files</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=GettingTheTitleFromHtmlFiles&amp;body=1" title="List pages referring to GettingTheTitleFromHtmlFiles">Getting The Title From Html Files</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This example program prints out the titles of all HTML files passed to it on the command-line.  It provides a rough example of parsing out data from HTML files.  It it not necessarily robust though (e.g. consider the rare case of a comment line containing <code>&lt;!-- &lt;title&gt;ack&lt;/title&gt; --&gt;</code>).
+<p>
+Usage example (from the shell):
+<DL>
+<dt><dd><pre>
+
+$ ls *.html
+
+cgi.html          htaccess.html  mod_include.html   urlmapping.html
+
+configuring.html  mod_auth.html  mod_rewrite.html
+
+core.html         mod_cgi.html   rewriteguide.html
+
+$ ./title.lua *.html
+
+cgi.html: Apache Tutorial: Dynamic Content with CGI
+
+configuring.html: Configuration Files
+
+core.html: Apache Core Features
+
+htaccess.html: Apache Tutorial: .htaccess files
+
+mod_auth.html: Apache module mod_auth
+
+mod_cgi.html: Apache module mod_cgi
+
+mod_include.html: Apache module mod_include
+
+mod_rewrite.html: Apache module mod_rewrite
+
+rewriteguide.html: Apache 1.3 URL Rewriting Guide
+
+urlmapping.html: Mapping URLs to Filesystem Locations - Apache HTTP Server
+
+</pre>
+</DL>
+<p>
+Below is the Lua program <code>title.lua</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+#!/usr/bin/env lua
+
+
+
+<span class="keyword">function</span> getTitle(fname)
+
+  <span class="keyword">local</span> fp = <span class="library">io.open</span>(fname, <span class="string">"r"</span>)
+
+  <span class="keyword">if</span> fp == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">false</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- Read up to 8KB (avoid problems when trying to parse /dev/urandom)</span>
+
+  <span class="keyword">local</span> s = fp:read(8192)
+
+  fp:close()
+
+
+
+  <span class="comment">-- Remove optional spaces from the tags.</span>
+
+  s = <span class="library">string.gsub</span>(s, <span class="string">"\n"</span>, <span class="string">" "</span>)
+
+  s = <span class="library">string.gsub</span>(s, <span class="string">" *&lt; *"</span>, <span class="string">"&lt;"</span>)
+
+  s = <span class="library">string.gsub</span>(s, <span class="string">" *&gt; *"</span>, <span class="string">"&gt;"</span>)
+
+
+
+  <span class="comment">-- Put all the tags in lowercase.</span>
+
+  s = <span class="library">string.gsub</span>(s, <span class="string">"(&lt;[^ &gt;]+)"</span>, <span class="library">string.lower</span>)
+
+
+
+  <span class="keyword">local</span> i, f, t = <span class="library">string.find</span>(s, <span class="string">"&lt;title&gt;(.+)&lt;/title&gt;"</span>)
+
+  <span class="keyword">return</span> t <span class="keyword">or</span> <span class="string">""</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">if</span> arg[1] == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+  <span class="library">print</span>(<span class="string">"Usage: lua "</span> .. arg[0] .. <span class="string">" &lt;filename&gt; [...]"</span>)
+
+  <span class="library">os.exit</span>(1)
+
+<span class="keyword">end</span>
+
+
+
+i = 1
+
+<span class="keyword">while</span> arg[i] <span class="keyword">do</span>
+
+  t = getTitle(arg[i])
+
+  <span class="keyword">if</span> t <span class="keyword">then</span>
+
+    <span class="library">print</span>(arg[i] .. <span class="string">": "</span> .. t)
+
+  <span class="keyword">else</span>
+
+    <span class="library">print</span>(arg[i] .. <span class="string">": File opening error."</span>)
+
+  <span class="keyword">end</span>
+
+  i = i + 1
+
+<span class="keyword">end</span>
+
+<span class="library">os.exit</span>(0)
+
+</pre>
+
+</DL>
+<p>
+-- <a href="../wiki/AlexandreErwinIttner.html" >AlexandreErwinIttner</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=GettingTheTitleFromHtmlFiles" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=GettingTheTitleFromHtmlFiles" >history</a><br>Last edited January 2, 2007 1:23 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=GettingTheTitleFromHtmlFiles" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,867 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Table Scope</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TableScope&amp;body=1" title="List pages referring to TableScope">Table Scope</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Abstract</H2>
+<p>
+Described here are various solutions to allow table constructs to enclose a scope so that variables used inside the table have special meaning. In other words, we want something like this: 
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> obj = struct <span class="string">"foo"</span> {
+
+              int <span class="string">"bar"</span>;
+
+              <span class="library">string</span> <span class="string">"baz"</span>;
+
+            }
+
+<span class="library">assert</span>(obj == <span class="string">"foo[int[bar],string[baz]]"</span>)
+
+<span class="library">assert</span>(<span class="library">string.lower</span>(<span class="string">"ABC"</span>) == <span class="string">"abc"</span>)
+
+<span class="library">assert</span>(int == <span class="keyword">nil</span>)
+
+</pre>
+
+</DL>
+<p>
+<H2>Problem</H2>
+<p>
+Lua is good for data definition (as discussed in Programming in Lua):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> o = rectangle { point(0,0), point(3,4) }
+
+
+
+<span class="comment">-- another example:</span>
+
+html{ h1<span class="string">"This is a header"</span>, p<span class="string">"This is a paragraph"</span>,
+
+      p{<span class="string">"This is a "</span>, em<span class="string">"styled"</span>, <span class="string">" paragraph"</span>} }
+
+
+
+<span class="comment">-- another example:</span>
+
+struct <span class="string">"name"</span> {
+
+  int    <span class="string">"bar"</span>;
+
+  <span class="library">string</span> <span class="string">"baz"</span>;
+
+}
+
+</pre>
+
+</DL>
+<p>
+The syntax is nice. The semantics are less so: string is a global variable scoped outside of <code>struct</code>, even though it only needs to have meaning inside of <code>struct</code>. This can create problems. For example, the above requires redefining the standard table <code>string</code>.
+<p>
+Requiring a prefix will solve the problem but can be cumbersome and ugly, being foreign to the problem domain that data definition intends to describe: 
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> struct = <span class="library">require</span> <span class="string">"struct"</span>
+
+...
+
+<span class="keyword">local</span> o = struct <span class="string">"name"</span> {
+
+            struct.int  <span class="string">"bar"</span>;
+
+            struct.string <span class="string">"baz"</span>;
+
+          }
+
+</pre>
+
+</DL>
+<p>
+We could restrict the scope with locals, but defining them can become cumbersome too, especially if your data definition language contains hundreds of tags:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> struct = <span class="library">require</span> <span class="string">"struct"</span>
+
+...
+
+<span class="keyword">local</span> o; <span class="keyword">do</span>
+
+  <span class="keyword">local</span> int = struct.int
+
+  <span class="keyword">local</span> <span class="library">string</span> = struct.string
+
+  o = struct <span class="string">"name"</span> {
+
+        int  <span class="string">"bar"</span>;
+
+        <span class="library">string</span> <span class="string">"baz"</span>;
+
+      }
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+In fact, we might want some word to have different meanings depending on nesting context:
+<p>
+<DL>
+<dt><dd><pre class="code">
+action { point { at = location { point(3,4) } }
+
+</pre>
+
+</DL>
+<p>
+An alternative might be
+<p>
+<DL>
+<dt><dd><pre class="code">
+struct <span class="string">"name"</span> {
+
+  int = <span class="string">"bar"</span>;
+
+  <span class="library">string</span> = <span class="string">"baz"</span>;
+
+}
+
+</pre>
+
+</DL>
+<p>
+in which case <code>int</code> and <code>string</code> are now strings rather than global variables.  However, here the ordering and multiplicity of the arguments is lost (which are important in structs). Another alternative is
+<p>
+<DL>
+<dt><dd><pre class="code">
+struct <span class="string">"name"</span> .
+
+  int <span class="string">"bar"</span> .
+
+  <span class="library">string</span> <span class="string">"baz"</span> .
+
+endstruct
+
+</pre>
+
+</DL>
+<p>
+Semantically, that's better (except one must not forget the <code>endstruct</code>), but the dot syntax is somewhat unusual. Semantically we might want something that is like an S-expression:
+<p>
+<DL>
+<dt><dd><pre class="code">
+struct {
+
+  <span class="string">"name"</span>,
+
+  {<span class="string">"int"</span>, <span class="string">"bar"</span>},
+
+  {<span class="string">"string"</span>, <span class="string">"baz"</span>}
+
+}
+
+</pre>
+
+</DL>
+<p>
+but syntactically that is lacking.
+<p>
+<H2>Solution: Table Scope Patch for Lua</H2>
+<p>
+There is a "table scope" patch that allows this type of thing:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> struct(name)
+
+  <span class="keyword">local</span> scope = {
+
+    int = <span class="keyword">function</span>(name) <span class="keyword">return</span> <span class="string">"int["</span> .. name .. <span class="string">"]"</span> <span class="keyword">end</span>;
+
+    <span class="library">string</span> = <span class="keyword">function</span>(name) <span class="keyword">return</span> <span class="string">"string["</span> .. name .. <span class="string">"]"</span> <span class="keyword">end</span>
+
+  }
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({}, {
+
+    __scope = scope;
+
+    __call = <span class="keyword">function</span>(_, t)
+
+               <span class="keyword">return</span> name .. <span class="string">"["</span> .. <span class="library">table.concat</span>(t, <span class="string">","</span>) .. <span class="string">"]"</span>
+
+             <span class="keyword">end</span>
+
+  })
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> obj = struct <span class="string">"foo"</span> {
+
+              int <span class="string">"bar"</span>;
+
+              <span class="library">string</span> <span class="string">"baz"</span>;
+
+            }
+
+<span class="library">assert</span>(obj == <span class="string">"foo[int[bar],string[baz]]"</span>)
+
+<span class="library">assert</span>(<span class="library">string.lower</span>(<span class="string">"ABC"</span>) == <span class="string">"abc"</span>)
+
+<span class="library">assert</span>(int == <span class="keyword">nil</span>)
+
+<span class="library">print</span> <span class="string">"DONE"</span>
+
+</pre>
+
+</DL>
+<p>
+Download patch: <a href="http://math2.org/david/lua/tablescope.patch">[tablescope.patch]</a> (for Lua 5.1.3)
+<p>
+The patch makes no change to Lua syntax nor Lua bytecodes. The only change is to support of a new metamethod named <code>__scope</code>. If a table construct is used as the last argument of a function call, and the object being called contains a <code>__scope</code> metamethod that is a table, then global variables mentioned inside the table construct are first looked up in <code>__scope</code>. Only if not found in <code>__scope</code> is a variable then looked up in the environment table as usual.
+<p>
+The patch makes some assumptions about the order of bytecodes to infer how tables nest global variable accesses. It's possible these assumptions would not be met if the byte codes were not compiled by luac (e.g. compiled by <a href="../wiki/MetaLua.html" >MetaLua</a>). However, the effect of not meeting these assumptions in a certain function would generally be that table scoping is simply not applied to that function, though there may be very unusual cases having security implications.
+<p>
+There could be ways to reduce the performance impact on global accesses using this patch. Suggestions are welcome. For example, the table scoping lookup could be selectively enabled or disabled on a specific function.  If performance is a concern, you should be using local variables anyway.
+<p>
+<em><a href="../wiki/MetaLua.html" >MetaLua</a> generates the exact same bytecode as luac, unless you use Goto or Stat. Besides, if you were using <a href="../wiki/MetaLua.html" >MetaLua</a>, you'd also use it to handle table scopes rather than patching Lua</em> -- <a href="../wiki/FabienFleutot.html" >FabienFleutot</a>
+<p>
+<H2>Solution: Global Environment Tricks</H2>
+<p>
+Avoiding patches, we can do some tricks with the Lua environment table.  The following pattern might be used (original idea suggested by <a href="../wiki/RiciLake.html" >RiciLake</a>):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- shapes.lua</span>
+
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="keyword">local</span> Rectangle = {
+
+  __tostring = <span class="keyword">function</span>(self)
+
+    <span class="keyword">return</span> <span class="library">string.format</span>(<span class="string">"rectangle[%s,%s]"</span>,
+
+      <span class="library">tostring</span>(self[1]), <span class="library">tostring</span>(self[2]))
+
+  <span class="keyword">end</span>
+
+}
+
+<span class="keyword">local</span> Point = {
+
+  __tostring = <span class="keyword">function</span>(self)
+
+    <span class="keyword">return</span> <span class="library">string.format</span>(<span class="string">"point[%f,%f]"</span>,
+
+      <span class="library">tostring</span>(self[1]), <span class="library">tostring</span>(self[2]))
+
+  <span class="keyword">end</span>
+
+}
+
+
+
+<span class="keyword">function</span> M.point(x,y)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({x,y}, Point)
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> M.rectangle(t)
+
+  <span class="keyword">local</span> point1 = <span class="library">assert</span>(t[1])
+
+  <span class="keyword">local</span> point2 = <span class="library">assert</span>(t[2])
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({point1, point2}, Rectangle)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- shapes_test.lua</span>
+
+
+
+<span class="comment">-- with: namespace, [level], [filter] --&gt; (lambda: ... --&gt; ...)</span>
+
+<span class="keyword">function</span> with(namespace, level, filter)
+
+  level = level <span class="keyword">or</span> 1; level = level + 1
+
+
+
+  <span class="comment">-- Handle __with metamethod if defined.</span>
+
+  <span class="keyword">local</span> mt = <span class="library">getmetatable</span>(namespace)
+
+  <span class="keyword">if</span> <span class="library">type</span>(mt) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> custom_with = mt.__with
+
+    <span class="keyword">if</span> custom_with <span class="keyword">then</span>
+
+      <span class="keyword">return</span> custom_with(namespace, level, filter)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> old_env = <span class="library">getfenv</span>(level)  <span class="comment">-- Save</span>
+
+
+
+  <span class="comment">-- Create local environment.</span>
+
+  <span class="keyword">local</span> env = {}
+
+  <span class="library">setmetatable</span>(env, {
+
+    __index = <span class="keyword">function</span>(env, k)
+
+      <span class="keyword">local</span> v = namespace[k]; <span class="keyword">if</span> v == <span class="keyword">nil</span> <span class="keyword">then</span> v = old_env[k] <span class="keyword">end</span>
+
+      <span class="keyword">return</span> v
+
+    <span class="keyword">end</span>
+
+  })
+
+  <span class="library">setfenv</span>(level, env)
+
+
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+    <span class="library">setfenv</span>(2, old_env)       <span class="comment">-- Restore</span>
+
+    <span class="keyword">if</span> filter <span class="keyword">then</span> <span class="keyword">return</span> filter(...) <span class="keyword">end</span>
+
+    <span class="keyword">return</span> ...
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> shapes = <span class="library">require</span> <span class="string">"shapes"</span>
+
+
+
+<span class="keyword">local</span> o = with(shapes) (
+
+  rectangle { point(0,0), point(3,4) }
+
+)
+
+<span class="library">assert</span>(<span class="keyword">not</span> rectangle <span class="keyword">and</span> <span class="keyword">not</span> point) <span class="comment">-- note: not visible here</span>
+
+<span class="library">print</span>(o)
+
+<span class="comment">-- outputs: rectangle[point[0.000000,0.000000],point[3.000000,4.000000]]</span>
+
+</pre>
+
+</DL>
+<p>
+The key is the <code>with</code> function, which provides local access to a given namespace.  It is similar in purpose to the "with" clause in some other languages like VB and somewhat related to <code>using namespace</code> in C++ or <code>import static</code><a href="http://java.sun.com/j2se/1.5.0/docs/guide/language/static-import.html">[1]</a> in Java.  It might also be similar to XML namespaces.
+<p>
+The following special case correctly outputs the same result:
+<p>
+<DL>
+<dt><dd><pre class="code">
+point = 2
+
+<span class="keyword">function</span> calc(x) <span class="keyword">return</span> x * point <span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> calc2(x) <span class="keyword">return</span> x/2 <span class="keyword">end</span>
+
+<span class="keyword">local</span> o = with(shapes) ( rectangle { point(0,0), point(calc2(6),calc(2)) } )
+
+<span class="library">print</span>(o)
+
+<span class="comment">-- outputs: rectangle[point[0.000000,0.000000],point[3.000000,4.000000]]</span>
+
+</pre>
+
+</DL>
+<p>
+The optional arguments to <code>with</code> can be useful when defining wrappers to simplify expressions:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> shape_context(level)
+
+  <span class="keyword">return</span> with(shapes, (level <span class="keyword">or</span> 1)+1, <span class="keyword">function</span>(x) <span class="keyword">return</span> x[1] <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> o = shape_context() {
+
+  rectangle { point(0,0), point(3,4) }
+
+}
+
+<span class="library">print</span>(o)
+
+<span class="comment">-- outputs: rectangle[point[0.000000,0.000000],point[3.000000,4.000000]]</span>
+
+</pre>
+
+</DL>
+<p>
+Further simplification is possible by automatically invoking <code>with</code> when a global key is accessed:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">setmetatable</span>(<span class="library">_G</span>, {
+
+  __index = <span class="keyword">function</span>(t, k)
+
+    <span class="keyword">if</span> k == <span class="string">"rectangle"</span> <span class="keyword">then</span>
+
+       <span class="keyword">return</span> with(shapes, 2, <span class="keyword">function</span>(...) <span class="keyword">return</span> shapes.rectangle(...) <span class="keyword">end</span>)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+})
+
+
+
+<span class="keyword">local</span> o = rectangle { point(0,0), point(3,4) }
+
+<span class="library">print</span>(o)
+
+<span class="comment">-- outputs: rectangle[point[0.000000,0.000000],point[3.000000,4.000000]]</span>
+
+</pre>
+
+</DL>
+<p>
+One caveat is that approach relies on undocumented Lua behavior.  The function name <code>with</code> must be resolved before the arguments to the function are resolved, which is the behavior in the current release of Lua 5.1.
+<p>
+Also, though the desire is for <code>with</code> to provide a type of lexical scoping, and it simulates it fairly well, the implementation is actually more dynamic.  The following will cause a run-time error since real lexicals (locals) override globals:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> point = 123
+
+<span class="keyword">local</span> o = with(shapes) ( rectangle { point(0,0), point(3,4) } )
+
+</pre>
+
+</DL>
+<p>
+Further, we assume that the environment of the caller can be temporarily replaced with no ill-effects.
+<p>
+Leaving off the final call (accidentally) will not necessarily result in an error but will leave the environment changed:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> o = with(shapes)
+
+<span class="library">assert</span>(rectangle) <span class="comment">-- opps! rectangle is visible now.</span>
+
+</pre>
+
+</DL>
+<p>
+But that does suggest this usage is possible (though not necessarily a good idea):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> f = with(shapes) <span class="comment">-- begin scope</span>
+
+<span class="keyword">local</span> o1 = rectangle { point(0,0), point(3,4) }
+
+<span class="keyword">local</span> o1 = rectangle { point(0,0), point(5,6) }
+
+f() <span class="comment">-- end scope</span>
+
+<span class="library">assert</span>(<span class="keyword">not</span> rectangle) <span class="comment">-- rectangle no longer visible</span>
+
+</pre>
+
+</DL>
+<p>
+Another problem is if there are exceptions in evaluating the arguments, the environment will not be restored:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> last = <span class="keyword">nil</span>
+
+<span class="keyword">function</span> test()
+
+  last = rectangle
+
+  <span class="keyword">local</span> o = with(shapes) ( rectangle { point(3,4) } ) <span class="comment">-- raises error</span>
+
+<span class="keyword">end</span>
+
+<span class="library">assert</span>(<span class="keyword">not</span> <span class="library">pcall</span>(test))
+
+<span class="library">assert</span>(<span class="keyword">not</span> last)
+
+<span class="library">assert</span>(<span class="keyword">not</span> <span class="library">pcall</span>(test))
+
+<span class="library">assert</span>(last)  <span class="comment">-- opps! environment not restored</span>
+
+</pre>
+
+</DL>
+<p>
+Unfortunately, there doesn't seem to be any unobtrusive way to wrap the arguments in a <code>pcall</code>.  We can do it using a new <code>pwith</code> function that accepts the data wrapped in the awkward <code>function() return ... end</code> syntax for later evaluation by a <code>pcall</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> o = pwith(shapes)(<span class="keyword">function</span>() <span class="keyword">return</span>
+
+  rectangle { point(3,4) } <span class="comment">-- raises error</span>
+
+<span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+In fact, this approach can avoid the issues of reliance on undocumented behavior, danger of leaving off the second call, and the danger of touching the caller's environment as discussed above.  We just need to live with the syntax (see also the "Global Collector" pattern above, which applies a similar syntax and semantics).
+<p>
+Another variation is to invoke the <code>pwith</code> after the fact (e.g. outside of the configuration file):
+<p>
+<DL>
+<dt><dd><pre class="code">
+rect = <span class="keyword">function</span>() <span class="keyword">return</span> rectangle { point(3,4) } <span class="keyword">end</span>
+
+...
+
+pwith(shapes)(rec)
+
+</pre>
+
+</DL>
+<p>
+or perhaps <code>pwith</code> can be triggered upon a <code>__newindex</code> metamethod event on <code>_G</code>.
+<p>
+The non-pcall form may be ok.  Just note the contract for using it: if it raises an exception, throw away the function that called it.  This may well be a good approach for a configuration language.
+<p>
+Note, however, that the above approaches do not work that well with some methods of <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>.  <code>rectangle</code> and <code>point</code> may be identified as undefined variables, particularly under static checks for undefined globals (these are global/environment variables not defined in the top-level script).
+<p>
+If we don't need particular access to upvalues, we can stringify the above data function (see "Stringified Anonymous Functions" pattern in <a href="../wiki/ShortAnonymousFunctions.html" >ShortAnonymousFunctions</a> details):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> o = pwith(shapes)<span class="string">[[
+
+  rectangle { point(x,y) }
+
+]]</span>{x = 3, y = 4}
+
+</pre>
+
+</DL>
+<p>
+We loose direct access to lexicals in the caller, but <code>pwith</code> could prepend locals to the data string so that <code>rectangle</code> and <code>point</code> (as well as <code>x</code> and <code>y</code> become lexicals.  <code>pwith</code> could implement it like this provided the maximum lexical limit is not reached:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> code = <span class="string">[[
+
+  local rectangle, point, x, y = ...
+
+]]</span> .. datasttring
+
+<span class="keyword">local</span> f = <span class="library">loadstring</span>(code)(namespace.rectangle, namespace.point, x, y)
+
+</pre>
+
+</DL>
+<p>
+<H2>Solution: using Metalua</H2>
+<p>
+Here's an implementation in Metalua:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- with.lua</span>
+
+
+
+<span class="keyword">function</span> with_expr_builder(t)
+
+  <span class="keyword">local</span> namespace, value = t[1], t[2]
+
+  <span class="keyword">local</span> tmp = mlp.gensym()
+
+  <span class="keyword">local</span> code = +{block:
+
+    <span class="keyword">local</span> namespace = -{namespace}
+
+    <span class="keyword">local</span> old_env = <span class="library">getfenv</span>(1)
+
+    <span class="keyword">local</span> env = <span class="library">setmetatable</span>({}, {
+
+      __index = <span class="keyword">function</span>(t,k)
+
+        <span class="keyword">local</span> v = namespace[k]; <span class="keyword">if</span> v == <span class="keyword">nil</span> <span class="keyword">then</span> v = old_env[k] <span class="keyword">end</span>
+
+        <span class="keyword">return</span> v
+
+      <span class="keyword">end</span>
+
+    })
+
+    <span class="keyword">local</span> -{tmp}
+
+    <span class="keyword">local</span> f = <span class="library">setfenv</span>((|| -{value}), env)
+
+    <span class="keyword">local</span> <span class="keyword">function</span> helper(success, ...)
+
+      <span class="keyword">return</span> {n=<span class="library">select</span>(<span class="string">'#'</span>,...), success=success, ...}
+
+    <span class="keyword">end</span>
+
+    let -{tmp} = helper(<span class="library">pcall</span>(f))
+
+    <span class="keyword">if</span> <span class="keyword">not</span> -{tmp}.success <span class="keyword">then</span> <span class="library">error</span>(-{tmp}[1]) <span class="keyword">end</span>
+
+  }
+
+  <span class="comment">-- NOTE: Stat seems to only support returning a single value.</span>
+
+  <span class="comment">--       Multiple return values are ignored (even though attempted here)</span>
+
+  <span class="keyword">return</span> `Stat{code, +{<span class="library">unpack</span>(-{tmp}, 1, -{tmp}.n)}}
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> with_stat_builder(t)
+
+  <span class="keyword">local</span> namespace, block = t[1], t[2]
+
+  <span class="keyword">local</span> tmp = mlp.gensym()
+
+  <span class="keyword">local</span> code = +{block:
+
+    <span class="keyword">local</span> namespace = -{namespace}
+
+    <span class="keyword">local</span> old_env = <span class="library">getfenv</span>(1)
+
+    <span class="keyword">local</span> env = <span class="library">setmetatable</span>({}, {
+
+      __index = <span class="keyword">function</span>(t,k)
+
+        <span class="keyword">local</span> v = namespace[k]; <span class="keyword">if</span> v == <span class="keyword">nil</span> <span class="keyword">then</span> v = old_env[k] <span class="keyword">end</span>
+
+        <span class="keyword">return</span> v
+
+      <span class="keyword">end</span>
+
+    })
+
+    <span class="keyword">local</span> -{tmp}
+
+    <span class="keyword">local</span> f = <span class="library">setfenv</span>(<span class="keyword">function</span>() -{block} <span class="keyword">end</span>, env)
+
+    <span class="keyword">local</span> success, msg = <span class="library">pcall</span>(f)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> success <span class="keyword">then</span> <span class="library">error</span>(msg) <span class="keyword">end</span>
+
+  }
+
+  <span class="keyword">return</span> code
+
+<span class="keyword">end</span>
+
+
+
+mlp.lexer.register { <span class="string">"with"</span>, <span class="string">"|"</span> }
+
+
+
+mlp.expr.primary.add {
+
+  <span class="string">"with"</span>, <span class="string">"|"</span>, mlp.expr, <span class="string">"|"</span>, mlp.expr,
+
+  builder=with_expr_builder
+
+}
+
+
+
+mlp.stat.add {
+
+  <span class="string">"with"</span>, mlp.expr, <span class="string">"do"</span>, mlp.block, <span class="string">"end"</span>,
+
+  builder=with_stat_builder
+
+}
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+-{ <span class="library">dofile</span> <span class="string">"with.luac"</span> }
+
+
+
+<span class="keyword">local</span> shapes = <span class="library">require</span> <span class="string">"shapes"</span>
+
+rectangle = 123  <span class="comment">-- no problem</span>
+
+
+
+<span class="keyword">local</span> o = with |shapes|
+
+          rectangle { point(0,0), point(3,4) }
+
+<span class="library">print</span>(o)
+
+<span class="comment">--outputs: rectangle[point[0.000000,0.000000],point[3.000000,4.000000]]</span>
+
+
+
+<span class="keyword">local</span> o
+
+with shapes <span class="keyword">do</span>
+
+  o = rectangle { point(0,0), point(3,4) }
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>(o)
+
+<span class="comment">--outputs: rectangle[point[0.000000,0.000000],point[3.000000,4.000000]]</span>
+
+
+
+<span class="keyword">local</span> other = {double = <span class="keyword">function</span>(x) <span class="keyword">return</span> 2*x <span class="keyword">end</span>}
+
+
+
+<span class="keyword">local</span> o = with |other|
+
+          with |shapes|
+
+          rectangle { point(0,0), point(3,double(4)) }
+
+<span class="library">print</span>(o)
+
+<span class="comment">--outputs: rectangle[point[0.000000,0.000000],point[3.000000,8.000000]]</span>
+
+
+
+<span class="keyword">local</span> o
+
+<span class="keyword">local</span> success, msg = <span class="library">pcall</span>(<span class="keyword">function</span>()
+
+  o = with |shapes| rectangle { point(0,0) }
+
+<span class="keyword">end</span>)
+
+<span class="library">assert</span>(<span class="keyword">not</span> success)
+
+<span class="library">assert</span>(rectangle == 123) <span class="comment">-- original environment</span>
+
+</pre>
+
+</DL>
+<p>
+Update (2010-06): The <code>setfenv</code> above can be avoided, as would be necessarily in Lua 5.2.0-work3 (see below).
+<p>
+<H2>Lua 5.2</H2>
+<p>
+Lua-5.2.0-work3 removes <code>setfenv</code> (though preserves partial support for it in the debug library).  This invalidates many of the "Environment Trick" techniques above, although they weren't that good anyway.
+<p>
+In Lua-5.2.0-work3, <code>_ENV</code> would permit
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> o = (<span class="keyword">function</span>(_ENV) <span class="keyword">return</span> rectangle { point(0,0), point(3,4) } <span class="keyword">end</span>)(shapes)
+
+</pre>
+
+</DL>
+<p>
+That has similar qualities to the above 5.1 solution "<code>pwith(shapes)(function() return ..... end)</code> but doesn't need a <code>pcall</code>.  The extra function above is only used to introduce a lexical (<code>_ENV</code>) in the middle of an expression, but we could remove that function if we define <code>_ENV</code> in a separate statement:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> o; <span class="keyword">do</span> <span class="keyword">local</span> _ENV = shapes
+
+  o = rectangle { point(0,0), point(3,4) }
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+That could be cleaner syntactically, but it's not that bad, unless we need to switch environments a lot (e.g. evaluate the arguments of shapes, rectangle, and point each in their own environments).
+<p>
+<hr>--<a href="../wiki/DavidManura.html" >DavidManura</a>, 2007/2008
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaDataFormats.html" >LuaDataFormats</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TableScope" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TableScope" >history</a><br>Last edited June 15, 2010 2:11 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TableScope" >(diff)</a>
+</body>
+</html>

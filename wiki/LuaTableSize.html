@@ -1,0 +1,270 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Table Size</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaTableSize&amp;body=1" title="List pages referring to LuaTableSize">Lua Table Size</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<hr><DL>
+<dt><dd><strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The problem described in this article has been addressed.  Starting in version 5.0, the value n is no longer referenced in size calculations of the list component of a table.</strong>
+</DL>
+<hr><H2>The problem</H2>
+<p>
+Tables contain the member "n" as an optimisation for table insertions. ie., from the manual :-
+<p>
+<DL>
+<dt><dd><strong>getn (table)</strong>
+<dt><dd>Returns the <em>size</em> of a table, when seen as a list. If the table has an <code>n</code> field with a numeric value, this value is the <em>size</em> of the table. Otherwise, the <em>size</em> is the largest numerical index with a non-nil value in the table. This function could be defined in Lua:
+<DL>
+<dt><dd><pre>
+
+function getn (t)
+
+  if type(t.n) == "number" then return t.n end
+
+  local max = 0
+
+  for i, _ in t do
+
+    if type(i) == "number" and i&gt;max then max=i end
+
+  end
+
+  return max
+
+end
+
+</pre>
+</DL>
+</DL>
+<p>
+Due to the dual nature of tables, ie. they can be lists and dictionaries at the same time, "n" can conflict with user data in a table. The section below lists a number of solutions to the problem. Please feel free to comment next to a solution or put forward your own. Please leave your name or initials so "votes" can be counted.
+<p>
+<em>This could be defined better.  The n field is not the "table size" and is not for "table insertions".  (Granted the Lua API function names and documentation confuse this matter.)  Tables are a pure data type in Lua, while lists are not.  There are several ways to implement lists on top of the table data type.  Since lists are an important data type and required even within the VM itself (for varargs), the standard library provides an implementation including use of an n field for the list size and an algorithm for determining the "list component" of an arbitrary table (that's what <code>getn</code> does when there is no n field).</em>
+<p>
+<H2>Alternative solutions</H2>
+<p>
+<H3>It's not a problem, leave it.</H3>
+Your programming style may not necessitate the mixing of lists and dictionaries in the same table so it may not be a problem.
+<p>
+<UL>
+<li> It's not that my programming style doesn't require the mixing of vectors and dictionaries in the same table; it is rather that I don't think that mixing uncontrolled keys with controlled keys in the same table is a good idea. Sooner or later it will bite you, whether the controlled keys are called n or __n__ or ____NUMBER_OF_NUMERIC_KEYS_____. I dislike names like __n__ both from an esthetic view and from the viewpoint that "avoidance by unlikeliness" just creates harder to find bugs. Mixing controlled keys (such as slot names) is another issue, but I have no problem not calling my slots "n". Furthermore, embarking on a change which will create backwards incompatibility is not something to take lightly. -- <a href="../wiki/RiciLake.html" >RiciLake</a>
+</UL><DL>
+<DL>
+<dt><dd><em>So, basically you dont want to break backwards incompatibility, you find that because the table size is named "n" any conflict bugs are easy to find, and you dont mind always having your table size called "n". Why not remove the problem, as you state, "sooner or later it will bite you", and you can be flexible about naming? I dont remember seeing any code which sets a table size using n (so no backward problem?). --NDT</em>
+</DL>
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><em>I think that summarises it :-). If I'm using a table as a vector, I don't use it as a dictionary although I might put my own keys in it. In that case, I simply don't use the key <code>n</code> or any numeric key. That's no different from the case of stashing keys in any object implemented as a table; you have to avoid using the object's defined keys, which hopefully are documented. As it happens, I <strong>do</strong> have code which sets table size using <code>n</code> -- unless you have seen every line of Lua code in existence, I don't think you can blithely make the claim that there is no backward problem. In any event, I think it's pretty common to <strong>retrieve</strong> the table size using <code>vec.n</code> rather than <code>getn(vec)</code> because that is significantly faster if you can be assured that the key exists (or even <code>vec.n or getn(vec)</code>. -- <a href="../wiki/RiciLake.html" >RiciLake</a></em>
+</DL>
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd><em>"which hopefully are documented" :-) Its this kind of confusion that can be avoided. The fact that tables are multipurpose and can be used as lists or dictionaries means that this type of restriction should not be applied. Personally I'd rather put up with fixing code which may be broken by this. I consider Lua still in its infancy as a language, with its roots in convenient embedding and configuration. It still has to have little quirks, such as this, ironed out before it is considered a serious scripting language. I'm not sure becoming a "Python-beater" is one its design goals, but I'm sure the authors are keen to see the language and its user base develop. This will continue to happen as the Lua improves. :-) --NDT</em>
+</DL>
+</DL>
+<p>
+<UL>
+<li> If you don't like getn, define your own version of getn, tinsert and tremove.  That's all.  There's only one place else where an 'n' is used: in the arg table of vararg functions; just say that arg is not a list but a table ;-)  But see below for another idea (len[t]).  -- ET
+</UL>
+<p>
+<DL>
+<DL>
+<dt><dd><em> To be fair, there are a couple of other places, one being <code>call</code>. However, it is certainly easy enough to write replacement functions and no-one is forcing you to use tinsert and tremove -- <a href="../wiki/RiciLake.html" >RiciLake</a></em>
+</DL>
+</DL>
+<p>
+<UL>
+<li> My opinion is more like "It <em><strong>is</strong></em> a problem, leave it".  I have yet to see a good solution.  The <code>setn</code> idea is a hack on top of a hack.  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>
+</UL>
+<p>
+<H3>It should be renamed</H3>
+<p>
+The "n" variable should be renamed to something less likely to clash, eg. "__n__"
+<p>
+<UL>
+<li> "__n__" would be fine with me, this would not break any code in uCore. --<a href="../wiki/ErikHougaard.html" >ErikHougaard</a>
+</UL>
+<p>
+<UL>
+<li> Any direct namespace incursion is ugly and non-general to a degree that it may hurt real world functionality.  If someone wanted to use the premapping domain of a table as the environment variables for a shell for an OS, for example, then you would somehow have to restrict the names to exclude whatever name is chosen to be used for the table size.  Internally there is no reason for this name be a legal Lua variable name.  So in fact a NULL pointer or other sentinel would be preferable, so that it does not invade the Lua variable namespace. This may lead to some exceptions in the code, however since they overlap with illegal possible values, those exceptions should be being checked today anyway. --Paul Hsieh
+</UL>
+<p>
+<UL>
+<li> Use table[0]. Whatever arbitrary non-numeric name is choosen has the potential to intrude upon the table's namespace for non-list usage. However, since the table already includes a list, it is already denying access to all positive integers as indicies (table[1], table[2], etc) and so adding zero (0) to that is not much of an extra intrusion; far less so than 'n'. -- <a href="../wiki/PeterHill.html" >PeterHill</a>
+</UL>
+<p>
+<H3>setn()</H3>
+<p>
+<code>setn()</code> would be a better solution to compliment <code>getn()</code>.
+<p>
+<UL>
+<li> I think this is the best choice, it removes any possibility for a conflict and allows for some variation in the actual underlying implementation --Tom Wrensch
+</UL>
+<p>
+<UL>
+<li> This is my favorite - make it a value that is not accessible via normal indexing... this could be realized internally by a weak table - maybe even expose that table even though i think a setn() function would be better for readability --<a href="../wiki/PeterPrade.html" >PeterPrade</a>
+</UL>
+<p>
+<UL>
+<li> This seems like a better method. I don't like the idea of something arbitrary being forced on me, regardless of how easy it may be to code around it. --Terence Martin
+</UL>
+<p>
+<UL>
+<li> This is best.  They should probably be tag methods too.  --<a href="../wiki/DavidJones.html" >DavidJones</a>
+</UL>
+<p>
+<UL>
+<li> Probably the best method. --LavergneThomas<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LavergneThomas" >?</a>
+</UL>
+<p>
+<UL>
+<li> I like this approach as well. I'm tired of working around 'n' in my foreach() loops. It makes sense to compliment getn(). The approach below is very clever, and I would certainly be okay with it, but I think it might seem rather unintuitive to new users.
+</UL>
+<p>
+<UL>
+<li> This is IMHO the best solution, as I really see the addition of an "internal" field as very dangerous. Imagine having a table including all the space separated strings found in a file, for example. Such "hidden" fields are very dangerous, even when named in an "improbable" way. -- Vincent Penquerc'h
+</UL>
+<p>
+<H3>len[t]</H3>
+<p>
+<UL>
+<li> Ok, this would be for Lua 4.1 where you have weak tables (basic idea from Luiz Carlos Silveira): store the length of a list (or any other object) in a global table, i.e. called <code>len</code>.  To access the length for an object <code>x</code> simply write <code>len[x]</code> instead of <code>x.n</code> or <code>getn(x)</code>/<code>setn(x,n)</code>.  You could even set the index tag method on <code>len</code> to calculate the length if it's not already present.  And, if you fear you might type () instead of [] set the call method too ;-) -- ET
+</UL>
+<p>
+<UL>
+<li> I like the cleverness of this idea, although I think <code>setn()</code> rocks the boat the least. --<a href="../wiki/JamesHearn.html" >JamesHearn</a>
+</UL>
+<p>
+<UL>
+<li> I like the cleverness of this idea, too. And it has a number of advantages: it does not leave any clutter in either the internal or visible implementation of a list, so you could iterate over a pure list without worrying about ignoring the <code>n</code>, <code>__n__</code> or <code>whatever</code> keys. Table lookups are faster than procedure calls, so it's probably faster than the current implementation. And furthermore, it's backward compatible for tables without an <code>index</code> tag method:
+</UL>
+<p>
+<DL>
+<dt><dd><pre>
+
+        settagmethod(tag({}), "index",
+
+              function(v, k) if k == "n" then return len[v] end end)
+
+</pre>
+</DL>
+<p>
+<DL>
+<dt><dd>So I'm willing to change my vote --<a href="../wiki/RiciLake.html" >RiciLake</a>
+</DL>
+<p>
+<DL>
+<dt><dd><em>This is also compatible with <code>getn</code> and <code>setn</code>; if that's what you want, just include:</em>
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+        function getn(v) return len[v] end
+
+        function setn(v, n) len[v] = n end
+
+</pre>
+</DL>
+<p>
+<UL>
+<li> I'd like to change my vote to this. A weak keyed length table would detach <code>n</code> from the table and leave the table "pure". As John points out, lists are usage of tables and this implementation detaches the list usage from the table. <code>getn()</code>/<code>setn()</code> can still be used. Perhaps <code>len[x]</code> should be changed to <code>tlen[x]</code> for consistency with <code>tinsert()</code>/<code>tremove()</code>. -- Nick Trout
+</UL>
+<p>
+<UL>
+<li> Does len[] map global names to a integer?  Or does it map from the domain of objects to an integer?  I'm new to Lua, so if I am misundertanding, feel free to edit this or my other comments with wild abandon. --Paul Hsieh <em> Paul: len[] is a map that maps map objects (as weak keys) to their "list-length" (if they have been treated as a list before, i.e. getn() or tinsert() etc has been called with this table object as argument) -- <a href="../wiki/PeterPrade.html" >PeterPrade</a></em>
+</UL>
+<p>
+<UL>
+<li> The very fact of adding a global variable for this strikes me as being the same kind of things than adding a hidden field in a table, albeit less intrusive. Sure, adding setn would also introduce a global, but I see it as less a hack, since it's an API entry, not a place where to get rid of an embarassing thing you'd like to put somewhere. -- Vincent Penquerc'h
+</UL>
+<p>
+<p>
+<em>Please add any other solutions...</em>
+<p>
+<H3>Implement an non-overridable getnEx() function</H3>
+<p>
+<UL>
+<li> I do not understand the desire to be able to set the size of a table to something other than what it really is.  I would instead propose that an unexposed true max integer domain member for each table be tracked by the implementation in a function called, say, getnEx().  Then for backwards compatibility getn() could be implemented as:
+</UL><DL>
+<DL>
+<dt><dd><pre>
+
+function getn (t)
+
+  if type(t.n) == "number" then return t.n end
+
+  return getnEx(t) -- internal function
+
+end
+
+</pre>
+</DL>
+</DL>
+and people could ignore the getn() function if it causes them grief, and just use the getnEx() function which doesn't require work arounds.  getnEx() would be essentially equivalent to:
+<DL>
+<DL>
+<dt><dd><pre>
+
+function getnEx (t)
+
+  local max = 0
+
+  for i, _ in t do
+
+    if type(i) == "number" and i&gt;max then max=i end
+
+  end
+
+  return max
+
+end
+
+</pre>
+</DL>
+</DL>
+<p>
+--Paul Hsieh
+<p>
+<H2>Votes cast</H2>
+<p>
+Please update the list below. If you would prefer to vote anonymously just add a vote below (but it would be nice to hear your opinion :-).
+<p>
+<UL>
+<li> <strong>Leave as is</strong> : 1 vote.
+<li> <strong>Change "n"</strong> : 1 vote
+<li> <strong>Implement an non-overridable getnEx() function</strong> : 1 vote
+<li> <strong>Add <code>setn()</code></strong> : 11 votes
+<li> <strong>Add <code>len[v]</code></strong> : 4 vote
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaTableSize" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaTableSize" >history</a><br>Last edited October 10, 2009 1:32 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaTableSize" >(diff)</a>
+</body>
+</html>

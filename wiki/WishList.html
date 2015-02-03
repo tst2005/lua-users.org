@@ -1,0 +1,82 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Wish List</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=WishList&amp;body=1" title="List pages referring to WishList">Wish List</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Projects that should exist for Lua, either as modifications to the language core, or as libraries.  Please don't use the page to discuss changes to Lua syntax or semantics, warts of the language, and other such nebulous things, but instead for projects that should be, things that can be defined clearly.
+<p>
+<UL>
+<li> XMPP client library: Similar to the "Smack" library for java (high level calls "send this message to this person", "Log on to this server as this user with this password" etc.) would be nice.
+</UL>
+<p>
+<DL>
+<dt><dd>In progress, see <a href="http://matthewwild.co.uk/projects/verse">[verse]</a> (feedback and contributions welcome, to MattJ in IRC) -- MatthewWild<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MatthewWild" >?</a>
+</DL>
+<p>
+<UL>
+<li> LuaNumeric<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaNumeric" >?</a>: scientific computing with Lua. Something on the scale of numpy or PDL is probably beyond the scope of Lua, but basic support for true arrays would be a perfect fit for a language that's small and fast!  A 1-dimensional array type is a quick one-off with tolua (and exists in the angband sources), but 2d matrices and beyond are much more involved and tricky. 
+</UL>
+<p>
+<DL>
+<dt><dd>Does <a href="http://numlua.luaforge.net/">[Numeric Lua]</a> address these concerns? If so, consider moving to resolved.
+<dt><dd>There is another project <a href="https://github.com/jzrake/lunum">[Lunum]</a> which does multidimensional array operations and fie I/O like Numpy. It's less like Scipy than Numeric Lua, maybe these projects could eventually be merged?
+</DL>
+<p>
+<UL>
+<li> wxLua and Lua-FLTK as <a href="../wiki/LuaBinaryModules.html" >LuaBinaryModules</a>.  <a href="../wiki/LuaCheia.html" >LuaCheia</a> appears to be looking into this. wxLua appears to support this now.
+</UL>
+<p>
+<UL>
+<li> A date/time manipulation library.  Should be in lua for portability.  The <a href="../wiki/CalendricalCalculations.html" >CalendricalCalculations</a> code works on dates but not times.
+</UL>
+<p>
+<UL>
+<li> The ability to <em>parse</em> a MIME email message into a Lua table, plus the ability to create a message from a table.  <a href="../wiki/DiegoNehab.html" >DiegoNehab</a> has written some parsing codes for headers but not for bodies.  <a href="../wiki/NormanRamsey.html" >NormanRamsey</a> has some code which he considers much too ugly to post, but he will share it on request.
+</UL>
+<p>
+<UL>
+<li> A binding to the <a href="http://cairographics.org/">[Cairo]</a> library.  [ I'm going to consider this, as part of the preparation for <a href="http://kotisivu.dnainternet.net/askok/luapad">[Spider]</a> project. -- askok@dnainternet.net ]
+</UL>
+<p>
+<UL>
+<li> meta.add(table1, function (a, b) return {value=a.value+b.value} end). This seems neater to me than __add, and is trivial to implement - as a wrapper around the current metatables semantics, not a replacement. <em>Wrappers are superfluous. They take code space and do not add functionality. It's easy enough to add this to your program yourself, if you really need to. See <a href="../wiki/ZenOfLua.html" >ZenOfLua</a>.</em>
+</UL>
+<p>
+<H3>Resolved</H3>
+<p>
+<UL>
+<li> Pickling/unpickling.  Should be in C for speed but overrideable.  Probably fits more in <a href="../wiki/LuaCheia.html" >LuaCheia</a> than in the embedded language that is lua core.  <em>Try <a href="../wiki/PlutoLibrary.html" >PlutoLibrary</a>.</em>
+</UL>
+<p>
+<UL>
+<li> A binding to the <a href="http://www.boutell.com/gd">[gd]</a> library. <strong><a href="http://lua-gd.luaforge.net">[Done]</a></strong>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=WishList" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=WishList" >history</a><br>Last edited February 20, 2012 6:06 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=WishList" >(diff)</a>
+</body>
+</html>

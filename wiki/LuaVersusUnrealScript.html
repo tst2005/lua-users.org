@@ -1,0 +1,276 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Versus Unreal Script</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaVersusUnrealScript&amp;body=1" title="List pages referring to LuaVersusUnrealScript">Lua Versus Unreal Script</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em>Note:  This is a work in progress</em>
+<p>
+<H2>Introduction</H2>
+<p>
+<a href="../wiki/UnrealScript.html" >UnrealScript</a> is a programming language designed to map naturally onto the needs of game programming within <a href="http://www.epicgames.com">[Epic Games]</a>' Unreal Engine.
+<p>
+<a href="../wiki/UnrealScript.html" >UnrealScript</a> is bytecode based: the code is compiled into a series of bytecodes similar to p-code or the Java bytecodes.  This way <a href="../wiki/UnrealScript.html" >UnrealScript</a> remains platform independent and eases porting to other platforms like the Mac or consoles.  <a href="../wiki/UnrealScript.html" >UnrealScript</a> is also a garbage collected language.  All objects and actors in Unreal are garbage-collected using a tree-following garbage collector similar to that of the Java VM.
+<p>
+The reasoning for investigating the relative performance of <a href="../wiki/UnrealScript.html" >UnrealScript</a> vs. Lua is to see if Lua can be used in a game engine in the same fashion that <a href="../wiki/UnrealScript.html" >UnrealScript</a> has so successfully been used across Unreal Engine based games.
+<p>
+<H2>Features</H2>
+<p>
+Lua and <a href="../wiki/UnrealScript.html" >UnrealScript</a> are pretty different languages. They are both compiled to bytecodes, executed through a virtual machine, offer a pointerless environment with automatic garbage collection, and provide a secure execution sandbox.  This is where their similarities end.
+<p>
+<a href="../wiki/UnrealScript.html" >UnrealScript</a> is a strongly typed language like Ada and C++.  This provides the benefit of catching unintentional type errors at compile time while sacrificing some flexibility.  Lua on the other hand is dynamically typed.  In practice this can lead to some wasted debugging time in some cases, but is not as big a problem as it first seems.  Still in my opinion Lua could use a lint like pass before compilation.
+<p>
+<a href="../wiki/UnrealScript.html" >UnrealScript</a> also supports major concepts like time, state, properties, and networking through explicit language features.  This removes alot of complexity that would be required if implemented at the script level.  Naturally Lua lacks these features as it's meant for general purpose use, but it's support for meta-mechanisms could be used to provide similar features.
+<p>
+<H2>Performance</H2>
+<p>
+Based on the popularly quoted performance approximation, Lua is 10x slower than C code.  Epic claims that <a href="../wiki/UnrealScript.html" >UnrealScript</a> is a 20x performance hit to C++ code.  Below I've ported several benchmarks from <a href="http://dada.perl.it/shootout/">[The Great Win32 Computer Language Shootout]</a> to <a href="../wiki/UnrealScript.html" >UnrealScript</a> in an attempt to do a direct performance comparison.
+<p>
+To do all timing I used wrote a small testing function in Lua which times the tested code with os.clock() several times in a loop.  It then throws out the fastest and slowest result and averages the times to get a final timing.  <a href="../wiki/UnrealScript.html" >UnrealScript</a> is more complex as none of the functions documented for timing code report consistant results.  So I instead launch them via UCC and a <a href="http://wiki.beyondunreal.com/wiki/Commandlet.html">[Commandlet]</a>.  To remove the UCC launch overhead I time an empty unreal function which I then subract from the tests.
+<p>
+The Lua release used is 5.0.2 (the latest stable release), <a href="../wiki/UnrealScript.html" >UnrealScript</a> was running within Unreal Tournament 2004 build 3323, and the C++ test was done in Microsoft Visual C++ .NET 2003.
+<p>
+All tests performed on an Intel P4 2.8GHz with 1GB of memory.
+<p>
+<H3>Array Access</H3>
+<p>
+The Lua5 benchmark for Array Access in the shootout has a bug (a superfloues "+ 1" in Line 10 ).  I've corrected it for the test below.
+<p>
+<H3>C++</H3>
+<pre>
+
+// -*- mode: c++ -*-
+
+// $Id: ary3.g++,v 1.2 2001/06/20 03:20:02 doug Exp $ // http://www.bagley.org/~doug/shootout/
+
+
+
+#include &lt;iostream&gt;
+
+#include &lt;vector&gt;
+
+
+
+using namespace std;
+
+
+
+int main(int argc, char *argv[]) {
+
+    int i, k, n = ((argc == 2) ? atoi(argv[1]) : 1);
+
+    typedef vector&lt;int&gt; ARY;
+
+    ARY x(n);
+
+    ARY y(n);
+
+
+
+    for (i=0; i&lt;n; i++) {
+
+    x[i] = i + 1;
+
+    }
+
+    for (k=0; k&lt;1000; k++) {
+
+    for (int i = n - 1; i &gt;= 0; --i) {
+
+        y[i] += x[i];
+
+    }
+
+    }
+
+
+
+    cout &lt;&lt; y[0] &lt;&lt; " " &lt;&lt; y.back() &lt;&lt; endl; } </pre>
+Results:
+<DL>
+<dt><dd>n = 1000, 0.0306s
+<dt><dd>n = 3000, 0.03188s
+<dt><dd>n = 5000, 0.03564s
+<dt><dd>n = 7000, 0.03876s
+</DL>
+<p>
+<H3><a href="../wiki/UnrealScript.html" >UnrealScript</a></H3>
+<pre>
+
+static final function string ArrayTest( optional int n ) {
+
+	local int i, k;
+
+	local array&lt;int&gt; x;
+
+	local array&lt;int&gt; y;
+
+
+
+	if ( n == 0 ) {
+
+		n = 1;
+
+	}
+
+
+
+	x.Length = n;
+
+	y.Length = n;
+
+
+
+    for ( i = 0; i &lt; n; i++ ) {
+
+    	x[i] = i + 1;
+
+    }
+
+
+
+    for ( k=0; k&lt;1000; k++ ) {
+
+    	for (i = n-1; i &gt;= 0; i--) {
+
+         	y[i] += x[i];
+
+    	}
+
+    }
+
+
+
+	return ( y[0]$ " " $y[n-1] );
+
+}
+
+</pre>
+Results:
+<DL>
+<dt><dd>n = 1000, 0.27252s
+<dt><dd>n = 3000, 0.81316s
+<dt><dd>n = 5000, &lt;runaway loop error&gt;
+<dt><dd>n = 7000, &lt;runaway loop error&gt;
+</DL>
+<p>
+<em><a href="../wiki/UnrealScript.html" >UnrealScript</a> has protection against runaway loops which is triggered by the test at over 3000.  So this is all we get to go on for this test.</em>
+<p>
+<H3>Lua</H3>
+<pre>
+
+function array_test( n )
+
+
+
+	local x, y = {}, {}
+
+
+
+	for i=1,n do
+
+		x[i] = i
+
+		y[i] = 0
+
+	end
+
+
+
+	for k=1,1000 do
+
+		for j=n,1,-1 do
+
+			y[j] = y[j] + x[j]
+
+		end
+
+	end
+
+
+
+	return y[1] .. " " .. y[n]
+
+end
+
+</pre>
+Results:
+<DL>
+<dt><dd>n = 1000, 0.21872s
+<dt><dd>n = 3000, 0.65432s
+<dt><dd>n = 5000, 1.09124s
+<dt><dd>n = 7000, 1.52688s
+</DL>
+<p>
+Lua is performing at around 1/7th the speed of C++ for n=1000 and 1/40th for n=7000.  It is about 24% faster than <a href="../wiki/UnrealScript.html" >UnrealScript</a>.
+<p>
+<H3>Heapsort</H3>
+<p>
+<H3>Method Calls</H3>
+<p>
+<H3>Nested Loops</H3>
+<p>
+<H3>Object Instantiation</H3>
+<p>
+<H3>String Concatenation</H3>
+<p>
+<p>
+<H2>Conclusion</H2>
+<DL>
+<dt><dd>
+
+</DL>
+<p>
+<p>
+<H2>Comments</H2>
+<p>
+Please comment on the results and add your feedback here.
+<p>
+* <em>I did the same array test in an Intel P4 2G (with 512 Mbytes RAM) and got 0.31 sec for n=1000 and 0.94 sec for n=3000. Is my machine so much faster than yours? (-- Roberto)</em>
+<p>
+* <em>Doh...  it was something stupid.  My profiler was instumenting lua.exe.  I re-ran the tests and put my results above.  I thought those numbers seemed weird.  My new problem is finding an accurate timer in Unreal.  Clock/UnClock<a href="/cgi-bin/wiki.pl?action=edit&amp;id=UnClock" >?</a> is unreliable on my box -- Tom</em>
+<p>
+* <em>In unrealscript you can use the stopwatch() function as a timer. It's not bug-free (in build 3355) so loop it and the code about 20 times to get a larger set of results. You can disable the loop runaway check with -norunaway param. -- Switch`</em>
+<p>
+* <em>If you used Clock and UnClock<a href="/cgi-bin/wiki.pl?action=edit&amp;id=UnClock" >?</a> to log the results, keep in mind that the stuff that comes out is actually is milliseconds and not seconds. So if you clock(f) and then unclock(f), f is in miliseconds. I am unsure if that was taken into consideration. -- Solid Snake</em>
+<p>
+* <em>Clock uses CPU cycles and isn't safe, it wraps around. So you can only use it for really small timings. Another thing to be aware of is that there's an start-up "issue" with the UnrealEngine<a href="/cgi-bin/wiki.pl?action=edit&amp;id=UnrealEngine" >?</a>, the whole environment needs to be set-up and stuff like that. At the beginning <a href="../wiki/UnrealScript.html" >UnrealScript</a> is rather slow, running the same code a 2nd time gives better results, or even waiting a couple seconds before running the benchmark also has better results. In the real world this start-up issue is not a problem, it just might skew the benchmark results. I don't know about Lua, but <a href="../wiki/UnrealScript.html" >UnrealScript</a> is not optimized during compiling. Writing ++i is faster than i++. Ofcourse these things shouldn't matter because the average users wouldn't know that either. -- elmuerte</em>
+<p>
+* <em>when you do performance-timings, you should _NOT_ take the average of all the runs you time, but only THE BEST one: it is safe to assume that the actual execution time is the same each time around, so the only differences you get are because the OS-Scheduler is interfering. Thus the time that comes closest to the "true" execution time of your script is the one with the shortest runtime.</em>
+<p>
+<em>^^^^^^  Beware this advice. In my experience this is quite misleading. For example you will then assume the most lightweight execution portions of your application run to be the best performance, this is plainly misleading. You _should_ average your performance testing over a number of identical, reproducable runs, so that you have comparative benchmarks to test against. There are far more things than just the OS-Scheduler that can effect the performance of a script run. So beware the above advice. -- Grover.</em>
+<p>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaComparison.html" >LuaComparison</a> - how Lua compares to other languages
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaVersusUnrealScript" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaVersusUnrealScript" >history</a><br>Last edited January 6, 2014 4:25 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaVersusUnrealScript" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Set Variables And Tables With Function</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SetVariablesAndTablesWithFunction&amp;body=1" title="List pages referring to SetVariablesAndTablesWithFunction">Set Variables And Tables With Function</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following is an extension of the <code>setfield</code> function in "14.1. Accessing Global Variables with Dynamic Names" from the book "Programming in Lua" <a href="http://www.lua.org/pil/14.1.html">[1]</a>.
+<p>
+Instead of ensuring only the existence of an already created table, this function overwrites any given Table/Name -- as expected I think. And thanks to the fact that table-arguments are given by reference, you can use <code>setvar()</code> for any local table too.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> setvar(Table,Name,Value)
+
+
+
+<span class="comment">-- Table (table, optional); default is _G</span>
+
+<span class="comment">-- Name (string); name of the variable--e.g. A.B.C ensures the tables A</span>
+
+<span class="comment">--   and A.B and sets A.B.C to &lt;Value&gt;.</span>
+
+<span class="comment">--   Using single dots at the end inserts the value in the last position</span>
+
+<span class="comment">--   of the array--e.g. A. ensures table A and sets A[table.getn(A)]</span>
+
+<span class="comment">--   to &lt;Value&gt;.  Multiple dots are interpreted as a string--e.g. A..B.</span>
+
+<span class="comment">--   ensures the table A..B.</span>
+
+<span class="comment">-- Value (any)</span>
+
+<span class="comment">-- Compatible with Lua 5.0 and 5.1</span>
+
+
+
+   <span class="keyword">if</span> <span class="library">type</span>(Table) ~= <span class="string">'table'</span> <span class="keyword">then</span>
+
+      Table,Name,Value = <span class="library">_G</span>,Table,Name
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">local</span> Concat,Key = <span class="keyword">false</span>,<span class="string">''</span>
+
+
+
+   <span class="library">string.gsub</span>(Name,<span class="string">'([^%.]+)(%.*)'</span>,
+
+      <span class="keyword">function</span>(Word,Delimiter)
+
+         <span class="keyword">if</span> Delimiter == <span class="string">'.'</span> <span class="keyword">then</span>
+
+            <span class="keyword">if</span> Concat <span class="keyword">then</span>
+
+               Word = Key .. Word
+
+               Concat,Key = <span class="keyword">false</span>,<span class="string">''</span>
+
+            <span class="keyword">end</span>
+
+            <span class="keyword">if</span> <span class="library">type</span>(Table[Word]) ~= <span class="string">'table'</span> <span class="keyword">then</span>
+
+               Table[Word] = {}
+
+            <span class="keyword">end</span>
+
+            Table = Table[Word]
+
+         <span class="keyword">else</span>
+
+            Key = Key .. Word .. Delimiter
+
+            Concat = <span class="keyword">true</span>
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+   )
+
+
+
+   <span class="keyword">if</span> Key == <span class="string">''</span> <span class="keyword">then</span>
+
+      <span class="library">table.insert</span>(Table,Value)
+
+   <span class="keyword">else</span>
+
+      Table[Key] = Value
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Tests:
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; Test = {}
+
+&gt; setvar(Test,'Index',1)
+
+&gt; setvar(Test,'Index.',22)
+
+&gt; setvar(Test,'Index.Index',333)
+
+&gt; table.foreach(Test,print)
+
+Index   table: 0x689668
+
+&gt; table.foreach(Test.Index,print)
+
+1       22
+
+Index   333
+
+&gt;
+
+&gt; setvar(Test,'Index.Index.',4444)
+
+&gt; setvar(Test,'Index.Index.',4444)
+
+&gt; setvar(Test,'Index..',55555)
+
+&gt; setvar(Test,'Index..Index',666666)
+
+&gt; setvar(Test,'Index..Index.',7777777)
+
+&gt; setvar(Test,'Index..Index..',88888888)
+
+&gt; table.foreach(Test,print)
+
+Index..Index..  88888888
+
+Index.. 55555
+
+Index   table: 0x689668
+
+Index..Index    table: 0x684258
+
+&gt; table.foreach(Test.Index,print)
+
+1       22
+
+Index   table: 0x686270
+
+&gt; table.foreach(Test['Index..Index'],print)
+
+1       7777777
+
+&gt;
+
+&gt; setvar(Test,'.Index',999999999)
+
+&gt; table.foreach(Test,print)
+
+Index..Index..  88888888
+
+Index.. 55555
+
+Index   999999999
+
+Index..Index    table: 0x684258
+
+&gt;
+
+&gt; setvar(Test,'',0)
+
+&gt; table.foreach(Test,print)
+
+1       0
+
+Index..Index..  88888888
+
+Index..Index    table: 0x684258
+
+Index   999999999
+
+Index.. 55555
+
+</pre>
+</DL>
+<p>
+--<a href="../wiki/MarkusHuber.html" >MarkusHuber</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SetVariablesAndTablesWithFunction" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SetVariablesAndTablesWithFunction" >history</a><br>Last edited May 28, 2007 9:56 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SetVariablesAndTablesWithFunction" >(diff)</a>
+</body>
+</html>

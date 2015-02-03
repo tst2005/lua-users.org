@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Profiler Examples</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaProfilerExamples&amp;body=1" title="List pages referring to LuaProfilerExamples">Lua Profiler Examples</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em><strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  It does not run as is under Lua 5.</strong></em>
+<p>
+<H2>tinsert and tremove example</H2>
+<p>
+Look at this code:
+<DL>
+<dt><dd><pre class="code">
+t={[0]=1}
+
+n=1000
+
+
+
+<span class="keyword">function</span> ins()
+
+    <span class="keyword">for</span> i = 1, n <span class="keyword">do</span>
+
+        tinsert(t, i)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> rem()
+
+    <span class="keyword">for</span> i = 1, n <span class="keyword">do</span>
+
+        tremove(t, 1)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+ins()
+
+tremove(t, 0)
+
+rem()
+
+</pre>
+
+</DL>
+<p>
+<p>
+After running the profiler, you get the resulting graph:
+<p>
+<img src="/files/wiki_insecure/users/lcs/LuaProfiler/insert_remove_step1.gif">
+<p>
+(the call to <strong>tremove</strong> from <strong>main</strong> is just to show that the profiler can tell you in which call point the bottleneck happens)
+<p>
+The graph shows that <strong>tremove</strong> is a bottleneck because it is the only black box. What to do since <strong>tremove</strong> is already a very fast routine? Whatever we do, to make the program faster we must concentrate on the call to <strong>tremove</strong> made from <strong>rem</strong>. Reading the <strong>tremove</strong> specification, we realize that it shifts all elements greater than <em>n</em> one row back at each call, and this takes time. 
+<p>
+Since we don't need any shifting, there is a faster code that does the same thing:
+<p>
+<DL>
+<dt><dd><pre>
+
+t={[0]=1}
+
+n=1000
+
+
+
+function ins()
+
+    for i = 1, n do
+
+        tinsert(t, i)
+
+    end
+
+end
+
+
+
+function rem()
+
+    for i = n, 1, -1 do
+
+        tremove(t, n)
+
+    end
+
+end
+
+
+
+ins()
+
+tremove(t, 0)
+
+rem()
+
+</pre>
+</DL>
+<p>
+<p>
+<img src="/files/wiki_insecure/users/lcs/LuaProfiler/insert_remove_step2.gif">
+<p>
+And the graph shows that there is no other bottlenecks (because the colors are almost the same). In fact, the black boxes are now <strong>ins</strong> and <strong>rem</strong>, so they are the functions that take more time to execute.
+<p>
+The first step took almost 1 second to execute in my pentium 200 MMX, and the second almost 0.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaProfilerExamples" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaProfilerExamples" >history</a><br>Last edited January 11, 2007 3:27 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaProfilerExamples" >(diff)</a>
+</body>
+</html>

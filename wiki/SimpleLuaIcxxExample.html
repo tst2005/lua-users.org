@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Simple Lua Icxx Example</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SimpleLuaIcxxExample&amp;body=1" title="List pages referring to SimpleLuaIcxxExample">Simple Lua Icxx Example</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This gives an example of using the <a href="http://lua-icxx.sf.net">[Lua-icxx API]</a> to use Lua in a C++ application rather than using the Lua C API directly. Note how 
+<p>
+<UL>
+<li> you no longer need to worry about stack indices/cleanup
+<li> Lua objects and results are naturally expressed via classes like LuaFuncRef<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaFuncRef" >?</a> and LuaTableRef<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaTableRef" >?</a>
+<li> there is considerably less code to write, and fewer opportunities for mistakes
+<li> code is more expressive, easier to understand intent
+</UL>
+<p>
+<pre>
+
+/*
+
+ * The lua-icxx (C++) equivalent of API example at 
+
+ * http://lua-users.org/wiki/SimpleLuaApiExample.
+
+ * Oliver Schoenborn, Jul 2011
+
+ */
+
+
+
+#include "lua_icxx/lua_icxx.h"
+
+#include "iof/fmtr.hpp"
+
+
+
+#include &lt;iostream&gt;
+
+
+
+int
+
+main()
+
+{
+
+    LuaInterpreter L;
+
+
+
+    /* Load the file containing the script we are going to run */
+
+    LuaFuncRef chunk = L.chunkFromFile("sample1.lua");
+
+    if ( chunk.isError() ) {
+
+        std::cerr &lt;&lt; "Couldn't load file: " &lt;&lt; chunk.getErrMsg() &lt;&lt; std::endl;
+
+        exit(1);
+
+    }
+
+
+
+    LuaTableRef table = L.newTable();
+
+    for (int i = 1; i &lt;= 5; i++)
+
+        table[i] = i*2;
+
+
+
+    /* By what name is the script going to reference our table? */
+
+    L.setGlobal("foo", table);
+
+
+
+    /* Ask Lua to run our little script */
+
+    LuaTempResult res = chunk();
+
+    if ( res.isError() ) {
+
+        std::cerr &lt;&lt; "Failed to run script: " &lt;&lt; res.getErrMsg() &lt;&lt; std::endl;
+
+        exit(1);
+
+    }
+
+
+
+    /* Get the returned value at the top of the stack (index -1) */
+
+    double sum = res[1]; 
+
+
+
+    // following line uses the iof library (ioflib.sf.net) for printf-output in c++
+
+    std::cout &lt;&lt; iof::fmtr("Script returned: %.0fs") &lt;&lt; sum &lt;&lt; std::endl;
+
+
+
+    return 0;
+
+}
+
+</pre>
+<p>
+In version 1.x, lua-icxx only supports part of the Lua C API, but the C API can be used in conjunction with lua-icxx. Extending lua-icxx to cover more of the C API is easy to do, email author (schoenborno@users.sf.net).
+<p>
+If you wonder why lua-icxx does not provide ways to bind to C++ code from Lua, it is because this can be done by other tools like SWIG and tolua++. Lua-icxx provides what those and other binding libs typically do not provide (easy access to a Lua interpreter from a C++ application). 
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SimpleLuaIcxxExample" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SimpleLuaIcxxExample" >history</a><br>Last edited August 24, 2011 8:19 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SimpleLuaIcxxExample" >(diff)</a>
+</body>
+</html>

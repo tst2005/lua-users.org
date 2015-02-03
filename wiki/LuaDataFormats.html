@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Data Formats</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaDataFormats&amp;body=1" title="List pages referring to LuaDataFormats">Lua Data Formats</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua can be used as a language to represent data, not just as a general programming language.
+<p>
+Different languages have been devised for different types of data representation in text format <a href="http://blog.ingy.net/2007/05/yaml-and-json.html">[1]</a>:
+<p>
+<UL>
+<li> <a href="http://en.wikipedia.org/wiki/Markup_language.html">[Markup languages]</a> - XHTML <a href="http://en.wikipedia.org/wiki/XHTML.html">[2]</a>, markdown <a href="http://en.wikipedia.org/wiki/Markdown.html">[3]</a>
+<li> <a href="http://en.wikipedia.org/wiki/Serialization.html">[Data serialization languages]</a> - YAML <a href="http://en.wikipedia.org/wiki/YAML.html">[4]</a>
+<li> Data interchange languages (a less general form of serialization) - JSON <a href="http://en.wikipedia.org/wiki/JSON.html">[5]</a>
+</UL>
+<p>
+Although markup languages have been implemented in Lua <a href="http://luaforge.net/projects/markdown/">[6]</a>, the Lua syntax is not in itself that suitable as a markup language.  However, it has some nice capabilities for data serialization and interchange.
+<p>
+A number of different data representation styles may be used in Lua:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- JSON style</span>
+
+library = { books = { {name=<span class="string">"PiL"</span>, author=<span class="string">"roberto"</span>},
+
+                      {name=<span class="string">"BLP"</span>, author=<span class="string">"kurt,aaron"</span>} } }
+
+
+
+<span class="comment">-- Lisp/s-expression style</span>
+
+<span class="keyword">return</span> {<span class="string">'library'</span>, {<span class="string">'book'</span>, name=<span class="string">"PiL"</span>, author=<span class="string">"roberto"</span>},
+
+                   {<span class="string">'book'</span>, name=<span class="string">"BLP"</span>, author=<span class="string">"kurt,aaron"</span>} }
+
+
+
+<span class="comment">-- Java property page / INI / Unix config style</span>
+
+library.books[1].name = <span class="string">'PiL'</span>
+
+library.books[1].author = <span class="string">'roberto'</span>
+
+library.books[2].name = <span class="string">'BLP'</span>
+
+library.books[2].author = <span class="string">'kurt,aaron'</span>
+
+
+
+<span class="comment">-- XML / object constructor style</span>
+
+library { book {name=<span class="string">"PiL"</span>, author=<span class="string">"roberto"</span>},
+
+          book {name=<span class="string">"BLP"</span>, author=<span class="string">"kurt,aaron"</span>} }
+
+
+
+<span class="comment">-- XML with namespaces style</span>
+
+<span class="keyword">local</span> LIB = <span class="library">require</span> <span class="string">"library"</span>
+
+LIB.library { LIB.book {name=<span class="string">"PiL"</span>, author=<span class="string">"roberto"</span>},
+
+              LIB.book {name=<span class="string">"BLP"</span>, author=<span class="string">"kurt,aaron"</span>} }
+
+</pre>
+
+</DL>
+<p>
+Features of Lua:
+<p>
+<UL>
+<li> Fairly efficient, small library (a couple hundred KB)
+<li> Loads entire file into memory -- not very suitable for very large data sets that must be streamed, like in SAX <a href="http://en.wikipedia.org/wiki/SAX.html">[7]</a>
+<li> Support for basic data types (including numbers, strings, and booleans), arrays, associative arrays, object constructor syntax, and assignment
+<li> You need to do your own data validation (no XML schemas) and serialization (<a href="../wiki/TableSerialization.html" >TableSerialization</a>).  Less extensive tools/adoption than XML/XPath/etc.
+<li> Extensible semantics (via metamethods and function calls)
+<li> Powerful programming capabilities
+<li> The programming capabilities have security implementations (<a href="../wiki/SandBoxes.html" >SandBoxes</a>)
+</UL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="http://www.lua.org/pil/10.1.html">[Programming in Lua: 10.1 - Data Description]</a>
+<li> <a href="http://www.lua.org/about.html">[About Lua]</a> - "Lua combines simple procedural syntax with powerful data description constructs based on associative arrays and extensible semantics."
+<li> <a href="http://www.slideshare.net/agladysh/declarative-internal-dsls-in-lua-a-game-changing-experience">[Declarative Internal DSLs in Lua: A Game Changing Experience]</a>, by <a href="../wiki/AlexanderGladysh.html" >AlexanderGladysh</a>, Logic<code></code>Editor.com (Lua Workshop 2011 Talk) - discusses a good strategy for implementing declarative DSLs in Lua (<a href="/lists/lua-l/2011-09/msg00240.html">[summary]</a>).
+<li> <a href="http://pgl.yoyo.org/lua/docs/luaarchitecture.doc">[The Lua Architecture]</a> - "This rudimentary ancestor of Lua was not a script language, but a data representation language...."
+<li> <a href="/lists/lua-l/2000-06/msg00148.html">LuaList:2000-06/msg00148.html</a> - "Lua tables vs XML"
+<li> <a href="/lists/lua-l/2008-03/msg00101.html">LuaList:2008-03/msg00101.html</a> - "Lua x XML"
+<li> <a href="/lists/lua-l/2003-07/msg00043.html">LuaList:2003-07/msg00043.html</a> - "Representing XML in tables"
+<li> <a href="../wiki/TableScope.html" >TableScope</a> - solutions (and patch) to allow table constructs to enclose a scope 
+<li> <a href="../wiki/LuaXml.html" >LuaXml</a> - XML parsers in Lua
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaDataFormats" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaDataFormats" >history</a><br>Last edited September 11, 2011 2:29 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaDataFormats" >(diff)</a>
+</body>
+</html>

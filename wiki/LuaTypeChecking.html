@@ -1,0 +1,846 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Type Checking</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaTypeChecking&amp;body=1" title="List pages referring to LuaTypeChecking">Lua Type Checking</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Many programming languages provide some form of static (compile-time) or dynamic (run-time) type checking, with each form having its own merits <a href="http://en.wikipedia.org/wiki/Type_system.html">[1]</a>.  Lua performs run-time type checking on its built-in operations.  For example, this code triggers a run-time error:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; x = 5 + <span class="string">"ok"</span>
+
+stdin:1: attempt to perform arithmetic on a <span class="library">string</span> value
+
+</pre>
+
+</DL>
+<p>
+However, unlike in languages like C, there is no built-in mechanism in Lua for type checking the parameters and return values of function calls.  The types are left unspecified:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> abs(x)
+
+  <span class="keyword">return</span> x &gt;= 0 <span class="keyword">and</span> x <span class="keyword">or</span> -x
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+This allows a lot of flexibility.  For example, a function like <code>print</code> can accept values of many types.  However, it can leave functions underspecified and more prone to usage errors.  You are allowed to call this function on something other than a number, though the operations inside the function can will trigger a somewhat cryptic error at run-time (where it would be a compile-time error in C).
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">print</span>(abs(<span class="string">"hello"</span>))
+
+stdin:2: attempt to compare number with <span class="library">string</span>
+
+stack traceback:
+
+        stdin:2: <span class="keyword">in</span> <span class="keyword">function</span> <span class="string">'abs'</span>
+
+        stdin:1: <span class="keyword">in</span> main chunk
+
+        [C]: ?
+
+</pre>
+
+</DL>
+<p>
+<H3>Solution: Assertions at Top of Function</H3>
+<p>
+For improved error reporting, one is typically told to do something like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> abs(x)
+
+  <span class="library">assert</span>(<span class="library">type</span>(x) == <span class="string">"number"</span>, <span class="string">"abs expects a number"</span>)
+
+  <span class="keyword">return</span> x &gt;= 0 <span class="keyword">and</span> x <span class="keyword">or</span> -x
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">print</span>(abs(<span class="string">"hello"</span>))
+
+stdin:2: abs expects a number
+
+stack traceback:
+
+        [C]: <span class="keyword">in</span> <span class="keyword">function</span> <span class="string">'assert'</span>
+
+        stdin:2: <span class="keyword">in</span> <span class="keyword">function</span> <span class="string">'abs'</span>
+
+        stdin:1: <span class="keyword">in</span> main chunk
+
+        [C]: ?
+
+</pre>
+
+</DL>
+<p>
+That's a good suggestion, but one might complain that this imposes additional run-time overhead, it will only detect program errors for code that gets executed instead of all code that is compiled, the types of the function values are entirely in the function's implementation (not available by introspection), and it can involve a lot of repetitive code (especially when the named arguments are passed via a table).
+<p>
+Here is one ways to proactively check named parameters:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> Box = {}
+
+<span class="keyword">local</span> is_key = {x=<span class="keyword">true</span>,y=<span class="keyword">true</span>,width=<span class="keyword">true</span>,height=<span class="keyword">true</span>,color=<span class="keyword">true</span>}
+
+<span class="keyword">function</span> create_box(t)
+
+  <span class="keyword">local</span> x = t.x <span class="keyword">or</span> 0
+
+  <span class="keyword">local</span> y = t.y <span class="keyword">or</span> 0
+
+  <span class="keyword">local</span> width = t.width <span class="keyword">or</span> 0
+
+  <span class="keyword">local</span> height = t.height <span class="keyword">or</span> 0
+
+  <span class="keyword">local</span> color = t.color
+
+  <span class="library">assert</span>(<span class="library">type</span>(x) == <span class="string">"number"</span>, <span class="string">"x must be number or nil"</span>)
+
+  <span class="library">assert</span>(<span class="library">type</span>(y) == <span class="string">"number"</span>, <span class="string">"y must be number or nil"</span>)
+
+  <span class="library">assert</span>(<span class="library">type</span>(width) == <span class="string">"number"</span>, <span class="string">"width must be number be number or nil"</span>)
+
+  <span class="library">assert</span>(<span class="library">type</span>(height) == <span class="string">"number"</span>, <span class="string">"height must be number or nil"</span>)
+
+  <span class="library">assert</span>(color == <span class="string">"red"</span> <span class="keyword">or</span> color == <span class="string">"blue"</span>, <span class="string">"color must be 'red' or 'blue'"</span>)
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+    <span class="library">assert</span>(is_key[k], <span class="library">tostring</span>(k) .. <span class="string">" not valid key"</span>)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({x1=x,y1=y,x2=x+width,y2=y+width,color=color}, Box)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+It is relatively a lot of code.  In fact, we might want to use <code>error</code> rather than <code>assert</code> to provide an appropriate <code>level</code> parameter for the stack traceback.
+<p>
+<H3>Solution: Function Decorators</H3>
+<p>
+Another approach is to place the type check code outside of the original function, potentially with a "function decorator" (see <a href="../wiki/DecoratorsAndDocstrings.html" >DecoratorsAndDocstrings</a> for background).
+<p>
+<DL>
+<dt><dd><pre class="code">
+is_typecheck = <span class="keyword">true</span>
+
+
+
+<span class="keyword">function</span> typecheck(...)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(f)
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+      <span class="library">assert</span>(<span class="keyword">false</span>, <span class="string">"FIX-TODO: ADD SOME GENERIC TYPE CHECK CODE HERE"</span>)
+
+      <span class="keyword">return</span> f(...)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> notypecheck()
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(f) <span class="keyword">return</span> f <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+typecheck = is_typecheck <span class="keyword">and</span> typecheck <span class="keyword">or</span> notypecheck
+
+
+
+sum = typecheck(<span class="string">"number"</span>, <span class="string">"number"</span>, <span class="string">"-&gt;"</span>, <span class="string">"number"</span>)(
+
+  <span class="keyword">function</span>(a,b)
+
+    <span class="keyword">return</span> a + b
+
+  <span class="keyword">end</span>
+
+)
+
+</pre>
+
+</DL>
+<p>
+The advantage is that the type information is outside of the function implementation.   We can disable all the type checking by switching a single variable, and no added overhead would remain when the functions are executed (though there is some slight added overhead when the functions are built).  The <code>typecheck</code> function could also store away the type info for later introspection.
+<p>
+This approach is similar to the one described in <a href="/lists/lua-l//2002-07/msg00209.html">LuaList:/2002-07/msg00209.html</a> (warning: Lua 4).
+<p>
+<H3>Solution: the checks library</H3>
+<p>
+The solutions above present some limitations:
+<p>
+* they are rather verbose, and non-trivial verifications can be hard to read;
+<p>
+* the error messages aren't as clear as those returned by Lua's primitives. Moreover, they indicate an error in the called function, at the place where assert() fails, rather than in the calling function which passed invalid arguments.
+<p>
+The checks library offers a terse, flexible and readable way to produce good error messages. Types are described by strings, which can of course be Lua type names, but can also be stored in an object's metatable, under the __type field. Additional, arbitrary type-checking functions can also be registered in a dedicated <code>checkers</code> table. For instance, if one wants to check for an IP port number, which must be between 0 and 0xffff, one can define a <code>port</code> type as follows: 
+<p>
+<pre class="code">
+<span class="keyword">function</span> checkers.port(x)
+
+    <span class="keyword">return</span> <span class="library">type</span>(x)==<span class="string">'number'</span> <span class="keyword">and</span> 0&lt;=x <span class="keyword">and</span> x&lt;=0xffff <span class="keyword">and</span> <span class="library">math.floor</span>(x)==0 
+
+<span class="keyword">end</span>
+
+</pre>
+ 
+<p>
+To remove useless boilerplate code, <code>checks()</code> retrieves the parameters directly from the stack frame, no need to repeat them; for instance, if function <code>f(num, str)</code> needs a number and a string, it can be implemented as follows:
+<p>
+<pre class="code">
+<span class="keyword">function</span> f(num, str)
+
+    checks(<span class="string">'number'</span>, <span class="string">'string'</span>)
+
+    <span class="comment">--actual function body</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+Types can be combined:
+<p>
+* the vertical bar allows to accept several types, e.g. <code>checks('string|number')</code> accepts both strings and numbers as first parameter.
+<p>
+* a prefix "?" makes a type optional, i.e. also accepts <code>nil</code>. Functionally, it's equivalent to a <code>"nil|"</code> prefix, although it's more readable and faster to check at runtime.
+<p>
+* the question mark can be combined with union bars, e.g. <code>checks('?string|number')</code> accepts strings, numbers and <code>nil</code>.
+<p>
+* finally, a special <code>"!"</code> type accepts anything but <code>nil</code>.
+<p>
+A more detailed description of how the library works can be found in its source's header (<a href="https://github.com/fab13n/checks/blob/master/checks.c">https://github.com/fab13n/checks/blob/master/checks.c</a>). The library is part of Sierra Wireless' application framework, accessible here: <a href="https://github.com/SierraWireless/luasched">https://github.com/SierraWireless/luasched</a>. For convinience, it's also available here as a standalone rock: <a href="https://github.com/fab13n/checks">https://github.com/fab13n/checks</a>
+<p>
+<p>
+<p>
+<H3>Hack: Boxed Values + Possible Values</H3>
+<p>
+As mentioned, run-time type checking will not detect program errors that don't get executed.  Extensive test suites are particularly essential for programs in dynamically typed languages so that all branches of the code are executed with all conceivable data sets (or at least a good representation of them) so that the run-time assertions are are sufficiently hit.  You can't rely as much on the compiler to do some of this checking for you.
+<p>
+Perhaps we can mitigate this by carrying more complete type information with the values.  Below is one approach, though is it more a novel proof-of-concept rather than anything for production use at this point.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- ExTypeCheck.lua ("ExTypeCheck")</span>
+
+<span class="comment">-- Type checking for Lua.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- In this type model, types are associated with values at run-time.</span>
+
+<span class="comment">-- A type consists of the set of values the value could have</span>
+
+<span class="comment">-- at run-time.  This set can be large or infinite, so we</span>
+
+<span class="comment">-- store only a small representative subset of those values.</span>
+
+<span class="comment">-- Typically one would want to include at least the boundary</span>
+
+<span class="comment">-- values (e.g. max and min) in this set.</span>
+
+<span class="comment">-- Type checking is performed by verifying that all values</span>
+
+<span class="comment">-- in that set are accepted by a predicate function for that type.</span>
+
+<span class="comment">-- This predicate function takes a values and returns true or false</span>
+
+<span class="comment">-- whether the value is a member of that type.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- As an alternative to representing types as a set of representative</span>
+
+<span class="comment">-- values, we could represent types more formally, such as with</span>
+
+<span class="comment">-- first-order logic, but then we get into theorem proving,</span>
+
+<span class="comment">-- which is more involved.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- DavidManura, 2007, licensed under the same terms as Lua itself.</span>
+
+
+
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="comment">-- Stored Expression design pattern</span>
+
+<span class="comment">-- ( http://lua-users.org/wiki/StatementsInExpressions )</span>
+
+<span class="keyword">local</span> StoredExpression
+
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> call(self, ...)
+
+    self.__index = {n = <span class="library">select</span>(<span class="string">'#'</span>, ...), ...}
+
+    <span class="keyword">return</span> ...
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> StoredExpression()
+
+    <span class="keyword">local</span> self = {__call = call}
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>(self, self)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+ 
+
+<span class="comment">-- Whether to enable type checking (true/false).  Default true.</span>
+
+<span class="keyword">local</span> is_typecheck = <span class="keyword">true</span>
+
+
+
+<span class="comment">-- TypeValue is an abstract type for values that are typed</span>
+
+<span class="comment">-- This holds the both the actual value and a subset of possible</span>
+
+<span class="comment">-- values the value could assume at runtime.  That set should at least</span>
+
+<span class="comment">-- include the min and max values (for bounds checking).</span>
+
+<span class="keyword">local</span> TypedValue = {}
+
+
+
+<span class="comment">-- Check that value x satisfies type predicate function f.</span>
+
+<span class="keyword">function</span> M.check_type(x, f)
+
+  <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(x) <span class="keyword">do</span>
+
+    <span class="library">assert</span>(f(v))
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> x.v
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Type check function that decorates functions.</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--   abs = typecheck(ranged_real'(-inf,inf)', '-&gt;', ranged_real'[0,inf)')(</span>
+
+<span class="comment">--     function(x) return x &gt;= 0 and x or -x end</span>
+
+<span class="comment">--   )</span>
+
+<span class="keyword">function</span> M.typecheck(...)
+
+  <span class="keyword">local</span> types = {...}
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(f)
+
+    <span class="keyword">local</span> <span class="keyword">function</span> check(i, ...)
+
+      <span class="comment">-- Check types of return values.</span>
+
+      <span class="keyword">if</span> types[i] == <span class="string">"-&gt;"</span> <span class="keyword">then</span> i = i + 1 <span class="keyword">end</span>
+
+      <span class="keyword">local</span> j = i
+
+      <span class="keyword">while</span> types[i] ~= <span class="keyword">nil</span> <span class="keyword">do</span>
+
+        M.check_type(<span class="library">select</span>(i - j + 1, ...), types[i])
+
+        i = i + 1
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> ...
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+      <span class="comment">-- Check types of input parameters.</span>
+
+      <span class="keyword">local</span> i = 1
+
+      <span class="keyword">while</span> types[i] ~= <span class="keyword">nil</span> <span class="keyword">and</span> types[i] ~= <span class="string">"-&gt;"</span> <span class="keyword">do</span>
+
+        M.check_type(<span class="library">select</span>(i, ...), types[i])
+
+        i = i + 1
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> check(i, f(...))  <span class="comment">-- call function</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">function</span> M.notypecheck() <span class="keyword">return</span> <span class="keyword">function</span>(f) <span class="keyword">return</span> f <span class="keyword">end</span> <span class="keyword">end</span>
+
+<span class="keyword">function</span> M.nounbox(x) <span class="keyword">return</span> x <span class="keyword">end</span>
+
+
+
+M.typecheck = is_typecheck <span class="keyword">and</span> M.typecheck <span class="keyword">or</span> M.notypecheck
+
+M.unbox = is_typecheck <span class="keyword">and</span> M.unbox <span class="keyword">or</span> M.nounbox
+
+
+
+<span class="comment">-- Return a boxed version of a binary operation function.</span>
+
+<span class="comment">-- For the returned function,</span>
+
+<span class="comment">--   Zero, one, or two of the arguments may be boxed.</span>
+
+<span class="comment">--   The result value is boxed.</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--   __add = boxed_op(function(a,b) return a+b end)</span>
+
+<span class="keyword">function</span> M.boxed_op(op)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(a, b)
+
+    <span class="keyword">if</span> <span class="library">getmetatable</span>(a) ~= TypedValue <span class="keyword">then</span> a = M.box(a) <span class="keyword">end</span>
+
+    <span class="keyword">if</span> <span class="library">getmetatable</span>(b) ~= TypedValue <span class="keyword">then</span> b = M.box(b) <span class="keyword">end</span>
+
+    <span class="keyword">local</span> t = M.box(op(M.unbox(a), M.unbox(b)))
+
+    <span class="keyword">local</span> seen = {[t[1]] = <span class="keyword">true</span>}
+
+    <span class="keyword">for</span> _,a2 <span class="keyword">in</span> <span class="library">ipairs</span>(a) <span class="keyword">do</span>
+
+      <span class="keyword">for</span> _,b2 <span class="keyword">in</span> <span class="library">ipairs</span>(b) <span class="keyword">do</span>
+
+        <span class="keyword">local</span> c2 = op(a2, b2)
+
+        <span class="keyword">if</span> <span class="keyword">not</span> seen[c2] <span class="keyword">then</span>
+
+          t[#t + 1] = op(a2, b2)
+
+          seen[c2] = <span class="keyword">true</span>
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> t
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Return a boxed version of a unary operation function.</span>
+
+<span class="comment">-- For the returned function,</span>
+
+<span class="comment">--   The argument may optionally be boxed.</span>
+
+<span class="comment">--   The result value is boxed.</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--   __unm = boxed_uop(function(a) return -a end)</span>
+
+<span class="keyword">function</span> M.boxed_uop(op)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(a)
+
+    <span class="keyword">if</span> <span class="library">getmetatable</span>(a) ~= TypedValue <span class="keyword">then</span> a = M.box(a) <span class="keyword">end</span>
+
+    <span class="keyword">local</span> t = M.box(op(M.unbox(a)))
+
+    <span class="keyword">local</span> seen = {[t[1]] = <span class="keyword">true</span>}
+
+    <span class="keyword">for</span> _,a2 <span class="keyword">in</span> <span class="library">ipairs</span>(a) <span class="keyword">do</span>
+
+      <span class="keyword">local</span> c2 = op(a2)
+
+      <span class="keyword">if</span> <span class="keyword">not</span> seen[c2] <span class="keyword">then</span>
+
+        t[#t + 1] = op(a2)
+
+        seen[c2] = <span class="keyword">true</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> t
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+TypedValue.__index = TypedValue
+
+TypedValue.__add = M.boxed_op(<span class="keyword">function</span>(a, b) <span class="keyword">return</span> a + b <span class="keyword">end</span>)
+
+TypedValue.__sub = M.boxed_op(<span class="keyword">function</span>(a, b) <span class="keyword">return</span> a - b <span class="keyword">end</span>)
+
+TypedValue.__mul = M.boxed_op(<span class="keyword">function</span>(a, b) <span class="keyword">return</span> a * b <span class="keyword">end</span>)
+
+TypedValue.__div = M.boxed_op(<span class="keyword">function</span>(a, b) <span class="keyword">return</span> a / b <span class="keyword">end</span>)
+
+TypedValue.__pow = M.boxed_op(<span class="keyword">function</span>(a, b) <span class="keyword">return</span> a ^ b <span class="keyword">end</span>)
+
+TypedValue.__mod = M.boxed_op(<span class="keyword">function</span>(a, b) <span class="keyword">return</span> a % b <span class="keyword">end</span>)
+
+TypedValue.__concat = M.boxed_op(<span class="keyword">function</span>(a, b) <span class="keyword">return</span> a .. b <span class="keyword">end</span>)
+
+<span class="comment">-- TypedValue.__le -- not going to work? (metafunction returns Boolean)</span>
+
+<span class="comment">-- TypedValue.__lt -- not going to work? (metafunction returns Boolean)</span>
+
+<span class="comment">-- TypedValue.__eq -- not going to work? (metafunction returns Boolean)</span>
+
+TypedValue.__tostring = <span class="keyword">function</span>(self)
+
+  <span class="keyword">local</span> str = <span class="string">"["</span> .. <span class="library">tostring</span>(self.v) .. <span class="string">" in "</span>
+
+  <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(self) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> i ~= 1 <span class="keyword">then</span> str = str .. <span class="string">", "</span> <span class="keyword">end</span>
+
+    str = str .. v
+
+  <span class="keyword">end</span>
+
+  str = str .. <span class="string">"]"</span>
+
+  <span class="keyword">return</span> str 
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Convert a regular value into a TypedValue.  We call this "boxing".</span>
+
+<span class="keyword">function</span> M.box(v, ...)
+
+  <span class="keyword">local</span> t = <span class="library">setmetatable</span>({v = v, ...}, TypedValue)
+
+  <span class="keyword">if</span> #t == 0 <span class="keyword">then</span> t[1] = v <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+<span class="comment">-- Convert a TypedValue into a regular value.  We call this "unboxing".</span>
+
+<span class="keyword">function</span> M.unbox(x)
+
+  <span class="library">assert</span>(<span class="library">getmetatable</span>(x) == TypedValue)
+
+  <span class="keyword">return</span> x.v
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Returns a type predicate function for a given interval over the reals.</span>
+
+<span class="comment">-- Example: ranged_real'[0,inf)'</span>
+
+<span class="comment">-- Note: this function could be memoized.</span>
+
+<span class="keyword">function</span> M.ranged_real(name, a, b)
+
+  <span class="keyword">local</span> ex = StoredExpression()
+
+
+
+  <span class="keyword">if</span> name == <span class="string">"(a,b)"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &gt; a <span class="keyword">and</span> x &lt; b <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> name == <span class="string">"(a,b]"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &gt; a <span class="keyword">and</span> x &lt;= b <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> name == <span class="string">"[a,b)"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &gt;= a <span class="keyword">and</span> x &lt; b <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> name == <span class="string">"[a,b]"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &gt;= a <span class="keyword">and</span> x &lt;= b <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> name == <span class="string">"(inf,inf)"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> name == <span class="string">"[a,inf)"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &gt;= a <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> name == <span class="string">"(a,inf)"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &gt; a <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> name == <span class="string">"(-inf,a]"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &lt;= a <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> name == <span class="string">"(-inf,a)"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &lt; a <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> name == <span class="string">"[0,inf)"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &gt;= 0 <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> name == <span class="string">"(0,inf)"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &gt; 0 <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> name == <span class="string">"(-inf,0]"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &lt;= 0 <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> name == <span class="string">"(-inf,0)"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &lt; 0 <span class="keyword">end</span>
+
+  <span class="keyword">elseif</span> ex(name:match(<span class="string">"^([%[%(])(%d+%.?%d*),(%d+%.?%d*)([%]%)])$"</span>)) <span class="keyword">then</span>
+
+    <span class="keyword">local</span> left, a, b, right = ex[1], <span class="library">tonumber</span>(ex[2]), <span class="library">tonumber</span>(ex[3]), ex[4]
+
+    <span class="keyword">if</span> left == <span class="string">"("</span> <span class="keyword">and</span> right == <span class="string">")"</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &gt; a <span class="keyword">and</span> x &lt; b <span class="keyword">end</span>
+
+    <span class="keyword">elseif</span> left == <span class="string">"("</span> <span class="keyword">and</span> right == <span class="string">"]"</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &gt; a <span class="keyword">and</span> x &lt;= b <span class="keyword">end</span>
+
+    <span class="keyword">elseif</span> left == <span class="string">"["</span> <span class="keyword">and</span> right == <span class="string">")"</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &gt;= a <span class="keyword">and</span> x &lt; b <span class="keyword">end</span>
+
+    <span class="keyword">elseif</span> left == <span class="string">"["</span> <span class="keyword">and</span> right == <span class="string">"]"</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> <span class="library">type</span>(x) == <span class="string">"number"</span> <span class="keyword">and</span> x &gt;= a <span class="keyword">and</span> x &lt;= b <span class="keyword">end</span>
+
+    <span class="keyword">else</span> <span class="library">assert</span>(<span class="keyword">false</span>)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    <span class="library">error</span>(<span class="string">"invalid arg "</span> .. name, 2)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- type_example.lua</span>
+
+<span class="comment">-- Test of ExTypeCheck.lua.</span>
+
+
+
+<span class="keyword">local</span> TC = <span class="library">require</span> <span class="string">"ExTypeCheck"</span>
+
+<span class="keyword">local</span> typecheck = TC.typecheck
+
+<span class="keyword">local</span> ranged_real = TC.ranged_real
+
+<span class="keyword">local</span> boxed_uop = TC.boxed_uop
+
+<span class="keyword">local</span> box = TC.box
+
+
+
+<span class="comment">-- Checked sqrt function.</span>
+
+<span class="keyword">local</span> sqrt = typecheck(ranged_real<span class="string">'[0,inf)'</span>, <span class="string">'-&gt;'</span>, ranged_real<span class="string">'[0,inf)'</span>)(
+
+  <span class="keyword">function</span>(x)
+
+    <span class="keyword">return</span> boxed_uop(<span class="library">math.sqrt</span>)(x)
+
+  <span class="keyword">end</span>
+
+)
+
+
+
+<span class="comment">-- Checked random function.</span>
+
+<span class="keyword">local</span> random = typecheck(<span class="string">'-&gt;'</span>, ranged_real<span class="string">'[0,1)'</span>)(
+
+  <span class="keyword">function</span>()
+
+    <span class="keyword">return</span> box(<span class="library">math.random</span>(), 0, 0.999999)
+
+  <span class="keyword">end</span>
+
+)
+
+
+
+<span class="library">print</span>(box(<span class="string">"a"</span>, <span class="string">"a"</span>, <span class="string">"b"</span>) .. <span class="string">"z"</span>)
+
+<span class="library">print</span>(box(3, 3,4,5) % 4)
+
+
+
+<span class="library">math.randomseed</span>(<span class="library">os.time</span>())
+
+<span class="keyword">local</span> x = 0 + random() * 10 - 1 + (random()+1) * 0
+
+<span class="library">print</span>(x + 1); <span class="library">print</span>(sqrt(x + 1)) <span class="comment">-- ok</span>
+
+<span class="library">print</span>(x); <span class="library">print</span>(sqrt(x)) <span class="comment">-- always asserts! (since x might be negative)</span>
+
+</pre>
+
+</DL>
+<p>
+Example output:
+<p>
+<DL>
+<dt><dd><pre>
+
+[az in az, bz]
+
+[3 in 3, 0, 1]
+
+[8.7835848325787 in 8.7835848325787, 0, 9.99999]
+
+[2.9637113274708 in 2.9637113274708, 0, 3.1622760790292]
+
+[7.7835848325787 in 7.7835848325787, -1, 8.99999]
+
+lua: ./ExTypeCheck.lua:50: assertion failed!
+
+stack traceback:
+
+        [C]: in function 'assert'
+
+        ./ExTypeCheck.lua:50: in function 'check_type'
+
+        ./ExTypeCheck.lua:78: in function 'sqrt'
+
+        testt.lua:30: in main chunk
+
+        [C]: ?
+
+</pre>
+</DL>
+<p>
+Note: this approach of values holding multiple values does have some similarities to Perl6 junctions (originally termed "quantum superpositions").
+<p>
+<H3>Solution: Metalua Runtime Type Checking</H3>
+<p>
+There is a Runtime type checking example in Metalua <a href="http://metalua.luaforge.net">[2]</a>.
+<p>
+<H3>Solution: Dao</H3>
+<p>
+The Dao language, partly based on Lua, has built-in support for optional typing <a href="http://www.daovm.net/cybego.dao?space=dao&amp;page=dao_data_typing">[3]</a>.
+<p>
+<hr>--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<p>
+<em>I'd argue that, except for very simple programs or those that always have the same input, disabling type checks in a script is a bad idea.  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a></em>
+<p>
+The comment above was anonymously deleted with "This isn't a forum for drive-by opinions".  On the contrary, this is established wiki style.  People can make comments on pages, and for points of contention that's considered courteous versus summarily changing the original text.  The original author can decide to integrate such comments into the original text or not.  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaTypeChecking" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaTypeChecking" >history</a><br>Last edited October 4, 2012 3:08 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaTypeChecking" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,253 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Numbers Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=NumbersTutorial&amp;body=1" title="List pages referring to NumbersTutorial">Numbers Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Internal representation</H2>
+<p>
+Some languages support one or more of the following number types by default: 
+<p>
+<UL>
+<li> Integer 
+<li> Unlimited precision integer
+<li> Single precision floating point 
+<li> Double precision floating point 
+<li> Complex fun
+</UL>
+<p>
+In the interest of simplicity Lua supports only one type of number: floating point numbers. By default these are double precision floating point numbers. However Lua can easily be recompiled to support single precision floating point numbers should you so desire. If you are unfamiliar with floating point it may be advantageous for you to read about <a href="../wiki/FloatingPoint.html" >FloatingPoint</a> numbers. 
+<p>
+The main thing to remember is that if you use numbers with fractional parts (or division), they may have a rounding error.
+<p>
+Also numbers which have infinitely repeating patterns in decimal will not have them in binary, so don't assume that any fractional number is "safe". The main thing to remember is don't use the <code>==</code> operator with fractional numbers since it checks for perfect equality.  The other thing to remember is to write your code so that rounding error can't build up to large amounts over time.
+<p>
+If your numbers are integers (with no fractional part), and they don't reach 2^53; then you won't need to worry about these issues.
+<p>
+<H2>Using numbers</H2>
+<p>
+We can use the Lua interactive command line prompt as a calculator by prefixing an expression by <code>=</code>, e.g.,
+<p>
+<DL>
+<dt><dd><pre class="code">
+Lua 5.1  Copyright (C) 1994-2006 Lua.org, PUC-Rio
+
+&gt; = 1
+
+1
+
+&gt; = 1 + 2
+
+3
+
+&gt; = 3.1415927
+
+3.1415927
+
+&gt; = 5 / 6
+
+0.83333333333333
+
+</pre>
+
+</DL>
+We can enter numbers and evaluate simple calculations. Lua can also understand exponent types for expressing numbers in the form <em>&lt;value&gt; * 10 ^ &lt;exponent&gt;</em>
+<DL>
+<dt><dd><pre class="code">
+&gt; = 1.2345e6
+
+1234500
+
+&gt; = 543.21E8
+
+54321000000
+
+&gt; = 2.56e-4
+
+0.000256
+
+</pre>
+
+</DL>
+We can assign numbers to variables and do arithmetic:
+<DL>
+<dt><dd><pre class="code">
+&gt; width = 7.5
+
+&gt; height = 12.7
+
+&gt; = width * height
+
+95.25
+
+&gt; depth = 2.8
+
+&gt; area = width * height
+
+&gt; volume = area * depth
+
+&gt; <span class="library">print</span>(area, volume)
+
+95.25   266.7
+
+</pre>
+
+</DL>
+<p>
+<H2>The math library</H2>
+<p>
+Lua is equipped with a math library (see section 5.6 of the Reference Manual <a href="http://www.lua.org/manual/5.1/manual.html#5.6">[1]</a>). The functions provided are as follows:
+<DL>
+<dt><dd><pre class="code">
+<span class="library">math.abs</span>     <span class="library">math.acos</span>    <span class="library">math.asin</span>       <span class="library">math.atan</span>    <span class="library">math.atan2</span>
+
+<span class="library">math.ceil</span>    <span class="library">math.cos</span>     <span class="library">math.cosh</span>       <span class="library">math.deg</span>     <span class="library">math.exp</span>
+
+<span class="library">math.floor</span>   <span class="library">math.fmod</span>    <span class="library">math.frexp</span>      <span class="library">math.ldexp</span>   <span class="library">math.log</span>
+
+<span class="library">math.log10</span>   <span class="library">math.max</span>     <span class="library">math.min</span>        <span class="library">math.modf</span>    <span class="library">math.pow</span>
+
+<span class="library">math.rad</span>     <span class="library">math.random</span>  <span class="library">math.randomseed</span> <span class="library">math.sin</span>     <span class="library">math.sinh</span>
+
+<span class="library">math.sqrt</span>    <span class="library">math.tan</span>     <span class="library">math.tanh</span>
+
+</pre>
+
+</DL>
+We'll try a few of the functions and variables as an example.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">math.sqrt</span>(101)
+
+10.049875621121
+
+&gt; = <span class="library">math.pi</span>
+
+3.1415926535898
+
+&gt; = <span class="library">math.sin</span>( <span class="library">math.pi</span>/3 )
+
+0.86602540378444
+
+</pre>
+
+</DL>
+Read the <a href="../wiki/MathLibraryTutorial.html" >MathLibraryTutorial</a> for more details.
+<p>
+<H2>Conversion</H2>
+<p>
+You can convert strings to numbers using the function <code>tonumber()</code>. This takes a string argument and returns a number.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">tonumber</span>(<span class="string">"123"</span>) + 25
+
+148
+
+&gt; x = <span class="library">tonumber</span>(<span class="string">"123.456e5"</span>)
+
+&gt; <span class="library">print</span>(x)
+
+12345600
+
+</pre>
+
+</DL>
+<p>
+<H2>Coercion</H2>
+<p>
+Lua will automatically convert string and number types to the correct format to perform calculations. For example: if you try to apply an arithmetic operation to a string Lua will try to convert that string to a number first. Otherwise the operation will not work. If the string cannot be converted to a number an error is raised. This automatic conversion of types is called <em>coercion</em>.
+<DL>
+<dt><dd><pre class="code">
+&gt; = 100 + <span class="string">"7"</span>
+
+107
+
+&gt; = <span class="string">"1000"</span> + 234
+
+1234
+
+&gt; = <span class="string">"hello"</span> + 234
+
+stdin:1: attempt to perform arithmetic on a <span class="library">string</span> value
+
+stack traceback:
+
+        stdin:1: <span class="keyword">in</span> main chunk
+
+        [C]: ?
+
+&gt; = 234 + <span class="string">"1000"</span>
+
+1234
+
+</pre>
+
+</DL>
+You can see the calculation succeeds where a string was converted to number. The string <code>"hello"</code> cannot be converted to a number and so an error occurs. In <em>statically typed</em> languages (e.g. C) this would cause an error because you cannot assign a value to a variable of an incompatible type without a cast. This works in Lua because it is <em>dynamically typed</em>.
+<p>
+A notable exception: comparison operators (<code>== ~= &lt; &gt; &lt;= &gt;=</code>) do <em>not</em> coerce their arguments.
+The (in)equality operators consider a number to be <em>not equal</em> to its string representation
+(or any non-number type in fact).
+Ordered comparison operators throw an error when you feed them different types.
+<DL>
+<dt><dd><pre class="code">
+&gt; = 100 == <span class="string">"100"</span>
+
+<span class="keyword">false</span>
+
+&gt; = 100 ~= <span class="string">"hello"</span>
+
+<span class="keyword">true</span>
+
+&gt; = 100 ~= {}
+
+<span class="keyword">true</span>
+
+&gt; = 100 == <span class="library">tonumber</span>(<span class="string">"100"</span>)
+
+<span class="keyword">true</span>
+
+&gt; = 100 &lt;= <span class="string">"100"</span>
+
+stdin:1: attempt to compare number with <span class="library">string</span>
+
+stack traceback:
+
+        stdin:1: <span class="keyword">in</span> main chunk
+
+        [C]: ?
+
+</pre>
+
+</DL>
+For performance reasons you should avoid relying on automatic coercion too much.
+Make sure that all numbers in performance sensitive computations
+(especially in inner loops) are of the proper type.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=NumbersTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=NumbersTutorial" >history</a><br>Last edited August 4, 2014 10:43 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=NumbersTutorial" >(diff)</a>
+</body>
+</html>

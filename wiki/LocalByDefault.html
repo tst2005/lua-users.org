@@ -1,0 +1,93 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Local By Default</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LocalByDefault&amp;body=1" title="List pages referring to LocalByDefault">Local By Default</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Concerns about Lua's scoping rules come up periodically on the mail list.  A justification for its design would be useful here.
+<p>
+Lua's declarations are described as "global by default", in contrast to "local by default" (Python and Ruby).  Another alternative would be for nothing to be "by default" (i.e. require explicit declarations of both locals and globals).  Here are some insightful quotes on this:
+<p>
+<a href="/lists/lua-l/2006-10/msg00056.html">[4]</a> "Local by default is wrong. Maybe global by default is also wrong, [but] the solution is not local by default." (Roberto)
+<p>
+<a href="/lists/lua-l/2006-10/msg00053.html">[5]</a> "I don't really understand why anyone would want variables to be *anything* by default, as in automatic declarations. All it does is 
+save you a few keystrokes every now and then, while opening up for endless fun looking for stupid, hard to find typo and name mixup bugs. (Assignment instead of declaration and vice versa.)" (David Olofson)
+<p>
+<a href="/lists/lua-l/2006-10/msg00066.html">[6]</a> "The problem is that without [explicit] local declarations, you cannot say where the variable is local to." (<a href="../wiki/RiciLake.html" >RiciLake</a>) 
+<p>
+<a href="/lists/lua-l/2005-08/msg00139.html">[7]</a> "'local by default' does not mix well with lexical scoping....Proper lexical scoping really requires that you have a choice between mutating a binding (assignment) and creating a new binding (declaration). Alas, the 'local by default' rule mixes them and makes an assignment do both." (<a href="../wiki/MikePall.html" >MikePall</a>)
+<p>
+<a href="/lists/lua-l/2008-02/msg00808.html">[8]</a> "It seems to me that the main argument for local-by-default, is to prevent accidents with the global environment, and secondly to make declaring locals optional, thus having to type less. Personally, I think making declarations optional is a bad idea, both for locals and for globals. To force explicit declarations for globals, as well as to prevent accidents with the global environment, I use require 'strict'. Maybe it's possible to do something equivalent (or better) at compile time. But my point is, perhaps one should ask oneself, whether one really wants/needs local-by-default, or just explicit globals declarations." (Mark Meijer)
+<p>
+<a href="http://www.python.org/dev/peps/pep-3104/">[Python PEP 3104]</a> -- Python's fix to "local by default", which is identical (apart from the choice of keyword!) to the proposal by <a href="../wiki/ReubenThomas.html" >ReubenThomas</a> (see below).
+<p>
+<a href="http://marc.info/?l=ruby-talk&amp;m=102714879506769">[1]</a> "[The current local variable scoping rule] is the single biggest design flaw in Ruby." (Yukihiro Matsumoto, Ruby designer) (comments: <a href="/lists/lua-l/2006-09/msg00103.html">[9]</a><a href="/lists/lua-l/2006-09/msg00046.html">[10]</a><a href="/lists/lua-l/2005-08/msg00139.html">[7]</a>)
+<p>
+<a href="http://tratt.net/laurie/tech_articles/articles/designing_sane_scoping_rules">[2]</a> -- Discussion by the various scoping rules and why the language Converge chose "local by default" with a "nonlocal" (like PEP 3104) keyword. (Laurence Tratt, Converge Designer)
+<p>
+<a href="http://www.perl.com/pub/a/2002/01/15/apo4.html?page=8">[3]</a> "I dislike the implicit declaration of lexicals because it tends to defeat the primary use of them, namely, catching typos...Declarations should look like declarations...I believe that declarations with <code>my</code> are properly Huffman encoded." (Larry Wall, Perl Designer)
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaScoping.html" >LuaScoping</a> / <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>
+<li> <a href="../wiki/LuaVersusPython.html" >LuaVersusPython</a>
+<li> <a href="/lists/lua-l/1997-12/msg00009.html">LuaList:1997-12/msg00009.html</a>
+<li> <a href="/lists/lua-l/1999-06/msg00025.html">LuaList:1999-06/msg00025.html</a> (note: tag methods were replaced with metatables)
+<li> <a href="/lists/lua-l/2006-10/msg00053.html">LuaList:2006-10/msg00053.html</a>
+<li> <a href="/lists/lua-l/2006-09/msg00042.html">LuaList:2006-09/msg00042.html</a>
+<li> <a href="/lists/lua-l/2008-02/msg00730.html">LuaList:2008-02/msg00730.html</a> / <a href="/lists/lua-l/2008-02/msg00911.html">LuaList:2008-02/msg00911.html</a>
+<li> "Pattern: Local by Default Scoping" in <a href="../wiki/LuaHacks.html" >LuaHacks</a> - simulates "local by default" in Lua if you really wanted that, although it will not work in 5.2, as it uses getfenv/setfenv (which was removed)
+</UL><DL>
+<DL>
+<dt><dd>
+
+</DL>
+</DL>
+<hr><H3>Prior Proposal</H3>
+<p>
+What follows is another "local by default" proposal. IMO it's simpler, less obtrusive and yet gives better results than other proposals.  (-- <a href="../wiki/ReubenThomas.html" >ReubenThomas</a>)
+<p>
+The changes are:
+<p>
+1. Add a new keyword "outer" which works like "local", except that it declares the given name to refer to the innermost variable of the same name in an enclosing function or, if there is none, to a global of the same name (even if none currently exists).
+<p>
+2. The first assignment to a variable in a function implicitly acts as a "local" declaration unless it has already been declared in that function, explicitly or implicitly. Assignment outside a function works as at present, as does assignment to table elements.
+<p>
+Note:
+<p>
+a. The ability to do configuration file style global assignment is retained, at the cost of making assignment inside functions work differently from outside. In practice this shouldn't be a problem, as few Lua scripts contain complex code at the top level. If you need local variables in top-level code, you must simply declare them as at present.
+<p>
+b. The only change to the syntax is the addition of "outer".
+<p>
+c. The only semantic change is to the meaning of assignment within functions.
+<p>
+d. Assignments only make the variable local where they occur, rather than for the whole function. This agrees with the principle of least surprise: you don't have to read an entire function to find out whether a given variable is local (and nor does the compiler, so the implementation is simple).
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LocalByDefault" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LocalByDefault" >history</a><br>Last edited August 18, 2014 9:59 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LocalByDefault" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Convert Dec Hex</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteConvertDecHex&amp;body=1" title="List pages referring to SciteConvertDecHex">Scite Convert Dec Hex</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+How many times do you convert decimal-to-hex or hex-to-decimal when you are in coding. <a href="../wiki/SciteConvertDecHex.html" >SciteConvertDecHex</a> converts the selected text to decimal or hex. You don't need external programmer's calculator application and copy&amp;paste jobs anymore.
+<p>
+<pre class="code">
+<span class="comment">-- SciteConvertDecHex</span>
+
+<span class="comment">-- Convert the selected text to decimal or hex</span>
+
+<span class="comment">-- 2013.04.06 by lee.sheen at gmail dot com</span>
+
+
+
+scite_Command {
+
+  <span class="string">'Convert Dec/Hex|ConvertDecHex|Alt+Shift+C'</span>,
+
+}
+
+
+
+<span class="keyword">function</span> IsHexString (s)
+
+  <span class="keyword">local</span> header = <span class="library">string.sub</span>(s, 1, 2)
+
+  <span class="keyword">if</span> <span class="string">"0x"</span> == header <span class="keyword">or</span> <span class="string">"0X"</span> == header <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">true</span>
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">return</span> <span class="keyword">false</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> ConvertDecHex ()
+
+  <span class="keyword">local</span> current_selected_text, current_selected_length = editor:GetSelText()
+
+  <span class="keyword">local</span> converted_number = <span class="library">tonumber</span>(current_selected_text)
+
+  <span class="keyword">if</span>  <span class="keyword">not</span> (converted_number == <span class="keyword">nil</span>) <span class="keyword">then</span>
+
+    <span class="keyword">local</span> converted_text = <span class="keyword">nil</span>
+
+    <span class="keyword">if</span> IsHexString(current_selected_text) <span class="keyword">then</span>
+
+      converted_text = <span class="library">tostring</span>(converted_number)
+
+    <span class="keyword">else</span>
+
+      converted_text = <span class="library">string.format</span>(<span class="string">"0x%X"</span>, converted_number)
+
+    <span class="keyword">end</span>
+
+    editor:ReplaceSel(converted_text)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteConvertDecHex" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteConvertDecHex" >history</a><br>Last edited April 6, 2013 9:27 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteConvertDecHex" >(diff)</a>
+</body>
+</html>

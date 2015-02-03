@@ -1,0 +1,526 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Gen Plus Plus</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaGenPlusPlus&amp;body=1" title="List pages referring to LuaGenPlusPlus">Lua Gen Plus Plus</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+luagen++ is a C++ header for generating efficient sequences of Lua C API calls at compile-time via template metaprogramming techniques.
+<p>
+<H2>Description</H2>
+<p>
+Warning: see status message below for status of this project.
+<p>
+This might begin a long article describing the implementation of a C++ template metaprogramming technique for the purpose of generating <em>at compile time</em> sequences of Lua C API calls that execute efficiently.  This will culminate in a single reusable C++ header file (luagen.hpp - referred to as "luagen++") that implements these techniques.  You can use this to bind C++ and Lua code in a clean but still very efficient manner.
+<p>
+As an example, the following C++ code
+<p>
+<DL>
+<dt><dd><pre>
+
+#include &lt;luagen.hpp&gt;
+
+using namespace luagen;
+
+...
+
+eval(L, global("print")(global("math")["sqrt"](lnumber(2.0))));
+
+</pre>
+</DL>
+<p>
+expands at compile time to this code:
+<p>
+<DL>
+<dt><dd><pre>
+
+lua_getglobal(L,"print")
+
+lua_getglobal(L,"math")
+
+lua_getfield(L,-1,"sqrt")
+
+lua_remove(L,-2)
+
+lua_pushnumber(L,2.0)
+
+lua_call(L,1, -1)
+
+lua_call(L,1, 0)
+
+</pre>
+</DL>
+<p>
+Now, there have been many techniques for binding Lua and C++ code together (<a href="../wiki/BindingCodeToLua.html" >BindingCodeToLua</a>).  The approach here has the following characteristics:
+<p>
+<UL>
+<li> 1. The compiled code will have nearly the same performance, size, and structure as hand-written Lua C API code (low overhead).  This is the most important point.
+<li> 2. This will be achieved with C++ template metaprogramming techniques.  There is no external code generation step (like SWIG <a href="http://www.swig.org/">[1]</a> or tolua <a href="http://www.tecgraf.puc-rio.br/~celes/tolua/">[2]</a>) and run-time overhead is negligible. Templates will increase compile times to some degree though.
+<li> 3. Much of the book-keeping for the Lua stack is managed internally by the templates.  Therefore, the code writing should be less error prone than hand-written C API code.  However, you still have access to the Lua stack and low-level operations when you need them and can integrate with such code, and it does not limit you, for example, to a particular style of module or class definition.  This will remain a fairly low-level/low-overhead interface otherwise.
+<li> 4. The implementation will be thoroughly documented here, in almost a literal programming style.
+<li> 5. The implementation will be in a single header file, with no dependencies (other than the Lua headers and a few standard headers like cassert).
+<li> 6. The implementation will be robust/complete, usable for robust code (warning: luagen.hpp is currently a work in progress though, with not all functions implemented yet, but the techniques can be made robust/complete).
+<li> 7. The implementation will run on modern C++ compilers (e.g. g++ and MSVC++).
+<li> 8. The C++ code will resemble regular Lua code in structure.  The C++ code will represent a sort-of AST (abstract syntax tree) that expands at compile time into a sequence of C API calls.  There is little run-time overhead.
+<li> 9. Lua itself may still be compiled under C if you like.  That is, it is safe for the Lua C API calls to longjump.
+</UL>
+<p>
+The closest related project I've found to this is object.hpp in Luabind <a href="http://www.rasterbar.com/products/luabind.html">[3]</a>.  That also uses C++ template metaprogramming techniques, but the code generation does not appear to have the optimal qualities of Point #1 above.  Luabind includes the Boost headers <a href="http://www.boost.org/">[4]</a> and has about 10K lines of headers files of complex template metaprogramming code that is not throughly documented, and it provides higher level and more automatic definition (e.g. module and classes inheritance definition) than desired here.  Though luagen.hpp will likely be a few thousand lines for a fairly complete wrapping of C API calls, the core techniques themselves (which can be isolated) can be implemented in only a few hundred reasonably comprehensible lines, and this article will show you how.
+<p>
+<p>
+So, the purpose of this article is two-fold: to demonstrate the "luagen++" header file (luagen.hpp) and to explain its implementation.
+<p>
+<H2>Description</H2>
+<p>
+TODO! - A long, very interesting discussion of the implementation might have gone here.
+<p>
+<H3>Disassembly</H3>
+<p>
+If you don't believe me, take a look at the disassembly (note: there are a few extra <code>lua_gettop</code>'s that could probably be eliminated in luagen.hpp):
+<p>
+<DL>
+<dt><dd><pre>
+
+	.file	"test.cpp"
+
+	.text
+
+	.align 2
+
+	.p2align 4,,15
+
+	.def	__ZN6luagen11debugprintfEz;	.scl	3;	.type	32;	.endef
+
+__ZN6luagen11debugprintfEz:
+
+	pushl	%ebp
+
+	movl	%esp, %ebp
+
+	popl	%ebp
+
+	ret
+
+	.def	___main;	.scl	2;	.type	32;	.endef
+
+	.section .rdata,"dr"
+
+LC2:
+
+	.ascii "sqrt\0"
+
+LC0:
+
+	.ascii "print\0"
+
+LC1:
+
+	.ascii "math\0"
+
+	.text
+
+	.align 2
+
+	.p2align 4,,15
+
+.globl _main
+
+	.def	_main;	.scl	2;	.type	32;	.endef
+
+_main:
+
+	pushl	%ebp
+
+	movl	$16, %eax
+
+	movl	%esp, %ebp
+
+	pushl	%edi
+
+	pushl	%esi
+
+	pushl	%ebx
+
+	subl	$92, %esp
+
+	andl	$-16, %esp
+
+	call	__alloca
+
+	call	___main
+
+	call	_luaL_newstate
+
+	movl	%eax, (%esp)
+
+	movl	%eax, %ebx
+
+	call	_luaL_openlibs
+
+	movl	$LC2, -28(%ebp)
+
+	leal	-24(%ebp), %eax
+
+	movl	-28(%ebp), %edx
+
+	movl	%eax, -32(%ebp)
+
+	movl	-32(%ebp), %eax
+
+	movl	%edx, -36(%ebp)
+
+	movl	%ebx, (%esp)
+
+	movl	%eax, -40(%ebp)
+
+	leal	-40(%ebp), %eax
+
+	movl	%eax, -56(%ebp)
+
+	leal	-48(%ebp), %eax
+
+	movl	%eax, -52(%ebp)
+
+	movl	-56(%ebp), %eax
+
+	movl	$LC0, -20(%ebp)
+
+	movl	-52(%ebp), %edx
+
+	movl	$LC1, -24(%ebp)
+
+	movl	%eax, -64(%ebp)
+
+	leal	-20(%ebp), %eax
+
+	movl	%eax, -72(%ebp)
+
+	leal	-64(%ebp), %eax
+
+	movl	%eax, -68(%ebp)
+
+	movl	-72(%ebp), %eax
+
+	movl	%edx, -60(%ebp)
+
+	movl	-68(%ebp), %edx
+
+	movl	$0, -48(%ebp)
+
+	movl	$1073741824, -44(%ebp)
+
+	movl	%edx, -76(%ebp)
+
+	movl	%eax, -80(%ebp)
+
+	call	_lua_gettop
+
+	movl	-80(%ebp), %eax
+
+	movl	(%eax), %eax
+
+	movl	%ebx, (%esp)
+
+	movl	%eax, 8(%esp)
+
+	movl	$-10002, %eax
+
+	movl	%eax, 4(%esp)
+
+	call	_lua_getfield
+
+	movl	%ebx, (%esp)
+
+	call	_lua_gettop
+
+	movl	%eax, -84(%ebp)
+
+	movl	-76(%ebp), %edi
+
+	movl	%ebx, (%esp)
+
+	call	_lua_gettop
+
+	movl	(%edi), %esi
+
+	movl	(%esi), %eax
+
+	movl	(%eax), %eax
+
+	movl	%ebx, (%esp)
+
+	movl	%eax, 8(%esp)
+
+	movl	$-10002, %eax
+
+	movl	%eax, 4(%esp)
+
+	call	_lua_getfield
+
+	movl	4(%esi), %eax
+
+	movl	%ebx, (%esp)
+
+	movl	%eax, 8(%esp)
+
+	movl	$-1, %eax
+
+	movl	%eax, 4(%esp)
+
+	call	_lua_getfield
+
+	movl	%ebx, (%esp)
+
+	movl	$-2, %eax
+
+	movl	%eax, 4(%esp)
+
+	call	_lua_remove
+
+	movl	%ebx, (%esp)
+
+	call	_lua_gettop
+
+	movl	%eax, %esi
+
+	movl	4(%edi), %eax
+
+	fldl	(%eax)
+
+	movl	%ebx, (%esp)
+
+	fstpl	4(%esp)
+
+	call	_lua_pushnumber
+
+	movl	%ebx, (%esp)
+
+	call	_lua_gettop
+
+	movl	%ebx, (%esp)
+
+	subl	%esi, %eax
+
+	movl	$-1, %esi
+
+	movl	%esi, 8(%esp)
+
+	movl	%eax, 4(%esp)
+
+	call	_lua_call
+
+	movl	%ebx, (%esp)
+
+	call	_lua_gettop
+
+	movl	%ebx, (%esp)
+
+	movl	-84(%ebp), %ecx
+
+	xorl	%edx, %edx
+
+	movl	%edx, 8(%esp)
+
+	subl	%ecx, %eax
+
+	movl	%eax, 4(%esp)
+
+	call	_lua_call
+
+	movl	%ebx, (%esp)
+
+	call	_lua_close
+
+	leal	-12(%ebp), %esp
+
+	xorl	%eax, %eax
+
+	popl	%ebx
+
+	popl	%esi
+
+	popl	%edi
+
+	popl	%ebp
+
+	ret
+
+	.def	_lua_pushnumber;	.scl	3;	.type	32;	.endef
+
+	.def	_lua_remove;	.scl	3;	.type	32;	.endef
+
+	.def	_lua_getfield;	.scl	3;	.type	32;	.endef
+
+	.def	_lua_call;	.scl	3;	.type	32;	.endef
+
+	.def	_lua_gettop;	.scl	3;	.type	32;	.endef
+
+	.def	_lua_close;	.scl	3;	.type	32;	.endef
+
+	.def	_luaL_openlibs;	.scl	3;	.type	32;	.endef
+
+	.def	_luaL_newstate;	.scl	3;	.type	32;	.endef
+
+</pre>
+</DL>
+<p>
+And here's the output of g++ 4.3 under the "-fdump-tree-optimized" flag ("test.cpp.126t.optimized") showing a C-like representation of the code following optimization:
+<p>
+<DL>
+<dt><dd><pre>
+
+;; Function int main() (main)
+
+
+
+Analyzing Edge Insertions.
+
+int main() ()
+
+{
+
+  int D.5767;
+
+  int pos;
+
+  int D.5766;
+
+  int pos;
+
+  const struct getfield_ * this.27;
+
+  const struct call_ * this.24;
+
+  struct lua_State * L;
+
+  struct global D.4728;
+
+  struct global D.4729;
+
+  const struct getfield_ D.4820;
+
+  struct lnumber D.4830;
+
+  const struct call_ D.4917;
+
+
+
+&lt;bb 2&gt;:
+
+  L = luaL_newstate ();
+
+  luaL_openlibs (L);
+
+  D.4830.v_ = 2.0e+0;
+
+  D.4729.name_ = &amp;"math"[0];
+
+  D.4820.k_ = &amp;"sqrt"[0];
+
+  D.4820.t_ = (struct val *) &amp;D.4729;
+
+  D.4917.p1_ = (const struct val *) &amp;D.4830;
+
+  D.4917.f_ = (const struct val *) &amp;D.4820;
+
+  D.4728.name_ = &amp;"print"[0];
+
+  lua_gettop (L);
+
+  lua_getfield (L, -10002, ((const struct global *) (struct val *) &amp;D.4728)-&gt;name_);
+
+  pos = lua_gettop (L);
+
+  this.24 = (const struct call_ *) (const struct val *) &amp;D.4917;
+
+  lua_gettop (L);
+
+  this.27 = (const struct getfield_ *) this.24-&gt;f_;
+
+  lua_getfield (L, -10002, ((const struct global *) this.27-&gt;t_)-&gt;name_);
+
+  lua_getfield (L, -1, this.27-&gt;k_);
+
+  lua_remove (L, -2);
+
+  pos = lua_gettop (L);
+
+  lua_pushnumber (L, ((const struct lnumber *) this.24-&gt;p1_)-&gt;v_);
+
+  D.5766 = lua_gettop (L);
+
+  lua_call (L, D.5766 - pos, -1);
+
+  D.5767 = lua_gettop (L);
+
+  lua_call (L, D.5767 - pos, 0);
+
+  lua_close (L);
+
+  return 0;
+
+</pre>
+</DL>
+<p>
+Note: the above code generation results are from an older version.  In practice, optimal code output under all input is difficult.  Temporary objects may be constructed.
+<p>
+<H2>Download Source</H2>
+<p>
+WARNING: this code is still in development.  There are likely bugs and missing API features, though it passes an initial test suite.  Please post any problems in the comments section below.
+<p>
+<UL>
+<li> <a href="http://math2.org/download/luagen-2008-07-16.tar.gz">[luagen-2008-07-16.tar.gz]</a> (latest version)
+<li> <a href="http://math2.org/download/luagen-2008-07-10.tar.gz">[luagen-2008-07-10.tar.gz]</a>
+<li> <a href="http://math2.org/download/luagen-2008-04-12.tar.gz">[luagen-2008-04-12.tar.gz]</a>
+</UL>
+<p>
+<H2>Status</H2>
+<p>
+[2008-07-16]
+<p>
+I'm somewhat discouraged with this project.  The approach is sound, but a difficulty is that goal #1 above relies on efficient template expansion and inlining by the compiler.  That behavior is implemention dependent.  I find myself frequently dissasembling, examining the g++ 4.x gimple output, examining the linker .map files, etc., just to make sure that the compiler isn't generating unnecesary template instantiations or failing to inline temporary objects.  Sometimes the generation is quite efficient, particularly for simple expressions with a shallow AST, othertimes there is code bloat, and this depends on the compiler (e.g. g++ 3.x, g++ 4.x, MSVC++9) and compiler options.  Fiddling with const v.s. const &amp; and inline v.s. forceinline in the code can help, but the results don't seem as consistent as desired.  Maybe someone else wants to figure it out what works for popular compilers.  Plus, complex templates increase build times and cause cryptic compiler errors.  This all does not seem to be simplifying things and leading to productivity.
+<p>
+So...I started a new project: <a href="../wiki/LuaToCee.html" >LuaToCee</a>.  Instead of relying on horrible C++ templates for the metaprogramming, I now use Lua for the metaprogramming.  This is much more satisfying.  It may not achieve all the same goals above, but it has its own uses.
+<p>
+The Lua C API is not that bad anyway.   In fact, to avoid excessive use of the C API, write as much of the code as possible in Lua, compile it into bytecodes, run <a href="../wiki/BinToCee.html" >BinToCee</a>, and call that function from C, passing it the remaining data from C.  There are also techniques to avoid pitfalls in using the C API (e.g. stack corruption).
+<p>
+<H2>Author</H2>
+<p>
+<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>User Commments</H2>
+<p>
+...
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/BindingCodeToLua.html" >BindingCodeToLua</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaGenPlusPlus" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaGenPlusPlus" >history</a><br>Last edited October 31, 2009 6:37 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaGenPlusPlus" >(diff)</a>
+</body>
+</html>

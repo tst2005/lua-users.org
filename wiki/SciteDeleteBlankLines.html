@@ -1,0 +1,146 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Delete Blank Lines</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteDeleteBlankLines&amp;body=1" title="List pages referring to SciteDeleteBlankLines">Scite Delete Blank Lines</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Delete all blank lines in a document</H3>
+<p>
+The following script uses Scintilla line and position functions to
+get all empty lines removed. Since the caret moves during processing,
+the display position will shift at the end of processing. The empty
+line test includes lines with whitespace.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> del_empty_lines()
+
+  editor:BeginUndoAction()
+
+  <span class="comment">-- remember last caret line position</span>
+
+  <span class="keyword">local</span> pre_l = editor:LineFromPosition(editor.CurrentPos)
+
+  <span class="keyword">local</span> ln = 0
+
+  <span class="keyword">while</span> ln &lt; editor.LineCount <span class="keyword">do</span>
+
+    <span class="keyword">local</span> text = editor:GetLine(ln)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> text <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span> <span class="comment">-- empty last line without EOL</span>
+
+    <span class="keyword">if</span> <span class="library">string.match</span>(text, <span class="string">"^%s*\r?\n$"</span>) <span class="keyword">then</span>
+
+      <span class="keyword">local</span> p = editor:PositionFromLine(ln)
+
+      editor:GotoPos(p)
+
+      editor:LineDelete()
+
+      <span class="comment">-- adjust caret position if necessary</span>
+
+      <span class="keyword">if</span> ln &lt; pre_l <span class="keyword">then</span> pre_l = pre_l - 1 <span class="keyword">end</span>
+
+    <span class="keyword">else</span>
+
+      <span class="comment">-- move on if no more empty lines at this line number</span>
+
+      ln = ln + 1
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- restore last caret line position</span>
+
+  <span class="keyword">local</span> pre_p = editor:PositionFromLine(pre_l)
+
+  editor:GotoPos(pre_p)
+
+  editor:EndUndoAction()
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+If explicitly blank lines with no whitespace are to be deleted
+only, the line test can be replaced with:
+<p>
+<DL>
+<dt><dd><pre class="code">
+    <span class="keyword">if</span> text == <span class="string">"\r\n"</span> <span class="keyword">or</span> text == <span class="string">"\n"</span> <span class="keyword">then</span>
+
+</pre>
+
+</DL>
+<p>
+A shorter version that processes the entire document text as a
+single Lua string is as follows:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> del_empty_lines()
+
+  <span class="keyword">local</span> txt = editor:GetText()
+
+  <span class="keyword">if</span> #txt == 0 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+  <span class="keyword">local</span> chg, n = <span class="keyword">false</span>
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    txt, n = <span class="library">string.gsub</span>(txt, <span class="string">"(\r?\n)%s*\r?\n"</span>, <span class="string">"%1"</span>)
+
+    <span class="keyword">if</span> n == 0 <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    chg = <span class="keyword">true</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> chg <span class="keyword">then</span>
+
+    editor:SetText(txt)
+
+    editor:GotoPos(0)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The caret is set to the top left of the document after
+processing, for simplicity.
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteDeleteBlankLines" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteDeleteBlankLines" >history</a><br>Last edited March 26, 2008 2:11 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteDeleteBlankLines" >(diff)</a>
+</body>
+</html>

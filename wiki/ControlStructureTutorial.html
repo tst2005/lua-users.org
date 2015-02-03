@@ -1,0 +1,691 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Control Structure Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ControlStructureTutorial&amp;body=1" title="List pages referring to ControlStructureTutorial">Control Structure Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Control structures let your program make choices, or to run the same piece of code many times.
+<p>
+<H3><code>if</code> statement</H3>
+<p>
+The <code>if</code> statement lets you run different code based on a condition:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">if</span> condition <span class="keyword">then</span>
+
+  block
+
+<span class="keyword">elseif</span> condition2 <span class="keyword">then</span>
+
+  block
+
+<span class="keyword">elseif</span> condition3 <span class="keyword">then</span>
+
+  block
+
+<span class="keyword">else</span>
+
+  block
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The <code>if</code> and <code>elseif</code> parts are checked in order, and once one of the conditions is true, it runs the block under it and skips to the end, ignoring any other <code>elseif</code> conditions after it. The <code>else</code> block is run if none of the conditions match. Finally, the <code>elseif</code> and <code>else</code> parts are optional.
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; n = 5
+
+&gt; <span class="keyword">if</span> n &gt; 5 <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"greater than 5"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"less than 5"</span>) <span class="keyword">end</span>
+
+less than 5
+
+&gt; n = 7
+
+&gt; <span class="keyword">if</span> n &gt; 5 <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"greater than 5"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"less than 5"</span>) <span class="keyword">end</span>
+
+greater than 5
+
+</pre>
+
+</DL>
+<p>
+A more complex example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; n = 12
+
+&gt; <span class="keyword">if</span> n &gt; 15 <span class="keyword">then</span>
+
+&gt;&gt; <span class="library">print</span>(<span class="string">"the number is &gt; 15"</span>)
+
+&gt;&gt; <span class="keyword">elseif</span> n &gt; 10 <span class="keyword">then</span>
+
+&gt;&gt; <span class="library">print</span>(<span class="string">"the number is &gt; 10"</span>)
+
+&gt;&gt; <span class="keyword">elseif</span> n &gt; 5 <span class="keyword">then</span>
+
+&gt;&gt; <span class="library">print</span>(<span class="string">"the number is &gt; 5"</span>)
+
+&gt;&gt; <span class="keyword">else</span>
+
+&gt;&gt; <span class="library">print</span>(<span class="string">"the number is &lt;= 5"</span>)
+
+&gt;&gt; <span class="keyword">end</span>
+
+the number is &gt; 10
+
+</pre>
+
+</DL>
+<p>
+Notice how just one of the messages is printed, even though more than one of the conditions are true: This is because once one matches, the <code>if</code> statement skips checking the other conditions.
+<p>
+<H3><code>while</code> loop</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">while</span> condition <span class="keyword">do</span>
+
+  block
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+This runs the block over and over in a loop, but on each iteration, it first checks the condition, and if it's false, skips to the <code>end</code>, breaking the loop. If the condition is always false, the block will never be run.
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; i = 1
+
+&gt; <span class="keyword">while</span> i &lt;= 10 <span class="keyword">do</span>
+
+&gt;&gt; <span class="library">print</span>(i)
+
+&gt;&gt; i = i + 1
+
+&gt;&gt; <span class="keyword">end</span>
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+10
+
+</pre>
+
+</DL>
+<p>
+<H3><code>repeat</code> loop</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">repeat</span>
+
+  block
+
+<span class="keyword">until</span> condition
+
+</pre>
+
+</DL>
+<p>
+Same as the while loop, except the condition is inverted (breaks the loop when true), and it's checked after the first iteration, so the code is guaranteed to run at least once.
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; i = 5
+
+&gt; <span class="keyword">repeat</span>
+
+&gt;&gt; <span class="library">print</span>(i)
+
+&gt;&gt; i = i - 1
+
+&gt;&gt; <span class="keyword">until</span> i == 0
+
+5
+
+4
+
+3
+
+2
+
+1
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H3>numeric <code>for</code> loop</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> variable = start, stop, step <span class="keyword">do</span>
+
+  block
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Runs the block with <code>variable</code> first being equal to <code>start</code>, then keeps incrementing it <code>step</code> amount and running the block again until it's greater than <code>stop</code>. <code>step</code> can be omitted and will default to 1.
+<p>
+You can also make the step negative, and the loop will stop once the counter variable is <em>less</em> than the stop value.
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">for</span> i = 1, 5 <span class="keyword">do</span>
+
+&gt;&gt; <span class="library">print</span>(i)
+
+&gt;&gt; <span class="keyword">end</span>
+
+1
+
+2
+
+3
+
+4
+
+5
+
+&gt; <span class="keyword">for</span> i = 1, 100, 8 <span class="keyword">do</span>
+
+&gt;&gt; <span class="library">print</span>(i)
+
+&gt;&gt; <span class="keyword">end</span>
+
+1
+
+9
+
+17
+
+25
+
+33
+
+41
+
+49
+
+57
+
+65
+
+73
+
+81
+
+89
+
+97
+
+&gt; <span class="keyword">for</span> i = 3, -3, -1 <span class="keyword">do</span>
+
+&gt;&gt; <span class="library">print</span>(i)
+
+&gt;&gt; <span class="keyword">end</span>
+
+3
+
+2
+
+1
+
+0
+
+-1
+
+-2
+
+-3
+
+&gt; <span class="keyword">for</span> i = 0, 1, 0.25 <span class="keyword">do</span>
+
+&gt;&gt; <span class="library">print</span>(i)
+
+&gt;&gt; <span class="keyword">end</span>
+
+0
+
+0.25
+
+0.5
+
+0.75
+
+1
+
+&gt; <span class="keyword">for</span> i = 1, 3 <span class="keyword">do</span>
+
+&gt;&gt; <span class="keyword">for</span> j = 1, i <span class="keyword">do</span>
+
+&gt;&gt; <span class="library">print</span>(j)
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt;&gt; <span class="keyword">end</span>
+
+1
+
+1
+
+2
+
+1
+
+2
+
+3
+
+</pre>
+
+</DL>
+<p>
+Also remember that the variable in a <code>for</code> loop is only visible inside the block, it will not still be there containing the last value after the loop is broken.
+<p>
+<H3>iterator <code>for</code> loop</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> var1, var2, var3 <span class="keyword">in</span> iterator <span class="keyword">do</span>
+
+  block
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The iterator version of the <code>for</code> loop takes a special iterator function, and can have any amount of variables. What the loop does, how many variables it needs, and what they will be set to depends on the iterator.
+<p>
+This is mainly good for tables, which haven't been introduced yet, but here's an example to give you an idea:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; tbl = {<span class="string">"a"</span>, <span class="string">"b"</span>, <span class="string">"c"</span>}
+
+&gt; <span class="keyword">for</span> key, value <span class="keyword">in</span> <span class="library">ipairs</span>(tbl) <span class="keyword">do</span>
+
+&gt;&gt; <span class="library">print</span>(key, value)
+
+&gt;&gt; <span class="keyword">end</span>
+
+1       a
+
+2       b
+
+3       c
+
+</pre>
+
+</DL>
+<p>
+Here, <code>ipairs</code> is the iterator, which gets the numbered entries from a table in order.
+<p>
+<H3><code>break</code> statement</H3>
+<p>
+The <code>break</code> statement causes Lua to jump out of the current loop:
+<DL>
+<dt><dd><pre class="code">
+&gt; i = 3
+
+&gt; <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span> <span class="comment">-- infinite loop</span>
+
+&gt;&gt; <span class="library">print</span>(i)
+
+&gt;&gt; i = i + 1
+
+&gt;&gt; <span class="keyword">if</span> i &gt; 6 <span class="keyword">then</span>
+
+&gt;&gt; <span class="keyword">break</span>
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt;&gt; <span class="keyword">end</span>
+
+3
+
+4
+
+5
+
+6
+
+</pre>
+
+</DL>
+<p>
+With nested loops, <code>break</code> only affects the innermost one:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">for</span> i = 1, 2 <span class="keyword">do</span>
+
+&gt;&gt; <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+&gt;&gt; <span class="keyword">break</span>
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt;&gt; <span class="library">print</span>(i)
+
+&gt;&gt; <span class="keyword">end</span>
+
+1
+
+2
+
+</pre>
+
+</DL>
+<p>
+Using <code>break</code> outside of a loop is a syntax error:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">break</span>
+
+stdin:1: &lt;<span class="keyword">break</span>&gt; at line 1 <span class="keyword">not</span> inside a loop
+
+</pre>
+
+</DL>
+<p>
+<H3><code>continue</code> statement alternatives</H3>
+<p>
+Many other languages have a <code>continue</code> statement that skips the rest of the current iteration of the innermost loop. In Lua 5.2, this can be imitated using <code>goto</code>:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">for</span> i = 1, 10 <span class="keyword">do</span>
+
+&gt;&gt; <span class="keyword">if</span> i&gt;3 <span class="keyword">and</span> i&lt;6 <span class="keyword">then</span> goto continue <span class="keyword">end</span>
+
+&gt;&gt; <span class="library">print</span>(i)
+
+&gt;&gt; ::continue:: <span class="comment">-- a name surrounded in :: :: is a goto label</span>
+
+&gt;&gt; <span class="keyword">end</span>
+
+1
+
+2
+
+3
+
+6
+
+7
+
+8
+
+9
+
+10
+
+</pre>
+
+</DL>
+<p>
+Lua 5.1 and earlier doesn't have goto, but there are other workarounds:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">for</span> i = 1, 10 <span class="keyword">do</span>
+
+&gt;&gt; <span class="keyword">if</span> <span class="keyword">not</span> (i&gt;3 <span class="keyword">and</span> i&lt;6) <span class="keyword">then</span>
+
+&gt;&gt; <span class="library">print</span>(i)
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt;&gt; <span class="keyword">end</span>
+
+1
+
+2
+
+3
+
+6
+
+7
+
+8
+
+9
+
+10
+
+&gt; <span class="keyword">for</span> i = 1, 10 <span class="keyword">do</span> <span class="keyword">repeat</span>
+
+&gt;&gt; <span class="keyword">if</span> i&gt;3 <span class="keyword">and</span> i&lt;6 <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+&gt;&gt; <span class="library">print</span>(i)
+
+&gt;&gt; <span class="keyword">until</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+1
+
+2
+
+3
+
+6
+
+7
+
+8
+
+9
+
+10
+
+</pre>
+
+</DL>
+<p>
+<H3>Conditions</H3>
+<p>
+Conditions don't necessarily have to be boolean values. In fact, any value is a valid condition: <code>nil</code> and <code>false</code> make the condition false, anything else (including 0) makes it true.
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">if</span> 5 <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"true"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"false"</span>) <span class="keyword">end</span>
+
+<span class="keyword">true</span>
+
+&gt; <span class="keyword">if</span> 0 <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"true"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"false"</span>) <span class="keyword">end</span>
+
+<span class="keyword">true</span>
+
+&gt; <span class="keyword">if</span> <span class="keyword">true</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"true"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"false"</span>) <span class="keyword">end</span>
+
+<span class="keyword">true</span>
+
+&gt; <span class="keyword">if</span> {} <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"true"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"false"</span>) <span class="keyword">end</span>
+
+<span class="keyword">true</span>
+
+&gt; <span class="keyword">if</span> <span class="string">"string"</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"true"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"false"</span>) <span class="keyword">end</span>
+
+<span class="keyword">true</span>
+
+&gt; <span class="keyword">if</span> <span class="keyword">nil</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"true"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"false"</span>) <span class="keyword">end</span>
+
+<span class="keyword">false</span>
+
+&gt; <span class="keyword">if</span> <span class="keyword">false</span> <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"true"</span>) <span class="keyword">else</span> <span class="library">print</span>(<span class="string">"false"</span>) <span class="keyword">end</span>
+
+<span class="keyword">false</span>
+
+</pre>
+
+</DL>
+<p>
+Also there are some languages where variable assignment is considered an expression (so it can be used as a sub-expression), so code like this is written:
+<DL>
+<dt><dd><pre class="code">
+&gt; i = 0
+
+&gt; <span class="keyword">while</span> (i = i + 1) &lt;= 10 <span class="keyword">do</span> <span class="library">print</span>(i) <span class="keyword">end</span>
+
+stdin:1: <span class="string">')'</span> expected near <span class="string">'='</span>
+
+</pre>
+
+</DL>
+But in Lua assignment is a statement, and the above example is a syntax error.
+<p>
+<H3>if/else as an expression</H3>
+<p>
+Some languages have a <em>ternary operator</em> that acts like an if/else statement, but can be used as a sub-expression. If the condition is true, it evaluates to one expression, otherwise it evaluates the other.
+<p>
+Lua doesn't have such an operator, but in many cases you can imitate it using the <code>and</code> and <code>or</code> logical operators. This works for two reasons: those operators don't even run the right-side expression if the logical result is known only from the left side result, and also they directly return the result of their sub-expressions, instead of converting them to boolean:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="keyword">true</span> <span class="keyword">and</span> <span class="library">print</span>(<span class="string">"test"</span>)
+
+test
+
+<span class="keyword">nil</span>
+
+&gt; = <span class="keyword">false</span> <span class="keyword">and</span> <span class="library">print</span>(<span class="string">"test"</span>) <span class="comment">-- 'and' is always false if one of the sides are false, don't bother running the other expression</span>
+
+<span class="keyword">false</span>
+
+&gt; = <span class="keyword">true</span> <span class="keyword">or</span> <span class="library">print</span>(<span class="string">"test"</span>) <span class="comment">-- 'or' is always true if one of the sides are true, don't bother running the other expression</span>
+
+<span class="keyword">true</span>
+
+&gt; = <span class="keyword">false</span> <span class="keyword">or</span> <span class="library">print</span>(<span class="string">"test"</span>)
+
+test
+
+<span class="keyword">nil</span>
+
+&gt; = 8 <span class="keyword">or</span> 5
+
+8
+
+&gt; = <span class="keyword">true</span> <span class="keyword">and</span> <span class="string">"text"</span>
+
+text
+
+</pre>
+
+</DL>
+<p>
+This can be used to make a simple if/else expression:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; condition = <span class="keyword">true</span>
+
+&gt; = condition <span class="keyword">and</span> 2 <span class="keyword">or</span> 4
+
+2
+
+&gt; condition = <span class="keyword">false</span>
+
+&gt; = condition <span class="keyword">and</span> 2 <span class="keyword">or</span> 4
+
+4
+
+&gt; = condition <span class="keyword">and</span> <span class="library">print</span>(<span class="string">"a"</span>) <span class="keyword">or</span> <span class="library">print</span>(<span class="string">"b"</span>) <span class="comment">-- only the "false" branch is run, otherwise both a and b would be printed</span>
+
+b
+
+<span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+<p>
+Remember that "and" has a higher precedence than "or": If the condition is false, it makes the "and" expression give up and return false. This then makes the "or" part try its right-side expression and return its value. If the condition is true, "and" will return its right-side expression. This is then given to "or", which sees that the left result is a true condition, and just returns it.
+<p>
+Note that we assumed that the result of the true branch is a value that acts as a true condition. This leads to the catch: the true branch cannot evaluate to <code>nil</code> or <code>false</code>, because then the false branch will also be run and its value will be returned:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; condition = <span class="keyword">true</span>
+
+&gt; = condition <span class="keyword">and</span> <span class="keyword">false</span> <span class="keyword">or</span> <span class="keyword">true</span> <span class="comment">-- wrong result!</span>
+
+<span class="keyword">true</span>
+
+</pre>
+
+</DL>
+<p>
+This is because the whole "and" sub-expression is now false, causing "or" to try running its other sub-expression. But it is alright to return a false value from the false branch. In fact, if you're in a situation like the above example, you can just invert the condition and swap the contents of the branches:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; condition = <span class="keyword">true</span>
+
+&gt; = <span class="keyword">not</span> condition <span class="keyword">and</span> <span class="keyword">true</span> <span class="keyword">or</span> <span class="keyword">false</span>
+
+<span class="keyword">false</span>
+
+</pre>
+
+</DL>
+<p>
+But if both branches must return a value that acts as a false condition, there's no way to work around that.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ControlStructureTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ControlStructureTutorial" >history</a><br>Last edited September 17, 2013 5:59 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ControlStructureTutorial" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,244 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lxp Tree</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LxpTree&amp;body=1" title="List pages referring to LxpTree">Lxp Tree</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>lxptree: construct XML trees</H2>
+<p>
+The following implementation constructs an <a href="../wiki/XmlTree.html" >XmlTree</a> from a string or file. This code is part of <a href="../wiki/LazyKit.html" >LazyKit</a>.  The implementation depends on LuaExpat<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaExpat" >?</a>, an expat binding.
+<p>
+<H2>Functions API</H2>
+<p>
+<H3>lxptree.parsestring(s)</H3>
+<p>
+Return an XML tree parsed from the string <code>s</code>.
+<p>
+<H3>lxptree.parsefile(file)</H3>
+<p>
+Returns a tree fully parsed from <code>file</code>. If
+<code>file</code> is a string, it is interpreted as a
+filename and opened; otherwise, <code>file</code> is treated
+as an io library file object.
+<p>
+Note that <code>file</code> is read and parsed as one big chunk,
+so running this on a 2G file may be a bad idea. On the other
+hand, building a tree of a 2G file would be a worse idea.
+<p>
+<H2>Source Code</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"lxp"</span>
+
+
+
+<span class="keyword">local</span> Public = {}
+
+lxptree = Public
+
+
+
+<span class="keyword">local</span> tinsert=<span class="library">table.insert</span>
+
+<span class="keyword">local</span> tremove=<span class="library">table.remove</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> top(l)
+
+   <span class="keyword">return</span> l[<span class="library">table.getn</span>(l)]
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> 
+
+<span class="keyword">function</span> nukenumeric(t)
+
+   <span class="keyword">for</span> i=1,<span class="library">table.getn</span>(t) <span class="keyword">do</span>
+
+      t[i] = <span class="keyword">nil</span>
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span>
+
+<span class="keyword">function</span> makeParser()
+
+   <span class="keyword">local</span> stack = {{}, n=1}
+
+   <span class="keyword">local</span> self = {}
+
+   <span class="keyword">local</span> callbacks = {}
+
+
+
+   <span class="keyword">function</span> callbacks.StartElement(parser, elementName, attributes)
+
+      <span class="keyword">local</span> t = {name=elementName}
+
+      <span class="keyword">if</span> attributes <span class="keyword">and</span> attributes[1] <span class="keyword">then</span> 
+
+         nukenumeric(attributes)
+
+         t.attr=attributes 
+
+      <span class="keyword">end</span>
+
+      tinsert(top(stack), t)
+
+      tinsert(stack, t)
+
+   <span class="keyword">end</span>
+
+   
+
+   <span class="keyword">function</span> callbacks.EndElement(parser, elementName)
+
+      tremove(stack, t)
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">function</span> callbacks.CharacterData(parser, <span class="library">string</span>)
+
+      tinsert(top(stack), <span class="library">string</span>)
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">local</span> parser = lxp.new(callbacks)
+
+   <span class="keyword">function</span> self:parse(s)
+
+      <span class="keyword">local</span> result, msg, line, col, pos = parser:parse(s)
+
+      <span class="keyword">if</span> result <span class="keyword">then</span>
+
+         result, msg, line, col, pos = parser:parse()
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> <span class="keyword">not</span> result <span class="keyword">then</span>
+
+         <span class="library">error</span>(<span class="string">"expat parse error "</span>..msg..<span class="string">" at line "</span>..line..<span class="string">" column "</span>..col)
+
+      <span class="keyword">end</span>
+
+      parser:close()
+
+      <span class="keyword">return</span> stack[1][1]
+
+   <span class="keyword">end</span>
+
+   
+
+   <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span>
+
+<span class="keyword">function</span> parsestring(s)
+
+   <span class="keyword">local</span> p = makeParser()
+
+   <span class="keyword">return</span> p:parse(s)
+
+<span class="keyword">end</span>
+
+
+
+Public.parsestring = parsestring
+
+
+
+<span class="keyword">local</span> 
+
+<span class="keyword">function</span> wholeFile(filename)
+
+   <span class="keyword">local</span> f = <span class="library">assert</span>(<span class="library">io.open</span>(filename))
+
+   <span class="keyword">local</span> s = f:read(<span class="string">"*a"</span>)
+
+   <span class="library">assert</span>(f:close())
+
+   <span class="keyword">return</span> s
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span>
+
+<span class="keyword">function</span> parsefile(f)
+
+  <span class="keyword">local</span> s
+
+  <span class="keyword">if</span> <span class="library">type</span>(f) == <span class="string">"string"</span> <span class="keyword">then</span>
+
+    f = <span class="library">assert</span>(<span class="library">io.open</span>(f))
+
+    s = f:read(<span class="string">"*a"</span>)
+
+    <span class="library">assert</span>(f:close())
+
+  <span class="keyword">else</span>
+
+    s = f:read(<span class="string">"*a"</span>)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> parsestring(s)
+
+<span class="keyword">end</span>
+
+
+
+Public.parsefile = parsefile
+
+
+
+<span class="keyword">return</span> Public
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LxpTree" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LxpTree" >history</a><br>Last edited January 5, 2007 5:40 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LxpTree" >(diff)</a>
+</body>
+</html>

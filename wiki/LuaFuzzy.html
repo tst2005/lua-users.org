@@ -1,0 +1,68 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Fuzzy</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaFuzzy&amp;body=1" title="List pages referring to LuaFuzzy">Lua Fuzzy</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+A very simple Lua extension that only defines one function 'fuzzy'. 
+<p>
+<em><strong><a href="../wiki/VersionNotice.html" >VersionNotice</a>: This page pertains to an earlier version of Lua (4.0 and 5.0beta) using a <code>loadmodule</code> extension.  Lua 5.1 instead uses <code>package.loadlib</code> and <code>require</code>. Lua 5.0 uses <code>loadlib</code>.)</strong></em>
+<p>
+<DL>
+<dt><dd><pre>
+
+loadmodule("fuzzy")
+
+thetext = [[A lnger Text to saerch]] 
+
+searchstr = "longer" 
+
+print(fuzzy(thetext,searchstr)) 
+
+-- gives about 54.54 
+
+-- while 
+
+print(fuzzy(thetext,"lnger")) 
+
+-- gives 100, a complete match 
+
+</pre>
+</DL>
+<p>
+This Lua extension was built to be used with the 'loadmodule' by <a href="../wiki/IgnacioCastano.html" >IgnacioCastano</a>/<a href="../wiki/ThatcherUlrich.html" >ThatcherUlrich</a> <a href="../wiki/LuaBinaryModules.html" >LuaBinaryModules</a> 
+<p>
+Main goal was to write a 'tutorial' like minimal extension that is completely self-sufficent, only requiring one C source file. The code is based on an <a href="http://www.heise.de/ct/english/97/04/386/">[article]</a> in c't 4/97.
+<p>
+A Win32 Lua binary, the compiled luafuzzy.dll along with the source can be downloaded <a href="/files/wiki_insecure/binary_modules/luafuzzy.zip">[1]</a>. (updated 2002-11-22 to use the changed luaLM_version() and luaLM_import() names)
+(updated 2002-11-25 changed to use lua-4.0.dll and lualib-4.0.dll. luafuzzy.dll is now compatible with <a href="../wiki/IgnacioCastano.html" >IgnacioCastano</a> Lua binary)
+<p>
+A Lua 5.0-beta compatible version of the c source <a href="/files/wiki_insecure/binary_modules/fuzzy5/lfuzzy.c">[2]</a> and a Win32 mingw-msys Makefile <a href="/files/wiki_insecure/binary_modules/fuzzy5/Makefile">[3]</a> are available for download. Place the files in lua-5.0-beta/mods/fuzzy for the Makefile to work. You may also need the config file <a href="/files/wiki_insecure/build/mingw-msys/config">[4]</a>.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaFuzzy" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaFuzzy" >history</a><br>Last edited January 14, 2007 12:55 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaFuzzy" >(diff)</a>
+</body>
+</html>

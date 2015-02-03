@@ -1,0 +1,201 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Profiler In Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ProfilerInLua&amp;body=1" title="List pages referring to ProfilerInLua">Profiler In Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a (very) simple profiler module written entirely in Lua. It uses the os.time() function for second-precise measurements. 
+<p>
+<em>(It was written in about 12 minutes, so bear with me here. --Pedro)</em>
+<p>
+<strong>Usage:</strong> call <code>Profiler:activate()</code> to start measuring, <code>Profiler:deactivate()</code> to stop, and then <code>Profiler:print_results()</code> to see the results. Tweak the print function to your heart's desire to sort the way you want, etc.
+<p>
+Note that through overloading <code>os.time()</code> with a non-ANSI, millisecond-precision function one can enhance the thing. But for my application seconds was good enough to spot the lines that were making time go quadratical instead of linear. 
+<p>
+Also note that for now it can only measure line execution counts and times. One could extend it to call execution if necessary. Some preparations have been made, but not nearly enough.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--| Profiler module.</span>
+
+<span class="comment">--b "Pedro Miller Rabinovitch" &lt;miller@inf.puc-rio.br&gt;</span>
+
+<span class="comment">--$Id: prof.lua,v 1.4 2003/10/17 00:17:21 miller Exp $</span>
+
+<span class="comment">--TODO  add function call profiling. Some of the skeleton is already in</span>
+
+<span class="comment">---     place, but call profiling behaves different, so a couple of new</span>
+
+<span class="comment">---     functionalities must be added.</span>
+
+<span class="comment">--TODO  add methods for proper result retrieval</span>
+
+<span class="comment">--TODO  use optional clock() function for millisecond precision, if it's</span>
+
+<span class="comment">---     available</span>
+
+
+
+<span class="keyword">local</span> E, I = {}, {}
+
+<span class="comment">--&amp; Profiler module.</span>
+
+Profiler = E
+
+
+
+<span class="comment">--. Keeps track of the hit counts of each item</span>
+
+E.counts = {
+
+  line = {}
+
+}
+
+<span class="comment">--. These should be inside the _line_ table above.</span>
+
+E.last_line = <span class="keyword">nil</span>
+
+E.last_time = <span class="library">os.time</span>()
+
+E.started, E.ended = <span class="keyword">nil</span>, <span class="keyword">nil</span>
+
+
+
+<span class="comment">--% Activates the profiling system.</span>
+
+<span class="comment">--@ [kind] (string) Optional hook kind. For now, only 'line' works,</span>
+
+<span class="comment">--- so just avoid it. &gt;: )</span>
+
+<span class="keyword">function</span> E:activate( kind )
+
+  kind = kind <span class="keyword">or</span> <span class="string">'line'</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> hook_counter( hk_name, param,... )
+
+    <span class="keyword">local</span> t = self.counts[hk_name][param]
+
+    <span class="keyword">if</span> t == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+      t = { count=0, time = 0 }
+
+      self.counts[hk_name][param] = t
+
+    <span class="keyword">end</span>
+
+    self.counts[hk_name][param].count =
+
+     self.counts[hk_name][param].count + 1
+
+
+
+    <span class="keyword">if</span> self.last_line <span class="keyword">then</span>
+
+      <span class="keyword">local</span> delta = <span class="library">os.time</span>() - self.last_time
+
+      <span class="keyword">if</span> delta &gt; 0 <span class="keyword">then</span>
+
+        self.counts[hk_name][self.last_line].time =
+
+         self.counts[hk_name][self.last_line].time + delta
+
+        self.last_time = <span class="library">os.time</span>()
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+
+
+    self.last_line = param
+
+  <span class="keyword">end</span>
+
+
+
+  self.started = <span class="library">os.time</span>()
+
+  <span class="library">debug.sethook</span>( hook_counter, kind )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--% Deactivates the profiling system.</span>
+
+<span class="comment">--@ [kind] (string) Optional hook kind. For now, only 'line' works,</span>
+
+<span class="comment">--- so just avoid it.</span>
+
+<span class="keyword">function</span> E:deactivate( kind )
+
+  kind = kind <span class="keyword">or</span> <span class="string">'line'</span>
+
+  self.ended = <span class="library">os.time</span>()
+
+  <span class="library">debug.sethook</span>( <span class="keyword">nil</span>, kind )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--% Prints the results.</span>
+
+<span class="comment">--@ [kind] (string) Optional hook... Aah, you got it by now.</span>
+
+<span class="comment">--TODO add print output formatting and sorting</span>
+
+<span class="keyword">function</span> E:print_results( kind )
+
+  kind = kind <span class="keyword">or</span> <span class="string">'line'</span>
+
+  <span class="library">print</span>( kind, <span class="string">'count'</span>, <span class="string">'approx. time (s)'</span> )
+
+  <span class="library">print</span>( <span class="string">'----'</span>, <span class="string">'-----'</span>, <span class="string">'----------------'</span> )
+
+  <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">pairs</span>( self.counts[kind] ) <span class="keyword">do</span>
+
+    <span class="library">print</span>( i, v.count, v.time )
+
+  <span class="keyword">end</span>
+
+  <span class="library">print</span>( self.ended - self.started,
+
+    <span class="string">' second(s) total (approximately).'</span> )
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ProfilerInLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ProfilerInLua" >history</a><br>Last edited January 6, 2007 3:50 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ProfilerInLua" >(diff)</a>
+</body>
+</html>

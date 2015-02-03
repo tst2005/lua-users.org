@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Exp Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ExpLua&amp;body=1" title="List pages referring to ExpLua">Exp Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<a href="../wiki/ExpLua.html" >ExpLua</a> is both a code comment format and a tool for extracting said comments and exporting HTML, LaTeX, and whatnot. It is freely available for use under the same License as the Lua project, with the usual disclaimers.
+<p>
+The latest explua tarball can be found here at the Wiki: <a href="/files/wiki_insecure/users/miller/explua.tar.gz">Files:wiki_insecure/users/miller/explua.tar.gz</a>
+Be warned that this is a public site and hence the code is inherently untrusted. First and foremost, there should <strong>only</strong> be lua files inside the package.
+<p>
+An example of LaTeX (well, later converted to PS using my own macros, etc) content can be found at <a href="/files/wiki_insecure/users/miller/concur.ps.gz">Files:wiki_insecure/users/miller/concur.ps.gz</a>.
+<p>
+<hr><em>This is a project still at embrionary stages. I'm mostly uploading this here in response to Reuben's email. In the following section, I attach my reply to his message. Feel free to add comments, questions or opinions as you see fit. The output-generation is currently using lots of small concatenations, which is slow, and I know it. It shall be changed. --Pedro</em>
+<p>
+<pre>On Sunday 19 October 2003 20:32, Reuben Thomas wrote:
+
+&gt; I intend to fix on a system to use soonish (to make the libraries more
+
+&gt; easily usable), so it would be nice to know how ExpLua works even if it's
+
+&gt; not ready yet.
+
+</pre>
+Okay. I've been working on the system as a whole in an adaptive, progressive, 
+iterative refining methodology -- i.e., sometimes kludging for twenty 
+minutes, sometimes designing/building/testing whole bunches of the stuff 
+throughout the night -- mostly geared towards automatically documenting 
+functions and modules for my thesis (which has a whole lot of them, and I 
+didn't feel like writing stuff twice and maintaining them in both versions).
+<p>
+I started out by trying to use other systems available (e.g, LuaDoc<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaDoc" >?</a>, JavaDoc<a href="/cgi-bin/wiki.pl?action=edit&amp;id=JavaDoc" >?</a>, 
+and even literate programming), but found that they had a tendency to get way 
+too much on the way of my bad programming habits. Sadly, they weren't strong 
+and satisfying enough for me to drop my weakness and start designing 
+correctly -- I would just get tired of typing the @param tags and stop 
+commenting altogether.
+<p>
+So I figured I wanted a commenting system that was simpler to type when you're 
+programming and easy to read even if you don't understand the specific 
+comment format. I chose a system of glyphs as thus:
+<p>
+For the whole file:
+<p>
+<DL>
+<dt><dd><pre>--| Begins a module/file comment, e.g., "this file does *this*".
+
+--by Pedro Miller Rabinovitch &lt;miller@inf.puc-rio.br&gt;
+
+--$Id: myfile.lua,v 1.12 2003/10/17 00:13:56 miller Exp $
+
+--TODO lots of stuff.
+
+</pre>
+</DL>
+(Both --by and --TODO can be abbreviated to --b and --T)
+<p>
+Preceding each function:
+<p>
+<DL>
+<dt><dd><pre>--% This is the purpose of the function, i.e., what it *does*.
+
+--- And this is the second line, which will concatenated to
+
+--- the others.
+
+--@ first (string) Text of the first parameter
+
+--@ what (table) The second parameter is the table used for an
+
+--- example
+
+--@ [...] (any) Optional parameters to the called whatever
+
+--: (number) Number of whatevers done or nil if an error occured
+
+function Module:MyFunction( first, what, ... )
+
+</pre>
+</DL>
+(I still haven't decided on an 'alternative' format, e.g., (number|nil), (number, nil). 
+Multiple return values 
+are not allowed in the current implementation, but that will change ASAP.)
+<p>
+That's basically it for now. There's some more stuff I'm planning ahead on 
+(like --&amp; and --. for important tables and fields, respectively, and I need 
+I'm also going to need some kind of type-definition later on), but the 
+important stuff is there.
+<p>
+The great thing about this is, now that it's become so simple, I'm documenting 
+a lot more my code. And the more documentation I have, the more I want to 
+extract it and generate stuff...
+<p>
+'nuff said. I had more to discuss here, but ain't got the time right now.
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ExpLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ExpLua" >history</a><br>Last edited October 20, 2003 1:41 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ExpLua" >(diff)</a>
+</body>
+</html>

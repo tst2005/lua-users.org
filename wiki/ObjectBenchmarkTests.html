@@ -1,0 +1,403 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Object Benchmark Tests</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ObjectBenchmarkTests&amp;body=1" title="List pages referring to ObjectBenchmarkTests">Object Benchmark Tests</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is an evaluation of object access time for various approaches to object orientation in Lua.  The primary concern was raw performance speed, not memory use or object creation time.
+<p>
+<H3>The Code</H3>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Benchmarking support.</span>
+
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> runbenchmark(name, code, count, ob)
+
+    <span class="keyword">local</span> f = <span class="library">loadstring</span>(<span class="string">[[
+
+        local count,ob = ...
+
+        local clock = os.clock
+
+        local start = clock()
+
+        for i=1,count do ]]</span> .. code .. <span class="string">[[ end
+
+        return clock() - start
+
+    ]]</span>)
+
+    <span class="library">io.write</span>(f(count, ob), <span class="string">"\t"</span>, name, <span class="string">"\n"</span>)    
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> nameof = {}
+
+  <span class="keyword">local</span> codeof = {}
+
+  <span class="keyword">local</span> tests  = {}
+
+  <span class="keyword">function</span> addbenchmark(name, code, ob)
+
+    nameof[ob] = name
+
+    codeof[ob] = code
+
+    tests[#tests+1] = ob
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> runbenchmarks(count)
+
+    <span class="keyword">for</span> _,ob <span class="keyword">in</span> <span class="library">ipairs</span>(tests) <span class="keyword">do</span>
+
+      runbenchmark(nameof[ob], codeof[ob], count, ob)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> makeob1()
+
+  <span class="keyword">local</span> self = {data = 0}
+
+  <span class="keyword">function</span> self:test()  self.data = self.data + 1  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+addbenchmark(<span class="string">"Standard (solid)"</span>, <span class="string">"ob:test()"</span>, makeob1())
+
+
+
+<span class="keyword">local</span> ob2mt = {}
+
+ob2mt.__index = ob2mt
+
+<span class="keyword">function</span> ob2mt:test()  self.data = self.data + 1  <span class="keyword">end</span>
+
+<span class="keyword">function</span> makeob2()
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({data = 0}, ob2mt)
+
+<span class="keyword">end</span>
+
+addbenchmark(<span class="string">"Standard (metatable)"</span>, <span class="string">"ob:test()"</span>, makeob2())
+
+
+
+<span class="keyword">function</span> makeob3() 
+
+  <span class="keyword">local</span> self = {data = 0};
+
+  <span class="keyword">function</span> self.test()  self.data = self.data + 1 <span class="keyword">end</span>
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+addbenchmark(<span class="string">"Object using closures (PiL 16.4)"</span>, <span class="string">"ob.test()"</span>, makeob3())
+
+
+
+<span class="keyword">function</span> makeob4()
+
+  <span class="keyword">local</span> public = {}
+
+  <span class="keyword">local</span> data = 0
+
+  <span class="keyword">function</span> public.test()  data = data + 1 <span class="keyword">end</span>
+
+  <span class="keyword">function</span> public.getdata()  <span class="keyword">return</span> data <span class="keyword">end</span>
+
+  <span class="keyword">function</span> public.setdata(d)  data = d <span class="keyword">end</span>
+
+  <span class="keyword">return</span> public
+
+<span class="keyword">end</span>
+
+addbenchmark(<span class="string">"Object using closures (noself)"</span>, <span class="string">"ob.test()"</span>, makeob4())
+
+
+
+addbenchmark(<span class="string">"Direct Access"</span>, <span class="string">"ob.data = ob.data + 1"</span>, makeob1())
+
+
+
+addbenchmark(<span class="string">"Local Variable"</span>, <span class="string">"ob = ob + 1"</span>, 0)
+
+
+
+
+
+runbenchmarks(<span class="library">select</span>(1,...) <span class="keyword">or</span> 100000000)
+
+</pre>
+
+</DL>
+<p>
+<H3>The Results (current version)</H3>
+These are the results for the current version. All times are in user-mode CPU time in seconds (and sub-seconds if your OS supports it) for 100 million iterations (1e8, the default).
+<pre>
+
+| 2010-01-15 MikePall
+
+| Intel Core2 Duo E8400 3.00GHz
+
+| Linux x86, GCC 4.3.3 (-O2 -fomit-frame-pointer for both Lua and LuaJIT)
+
+| Lua 5.1.4 (lua objbench.lua) vs.
+
+| LuaJIT 1.1.5 (luajit -O objbench.lua) vs.
+
+| LuaJIT 2.0.0-beta2 (lj2 objbench.lua)
+
+
+
+Lua     LJ1    LJ2
+
+-----------------------------------------------------
+
+14.08	2.16   0.1  Standard (solid)
+
+14.92	4.62   0.1  Standard (metatable)
+
+14.28	2.66   0.1  Object using closures (PiL 16.4)
+
+ 9.14	1.68   0.1  Object using closures (noself)
+
+ 7.30   1.10   0.1  Direct Access
+
+ 1.22	0.34   0.1  Local Variable
+
+
+
+| 2008-04-16 MikePall
+
+| Intel Core2 Duo E6420 2.13GHz
+
+| Linux x86, GCC 4.1.2 (-O3 -fomit-frame-pointer for both Lua and LuaJIT)
+
+| Lua 5.1.3 (lua objbench.lua) vs. LuaJIT 1.1.4 (luajit -O objbench.lua)
+
+
+
+17.93   3.11   Standard (solid)
+
+20.36   6.25   Standard (metatable)
+
+19.34   3.73   Object using closures (PiL 16.4)
+
+12.76   2.23   Object using closures (noself)
+
+ 7.53   1.55   Direct Access
+
+ 2.59   0.47   Local Variable
+
+
+
+| 2008-04-17 LeonardoMaciel
+
+| Intel Core 2 Duo T7200 2.00 GHz
+
+| WinXP, MSVC9 (VS 2008)
+
+| Lua 5.1.3 (using luavs.bat) vs. LuaJIT 1.1.4 (using luavs.bat)
+
+| [NOTE: this measurement probably didn't use luajit -O]
+
+
+
+17.52  10.78  Standard (solid)
+
+19.74  12.55  Standard (metatable)
+
+18.31  10.88  Object using closures (PiL 16.4)
+
+14.20   5.09  Object using closures (noself)
+
+ 7.99   5.94  Direct Access
+
+ 1.70   0.41  Local Variable
+
+
+
+| 2008-04-19 DougCurrie
+
+| Pentium M 2.00 GHz
+
+| WinXP, GCC 3.4.5 (mingw special)
+
+| Lua 5.1.3 (from wxLua build) vs. LuaJIT 1.1.4 (luajit -O objbench.lua)
+
+
+
+28.68   4.76  Standard (solid)
+
+31.23   9.49  Standard (metatable)
+
+30.32   5.38  Object using closures (PiL 16.4)
+
+19.60   3.27  Object using closures (noself)
+
+12.47   2.26  Direct Access
+
+ 2.72   0.51  Local Variable
+
+
+
+&lt;--- Add your results here if you like.
+
+&lt;--- Please indicate the date and your name or wiki page.
+
+&lt;--- Add your CPU, OS, compiler and Lua and/or LuaJIT version.
+
+</pre>
+<p>
+<H3>The Results (old version)</H3>
+These are the results for the old version, missing the "Local Variable" test and measuring elapsed time in seconds.
+<pre>
+
+Windows XP SP2  Intel P4 1.8a
+
+
+
+Standard (solid)  Time: 34
+
+Standard (metatable)  Time: 37
+
+Object using closures (PiL 16.4)  Time: 40
+
+Object using closures (noself)  Time: 29
+
+Direct Access  Time: 19
+
+</pre>
+<pre>
+
+Windows XP x64 SP1  AMD Athlon64 3500+ (64-bit Lua)
+
+
+
+Standard (solid)  Time: 22
+
+Standard (metatable)  Time: 23
+
+Object using closures (PiL 16.4)  Time: 25
+
+Object using closures (noself)  Time: 18
+
+Direct Access  Time: 11
+
+</pre>
+<pre>
+
+Windows Vista Ultimate(32bit), AMD Athlon X2 4200+ (Vanilla Lua 5.1.1 / LuaJIT 1.1.2)
+
+
+
+Standard (solid)  Time: 26 / 11
+
+Standard (metatable)  Time: 29 / 15
+
+Object using closures (PiL 16.4)  Time: 30 / 12
+
+Object using closures (noself)  Time: 20 / 6
+
+Direct Access  Time: 13 / 8
+
+</pre>
+<pre>
+
+Linux Xubuntu Feisty Fawn(32bit), Intel P4 Celeron 2.4ghz (Vanilla Lua 5.1.1)
+
+
+
+Standard (solid)  Time: 34
+
+Standard (metatable)  Time: 38
+
+Object using closures (PiL 16.4)  Time: 40
+
+Object using closures (noself)  Time: 25
+
+Direct Access  Time: 20
+
+</pre>
+<pre>
+
+Windows XP Prof. SP2, Intel PIII 500mhz (Vanilla Lua 5.1.1 / LuaJIT 1.1.2)
+
+
+
+Standard (solid)  Time: 133 / 60
+
+Standard (metatable)  Time: 146 / 76
+
+Object using closures (PiL 16.4)  Time: 147 / 64
+
+Object using closures (noself)  Time: 99 / 32
+
+Direct Access  Time: 67 / 36
+
+</pre>
+<p>
+<H3>Conclusion</H3>
+<p>
+Direct Access to a local copy of a table is by far the fastest way to do things (as expected). This serves as a reference to the rest of them.
+<p>
+The noself method is the second fastest here.  It relies strictly on closures and locals defined within that closure, returning nothing but a public interface.  If the tests are modified to perform ten additions per method call, then it can exceed the speed of Direct Access since this reduces the overhead of the function call.  The noself and PiL 16.4 methods are the only two that have any support for privately scoped variables.
+<p>
+Every other method is slower than standard direct access.  The metatable method gums up the works even more with the extra lookup required but still has comparable speed to the PiL 16.4 method.
+<p>
+The method mentioned in PiL 16.4 adds a private scope advantage and uses a closure to store self, but this isn't nearly as fast as the optimization done in Lua for using a proper 'self'.
+<p>
+One last thing to note: An early version of the benchmarking code did not take a local reference to the objects (but indexed the global table). This affected everything by a few seconds, most of all the direct access--the time doubled.
+<p>
+Hope this helps -- <em>AA</em>
+<p>
+<hr><em>Please feel free to add your specs above if they would have some value.  Please run them three times and use the average.</em>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/OptimisationTips.html" >OptimisationTips</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ObjectBenchmarkTests" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ObjectBenchmarkTests" >history</a><br>Last edited February 24, 2012 11:45 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ObjectBenchmarkTests" >(diff)</a>
+</body>
+</html>

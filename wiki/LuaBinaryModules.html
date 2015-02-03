@@ -1,0 +1,271 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Binary Modules</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaBinaryModules&amp;body=1" title="List pages referring to LuaBinaryModules">Lua Binary Modules</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em>The conventions, docs and code here are a proposal by <a href="../wiki/ThatcherUlrich.html" >ThatcherUlrich</a> for a "community standard" Binary Module system for Lua.  Consider it an "alpha" version, subject to change.  Please direct comments and criticism to the Lua mailing list.</em>
+<p>
+<em><strong><a href="../wiki/VersionNotice.html" >VersionNotice</a>: This page pertains to an earlier version of Lua (4.0 and 5.0beta) using a <code>loadmodule</code> extension.  Lua 5.1 uses <code>package.loadlib</code> and <code>require</code>. Lua 5.0 uses <code>loadlib</code>.)</strong></em>
+<p>
+<em>Note: <a href="../wiki/LuaCheia.html" >LuaCheia</a> is a portable, maintained distribution of Lua 5.0 which includes and relies on the loadmodule support initiated here.</em>
+<p>
+This page includes a patch to Lua 4.0.1 that adds a <code>loadmodule</code> function to the default Lua interpreter.  This page also lists some binary modules that can be loaded using <code>loadmodule</code>.  These binary modules can extend the functionality of the default Lua interpreter with native code, without having to recompile anything.  This makes it very easy for end-users to access useful libraries, and especially combinations of libraries, that would otherwise require recompiling source code for the desired platforms.
+<p>
+<hr><H2>Lua 4.0.1 with loadmodule</H2>
+<p>
+A modified interpreter is needed to use the binary modules listed on this page.  Source and binaries are linked below.  This code was mostly written by <a href="../wiki/IgnacioCastano.html" >IgnacioCastano</a>.  It was slightly modified by <a href="../wiki/ThatcherUlrich.html" >ThatcherUlrich</a>.
+<p>
+<H3>source</H3>
+<p>
+<a href="http://tulrich.com/geekstuff/lua_binary_modules/lua-4.0.1-loadmodule-2002-11-30.patch">[lua-4.0.1-loadmodule.patch]</a>
+<p>
+To apply the patch: unpack the correct Lua distribution into a clean directory.  Do a <code>cd</code> to the top of the directory and run patch.  For example, say you saved lua.tar.gz and the above patch file in ~/src:
+<pre>
+
+        cd ~/src
+
+        tar -xzvf lua.tar.gz
+
+        mv lua-4.0.1 lua-4.0.1-loadmodule
+
+        cd lua-4.0.1-loadmodule
+
+        patch -p1 &lt; ../lua-4.0-loadmodule-2002-11-21.patch
+
+</pre>
+<p>
+Be sure to look through the <code>config</code> file before building, to make sure options are set for your platform.
+<p>
+<H3>binaries</H3>
+<p>
+The binaries below were compiled using the standard Lua 4.0.1 distribution, with the addition of the above patch.  Download and use as-is.
+<p>
+<a href="http://www.tulrich.com/geekstuff/lua_binary_modules/linux-i386/lua-4.0.1-loadmodule.linux-i386.tar.gz">[GNU/Linux-i386]</a> | <a href="http://castano.ludicon.com/files/lua/lua-lm-4.0.1.zip">[Win32]</a> | Mac | *BSD | Solaris
+<p>
+<H3>User Instructions</H3>
+<p>
+In your Lua script, do:
+<DL>
+<dt><dd><code>loadmodule("modulename")</code>
+</DL>
+<p>
+That will dynamically load the code from the module, and initialize a binding to Lua.  See the documentation for each module for details on how to use it from Lua.
+<p>
+The loadmodule function returns two values. A boolean value that determines if loadmodule suceeded and a string describing the library (in case of suceed) or describing the error (in other case).
+<p>
+<DL>
+<dt><dd><pre>
+
+ok, str = loadmodule "modulename"
+
+
+
+if not ok then
+
+	error( str )
+
+else
+
+	print( "using " .. str )
+
+end</pre>
+</DL>
+<p>
+Or in most cases you will do:
+<p>
+<DL>
+<dt><dd><code>assert( loadmodule "modulename" )</code>
+</DL>
+<p>
+And if modulename doesn't exist it will print:
+<p>
+<DL>
+<dt><dd><em>error: assertion failed!  cannot load module 'modulename' </em>
+</DL>
+<p>
+<H3>Library naming conventions</H3>
+<p>
+Lua libraries are assumed to be prefixed with 'lua' to distinguish wrapper libraries from their wrapped counterpart. So, when you do do:
+<DL>
+<dt><dd><code>loadmodule("SDL")</code>
+</DL>
+<p>
+you are loading the <code>luaSDL</code> library. Additionally each platform has its own naming . Currently loadmodule is supported under Win32 and under systems that support DLFCN (Linux, OSX, and most flavours of UNIX). 
+<p>
+For example, on Win32 libraries have the '.dll' extension, so the library name for <code>luaSDL</code> would be:
+<DL>
+<dt><dd><code>luaSDL.dll</code>
+</DL>
+<p>
+While on Linux systems it would be:
+<DL>
+<dt><dd><code>libluaSDL.so</code>
+</DL>
+<p>
+However, in your lua script you don't have to care about system conventions and you just do: <code>loadmodule("SDL")</code>.
+<p>
+<H3>Library search paths</H3>
+<p>
+The library search paths are system dependant.
+<p>
+Linux searches the libraries in the following sequence:
+<UL>
+<li> paths listed in LD_LIBRARY
+<li> paths listed in /etc/ld.so.cache
+<li> /usr/lib
+<li> /lib
+</UL>
+<p>
+SunOs<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SunOs" >?</a> searches the libraries in the following sequence:
+<UL>
+<li> paths listed in LD_LIBRARY_PATH
+<li> The directory where the process was started
+</UL>
+<p>
+Windows searches the libraries in the following sequence:
+<UL>
+<li> the directory where the executable for the current process is located
+<li> the current directory
+<li> the system directory
+<li> the windows directory
+<li> the directories listed in the PATH envirionment variable.
+</UL>
+<p>
+Additionally, luamodule looks for the module in a custom path before in the predefined search paths. That path is set by the global key LUA_LIBPATH. If the key doesn't exist, the custom path is looked up in the LUA_LIBPATH enviroment variable. That should allow you to use newer versions of the libraries than the installed on your system.
+<p>
+<H2>Instructions for module authors</H2>
+<p>
+<H3>functions to export</H3>
+<p>
+A Lua binary module is a platform-specific shared library (for example, a .so under most Unix's, or a .DLL under Win32) which exports these two special functions:
+<p>
+<pre>
+
+    const char* luaLM_version(void);
+
+    int luaLM_import(lua_State* L);
+
+</pre>
+<p>
+The function <code>luaLM_version()</code> should return the value of LUA_VERSION that your module was compiled against; for example it should usually look like this in your source code:
+<p>
+<pre>
+
+	const char* luaLM_version(void)
+
+	{
+
+		return LUA_VERSION;
+
+	}
+
+</pre>
+<p>
+<code>loadmodule</code> calls this function first, to make sure that the binary module is compatible with the Lua interpreter it is being loading into.
+<p>
+The function <code>luaLM_import(lua_State* L)</code> is the function that is called by <code>loadmodule</code> in order to implement your bindings.  This is where you bind your module's functions and variables to the given <code>lua_State</code>, using the regular Lua API.
+<p>
+<H3>namespaces</H3>
+<p>
+It is highly recommended that you put all your bindings in a <em>namespace</em>.  That is, all of the functions and values which you bind to Lua should be contained within a table.  See LTN7 <a href="http://www.lua.org/notes/ltn007.html">[1]</a> for an explanation of Lua namespaces.  It is recommended that the name of this table correspond to the name of your module.  For example, the <code>luaSDL</code> module, loaded by <code>loadmodule("SDL")</code>, puts all of its bindings in a table named "SDL".  The user is free to assign a different name to this table, if desired, for convenience.
+<p>
+Note: <code>loadmodule</code> does not enforce the use of namespaces.  But your users will probably be happier if you stick to them.
+<p>
+<em>todo: explain why static state in the module is dangerous</em>
+<p>
+<em>todo: advice and example using tolua</em>
+<p>
+<H2>A simple Tutorial</H2>
+can be found under <a href="../wiki/BinaryModuleTutorial.html" >BinaryModuleTutorial</a>. It describes a way to turn any given Lua extension into a loadmocule ready dynamic link library.
+<p>
+Module authors: add your module to the list below, with a short description. Include a link to a wiki or web page where users can get a full description of the module, and download modules binaries (and source, if available).
+<p>
+<hr><H2>Binary Modules</H2>
+<p>
+<p>
+Here is a list of binary modules that can be used with the above interpreter.  (Many of these modules can also be integrated with Lua in a more conventional way by compiling the source for your platform and statically linking with your own custom interpreter.)
+<p>
+<UL>
+<li> <a href="../wiki/LuaModuleLuaSdl.html" >LuaModuleLuaSdl</a>: An SDL binding for Lua.  SDL <a href="http://www.libsdl.org">[2]</a> is a cross-platform media API, used in the GNU/Linux ports of commercial games such as Quake3, Civ2, etc.  luaSDL is useful for writing games and multimedia apps directly in Lua.
+</UL>
+<p>
+<UL>
+<li> <a href="../wiki/LuaFuzzy.html" >LuaFuzzy</a>: a very minimal Lua extension providing fuzzy text search based on NGrams. The extension is meant as a simple example of how to use loadmodule.c
+</UL>
+<p>
+<UL>
+<li> <a href="../wiki/LuaPack.html" >LuaPack</a>: a binary packing/unpacking module similar to perl's pack.
+</UL>
+<p>
+<UL>
+<li> <a href="../wiki/LuaModuleLuaSocket.html" >LuaModuleLuaSocket</a>: a TCP/IP socket library.
+</UL>
+<p>
+<UL>
+<li> <a href="../wiki/LuaDeclare.html" >LuaDeclare</a>: a dynamic function bindinding mechanism for arbitrary win32 libraries.
+</UL>
+<p>
+<UL>
+<li> <a href="../wiki/LuaSqlite.html" >LuaSqlite</a>: An sqlite binding for Lua. <a href="http://www.sqlite.org/">[Sqlite]</a> is a free embeddable SQL database engine.
+</UL>
+<p>
+<p>
+<UL>
+<li> <a href="../wiki/LuaModuleLzo.html" >LuaModuleLzo</a>: small, fast, lossless (de)compression module for Lua5. based upon miniLZO.
+</UL>
+<p>
+<UL>
+<li> <a href="../wiki/LuaModuleShelve.html" >LuaModuleShelve</a>: persistent storage of Lua datatypes in files accessible by keys in a table-like fashion, uses Gdbm or Ndbm as storage backend. Works like Python's module of same name. Requires Lua5.
+</UL>
+<p>
+<hr>''Could it be possible to return module's own version info upon success ?
+ie. now loadmodule("fuzzy") prints "using fuzzy"; maybe "fuzzy-x.yy.zz" may be better 
+for version dependent usage ?
+Or...
+Returning a "Info" table whose fields are Developer, Version, Licence, Description,..'' 
+-Hakki Dogusan
+<p>
+<em>I updated the source patch: added some Makefile changes to better support Linux .so's.  .so's and executables now have $(V) appended (so the interpreter is <code>lua-4.0</code> and the main lib is <code>liblua-4.0.so</code>.  Also new binaries, a tarball with the executable and .so's.</em> - <a href="../wiki/ThatcherUlrich.html" >ThatcherUlrich</a>
+<p>
+<em>Thatcher: There are some errors in the patch, if you change the name of the static libraries, you also have to change the targets in src/Makefile and src/lib/Makefile. You have also removed the .def files. You can actually generate them by commenting one line in the Makefile and redefining LUA_API and LUALIB_API, but I think it's easier to just use the given def files without touching anything. If someone also has problems with the new patch, the previous one is still here: <a href="http://talika.eii.us.es/~titan/lua/lua-4.0.1-loadmodule-2002-11-24.patch">[patch]</a></em>.- <a href="../wiki/IgnacioCastano.html" >IgnacioCastano</a>
+<p>
+<em>I have uploaded a <a href="/files/wiki_insecure/binary_modules/win32/lua-lm-2002-11-27.zip">[zip]</a> containing all sources and the project files for my current tree of lua-loadmodule.</em> -<a href="../wiki/MartinSpernau.html" >MartinSpernau</a>
+<p>
+<em>I've modified loadmodule so that it ignores the revision number when checking the version. Here is the new <a href="http://castano.ludicon.com/files/lua/lua-4.0.1-loadmodule-2002-12-07.patch">[patch]</a>. If nobody reports any bug I will update the above link in a few days</em>.- <a href="../wiki/IgnacioCastano.html" >IgnacioCastano</a>
+<p>
+<em>There is a new patch for lua-5.0-beta here: <a href="http://castano.ludicon.com/files/lua/lua-5.0-loadmodule-2002-12-18.patch">[patch]</a>. It's not fully test, so use it with care</em>.- <a href="../wiki/IgnacioCastano.html" >IgnacioCastano</a>
+<p>
+The loadmodule addition for lua-5 is excellent; I am using it to make a lua-5 <a href="../wiki/LuaSqlite.html" >LuaSqlite</a> loadable binary module. However, wouldn't it be nice if the semantics were identical to <a href="http://www.lua.org/notes/ltn011.html">[Import (TN11)]</a>? This would make modules less dependent on a global name space.
+<p>
+<em>To be honest, I think LTN11 introduces complexity to solve problems that aren't actually problems in practice.  The fact is, modules need unique names, so I think it's less confusing to just resolve name clashes directly, and stick with LTN7 conventions.</em> -<a href="../wiki/ThatcherUlrich.html" >ThatcherUlrich</a>
+<p>
+<em>With respect, I think LTN11 introduces little (if any) complexity and solves several problems -- although they might not be everybody's problems. For example, it allows the simultaneous use of two implementations of the same interface (two versions of the same module, if you prefer), which is extremely handy for testing. It also makes sandboxing modules more practical, and it opens the possibility of having multiple instances of a module which has internal state (such as readline, or Lua itself). From a C perspective, the "extra complexity" is simply that the module open function uses a table provided as an argument instead of adding it directly to the global namespace; the table itself is then provided by the package system.</em> -<a href="../wiki/RiciLake.html" >RiciLake</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaBinaryModules" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaBinaryModules" >history</a><br>Last edited December 24, 2009 4:11 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaBinaryModules" >(diff)</a>
+</body>
+</html>

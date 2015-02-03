@@ -1,0 +1,178 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Make Monospace</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteMakeMonospace&amp;body=1" title="List pages referring to SciteMakeMonospace">Scite Make Monospace</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This script works like Ctrl+F11 (Use Monospace Font) except that it
+can be called by Lua scripts. <a href="../wiki/SciteExtMan.html" >SciteExtMan</a> is required. This script is
+convenient if a user wants to use scripts that need monospace mode
+(such as <a href="../wiki/SciteTicTacToe.html" >SciteTicTacToe</a>) but otherwise uses proportional fonts at
+other times. By running <code>MakeMonospace</code> right after initializing a
+monospace-mandatory script, the user no longer has to hit Ctrl+F11.
+<p>
+With a bit more code, it should be possible to automatically make
+certain file types open in monospace. This would allow for a mixed
+monospace-proportional font environment without the hassle of hitting
+Ctrl+F11 all the time.
+<p>
+The script forces a buffer into monospace mode by overriding the usual
+style properties. It uses <code>extman</code> to hook to <code>OnSwitchFile</code>.
+<p>
+<hr><pre class="code">
+<span class="comment">-----------------------------------------------------------------------</span>
+
+<span class="comment">-- makes a buffer monospace &lt;khman@users.sf.net&gt; public domain 20060906</span>
+
+<span class="comment">-----------------------------------------------------------------------</span>
+
+<span class="comment">-- [[</span>
+
+scite_Command(<span class="string">'Make Monospace|MakeMonospace|Ctrl+8'</span>)
+
+
+
+<span class="keyword">function</span> MakeMonospace()
+
+  <span class="keyword">local</span> MonoFont, MonoSize = <span class="string">"Courier New"</span>, 9
+
+  <span class="keyword">local</span> SIG = <span class="string">"MakeMonospace"</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> AllMono()
+
+    <span class="keyword">for</span> i = 0, 127 <span class="keyword">do</span>
+
+      editor.StyleFont[i] = MonoFont
+
+      editor.StyleSize[i] = MonoSize
+
+    <span class="keyword">end</span>
+
+    editor:Colourise(0, -1)
+
+  <span class="keyword">end</span>
+
+  scite_OnSwitchFile(<span class="keyword">function</span>() <span class="keyword">if</span> buffer[SIG] <span class="keyword">then</span> AllMono() <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span> <span class="keyword">end</span>)
+
+  buffer[SIG] = <span class="keyword">true</span>
+
+  AllMono()
+
+<span class="keyword">end</span>
+
+<span class="comment">--]]</span>
+
+</pre>
+
+<p>
+<hr>If you want to get the monospace font name and size from the current editor properties, you can add the following:
+<p>
+<pre class="code">
+  <span class="comment">-- retrieve monospace font information</span>
+
+  <span class="keyword">local</span> StyleMono = {}
+
+  <span class="keyword">local</span> monoprop = props[<span class="string">"font.monospace"</span>]
+
+  <span class="keyword">for</span> style, value <span class="keyword">in</span> <span class="library">string.gfind</span>(monoprop, <span class="string">"([^,:]+):([^,]+)"</span>) <span class="keyword">do</span>
+
+    StyleMono[style] = value
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- grab styles, assuming they are defined</span>
+
+  MonoFont = StyleMono.font
+
+  MonoSize = <span class="library">tonumber</span>(StyleMono.size)
+
+</pre>
+
+<p>
+<hr>If you just want scite to start all new buffers in monospace mode, try this (requires <a href="../wiki/SciteExtMan.html" >SciteExtMan</a>):
+<p>
+<pre class="code">
+<span class="keyword">function</span> ToggleMonospace()
+
+    scite.MenuCommand(450)
+
+    <span class="keyword">return</span> <span class="keyword">false</span>
+
+<span class="keyword">end</span>
+
+
+
+scite_OnOpen(ToggleMonospace)
+
+</pre>
+
+<p>
+To ensure newly created files start in monospace mode, try
+<p>
+<pre class="code">
+<span class="keyword">function</span> ToggleMonospace()
+
+  <span class="comment">-- the buffer table is provided for user data</span>
+
+  <span class="keyword">if</span> buffer <span class="keyword">and</span> <span class="keyword">not</span> buffer[<span class="string">"MadeMonospace"</span>] <span class="keyword">then</span>
+
+    scite.MenuCommand(IDM_MONOFONT)
+
+    buffer[<span class="string">"MadeMonospace"</span>] = <span class="keyword">true</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> OpenMonospace(filename) 
+
+  <span class="keyword">if</span> filename ~= <span class="string">""</span> <span class="keyword">then</span> 
+
+    ToggleMonospace()
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- OnOpen event (with empty filename) is generated when SciTE starts</span>
+
+<span class="comment">--  with new file, but not when File-&gt;New creates another new file tab.</span>
+
+scite_OnOpen(OpenMonospace)  <span class="comment">-- for opening existing file</span>
+
+scite_OnSavePointLeft(ToggleMonospace) <span class="comment">-- first character typed in new file</span>
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteMakeMonospace" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteMakeMonospace" >history</a><br>Last edited March 9, 2010 5:49 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteMakeMonospace" >(diff)</a>
+</body>
+</html>

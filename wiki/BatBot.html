@@ -1,0 +1,71 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Bat Bot</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BatBot&amp;body=1" title="List pages referring to BatBot">Bat Bot</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+batbot is a Lua IRC bot. It is similar in functionality to <a href="http://lua-users.org/wiki/LuaBot.html">[lua_bot]</a>, written by Cladhaire.
+<p>
+In #lua, only the interpreter is exposed:
+<UL>
+<li> <code>!lua script </code> - Runs the given script as Lua code in a sandbox. The sandbox's restrictions are defined below.
+</UL>
+<p>
+In other channels and in queries, batbot responds to the following commands:
+<UL>
+<li> <code>!8ball</code> - Returns a classic 8 ball reply.
+<li> <code>!date xxx</code> - Returns the date, formatted similar to C's date command.
+<li> <code>!g[oogle] keywords</code> - Returns the first result of a google search with the given keywords.
+<li> <code>!owner</code> - Returns the owner nick (batrick).
+<li> <code>!ping</code> - Pong!
+<li> <code>!quote nick keywords</code> - Does a search through the last things 'nick' said from most recent to latest using the search terms 'keywords'.
+<li> <code>word(sp?)</code> - Checks the spelling of 'word'. (The trigger is having '(sp?)' following a word)
+<li> <code>ur</code> -- A variety of juvenile replies to equally juvenile remarks.
+</UL>
+<p>
+In order to keep channel spam down, you can play with the Lua interpreter (or the bot in general) in either #batbot, #lua_bot, or in a private message (query).
+<p>
+batbot is written by batrick (on Freenode). Shirik and Cladhaire were instrumental in ensuring the security and correctness of its code.
+<p>
+Sandbox -- Notable differences from the regular Lua interpreter:
+<UL>
+<li> <a href="http://www.inf.puc-rio.br/~roberto/lpeg/lpeg.html">[LPeg]</a> is included.
+<li> The following global functions are removed: dofile, loadfile, module, require.
+<li> The following debug functions are removed: debug.debug, debug.getregistry.
+<li> The following io functions are removed: io.open, io.popen, io.tmpfile.
+<li> The following os functions are removed: os.execute, os.getenv, os.remove, os.rename, os.setlocale, os.tmpname.
+<li> Every script is run inside a coroutine. (yielding a script can be rerun at a later time, use coroutine.running() to get the running thread)
+<li> Simple statement's results are returned. (e.g. "!lua string.format("%s", "hi")" generates the reply "nickL &gt; hi")
+</UL>
+<p>
+The sandbox also includes a variety of custom functions whose names should be self explanatory. Enjoy!
+<p>
+(Reader Note: Mind sharing the source code? This would be a great thing to share with the community.)
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BatBot" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BatBot" >history</a><br>Last edited October 16, 2009 4:59 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BatBot" >(diff)</a>
+</body>
+</html>

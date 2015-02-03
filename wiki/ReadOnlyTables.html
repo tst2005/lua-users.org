@@ -1,0 +1,161 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Read Only Tables</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ReadOnlyTables&amp;body=1" title="List pages referring to ReadOnlyTables">Read Only Tables</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This article describes a technique for making a table read-only via metamethods in Lua 5.0/5.1 (for background on metamethods see the <a href="../wiki/MetamethodsTutorial.html" >MetamethodsTutorial</a>).  The approach will only prevent the <em>inadvertent</em> modification of any member of a read-only table.
+<p>
+We can define read-only (constant) tables like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+Directions = readonlytable {
+
+  LEFT   = 1,
+
+  RIGHT  = 2,
+
+  UP     = 3,
+
+  DOWN   = 4
+
+  otherstuff = {}
+
+}
+
+</pre>
+
+</DL>
+<p>
+if we define the <code>readonlytable</code> helper functions as follows:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> readonlytable(<span class="library">table</span>)
+
+   <span class="keyword">return</span> <span class="library">setmetatable</span>({}, {
+
+     __index = <span class="library">table</span>,
+
+     __newindex = <span class="keyword">function</span>(<span class="library">table</span>, key, value)
+
+                    <span class="library">error</span>(<span class="string">"Attempt to modify read-only table"</span>)
+
+                  <span class="keyword">end</span>,
+
+     __metatable = <span class="keyword">false</span>
+
+   });
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Note that <code>readonlytable</code> does not return the table originally passed to it but rather a proxy table.  The proxy table is given a metatable with the metamethods <code>__index</code> and <code>__newindex</code> to ensure that the proxy table values never change.  Setting the <code>__metatable</code> metamethod prevents tampering with the metatable itself--the client cannot obtain nor change the metatable via <code>getmetatable</code> and <code>setmetatable</code> functions.
+<p>
+Now if we try to modify any member of <code>Directions</code> we will get an error.
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; Directions.LEFT = 33
+
+Attempt to modify read-only <span class="library">table</span>
+
+</pre>
+
+</DL>
+<p>
+Although members of the read-only table cannot be changed, it is still possible to modify members of members of read-only tables (unless they too are explicitly made read-only tables):
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; Directions.otherstuff = <span class="keyword">nil</span>    <span class="comment">-- will fail</span>
+
+Attempt to modify read-only <span class="library">table</span>
+
+&gt; Directions.otherstuff.foo = 1  <span class="comment">-- allowed</span>
+
+</pre>
+
+</DL>
+<p>
+Also, <code>rawset()</code> and <code>table.insert</code> can still be used to directly modify a read-only table:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">rawset</span>(Directions, <span class="string">"LEFT"</span>, 5)
+
+<span class="library">print</span>(Directions.LEFT)         <span class="comment">-- prints 5</span>
+
+<span class="library">table.insert</span>(Directions, 6)
+
+<span class="library">print</span>(Directions[1])           <span class="comment">-- prints 6</span>
+
+</pre>
+
+</DL>
+<p>
+If you really need to avoid that, you could implement the read-only table in C.
+<p>
+Furthermore, this method of creating read-only tables interferes with <code>pairs</code>, <code>ipairs</code>, <code>next</code>, the <code>#</code> operator, and other forms of table iteration.  For example,
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- prints nothing!</span>
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(Directions) <span class="keyword">do</span>
+
+  <span class="library">print</span>(k,v)
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span>(<span class="library">next</span>(Directions))  <span class="comment">-- prints nil!</span>
+
+<span class="library">print</span>(#Directions)       <span class="comment">-- prints "0"!</span>
+
+</pre>
+
+</DL>
+<p>
+See also <a href="../wiki/GeneralizedPairsAndIpairs.html" >GeneralizedPairsAndIpairs</a> for ways to handle that.
+<p>
+Original author: <a href="../wiki/KevinBaca.html" >KevinBaca</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/RecursiveReadOnlyTables.html" >RecursiveReadOnlyTables</a> - an alternative implementation handling recursion.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ReadOnlyTables" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ReadOnlyTables" >history</a><br>Last edited May 28, 2007 9:05 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ReadOnlyTables" >(diff)</a>
+</body>
+</html>

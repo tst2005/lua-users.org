@@ -1,0 +1,149 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Ropes</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaRopes&amp;body=1" title="List pages referring to LuaRopes">Lua Ropes</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Lua Ropes</H2>
+<p>
+Because strings are immutable objects in Lua, it is important to avoid creating them unnecessarily. Very often programs manipulate strings in order to create some textual output. One strategy is to avoid creating intermediate strings, and to output all the pieces of the final text in the right order. The appropriate datatype for this is the rope<a href="http://en.wikipedia.org/wiki/Rope_(computer_science).html">[1]</a>, where
+<pre> rope ::= string | list of rope </pre>
+In other words, a rope is a tree whose leaves are strings. The important operation on trees is the tree-walk, applying a procedure to each leaf.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> walk(x,f)
+
+    <span class="keyword">local</span> typ, ok, bad = <span class="library">type</span>(x),<span class="keyword">true</span>
+
+    <span class="keyword">local</span> errmsg = <span class="string">"bad type (%s), %s"</span>
+
+    <span class="keyword">if</span> typ == <span class="string">"string"</span> <span class="keyword">then</span> <span class="keyword">return</span> <span class="library">pcall</span>(f,x)
+
+    <span class="keyword">elseif</span> typ == <span class="string">"table"</span> <span class="keyword">then</span>
+
+      <span class="keyword">local</span> i,n = 1,#x
+
+      <span class="keyword">while</span> ok <span class="keyword">and</span> i &lt;= n <span class="keyword">do</span>
+
+        ok,bad = walk(x[i],f)
+
+        i = i+1
+
+      <span class="keyword">end</span> <span class="comment">-- while</span>
+
+      <span class="keyword">return</span> ok,bad
+
+    <span class="keyword">else</span>
+
+      bad = errmsg:format(typ,typ <span class="keyword">and</span> <span class="string">""</span> <span class="keyword">or</span> <span class="string">"something undefined?"</span>)
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>,bad
+
+    <span class="keyword">end</span> <span class="comment">-- if</span>
+
+  <span class="keyword">end</span> <span class="comment">-- function</span>
+
+
+
+  <span class="keyword">local</span> mt = {
+
+    push = <span class="keyword">function</span> (self,x)
+
+      <span class="keyword">local</span> <span class="keyword">function</span> f(y)
+
+        <span class="keyword">if</span> y <span class="keyword">and</span> <span class="library">type</span>(y) ~= <span class="string">"function"</span> <span class="keyword">then</span>
+
+          self[#self + 1] =y
+
+          <span class="keyword">return</span> f
+
+        <span class="keyword">elseif</span> y <span class="keyword">then</span>
+
+          <span class="keyword">return</span> <span class="keyword">function</span> (z)
+
+            <span class="keyword">return</span> f(y(z))
+
+          <span class="keyword">end</span> <span class="comment">-- function</span>
+
+        <span class="keyword">end</span> <span class="comment">-- if</span>
+
+      <span class="keyword">end</span> <span class="comment">-- function y</span>
+
+      <span class="keyword">return</span> f(x)
+
+    <span class="keyword">end</span>; <span class="comment">-- function push</span>
+
+    walk = walk;
+
+    flatten = <span class="keyword">function</span>(self)
+
+      <span class="keyword">local</span> o = {}
+
+      <span class="keyword">local</span> f = <span class="keyword">function</span> (x) o[#o + 1] = x <span class="keyword">end</span> <span class="comment">-- function</span>
+
+      self:walk(f)
+
+      <span class="keyword">return</span> <span class="library">table.concat</span>(o)
+
+    <span class="keyword">end</span>; <span class="comment">-- function</span>
+
+  }
+
+
+
+  <span class="keyword">function</span> rope()
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>({}, {__index = mt})
+
+  <span class="keyword">end</span> <span class="comment">-- function</span>
+
+<span class="keyword">end</span> <span class="comment">-- do</span>
+
+
+
+t,x = rope(),rope()
+
+t:push (<span class="library">string.upper</span>) <span class="string">"m"</span> <span class="string">"r"</span> (<span class="library">string.char</span>) (32) <span class="string">"Smith"</span> ;
+
+x:push <span class="string">[[ Good ]]</span> <span class="string">[[morning]]</span>;
+
+t:push (x)
+
+t:walk(<span class="library">io.write</span>) <span class="comment">--&gt; Mr Smith Good morning</span>
+
+<span class="library">print</span>(t:flatten()) <span class="comment">--&gt; Mr Smith Good morning</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaRopes" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaRopes" >history</a><br>Last edited June 4, 2007 6:43 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaRopes" >(diff)</a>
+</body>
+</html>

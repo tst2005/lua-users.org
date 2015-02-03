@@ -1,0 +1,135 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Automagic Tables</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=AutomagicTables&amp;body=1" title="List pages referring to AutomagicTables">Automagic Tables</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Building on some of the techniques illustrated in <a href="../wiki/FuncTables.html" >FuncTables</a>, here are some implementations of Perl-style<a href="http://www.stonehenge.com/merlyn/UnixReview/col44.html">[1]</a> automagic tables (also called autovivication). An automagic table creates subtables on demand, as it were; i.e.:
+<p>
+<DL>
+<dt><dd><pre class="code">
+a = AutomagicTable()
+
+a.b.c.d = <span class="string">"a.b and a.b.c are automatically created"</span>
+
+</pre>
+
+</DL>
+<p>
+This version was the result of several interesting interchanges between <a href="../wiki/ThomasWrensch.html" >ThomasWrensch</a> and me (<a href="../wiki/RiciLake.html" >RiciLake</a>), and I cannot take credit for it (although I am happy to take the blame; I've made a couple of modifications and changed the formatting because I like spaces in parameter lists)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> auto, assign
+
+
+
+  <span class="keyword">function</span> auto(tab, key)
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>({}, {
+
+            __index = auto,
+
+            __newindex = assign,
+
+            parent = tab,
+
+            key = key
+
+    })
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> meta = {__index = auto}
+
+
+
+  <span class="comment">-- The if statement below prevents the table from being</span>
+
+  <span class="comment">-- created if the value assigned is nil. This is, I think,</span>
+
+  <span class="comment">-- technically correct but it might be desirable to use</span>
+
+  <span class="comment">-- assignment to nil to force a table into existence.</span>
+
+
+
+  <span class="keyword">function</span> assign(tab, key, val)
+
+  <span class="comment">-- if val ~= nil then</span>
+
+    <span class="keyword">local</span> oldmt = <span class="library">getmetatable</span>(tab)
+
+    oldmt.parent[oldmt.key] = tab
+
+    <span class="library">setmetatable</span>(tab, meta)
+
+    tab[key] = val
+
+  <span class="comment">-- end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">function</span> AutomagicTable()
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>({}, meta)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+[*] There is a Lua 4 version of this as well, but it is not as tidy.
+<p>
+<hr>A comment made by <a href="../wiki/ThomasWrensch.html" >ThomasWrensch</a> seemed relevant, I quote it without permission so I hope he doesn't mind:
+<p>
+<em>I think the technique above -- the use of an individualized metatable with additional non-metamethod keys -- is more than just a handy trick.</em>
+<p>
+<em>If you want to associate some information with a table you have three choices:</em>
+<p>
+<DL>
+<dt><dd><em>1. Put a key in the table with the information</em>
+<dt><dd><em>2. Use the table as a key in another (possibly weak) table.</em>
+<dt><dd><em>3. Associate it with the metatable.</em>
+</DL>
+<p>
+<em>The problem with the first trick is it may conflict with an existing key and/or pollute the table with inappropriate data. You pointed out some of the problems with the second approach in your message</em> (on <a href="../wiki/GarbageCollectingWeakTables.html" >GarbageCollectingWeakTables</a>) <em>a while ago. The third requires the use of an individual metatable, but does not have the problems of the other two techniques.</em>
+<p>
+<em>-- <a href="../wiki/ThomasWrensch.html" >ThomasWrensch</a></em>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AutomagicTables" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=AutomagicTables" >history</a><br>Last edited February 17, 2012 3:38 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=AutomagicTables" >(diff)</a>
+</body>
+</html>

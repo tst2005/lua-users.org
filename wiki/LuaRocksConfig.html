@@ -1,0 +1,222 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Rocks Config</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaRocksConfig&amp;body=1" title="List pages referring to LuaRocksConfig">Lua Rocks Config</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em><strong>An example <a href="../wiki/LuaRocks.html" >LuaRocks</a> configuration to serve multiple Lua installations each with their own rocks from a single <a href="../wiki/LuaRocks.html" >LuaRocks</a> installation.</strong></em>
+<p>
+Assuming <code>/usr/local/bin/luarocks</code> is luarocks-2.0.12 or newer and <code>/usr/local/opt/lua/bin/lua</code> is Lua 5.1.x, create a default <code>/usr/local/share/luarocks/config-5.1.lua</code> (these are the default package directories on Mountain Lion with Homebrew, but I also have something very similar working on an Ubuntu continuous integration server -- no doubt something similar can be done with BAT files on Windows):
+<p>
+<DL>
+<dt><dd><pre class="code">
+rocks_trees = { <span class="string">"/usr/local/lib/luarocks/5.1"</span> }
+
+variables = {
+
+   LUA = <span class="string">"/usr/local/opt/lua/bin/lua5.1"</span>,
+
+   LUA_BINDIR = <span class="string">"/usr/local/opt/lua/bin"</span>,
+
+   LUA_INCDIR = <span class="string">"/usr/local/opt/lua/include"</span>,
+
+   LUA_LIBDIR = <span class="string">"/usr/local/opt/lua/lib"</span>,
+
+}
+
+</pre>
+
+</DL>
+<p>
+And then make a wrapper script at <code>/usr/local/bin/luarocks5.1</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+#!/bin/sh
+
+
+
+PATH=/usr/local/opt/lua/bin:/usr/local/opt/luarocks/bin:$PATH
+
+LUAROCKS_CONFIG=/usr/local/share/luarocks/config-5.1.lua
+
+export LUAROCKS_CONFIG
+
+
+
+lua5.1 `which luarocks` ${1+"$@"}
+
+exit $?
+
+</pre>
+</DL>
+<p>
+Similarly, you need to add another wrapper at <code>/usr/local/bin/lua5.1</code> to set the paths to find the right rocks:
+<p>
+<DL>
+<dt><dd><pre>
+
+#!/bin/sh
+
+
+
+: ${LUA_PATH=";"}
+
+: ${LUA_CPATH=";"}
+
+
+
+PATH=/usr/local/opt/lua/bin:/usr/local/opt/luarocks/bin:$PATH
+
+LUAROCKS_CONFIG=/usr/local/share/luarocks/config-5.1.lua
+
+export LUAROCKS_CONFIG
+
+
+
+# Set search paths to user environment settings, followed by system path, and finally rocks_trees.
+
+save_LUA_PATH=$LUA_PATH
+
+save_LUA_CPATH=$LUA_PATH
+
+eval `luarocks path`
+
+LUA_PATH="$save_LUA_PATH;$LUA_PATH"
+
+LUA_CPATH="$save_LUA_CPATH;$LUA_CPATH"
+
+
+
+exec lua5.1 ${1+"$@"}
+
+</pre>
+</DL>
+<p>
+After installing Lua 5.2.x to <code>/usr/local/opt/lua52/</code> (again, the default for homebrew on Mountain Lion, although some of the paths from brew lua52 clash with brew lua, so you have to do the linking manually), you'll need a new <code>/usr/local/share/luarocks/config-5.2.lua</code>:
+<p>
+<p>
+<pre class="code">
+rocks_trees = { <span class="string">"/usr/local/lib/luarocks/5.2"</span> }
+
+variables = {
+
+   LUA = <span class="string">"/usr/local/opt/lua52/bin/lua"</span>,
+
+   LUA_BINDIR = <span class="string">"/usr/local/opt/lua52/bin"</span>,
+
+   LUA_INCDIR = <span class="string">"/usr/local/opt/lua52/include"</span>,
+
+   LUA_LIBDIR = <span class="string">"/usr/local/opt/lua52/lib"</span>,
+
+}
+
+</pre>
+
+<p>
+And a wrapper script at <code>/usr/local/bin/luarocks5.2</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+#!/bin/sh
+
+
+
+PATH=/usr/local/opt/lua52/bin:/usr/local/opt/luarocks/bin:$PATH
+
+LUAROCKS_CONFIG=/usr/local/share/luarocks/config-5.2.lua
+
+export LUAROCKS_CONFIG
+
+
+
+exec lua5.2 `which luarocks` ${1+"$@"}
+
+</pre>
+</DL>
+<p>
+And another at <code>/usr/local/bin/lua5.2</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+#!/bin/sh
+
+
+
+: ${LUA_PATH=";"}
+
+: ${LUA_CPATH=";"}
+
+
+
+PATH=/usr/local/opt/lua52/bin:/usr/local/opt/luarocks/bin:$PATH
+
+LUAROCKS_CONFIG=/usr/local/share/luarocks/config-5.2.lua
+
+export LUAROCKS_CONFIG
+
+
+
+# Set search paths to user environment settings, followed by system path, and finally rocks_trees.
+
+save_LUA_PATH=$LUA_PATH
+
+save_LUA_CPATH=$LUA_PATH
+
+eval `luarocks path`
+
+LUA_PATH="$save_LUA_PATH;$LUA_PATH"
+
+LUA_CPATH="$save_LUA_CPATH;$LUA_CPATH"
+
+
+
+exec lua5.2 ${1+"$@"}
+
+</pre>
+</DL>
+<p>
+Lua<code></code>Rocks 2.0.12 also works with luajit-2.0, so I have a third configuration using <code>/usr/local/share/luarocks/config-luajit.lua</code> and a pair of wrappers at <code>/usr/local/bin/luarocks-luajit</code> and <code>/usr/local/bin/luajit</code>.  Adapting to different operating systems (such as Ubuntu, which installs the packages into the <code>/usr/</code> tree), is a simple matter of adjusting the PATHs of the scripts, and in the scripts.  For good measure, I've also made a soft-links to my preferred default interpreter:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ ln -s lua5.2 /usr/local/bin/lua
+
+$ ln -s luarocks5.2 /usr/local/bin/luarocks
+
+</pre>
+</DL>
+<p>
+At this point you can install and query to the appropriate Lua<code></code>Rocks tree for automatic discovery by the associated Lua interpreter, simply by choosing whether to use <code>luarocks5.1</code> or <code>luarocks-luajit</code> etc.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaRocksConfig" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaRocksConfig" >history</a><br>Last edited June 28, 2013 8:50 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaRocksConfig" >(diff)</a>
+</body>
+</html>

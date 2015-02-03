@@ -1,0 +1,173 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Consuming Xml</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ConsumingXml&amp;body=1" title="List pages referring to ConsumingXml">Consuming Xml</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Consuming iterators for XML trees</H2>
+<p>
+(This is part of <a href="../wiki/LazyKit.html" >LazyKit</a>.)
+<p>
+See <a href="../wiki/XmlIter.html" >XmlIter</a> for non-consuming versions of these functions.
+<p>
+<p>
+<p>
+<code>xpairs_c(tree)</code>, <code>xnpairs_c(tree)</code>, and
+<code>xmliter.switch_c(parent, ftable, [opts])</code> also
+iterate over the children of <code>tree</code>, but they
+<em>consume</em> the children of <code>tree</code> as they
+process it. The following two fragments have similar semantics:
+<p>
+<p>
+<DL>
+<dt><dd><pre>for i,x in xpairs(parent) do
+
+  parent[i] = nil
+
+  do_something_with(x)
+
+end
+
+
+
+for i,x in xpairs_c(parent) do
+
+  do_something_with(x)
+
+end </pre>
+</DL>
+<p>
+Using a consuming iterator means that you do not care about
+accessing previously processed trees through parent. However,
+you can still save the current tree for later use:
+<p>
+<p>
+<DL>
+<dt><dd><pre>for i,x,name in xnpairs(parent) do
+
+  if x.name == "xref" then
+
+    table.insert(references, x)
+
+  end
+
+end </pre>
+</DL>
+<p>
+The primary reason to use consuming iterators is to reduce
+memory usage. When using conventional XML trees, this may help
+a little if you are building up another data structure while
+tearing down the XML tree; parts of the tree you have already
+processed are eligible for garbage collection, saving space for
+your new structure.
+<p>
+<p>
+<p>
+However, when using <a href="../wiki/LazyTree.html" >LazyTree</a> XML trees, memory usage can be
+vastly smaller. Consider processing a large log file:
+<p>
+<p>
+<DL>
+<dt><dd><pre>&lt;log&gt;
+
+  &lt;entry&gt;[....]&lt;/entry&gt;
+
+  &lt;entry&gt;[....]&lt;/entry&gt;
+
+  [...millions of elements later...]
+
+  &lt;entry&gt;[....]&lt;/entry&gt;
+
+&lt;/log&gt; </pre>
+</DL>
+<p>
+With a conventional XML tree, processing this requires space
+linearly proportional to the size of all the
+<code>&lt;entry&gt;</code> elements. With normal iterators and
+a lazy tree, this requires space linearly proportional to all
+previously processed <code>&lt;entry&gt;</code> elements (as
+future elements are only read on demand.) With consuming
+iterators and a lazy tree, processing only requires space
+proportional to the size of a single <code>&lt;entry&gt;</code>
+element, as previously processed <code>&lt;entry&gt;</code>s
+have been forgotten.
+<p>
+<p>
+<p>
+A secondary benefit to consuming iterators is that they may
+reduce CPU usage a small amount. The Lua 5.0 garbage collector
+does not have to work as hard during collections when less live
+data is present. (??? reread the GC algorithm to make sure this
+is true, have timing numbers though.)
+<p>
+<p>
+<p>
+What is really going on here is that iterators provide an
+event-based interface to tables. Consuming iterators provide
+many of the same benefits as pure event-based XML parsers, while
+allowing you to fluidly switch back and forth to a tree-based
+API when that makes sense. 
+<p>
+<p>
+<p>
+One concrete example is XML-RPC <code>&lt;value&gt;</code>
+nodes. If they contain an element such as
+<code>&lt;integer&gt;</code>, that's the value of the
+<code>&lt;value&gt;</code> node. Otherwise, the character data
+content of the <code>&lt;value&gt;</code> element is a
+string-typed value. The code to process the element must
+potentially look ahead an arbitrary number of initial character
+data nodes to find out whether there is an element lurking
+inside, or it must default to string content. An event-based
+strategy can treat the list of children of an element as an
+arbitrary-length lookahead buffer.
+<p>
+<p>
+<H2>Usage hints</H2>
+<p>
+It is always safe to replace a consuming iterator with a
+non-consuming iterator; the only consequence may be memory
+exhaustion when processing huge documents.
+<p>
+<p>
+<p>
+It makes the most sense to use a consuming iterator only as the
+last step in processing a tree. Because of how lazy XML trees
+work, it is not an error to touch child nodes before calling a
+consuming iterator.
+<p>
+<p>
+<p>
+When recursively processing elements, you should only call a
+consuming iterator if you know your caller no longer cares about
+its contents. A rule of thumb is to only call a consuming
+iterator inside another consuming iterator.
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ConsumingXml" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ConsumingXml" >history</a><br>Last edited February 28, 2004 11:34 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ConsumingXml" >(diff)</a>
+</body>
+</html>

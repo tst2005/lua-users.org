@@ -1,0 +1,342 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Package System</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PackageSystem&amp;body=1" title="List pages referring to PackageSystem">Package System</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em><a href="../wiki/VersionNotice.html" >VersionNotice</a>: This page is a bit outdated.  It's a initial proposal for a module system implemented on top of Lua 5.0, which lacked a standard module system.  A standard module system was formally incorporated in Lua 5.1, and that module system was also backported to Lua 5.0 via  <a href="http://www.keplerproject.org/compat/">[LuaCompat]</a>.  I'm not sure if this page has any remaining educational value.  If it does have remaining value, it probably could be described or reworked in light of the 5.1 module work.</em>
+<p>
+This is an embryonic package system for Lua 5. Its main function is
+<DL>
+<dt><dd><pre class="code">
+use <span class="string">"packagename"</span> {options}
+
+</pre>
+
+</DL>
+(where <code> {options} </code> is optional ;-)  That call is similar to
+a <code>require</code>, except that
+<p>
+<UL>
+<li> the package is loaded in a new namespace (which has the same name as the package);
+<li> if the package defines an <code>_init</code> function, it is run;
+<li> if there are options, the package <code>_options</code> function or a default options function is called to handle options.
+</UL>
+<p>
+Currently, the current option function handles only the <code>import</code> option.
+<code>import="*"</code> means to declare all global names of the package into
+the global space of the importing package;
+<code>import={"name1", "name2", ...} </code> imports only the selected names.
+<p>
+It also defines a <code>declare ("name1", "name2", ...)</code> function,
+that turns on enforcing declaration of names, and also declares the
+given names.
+Any access to an undefined/undeclared global raises an error.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--</span>
+
+<span class="comment">-- auxiliar error function</span>
+
+<span class="comment">--</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> <span class="library">error</span> (level, fmt, ...)
+
+  <span class="library">_G</span>.error(<span class="library">string.format</span>(fmt, <span class="library">unpack</span>(arg)), level+1)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">--</span>
+
+<span class="comment">-- this package cannot use the package system (itself!), so use old</span>
+
+<span class="comment">-- package tricks (but most of its functions are global anyway...)</span>
+
+<span class="comment">--</span>
+
+
+
+<span class="library">_G</span>.Package = {}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> loadfrompath (packname)
+
+  LUA_PATH = LUA_PATH <span class="keyword">or</span> <span class="library">os.getenv</span><span class="string">"LUA_PATH"</span> <span class="keyword">or</span> <span class="string">"?.lua;?"</span>
+
+  <span class="keyword">for</span> k <span class="keyword">in</span> <span class="library">string.gfind</span>(LUA_PATH, <span class="string">"[^;]+"</span>) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> fname = <span class="library">string.gsub</span>(k, <span class="string">"?"</span>, packname)
+
+    <span class="keyword">local</span> f, err = <span class="library">loadfile</span>(fname)
+
+    <span class="keyword">if</span> f <span class="keyword">then</span> <span class="keyword">return</span> f <span class="keyword">end</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> <span class="library">string.find</span>(err, <span class="string">"^cannot read"</span>) <span class="keyword">then</span>
+
+      <span class="library">error</span>(err)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="library">error</span>(3, <span class="string">"cannot find package `%s' in path `%s'"</span>, packname, LUA_PATH)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">--</span>
+
+<span class="comment">-- Metatable for Global tables</span>
+
+<span class="comment">-- Inherit absent fields from main global</span>
+
+<span class="comment">--</span>
+
+
+
+<span class="keyword">local</span> global_mt = {
+
+  __index = <span class="keyword">function</span> (t,n)
+
+              <span class="keyword">local</span> val = <span class="library">_G</span>[n]   <span class="comment">-- get value from main global</span>
+
+              <span class="library">rawset</span>(t, n, val)   <span class="comment">-- save it for next time</span>
+
+              <span class="keyword">return</span> val
+
+            <span class="keyword">end</span>,
+
+}
+
+
+
+
+
+<span class="comment">--</span>
+
+<span class="comment">-- Alternative metatable, that enforces declarations</span>
+
+<span class="comment">--</span>
+
+
+
+<span class="keyword">local</span> Predefined = {}      <span class="comment">-- table for predefined variables</span>
+
+setmode(Predefined, <span class="string">"k"</span>)
+
+
+
+<span class="keyword">local</span> req_global_mt = {
+
+  __index = <span class="keyword">function</span> (t,n)
+
+               <span class="keyword">local</span> val = global_mt.__index(t, n)
+
+               <span class="keyword">if</span> val <span class="keyword">then</span> <span class="keyword">return</span> val <span class="keyword">end</span>
+
+               <span class="keyword">if</span> <span class="keyword">not</span> Predefined[t][n] <span class="keyword">then</span>
+
+                 <span class="library">error</span>(2, <span class="string">"attempt to read undeclared variable `%s'"</span>, n)
+
+               <span class="keyword">end</span>
+
+               <span class="keyword">return</span> <span class="keyword">nil</span>
+
+             <span class="keyword">end</span>,
+
+
+
+   __newindex = <span class="keyword">function</span> (t,n, val)
+
+                 <span class="keyword">if</span> <span class="keyword">not</span> Predefined[t][n] <span class="keyword">then</span>
+
+                   <span class="library">error</span>(2, <span class="string">"attempt to write to undeclared variable `%s'"</span>, n)
+
+                 <span class="keyword">end</span>
+
+                 <span class="library">rawset</span>(t, n, val)
+
+               <span class="keyword">end</span>,
+
+}
+
+
+
+
+
+<span class="comment">--</span>
+
+<span class="comment">-- Declare variables (and turn on declaration enforcing)</span>
+
+<span class="comment">--</span>
+
+
+
+<span class="keyword">function</span> <span class="library">_G</span>.declare (...)
+
+  <span class="keyword">local</span> predec = Predefined[getglobals(2)]
+
+  <span class="keyword">if</span> predec == <span class="keyword">nil</span> <span class="keyword">then</span>   <span class="comment">-- package didn't enforce declarations</span>
+
+    <span class="keyword">local</span> g = getglobals(2)  <span class="comment">-- get package global table</span>
+
+    <span class="library">setmetatable</span>(g, req_global_mt)
+
+    predec = {}
+
+    Predefined[g] = predec
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">for</span> _, name <span class="keyword">in</span> <span class="library">ipairs</span>(arg) <span class="keyword">do</span>
+
+    predec[name] = <span class="keyword">true</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">--</span>
+
+<span class="comment">-- Default function to handle `use' options</span>
+
+<span class="comment">-- (where `oldpack' is using `newpack')</span>
+
+<span class="comment">--</span>
+
+
+
+<span class="keyword">function</span> Package.defaultoptions (oldpack, newpack, options)
+
+  <span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">pairs</span>(options) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> k == <span class="string">"version"</span> <span class="keyword">then</span>
+
+      <span class="comment">-- ???</span>
+
+    <span class="keyword">elseif</span> k == <span class="string">"import"</span> <span class="keyword">then</span>
+
+      <span class="keyword">if</span> v == <span class="string">"*"</span> <span class="keyword">then</span>   <span class="comment">-- import all?</span>
+
+        <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(newpack) <span class="keyword">do</span>
+
+          <span class="comment">-- do not import names starting with `_'</span>
+
+          <span class="keyword">if</span> <span class="keyword">not</span> <span class="library">string.find</span>(k, <span class="string">"^_"</span>) <span class="keyword">then</span> oldpack[k] = v <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">elseif</span> <span class="library">type</span>(v) == <span class="string">"table"</span> <span class="keyword">then</span>  <span class="comment">-- import list?</span>
+
+        <span class="keyword">for</span> _,n <span class="keyword">in</span> <span class="library">ipairs</span>(v) <span class="keyword">do</span> oldpack[n] = newpack[n] <span class="keyword">end</span>
+
+      <span class="keyword">else</span> <span class="library">error</span>(3, <span class="string">"invalid value for `import' option"</span>)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">else</span> <span class="library">error</span>(3, <span class="string">"invalid option `"</span>..k..<span class="string">"'"</span>)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">--</span>
+
+<span class="comment">-- Import a package, initialize it, and install it in current package</span>
+
+<span class="comment">--</span>
+
+
+
+<span class="keyword">function</span> <span class="library">_G</span>.use (packname)
+
+  <span class="keyword">local</span> g = <span class="library">_G</span>[packname]
+
+  <span class="keyword">if</span> <span class="keyword">not</span> g <span class="keyword">then</span>
+
+    <span class="keyword">local</span> f = loadfrompath(packname)
+
+    g = {_name = packname}   <span class="comment">-- new global table</span>
+
+    g._self = g
+
+    <span class="library">_G</span>[packname] = g
+
+    <span class="library">setmetatable</span>(g, global_mt)
+
+    setglobals(f, g)  <span class="comment">-- change global table of calling function</span>
+
+    f()   <span class="comment">-- run main</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> init = <span class="library">rawget</span>(g, <span class="string">"_init"</span>)
+
+  <span class="keyword">if</span> init <span class="keyword">then</span> init(getglobals(2)) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">function</span> (options)
+
+    (<span class="library">rawget</span>(g, <span class="string">"_options"</span>) <span class="keyword">or</span> Package.defaultoptions)(getglobals(2), g, options)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+<p>
+<p>
+<p>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PackageSystem" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PackageSystem" >history</a><br>Last edited January 2, 2007 4:36 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PackageSystem" >(diff)</a>
+</body>
+</html>

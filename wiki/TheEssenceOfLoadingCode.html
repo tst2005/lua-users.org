@@ -1,0 +1,55 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: The Essence Of Loading Code</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TheEssenceOfLoadingCode&amp;body=1" title="List pages referring to TheEssenceOfLoadingCode">The Essence Of Loading Code</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+There are various ways to load external code in Lua.  The relationship between these is outlined here.
+<p>
+The <code>loadstring</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-loadstring">[1]</a> function instantiates a Lua function from the specified string of either compiled Lua bytecode or Lua source code that <code>loadstring</code> compiles into Lua bytecode.  There are a few related functions.  The <code>loadfile</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-loadfile">[2]</a> function is similar but instead obtains its code from a file at the given file system path.  <code>loadstring</code> and <code>loadfile</code> are both higher-level functions implemented in terms of the lower-level code of the <code>load</code> function.  The <code>load</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-load">[3]</a> function instantiates a Lua function from the concatenation of zero or more substrings obtained piecemeal.  <code>load</code> can be more efficient that <code>loadstring</code> when the code is large and read piecemeal, such as when a file is read in chunks, because it doesn't necessarily store the entire source code string in memory but rather only bytecodes.
+<p>
+<code>dofile</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-dofile">[4]</a> does what <code>loadfile</code> does plus executes the function.
+<p>
+The <code>package.loadlib</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-package.loadlib">[5]</a> function instantiates a Lua function that wraps the native code with the specified symbol name of the specified dynamically loaded shared library <a href="http://en.wikipedia.org/wiki/Dynamic_loading.html">[6]</a> (relative paths are searched in an OS-specific way <a href="http://en.wikipedia.org/wiki/Dynamic_loading.html">[6]</a><a href="http://linux.die.net/man/3/dlopen">[7]</a><a href="http://msdn.microsoft.com/en-us/library/ms682586(VS.85).aspx">[8]</a>).  This particularly permits dynamic loading of non-Lua code at runtime.
+<p>
+<code>package.loaders</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-package.loaders">[9]</a> is an array of <em>searcher functions</em> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-package.loaders">[9]</a> (perhaps it should have been named package.searchers <a href="/lists/lua-l/2007-10/msg00266.html">[15]</a>).  Each of these may be used to attempt to instantiate a Lua function from some location identified by the <em>package name</em> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-module">[10]</a> provided to the searcher function.  One of these searcher functions is implemented in terms of <code>loadfile</code>.  Two others of these are implemented in terms of <code>package.loadlib</code>.  Another uses neither but returns Lua functions pre-cached in memory.  You may add your own searchers as well (e.g. load from ZIP file or download from web).
+<p>
+The mapping of package name to file system path is only possible for chunks stored in the file system.  This is defined via the <code>package.path</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-package.path">[11]</a> and <code>package.cpath</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-package.cpath">[12]</a> variables.  This mapping is expected to be exposed in <a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a> as the function <code>package.searchpath</code>.  In general, the package name need not have the convention form (e.g. it could be a URL or a GUID), as long as some searcher understands it.
+<p>
+The <code>require</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-require">[13]</a> function returns the value cached in the <code>package.loaded</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-package.loaded">[14]</a> table with the specified package name as key.  If the value doesn't exist, it obtains the module's loader function returned by calling the searcher functions in <code>package.loaders</code> in succession, invokes the loader function while passing it the package name as an argument, caches the return value in <code>package.loaded</code>, and returns that value.
+<p>
+Note that module loading is a special case of loading functions.  One could use <code>package.loaders</code> to load code that is not intended to be used in the sense of a Lua module.  The <code>require</code> function also does not necessitate the use the <code>module</code> function, even for modules.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> "Chapter 28: Interpreted C Modules" in Lua Programming Gems (see <a href="../wiki/LuaBooks.html" >LuaBooks</a>) by <a href="../wiki/JeromeVuarand.html" >JeromeVuarand</a> describes the basic operation of the <code>require</code> function, implements a custom searcher (libtcc), and identifies various other searchers that could be implemented.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TheEssenceOfLoadingCode" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TheEssenceOfLoadingCode" >history</a><br>Last edited May 2, 2009 1:33 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TheEssenceOfLoadingCode" >(diff)</a>
+</body>
+</html>

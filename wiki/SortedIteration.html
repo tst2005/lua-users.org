@@ -1,0 +1,818 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Sorted Iteration</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SortedIteration&amp;body=1" title="List pages referring to SortedIteration">Sorted Iteration</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following code allows you to iterate in the sorted sequence of the keys of the table. The algorithm used is <code>table.sort()</code> with the default function. Using a custom sort algorithm is trivial--just modify the __genOrderedIndex.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--[[
+
+Ordered table iterator, allow to iterate on the natural order of the keys of a
+
+table.
+
+
+
+Example:
+
+]]</span>
+
+
+
+<span class="keyword">function</span> __genOrderedIndex( t )
+
+    <span class="keyword">local</span> orderedIndex = {}
+
+    <span class="keyword">for</span> key <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+        <span class="library">table.insert</span>( orderedIndex, key )
+
+    <span class="keyword">end</span>
+
+    <span class="library">table.sort</span>( orderedIndex )
+
+    <span class="keyword">return</span> orderedIndex
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> orderedNext(t, state)
+
+    <span class="comment">-- Equivalent of the next function, but returns the keys in the alphabetic</span>
+
+    <span class="comment">-- order. We use a temporary ordered key table that is stored in the</span>
+
+    <span class="comment">-- table being iterated.</span>
+
+
+
+    <span class="comment">--print("orderedNext: state = "..tostring(state) )</span>
+
+    <span class="keyword">if</span> state == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+        <span class="comment">-- the first time, generate the index</span>
+
+        t.__orderedIndex = __genOrderedIndex( t )
+
+        key = t.__orderedIndex[1]
+
+        <span class="keyword">return</span> key, t[key]
+
+    <span class="keyword">end</span>
+
+    <span class="comment">-- fetch the next value</span>
+
+    key = <span class="keyword">nil</span>
+
+    <span class="keyword">for</span> i = 1,<span class="library">table.getn</span>(t.__orderedIndex) <span class="keyword">do</span>
+
+        <span class="keyword">if</span> t.__orderedIndex[i] == state <span class="keyword">then</span>
+
+            key = t.__orderedIndex[i+1]
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">if</span> key <span class="keyword">then</span>
+
+        <span class="keyword">return</span> key, t[key]
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- no more value to return, cleanup</span>
+
+    t.__orderedIndex = <span class="keyword">nil</span>
+
+    <span class="keyword">return</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> orderedPairs(t)
+
+    <span class="comment">-- Equivalent of the pairs() function on tables. Allows to iterate</span>
+
+    <span class="comment">-- in order</span>
+
+    <span class="keyword">return</span> orderedNext, t, <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+t = {
+
+    [<span class="string">'a'</span>] = <span class="string">'xxx'</span>,
+
+    [<span class="string">'b'</span>] = <span class="string">'xxx'</span>,
+
+    [<span class="string">'c'</span>] = <span class="string">'xxx'</span>,
+
+    [<span class="string">'d'</span>] = <span class="string">'xxx'</span>,
+
+    [<span class="string">'e'</span>] = <span class="string">'xxx'</span>,
+
+}
+
+
+
+<span class="library">print</span>(<span class="string">"Normal iterating with pairs"</span>)
+
+<span class="keyword">for</span> key, val <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+    <span class="library">print</span>(key..<span class="string">" : "</span>..val)
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span>(<span class="string">"Ordered iterating"</span>)
+
+<span class="keyword">for</span> key, val <span class="keyword">in</span> orderedPairs(t) <span class="keyword">do</span>
+
+    <span class="library">print</span>(key..<span class="string">" : "</span>..val)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--[[ Result:
+
+Normal iterating with pairs
+
+a : xxx
+
+c : xxx
+
+b : xxx
+
+e : xxx
+
+d : xxx
+
+Ordered iterating
+
+a : xxx
+
+b : xxx
+
+c : xxx
+
+d : xxx
+
+e : xxx
+
+]]</span>
+
+</pre>
+
+</DL>
+<p>
+There is also a compressed version, but it will replace pairs with orderedPairs.
+<pre class="code">
+_10=<span class="library">pairs</span> <span class="keyword">function</span> _1(_6)<span class="keyword">local</span> _2={}<span class="keyword">for</span> _4 <span class="keyword">in</span> _10(_6)<span class="keyword">do</span> <span class="library">table.insert</span>(_2,_4)<span class="keyword">end</span> <span class="library">table.sort</span>(_2)<span class="keyword">return</span> _2 <span class="keyword">end</span> <span class="keyword">function</span> _3(_6,_5)<span class="keyword">if</span> _5==<span class="keyword">nil</span> <span class="keyword">then</span> _6._7=_1(_6)_4=_6._7[1]<span class="keyword">return</span> _4,_6[_4]<span class="keyword">end</span> _4=<span class="keyword">nil</span> <span class="keyword">for</span> _8 = 1,<span class="library">table.getn</span>(_6._7)<span class="keyword">do</span> <span class="keyword">if</span> _6._7[_8]==_5 <span class="keyword">then</span> _4=_6._7[_8+1]<span class="keyword">end</span> <span class="keyword">end</span> <span class="keyword">if</span> _4 <span class="keyword">then</span> <span class="keyword">return</span> _4,_6[_4]<span class="keyword">end</span> _6._7=<span class="keyword">nil</span> <span class="keyword">return</span> <span class="keyword">end</span> <span class="keyword">function</span> _9(_6)<span class="keyword">return</span> _3,_6,<span class="keyword">nil</span> <span class="keyword">end</span> <span class="library">pairs</span>=_9
+
+</pre>
+
+<p>
+<H3>Comparison function for mixed table</H3>
+<p>
+When multiple type of key exists in a table, you can use the following comparison function:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> cmp_multitype(op1, op2)
+
+    <span class="keyword">local</span> type1, type2 = <span class="library">type</span>(op1), <span class="library">type</span>(op2)
+
+    <span class="keyword">if</span> type1 ~= type2 <span class="keyword">then</span> <span class="comment">--cmp by type</span>
+
+        <span class="keyword">return</span> type1 &lt; type2
+
+    <span class="keyword">elseif</span> type1 == <span class="string">"number"</span> <span class="keyword">and</span> type2 == <span class="string">"number"</span>
+
+        <span class="keyword">or</span> type1 == <span class="string">"string"</span> <span class="keyword">and</span> type2 == <span class="string">"string"</span> <span class="keyword">then</span>
+
+        <span class="keyword">return</span> op1 &lt; op2 <span class="comment">--comp by default</span>
+
+    <span class="keyword">elseif</span> type1 == <span class="string">"boolean"</span> <span class="keyword">and</span> type2 == <span class="string">"boolean"</span> <span class="keyword">then</span>
+
+        <span class="keyword">return</span> op1 == <span class="keyword">true</span>
+
+    <span class="keyword">else</span>
+
+        <span class="keyword">return</span> <span class="library">tostring</span>(op1) &lt; <span class="library">tostring</span>(op2) <span class="comment">--cmp by address</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> __genOrderedIndex( t )
+
+    <span class="keyword">local</span> orderedIndex = {}
+
+    <span class="keyword">for</span> key <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+        <span class="library">table.insert</span>( orderedIndex, key )
+
+    <span class="keyword">end</span>
+
+    <span class="library">table.sort</span>( orderedIndex, cmp_multitype ) <span class="comment">--### CANGE ###</span>
+
+    <span class="keyword">return</span> orderedIndex
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+t = { b=<span class="string">"xxx"</span>, a=<span class="string">"xxx"</span>, 100, [-5]=100 }
+
+
+
+<span class="library">print</span>(<span class="string">"Ordered iterating"</span>)
+
+<span class="keyword">for</span> key, val <span class="keyword">in</span> orderedPairs(t) <span class="keyword">do</span>
+
+    <span class="library">print</span>(key..<span class="string">" : "</span>..val)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--[[ Result:
+
+Ordered iterating
+
+-5 : 100
+
+1 : 100
+
+a : xxx
+
+b : xxx
+
+]]</span>
+
+</pre>
+
+</DL>
+<p>
+Alternate Implementation (by BobC, Lua newbie, using wxLua 2.6.3):
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--------------------------------------</span>
+
+<span class="comment">-- Insert value of any type into array</span>
+
+<span class="comment">--------------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> arrayInsert( ary, val, idx )
+
+    <span class="comment">-- Needed because table.insert has issues</span>
+
+    <span class="comment">-- An "array" is a table indexed by sequential</span>
+
+    <span class="comment">-- positive integers (no empty slots)</span>
+
+    <span class="keyword">local</span> lastUsed = #ary + 1
+
+    <span class="keyword">local</span> nextAvail = lastUsed + 1
+
+
+
+    <span class="comment">-- Determine correct index value</span>
+
+    <span class="keyword">local</span> index = <span class="library">tonumber</span>(idx) <span class="comment">-- Don't use idx after this line!</span>
+
+    <span class="keyword">if</span> (index == <span class="keyword">nil</span>) <span class="keyword">or</span> (index &gt; nextAvail) <span class="keyword">then</span>
+
+        index = nextAvail
+
+    <span class="keyword">elseif</span> (index &lt; 1) <span class="keyword">then</span>
+
+        index = 1
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- Insert the value</span>
+
+    <span class="keyword">if</span> ary[index] == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+        ary[index] = val
+
+    <span class="keyword">else</span>
+
+        <span class="comment">-- TBD: Should we try to allow for skipped indices?</span>
+
+        <span class="keyword">for</span> j = nextAvail,index,-1 <span class="keyword">do</span>
+
+            ary[j] = ary[j-1]
+
+        <span class="keyword">end</span>
+
+        ary[index] = val
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--------------------------------</span>
+
+<span class="comment">-- Compare two items of any type</span>
+
+<span class="comment">--------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> compareAnyTypes( op1, op2 ) <span class="comment">-- Return the comparison result</span>
+
+    <span class="comment">-- Inspired by http://lua-users.org/wiki/SortedIteration</span>
+
+    <span class="keyword">local</span> type1, type2 = <span class="library">type</span>(op1),     <span class="library">type</span>(op2)
+
+    <span class="keyword">local</span> num1,  num2  = <span class="library">tonumber</span>(op1), <span class="library">tonumber</span>(op2)
+
+    
+
+    <span class="keyword">if</span> ( num1 ~= <span class="keyword">nil</span>) <span class="keyword">and</span> (num2 ~= <span class="keyword">nil</span>) <span class="keyword">then</span>  <span class="comment">-- Number or numeric string</span>
+
+        <span class="keyword">return</span>  num1 &lt; num2                     <span class="comment">-- Numeric compare</span>
+
+    <span class="keyword">elseif</span> type1 ~= type2 <span class="keyword">then</span>                <span class="comment">-- Different types</span>
+
+        <span class="keyword">return</span> type1 &lt; type2                    <span class="comment">-- String compare of type name</span>
+
+    <span class="comment">-- From here on, types are known to match (need only single compare)</span>
+
+    <span class="keyword">elseif</span> type1 == <span class="string">"string"</span>  <span class="keyword">then</span>            <span class="comment">-- Non-numeric string</span>
+
+        <span class="keyword">return</span> op1 &lt; op2                        <span class="comment">-- Default compare</span>
+
+    <span class="keyword">elseif</span> type1 == <span class="string">"boolean"</span> <span class="keyword">then</span>
+
+        <span class="keyword">return</span> op1                              <span class="comment">-- No compare needed!</span>
+
+         <span class="comment">-- Handled above: number, string, boolean</span>
+
+    <span class="keyword">else</span> <span class="comment">-- What's left:   function, table, thread, userdata</span>
+
+        <span class="keyword">return</span> <span class="library">tostring</span>(op1) &lt; <span class="library">tostring</span>(op2)  <span class="comment">-- String representation</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-------------------------------------------</span>
+
+<span class="comment">-- Iterate over a table in sorted key order</span>
+
+<span class="comment">-------------------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> pairsByKeys (tbl, func)
+
+    <span class="comment">-- Inspired by http://www.lua.org/pil/19.3.html</span>
+
+    <span class="comment">-- and http://lua-users.org/wiki/SortedIteration</span>
+
+
+
+    <span class="keyword">if</span> func == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+        func = compareAnyTypes
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- Build a sorted array of the keys from the passed table</span>
+
+    <span class="comment">-- Use an insertion sort, since table.sort fails on non-numeric keys</span>
+
+    <span class="keyword">local</span> ary = {}
+
+    <span class="keyword">local</span> lastUsed = 0
+
+    <span class="keyword">for</span> key <span class="comment">--[[, val--]]</span> <span class="keyword">in</span> <span class="library">pairs</span>(tbl) <span class="keyword">do</span>
+
+        <span class="keyword">if</span> (lastUsed == 0) <span class="keyword">then</span>
+
+            ary[1] = key
+
+        <span class="keyword">else</span>
+
+            <span class="keyword">local</span> done = <span class="keyword">false</span>
+
+            <span class="keyword">for</span> j=1,lastUsed <span class="keyword">do</span>  <span class="comment">-- Do an insertion sort</span>
+
+                <span class="keyword">if</span> (func(key, ary[j]) == <span class="keyword">true</span>) <span class="keyword">then</span>
+
+                    arrayInsert( ary, key, j )
+
+                    done = <span class="keyword">true</span>
+
+                    <span class="keyword">break</span>
+
+                <span class="keyword">end</span>
+
+            <span class="keyword">end</span>
+
+            <span class="keyword">if</span> (done == <span class="keyword">false</span>) <span class="keyword">then</span>
+
+                ary[lastUsed + 1] = key
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+        lastUsed = lastUsed + 1
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- Define (and return) the iterator function</span>
+
+    <span class="keyword">local</span> i = 0                <span class="comment">-- iterator variable</span>
+
+    <span class="keyword">local</span> iter = <span class="keyword">function</span> ()   <span class="comment">-- iterator function</span>
+
+        i = i + 1
+
+        <span class="keyword">if</span> ary[i] == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+            <span class="keyword">return</span> <span class="keyword">nil</span>
+
+        <span class="keyword">else</span>
+
+            <span class="keyword">return</span> ary[i], tbl[ary[i]]
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> iter
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+For testing, here's a generic table pretty-printer:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">---------------------------------------------</span>
+
+<span class="comment">-- Return indentation string for passed level</span>
+
+<span class="comment">---------------------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> tabs(i)
+
+    <span class="keyword">return</span> <span class="library">string.rep</span>(<span class="string">"."</span>,i)..<span class="string">" "</span>   <span class="comment">-- Dots followed by a space</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-----------------------------------------------------------</span>
+
+<span class="comment">-- Return string representation of parameter's value &amp; type</span>
+
+<span class="comment">-----------------------------------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> toStrType(t)
+
+    <span class="keyword">local</span> <span class="keyword">function</span> fttu2hex(t) <span class="comment">-- Grab hex value from tostring() output</span>
+
+        <span class="keyword">local</span> str = <span class="library">tostring</span>(t);
+
+        <span class="keyword">if</span> str == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+            <span class="keyword">return</span> <span class="string">"tostring() failure! \n"</span>
+
+        <span class="keyword">else</span>
+
+            <span class="keyword">local</span> str2 = <span class="library">string.match</span>(str,<span class="string">"[ :][ (](%x+)"</span>)
+
+            <span class="keyword">if</span> str2 == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+                <span class="keyword">return</span> <span class="string">"string.match() failure: "</span>..str..<span class="string">"\n"</span>
+
+            <span class="keyword">else</span>
+
+                <span class="keyword">return</span> <span class="string">"0x"</span>..str2
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="comment">-- Stringify a value of a given type using a table of functions keyed</span>
+
+    <span class="comment">-- by the name of the type (Lua's version of C's switch() statement).</span>
+
+    <span class="keyword">local</span> stringify = {
+
+        <span class="comment">-- Keys are all possible strings that type() may return,</span>
+
+        <span class="comment">-- per http://www.lua.org/manual/5.1/manual.html#pdf-type.</span>
+
+        [<span class="string">"nil"</span>]			= <span class="keyword">function</span>(v) <span class="keyword">return</span> <span class="string">"nil (nil)"</span>			    <span class="keyword">end</span>,
+
+        [<span class="string">"string"</span>]		= <span class="keyword">function</span>(v) <span class="keyword">return</span> <span class="string">'"'</span>..v..<span class="string">'" (string)'</span>	    <span class="keyword">end</span>,
+
+        [<span class="string">"number"</span>]		= <span class="keyword">function</span>(v) <span class="keyword">return</span> v..<span class="string">" (number)"</span>			    <span class="keyword">end</span>,
+
+        [<span class="string">"boolean"</span>]		= <span class="keyword">function</span>(v) <span class="keyword">return</span> <span class="library">tostring</span>(v)..<span class="string">" (boolean)"</span>  <span class="keyword">end</span>,
+
+        [<span class="string">"function"</span>]	= <span class="keyword">function</span>(v) <span class="keyword">return</span> fttu2hex(v)..<span class="string">" (function)"</span> <span class="keyword">end</span>,
+
+        [<span class="string">"table"</span>]		= <span class="keyword">function</span>(v) <span class="keyword">return</span> fttu2hex(v)..<span class="string">" (table)"</span>	<span class="keyword">end</span>,
+
+        [<span class="string">"thread"</span>]		= <span class="keyword">function</span>(v) <span class="keyword">return</span> fttu2hex(v)..<span class="string">" (thread)"</span>	<span class="keyword">end</span>,
+
+        [<span class="string">"userdata"</span>]	= <span class="keyword">function</span>(v) <span class="keyword">return</span> fttu2hex(v)..<span class="string">" (userdata)"</span> <span class="keyword">end</span>
+
+    }
+
+    <span class="keyword">return</span> stringify[<span class="library">type</span>(t)](t)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-------------------------------------</span>
+
+<span class="comment">-- Count elements in the passed table</span>
+
+<span class="comment">-------------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> lenTable(t)		<span class="comment">-- What Lua builtin does this simple thing?</span>
+
+    <span class="keyword">local</span> n=0                   <span class="comment">-- '#' doesn't work with mixed key types</span>
+
+    <span class="keyword">if</span> (<span class="string">"table"</span> == <span class="library">type</span>(t)) <span class="keyword">then</span>
+
+        <span class="keyword">for</span> key <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>  <span class="comment">-- Just count 'em</span>
+
+            n = n + 1
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> n
+
+    <span class="keyword">else</span>
+
+        <span class="keyword">return</span> <span class="keyword">nil</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--------------------------------</span>
+
+<span class="comment">-- Pretty-print the passed table</span>
+
+<span class="comment">--------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> do_dumptable(t, indent, seen)
+
+    <span class="comment">-- "seen" is an initially empty table used to track all tables</span>
+
+    <span class="comment">-- that have been dumped so far.  No table is dumped twice.</span>
+
+    <span class="comment">-- This also keeps the code from following self-referential loops,</span>
+
+    <span class="comment">-- the need for which was found when first dumping "_G".</span>
+
+    <span class="keyword">if</span> (<span class="string">"table"</span> == <span class="library">type</span>(t)) <span class="keyword">then</span>	<span class="comment">-- Dump passed table</span>
+
+        seen[t] = 1
+
+        <span class="keyword">if</span> (indent == 0) <span class="keyword">then</span>
+
+            <span class="library">print</span> (<span class="string">"The passed table has "</span>..lenTable(t)..<span class="string">" entries:"</span>)
+
+            indent = 1
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">for</span> f,v <span class="keyword">in</span> pairsByKeys(t) <span class="keyword">do</span>
+
+            <span class="keyword">if</span> (<span class="string">"table"</span> == <span class="library">type</span>(v)) <span class="keyword">and</span> (seen[v] == <span class="keyword">nil</span>) <span class="keyword">then</span>    <span class="comment">-- Recurse</span>
+
+                <span class="library">print</span>( tabs(indent)..toStrType(f)..<span class="string">" has "</span>..lenTable(v)..<span class="string">" entries: {"</span>)
+
+                do_dumptable(v, indent+1, seen)
+
+                <span class="library">print</span>( tabs(indent)..<span class="string">"}"</span> )
+
+            <span class="keyword">else</span>
+
+                <span class="library">print</span>( tabs(indent)..toStrType(f)..<span class="string">" = "</span>..toStrType(v))
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">else</span>
+
+        <span class="library">print</span> (tabs(indent)..<span class="string">"Not a table!"</span>)
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--------------------------------</span>
+
+<span class="comment">-- Wrapper to handle persistence</span>
+
+<span class="comment">--------------------------------</span>
+
+<span class="keyword">function</span> dumptable(t)   <span class="comment">-- Only global declaration in the package</span>
+
+    <span class="comment">-- This wrapper exists only to set the environment for the first run:</span>
+
+    <span class="comment">-- The second param is the indentation level.</span>
+
+    <span class="comment">-- The third param is the list of tables dumped during this call.</span>
+
+    <span class="comment">-- Getting this list allocated and freed was a pain, and this</span>
+
+    <span class="comment">-- wrapper was the best solution I came up with...</span>
+
+    <span class="keyword">return</span> do_dumptable(t, 0, {})
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+Finally, some test cases:
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- The Whole Enchillada</span>
+
+<span class="library">print</span>(<span class="string">"\ndumptable(_G="</span>, <span class="library">_G</span>, <span class="string">"):"</span>)
+
+dumptable(<span class="library">_G</span>)
+
+
+
+<span class="comment">-- Empty table --</span>
+
+<span class="library">print</span>(<span class="string">"\ndumptable({}):"</span>)
+
+dumptable({})
+
+
+
+<span class="comment">-- Confusing table --</span>
+
+null={}
+
+null[0]=<span class="string">[[0]]</span>
+
+null[ <span class="string">[[0]]</span>]=0		<span class="comment">-- Space after first open bracket is required</span>
+
+null[{}]={}
+
+<span class="library">print</span>(<span class="string">"\ndumptable(null="</span>, null, <span class="string">"):"</span>)
+
+dumptable(null)
+
+
+
+<span class="comment">-- Module table --</span>
+
+<span class="library">print</span>(<span class="string">"\ndumptable(os="</span>, <span class="library">os</span>, <span class="string">"):"</span>)
+
+dumptable(<span class="library">os</span>)
+
+</pre>
+
+</DL>
+With results:
+<DL>
+<dt><dd><pre>
+
+dumptable(_G=	table: 00324F88	):
+
+The passed table has 41 entries:
+
+ &lt; WAY too long - snipped &gt;
+
+
+
+dumptable({}):
+
+The passed table has 0 entries:
+
+
+
+dumptable(null=	table: 00413F90	):
+
+The passed table has 3 entries:
+
+. 0 (number) = "0" (string)
+
+. "0" (string) = 0 (number)
+
+. 0x00413FB8 (table) has 0 entries: {
+
+. }
+
+
+
+dumptable(os=	table: 00327F60	):
+
+The passed table has 11 entries:
+
+. "clock" (string) = 0x00328190 (function)
+
+. "date" (string) = 0x003281D0 (function)
+
+. "difftime" (string) = 0x00328210 (function)
+
+. "execute" (string) = 0x00328660 (function)
+
+. "exit" (string) = 0x003286A0 (function)
+
+. "getenv" (string) = 0x003286E0 (function)
+
+. "remove" (string) = 0x00328720 (function)
+
+. "rename" (string) = 0x00328740 (function)
+
+. "setlocale" (string) = 0x00328780 (function)
+
+. "time" (string) = 0x003287C8 (function)
+
+. "tmpname" (string) = 0x00328808 (function)
+
+
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SortedIteration" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SortedIteration" >history</a><br>Last edited February 11, 2010 2:25 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SortedIteration" >(diff)</a>
+</body>
+</html>

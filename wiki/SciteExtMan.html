@@ -1,0 +1,494 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Ext Man</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteExtMan&amp;body=1" title="List pages referring to SciteExtMan">Scite Ext Man</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Making Scripts Play Nicely Together</H3>
+<p>
+This latest version (2006-11-10) corrects a serious bug in the Linux version, and uses a more robust scheme to determine whether an entered line is in the editor or output pane. It also allows you to reload Lua scripts controlled by extman with 'Reload Script' (Ctrl+Shift+R). There are some extra examples included:
+* prompt.lua, which provides a simple interactive Lua prompt.
+* select_string.lua, which allows you to select the whole of a string (or a comment) with a double-click
+* select_block.lua, which allows you to select blocks by a margin click next to a fold line.
+<p>
+You can find extman at <a href="/files/wiki_insecure/editors/SciTE/extman.lua">Files:wiki_insecure/editors/SciTE/extman.lua</a>; the examples and code are in <a href="/files/wiki_insecure/editors/SciTE/extman.zip">Files:wiki_insecure/editors/SciTE/extman.zip</a>;  it is entirely written in Lua and works with any recent SciTE release.
+<p>
+The SciTE Lua interface is very powerful, but presently there is no way to make non-trivial scripts 'play nice' with each other.  Consider <a href="../wiki/SciteBufferSwitch.html" >SciteBufferSwitch</a>; the handlers <code>OnOpen</code>,<code>OnSwitchFile</code> and <code>OnUserListSelection</code> are all overriden to keep track of buffer changes and present a drop-down list of buffers.  Such a script would interfere with any other script that had a need to watch these events.
+<p>
+Using extman, this script looks like this (the function <code>buffer_switch</code> is the same)
+<p>
+<DL>
+<dt><dd><pre class="code">
+scite_OnOpen(buffer_switch)
+
+scite_OnSwitchFile(buffer_switch)
+
+
+
+scite_Command <span class="string">'Switch Buffer|do_buffer_list|Ctrl+J'</span>
+
+
+
+<span class="keyword">function</span> do_buffer_list()
+
+     scite_UserListShow(buffers,2,scite.Open)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+(The latest version of extman also provides <code>OnOpenSwitch</code>, which is called when a file is made active, either by opening or by switching buffers. Have a look at the <code>switch_buffers.lua</code> example)
+<p>
+Internally, extman keeps handler lists. For instance, <code>scite_OnOpen</code> will add a function to the list of handlers called by the <code>OnOpen</code> event.  It is now perfectly possible for another script to listen to the <code>OnOpen</code> event, without causing conflict.  In a similar fashion, there is <code>scite_OnChar</code>, <code>scite_OnSave</code>, etc - except for <code>OnUserListSelection</code>, which is handled differently.
+<p>
+<H3>Extended Events</H3>
+<p>
+In addition to the standard SciTE Lua events, extman provides <code>OnWord</code>, <code>OnEditorLine</code> and <code>OnOutputLine</code>. They are built on the basic events, and are included for convenience.
+<p>
+Here is the 'lazy' word substitution example rewritten for extman. The <code>OnWord</code> handler receives a table, which has fields <code>word</code>, <code>startp</code>, <code>endp</code>, <code>ch</code> which are respectively the word found, its initial position, the final position, and the character found immediately after the word.  
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> on_word(w)
+
+  <span class="keyword">local</span> subst = word_substitute(w.word)
+
+  <span class="keyword">if</span> subst ~= w.word <span class="keyword">then</span>
+
+         editor:SetSel(w.startp-1,w.endp-1)
+
+         <span class="keyword">local</span> was_whitespace = <span class="library">string.find</span>(w.ch,<span class="string">'%s'</span>)
+
+         <span class="keyword">if</span> was_whitespace <span class="keyword">then</span>
+
+            subst = subst..w.ch
+
+         <span class="keyword">end</span>
+
+         editor:ReplaceSel(subst)
+
+         <span class="keyword">local</span> word_end = editor.CurrentPos
+
+         <span class="keyword">if</span> <span class="keyword">not</span> was_whitespace <span class="keyword">then</span>
+
+            editor:GotoPos(word_end + 1)
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+<span class="keyword">end</span>  
+
+
+
+scite_OnWord(on_word)
+
+</pre>
+
+</DL>
+<p>
+<code>OnOutputLine</code> only fires when a line is typed into the output pane. Here is a simple but effective Lua console for SciTE:
+<p>
+<DL>
+<dt><dd><pre class="code">
+ <span class="keyword">local</span> prompt = <span class="string">'&gt; '</span>
+
+ <span class="library">print</span> <span class="string">'Scite/Lua'</span>
+
+ trace(prompt)
+
+  
+
+ scite_OnOutputLine (<span class="keyword">function</span> (line)
+
+   <span class="keyword">local</span> sub = <span class="library">string.sub</span>
+
+   <span class="keyword">if</span> sub(line,1,2) == prompt <span class="keyword">then</span>
+
+        line = sub(line,3)
+
+    <span class="keyword">end</span>	
+
+    <span class="keyword">if</span> sub(line,1,1) == <span class="string">'='</span> <span class="keyword">then</span>
+
+        line = <span class="string">'print('</span>..sub(line,2)..<span class="string">')'</span>
+
+    <span class="keyword">end</span>    
+
+    <span class="keyword">local</span> f,err = <span class="library">loadstring</span>(line,<span class="string">'local'</span>)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> f <span class="keyword">then</span> 
+
+      <span class="library">print</span>(err)
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">local</span> ok,res = <span class="library">pcall</span>(f)
+
+      <span class="keyword">if</span> ok <span class="keyword">then</span>
+
+         <span class="keyword">if</span> res <span class="keyword">then</span> <span class="library">print</span>(<span class="string">'result= '</span>..res) <span class="keyword">end</span>
+
+      <span class="keyword">else</span>
+
+         <span class="library">print</span>(res)
+
+      <span class="keyword">end</span>      
+
+    <span class="keyword">end</span>
+
+    trace(prompt)
+
+    <span class="keyword">return</span> <span class="keyword">true</span>
+
+<span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+<code>OnEditorLine</code> is a similar event, except it happens when the user enters a line in the editor pane. One key difference is that it never interferes with normal character processing. One could use it to keep track of any declarations typed, etc.  The following example is fairly strange, but shows how one can bind a shortcut followed by a letter to an operation.  
+<p>
+<DL>
+<dt><dd><pre class="code">
+ scite_Command <span class="string">'AltX|do_altx_commands|Alt+X'</span>
+
+
+
+ <span class="keyword">function</span> do_altx_commands()
+
+    editor:BeginUndoAction()
+
+    scite_OnChar(<span class="string">'once'</span>,<span class="keyword">function</span> (ch)
+
+       editor:EndUndoAction()
+
+       editor:Undo()
+
+       <span class="keyword">if</span> ch == <span class="string">'s'</span> <span class="keyword">then</span>
+
+          <span class="library">print</span>(<span class="string">'ess'</span>)
+
+       <span class="keyword">elseif</span> ch == <span class="string">'f'</span> <span class="keyword">then</span>
+
+          editor:BeginUndoAction()
+
+          scite_OnEditorLine(handle_line)
+
+        <span class="keyword">end</span>
+
+       <span class="keyword">return</span> <span class="keyword">true</span>
+
+    <span class="keyword">end</span>)
+
+  <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+After you type Alt+X, this function installs a run-once <code>OnChar</code> handler. It's only interested in 's' or 'f', but always 'eats up' the next character pressed. Emacs users may find such key combinations fairly natural, and they're probably easier to type than Alt+Ctrl+Shift combinations.  <code>OnChar</code> will not see special characters, so one is limited to letters and punctuation.  (My fingers still remember the Ctrl+Q followed by a digit to move to a marker in the Borland environments - see <a href="../wiki/SciteNumberedBookmarks.html" >SciteNumberedBookmarks</a>).
+<p>
+Alt+X followed by 'f' is meant to allow a user to enter a filename <em>in the buffer</em>! The filename is immediately removed by <code>editor:Undo</code> and the file opened.
+<p>
+<DL>
+<dt><dd><pre class="code">
+ <span class="keyword">local</span> <span class="keyword">function</span> handle_line(line)
+
+    editor:EndUndoAction()
+
+    editor:Undo()
+
+    scite_OnEditorLine(handle_line,<span class="string">'remove'</span>)
+
+    scite.Open(line)	  
+
+ <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Utility Functions</H3>
+<p>
+extman also supplies some useful utility functions. In some cases (like file access) they make up for missing functionality in the Lua library.  If (for instance) SciTE includes the lfs (Lua File System), then users can continue to use <code>scite_Files</code> even although the implementation changes.
+<p>
+<code>scite_UserListShow(list,start,fn)</code> is a simplified way to access Scintilla userlists - it will construct a properly separated string, etc.  You can specify a start index for the list - here I've used it to avoid showing the current buffer.
+<p>
+<code>scite_GetProp(key,default)</code> is a simple wrapper around the <code>props</code> pseudo-table.  If a property <code>key</code> doesn't exist, then <code>props[key]</code> returns an empty string, not nil; if <code>default</code> isn't specified, then this function will indeed return nil if the property doesn't exist.
+<p>
+<code>scite_Files(mask)</code> returns all the files in the supplied path+mask (e.g. "d:/downloads/scite_lua/*.lua" - forward slashes are accepted on Windows as well). If the <a href="../wiki/SciteOther.html" >SciteOther</a> library is found, then it will use the quiet <code>Execute</code>, otherwise <code>os.execute</code>.
+<p>
+<code>scite_FileExists(f)</code> returns true if the file can be opened for reading.
+<p>
+<code>scite_dofile(f)</code> is like <code>dofile</code>, except that it always loads files relative to SciTE's default home, and fails quietly.
+<p>
+<code>scite_Command(cmds)</code> is a very useful function for associating a Lua function with a Tools menu item and key shortcut.  You either pass it a string, or a list of strings; the string is of the form &lt;name&gt;|&lt;function&gt;|&lt;shortcut&gt;, where &lt;shortcut&gt; is optional.
+<p>
+<H3>Installation and Initialization</H3>
+<p>
+Unzip the files in your SciTE directory, remembering to preserve folder names. Extman is meant to be the main Lua startup script (you can of course put it somewhere else)
+<p>
+<DL>
+<dt><dd><pre>
+
+ext.lua.startup.script=$(SciteDefaultHome)/extman.lua
+
+</pre>
+</DL>
+<p>
+On startup, it will look for all files with a .lua extension inside the <code>scite_lua</code> directory, which by default is in the default home directory. You can force it elsewhere with <code>ext.lua.directory</code>.
+<p>
+These files will be loaded, so you should *not* put extman.lua in that directory! They will have a chance to call <code>scite_Command</code> to register their functions. They may well need other scripts loaded in advance, so <code>scite_require()</code> has been added.  If a file has been loaded explicitly with this function, then extman will consider it loaded.
+<p>
+<H3>Enabling Scripts to Optionally Use extman</H3>
+<p>
+The snippet of code below allows a Lua extension to optionally use extman for <code>OnChar</code>, enabling extman-capable scripts to still work without extman.
+<p>
+It first checks to see if a handler already exists. Next, if an extman function is missing, say <code>scite_OnChar</code>, a very simple replacement is created. Of course, this test for extman is not foolproof. The rest of the code can then utilize extman functions as if everything is normal. The simple <code>scite_OnChar</code> function can only handle one handler; anything much more complex and you might as well force the user to install extman.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">if</span> OnChar <span class="keyword">and</span> <span class="keyword">not</span> scite_OnChar <span class="keyword">then</span>
+
+  <span class="library">error</span>(<span class="string">"Please use extman if you want to run more than one handler"</span>)
+
+<span class="keyword">elseif</span> <span class="keyword">not</span> scite_OnChar <span class="keyword">then</span>
+
+  <span class="keyword">local</span> _OnChar
+
+  scite_OnChar = <span class="keyword">function</span>(f, remove)
+
+    <span class="keyword">if</span> remove <span class="keyword">then</span> _OnChar = <span class="keyword">nil</span> <span class="keyword">else</span> _OnChar = f <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  OnChar = <span class="keyword">function</span>(c) <span class="keyword">if</span> _OnChar <span class="keyword">then</span> <span class="keyword">return</span> _OnChar(c) <span class="keyword">end</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/SteveDonovan.html" >SteveDonovan</a>
+<p>
+<H2>User Comments</H2>
+<p>
+Extman is great, although I'd prefer if I could control where it generated the scite_temp1 file.  I usually create it once and comment out the generation code and then redirect extman to open the precreated file in the directory where the scite executable exists.
+<p>
+Was trying out the switch_headers.lua that comes with extman.zip using SciTE 1.74 and had some problems running.
+Had to change the following lines.
+From:
+<pre class="code">
+   <span class="keyword">for</span> i,v <span class="keyword">in</span> list <span class="keyword">do</span>
+
+</pre>
+
+To:
+<pre class="code">
+   <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">pairs</span>(list) <span class="keyword">do</span>
+
+</pre>
+
+and
+From:
+<pre class="code">
+   <span class="keyword">for</span> i,ext <span class="keyword">in</span> extensions <span class="keyword">do</span>
+
+</pre>
+
+To:
+<pre class="code">
+   <span class="keyword">for</span> i,ext <span class="keyword">in</span> <span class="library">pairs</span> (extensions) <span class="keyword">do</span>
+
+</pre>
+
+<p>
+<hr>Here's a patch (created using diff) for switch_buffers.lua to eliminate the Untitled tab (blank line in buffer list):
+<pre>
+
+9a10
+
+&gt;    if string.find(f,'[\\/]$') then return end
+
+11a13
+
+&gt;   if (f ~= "") then
+
+20a23
+
+&gt;   end
+
+30c33,35
+
+&lt;      scite_UserListShow(buffers,2,scite.Open)
+
+---
+
+&gt;    if (table.getn(buffers) &gt; 0) then
+
+&gt;      scite_UserListShow(buffers,1,scite.Open)
+
+&gt;    end
+
+</pre>
+<p>
+<hr>I ran into a problem on Windows where <code>scite_Files</code> matched both <code>test.lua</code> and <code>test.lua~</code> against <code>*.lua</code> and loaded both (the latter overriding the former).  The latter was a temporary backup copy saved by Emacs, and it took some time to determine why my edits to <code>test.lua</code> were being loaded but not having any effect.  Under Windows, I suggest using a <code>dir *.*</code> to match all files in a directory and then filtering the list using the <code>globtopattern</code> function in <a href="../wiki/FileGlob.html" >FileGlob</a>.
+<p>
+BTW, <a href="../wiki/SciteDebug.html" >SciteDebug</a> <a href="http://scitedebug.luaforge.net/">[1]</a> has a different implementation of <code>scite_Files</code> in extman.lua.  It calls <code>scite_Popen</code>, which selectively wraps either <code>spawner.popen</code> or <code>os.execute</code> depending on availability.  I'm not sure the full purpose of that, but it does avoid the DOS command window that momentarily may pop up when calling this function (at least when I tried it).  It may be useful for the two versions of extman.lua to be merged.  --<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+--
+In reply to the above comment on the other version of extman.lua, if I remember properly, spawner.popen uses a shared library (a dll on Windows).  It was created to handle the issue of the DOS command window opening and closing and the SciTE program losing focus in Windows because of it.  It still had a noticeable visual side-effect when running, but it is better than os.execute since focus isn't lost.  My personal preference is to generate scite_temp1 once whenever the number of scripts in my lua directory actually change and read the file directly.  That prevents having to shell out using either method and having some kind of visual disruption whenever I open SciTE.
+<p>
+Just ran a search for latest extman.lua code on the web and didn't realize there are now quite a few versions of it, some with major extensions.  It would be nice if someone coule put together a new wiki page with one version including the best of all those features or at least could add a link here to a version on the web somewhere that is the most up-to-date and works best with the most lua scripts. --(Lua User)
+<p>
+In my opinion, files should be manually included instead of including everything from a folder. This also removes the need of using spawner dll or viewing a temporary command prompt. For an example, you see my mini version of extman.lua in <a href="../wiki/SciteReadTags.html" >SciteReadTags</a>. --<a href="../wiki/ParsKorata.html" >ParsKorata</a>
+<hr><H3>Auto Continue Comments</H3>
+<p>
+Here is a script to, ... well, auto continue comments! 
+<p>
+Save it in the <strong>../scite_lua/</strong> folder as <strong>&lt;filename&gt;.lua</strong> and restart SciTE. (It should be platform independent!)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--auto_continue_comments.lua</span>
+
+
+
+<span class="comment">--determine correct eol marker (later) from this lookup table</span>
+
+<span class="keyword">local</span> eol_tbl = {[0]=<span class="string">"\r\n"</span>, [1]=<span class="string">"\r"</span>, [2]=<span class="string">"\n"</span>}
+
+
+
+<span class="keyword">function</span> auto_continue_comment(line)
+
+
+
+    <span class="comment">-- Multiline comment continue</span>
+
+    <span class="keyword">local</span> multi = line:match(<span class="string">"^(%s*)==%s*$"</span>)
+
+    <span class="keyword">if</span> multi <span class="keyword">then</span> <span class="comment">--line contains "==", start multiline comment</span>
+
+        <span class="keyword">local</span> eol = eol_tbl[editor.EOLMode]
+
+        editor:BeginUndoAction()
+
+            editor:LineUp()
+
+            editor:LineDelete()
+
+            editor:AddText(<span class="string">"--[=["</span> .. eol .. eol .. <span class="string">"--]=]"</span> .. eol)
+
+            editor:LineUp(); editor:LineUp()
+
+            editor:AddText(multi)
+
+        editor:EndUndoAction()
+
+
+
+    <span class="comment">-- block comment continue</span>
+
+    <span class="keyword">elseif</span> line:find(<span class="string">"^%s*%-%-%s*$"</span>) <span class="keyword">then</span> <span class="comment">--line is only '--', terminate comment</span>
+
+        editor:LineUp()
+
+        editor:LineDelete()
+
+    <span class="keyword">elseif</span> line:find(<span class="string">"^%s*%-%-"</span>) <span class="keyword">then</span> <span class="comment">--line is comment, auto continue it</span>
+
+        editor:AddText(<span class="string">"-- "</span>)
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">return</span> <span class="keyword">false</span> <span class="comment">--allow other methods to respond to event</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--register handler with extman</span>
+
+scite_OnEditorLine(auto_continue_comment)
+
+</pre>
+
+</DL>
+<p>
+Type '--' followed by text, hit enter and the '--' is already inserted on the next line! If you don't want it, just hit enter again and its gone! Type '==' and hit enter to create a multiline comment and put the caret inside! Thanks to SirAlaran<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SirAlaran" >?</a> for the inspiration. See below for a sample session. --<a href="../wiki/PeterMacDonald.html" >PeterMacDonald</a>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- &lt;- followed by text starts a block comment</span>
+
+<span class="comment">-- and it carries on until a line with only "--"</span>
+
+
+
+	<span class="comment">-- A tab or spaces before "-- some text", will</span>
+
+	<span class="comment">-- start an indented block comment, like this!</span>
+
+
+
+<span class="comment">--[=[
+
+Entering "==" on a line, like this:
+
+==
+
+will start a multiline comment, like this one!
+
+--]=]</span>
+
+
+
+<span class="comment">--[=[
+
+	A tab or spaces before the "==" will start
+
+	an indented multiline comment, like this!
+
+--]=]</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+<hr>(end user comments)
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteExtMan" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteExtMan" >history</a><br>Last edited November 15, 2012 6:37 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteExtMan" >(diff)</a>
+</body>
+</html>

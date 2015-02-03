@@ -1,0 +1,87 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Standard Libraries</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=StandardLibraries&amp;body=1" title="List pages referring to StandardLibraries">Standard Libraries</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+stdlib is a library of modules for common programming tasks, including list, table and functional operations, regexps, objects, pretty-printing and getopt.
+<p>
+<H3>Description</H3>
+<p>
+This is a project to make a standard set of Lua libraries that are not included in the core distribution but are widely useful.
+<p>
+<H3>Download</H3>
+<p>
+<a href="https://github.com/rrthomas/lua-stdlib">https://github.com/rrthomas/lua-stdlib</a>
+<p>
+Snapshots are made available as zip files (these are fairly carefully timed so as to contain stable code).
+<p>
+<H3>Rationale</H3>
+<p>
+Why bother having standard Lua libraries when Lua code is so easy to write? And anyway, isn't Lua mostly used just to script C and C++ programs?  The answer is simply that as in any language (especially in one as small and flexible as Lua) there are a lot of useful wheels that there is no point reinventing. Whether it's support for functional programming (<code>map</code>, <code>curry</code>), string manipulation (<code>split</code>, <code>join</code>) or object orientation (constructors and inheritance), high quality and well-documented code takes time to write and is easy to get wrong. By putting this sort of thing in libraries, a lot of programming tasks can be eased.
+<p>
+Also, Lua isn't just used for scripting. Some people use it to write command-line utilities (hmm, fancy a getopt implementation?). And "scripting" doesn't just mean a few lines of code, anyway. Many scripted applications will have thousands of lines of Lua. Here, not only the libraries themselves, but their structure can be useful in guiding the development of large projects.
+<p>
+<H3>Aims</H3>
+<p>
+The idea is to take the rag-tag bags of personal utilities we each have, and combine them into a coherent standard library.
+<p>
+Here are some properties the library should have:
+<p>
+<UL>
+<li>Simple to use (something like <code>require("std")</code>).
+<li>Hierarchical structure, so that for discplined modular programs just the bits required can be imported, whereas simple scripts can just use the whole lot.
+<li>It should follow (and perhaps extend) the recommendations of LTN 7 <a href="http://www.lua.org/notes/ltn007.html">[1]</a>.
+<li>It would be nice if it could be made available by default (like a C library).
+</UL>
+<p>
+<H3>Library structure</H3>
+<p>
+The libraries can be loaded all at once (<code>require "std"</code>), or a module at a time, e.g. <code>require "std.object"</code>. They have a hierarchical structure, divided into areas such as <code>code</code>, <code>data</code> and <code>text</code>. <a href="../wiki/ReubenThomas.html" >ReubenThomas</a> is currently in the process of structuring them into namespaces like those of the standard libraries. In future, it might be formalised according to LTN 7 <a href="http://www.lua.org/notes/ltn007.html">[1]</a>.
+<p>
+<H3>Author</H3>
+<p>
+<a href="../wiki/ReubenThomas.html" >ReubenThomas</a>
+<a href="../wiki/GaryVaughan.html" >GaryVaughan</a>
+<p>
+<H3>Related efforts</H3>
+<p>
+<UL>
+<li> <a href="../wiki/ExtensionProposal.html" >ExtensionProposal</a> - extended os and io API (modules)
+<li> <a href="../wiki/PenlightLibraries.html" >PenlightLibraries</a> <a href="https://github.com/stevedonovan/Penlight">[2]</a> <a href="/lists/lua-l/2009-04/msg00215.html">[5]</a><a href="/lists/lua-l/2009-04/msg00278.html">[6]</a>
+<li> <a href="../wiki/LuaApr.html" >LuaApr</a> - Lua bindings to the Apache/APR library
+<li> Metalua's standard libraries <a href="http://metalua.luaforge.net/manual005.html#toc11">[3]</a>
+<li> libmc <a href="http://bitbucket.org/leafstorm/libmc/wiki/Home.html">[4]</a><a href="/lists/lua-l/2009-08/msg00509.html">[7]</a>
+<li> <a href="../wiki/CommonFunctions.html" >CommonFunctions</a>
+<li> <a href="../wiki/LuaCheia.html" >LuaCheia</a>
+<li> <a href="../wiki/LuaLibraryWorkshop.html" >LuaLibraryWorkshop</a>
+<li> <a href="../wiki/ModuleReview.html" >ModuleReview</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=StandardLibraries" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=StandardLibraries" >history</a><br>Last edited April 10, 2013 6:33 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=StandardLibraries" >(diff)</a>
+</body>
+</html>

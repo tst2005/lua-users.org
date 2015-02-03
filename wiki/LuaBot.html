@@ -1,0 +1,74 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Bot</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaBot&amp;body=1" title="List pages referring to LuaBot">Lua Bot</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+lua_bot is an IRC bot written in Lua.
+<p>
+<H3>Description</H3>
+<p>
+lua_bot allows the users of the channel to execute basic commands.  Currently there are two commands supported:
+<p>
+<UL>
+<li> <code>!api functionname</code> - Returns the page in the reference manual for a given function.
+<li> <code>lua&gt; script</code> - Runs the lua script in a sandbox, returning any output.  The command can be shortened to &gt; in #lua.
+</UL>
+<p>
+In order to keep the bot from spamming the public channel, please take any "playing" into the #luabot channel on freenode, or address the bot via private messages.
+<p>
+<H3>Example usage</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+&lt;cladhaire&gt; !api pcall
+
+&lt;lua_bot&gt; Documentation for 'pcall' can be found at http://www.lua.org/manual/5.1/manual.html#pdf-pcall
+
+&lt;cladhaire&gt; lua&gt; for k,v in pairs(_G) do print(k) end
+
+&lt;lua_bot&gt; clad|office: tostring, os, getfenv, pairs, assert, tonumber, strsplit, load, _G, coroutine, loadstring, pp, prettyprint, string,
+
+xpcall, bit, _VERSION, strtrim, table, strjoin, strconcat, setmetatable, next, ipairs, rawequal, collectgarbage, rawset, print, math, pcall,
+
+unpack, type, select, rawget, getmetatable,... (result truncated)
+
+</pre>
+</DL>
+<p>
+<strong>Sandbox:</strong> The sandbox used in lua_bot can be found on <a href="https://github.com/JakobOvrum/LuaIRC">[Github]</a>
+<p>
+<strong>Source:</strong> The sandbox source is available (see above) but the IRC code is too specific to be released generally. If you're looking for a library I would suggest <a href="https://github.com/JakobOvrum/LuaIRC">[LuaIRC]</a>.
+<p>
+<strong>Dependencies:</strong> <a href="http://luasocket.luaforge.net/">[LuaSocket]</a>
+<p>
+<strong>Author:</strong> jnwhiteh (formerly known as Cladhaire) with help from others notably cide, shirik, and batrick.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaBot" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaBot" >history</a><br>Last edited September 3, 2012 1:25 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaBot" >(diff)</a>
+</body>
+</html>

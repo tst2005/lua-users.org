@@ -1,0 +1,149 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Extracting Wx Classes</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ExtractingWxClasses&amp;body=1" title="List pages referring to ExtractingWxClasses">Extracting Wx Classes</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This tutorial/sample is designed to help you understand how to extract a <a href="http://wxlua.sourceforge.net/">[wxLua]</a> userdata object from the Lua stack in a lua_CFunction.
+<p>
+The basic procedure used here is to get what is called a class tag from the <code>wxLuaState</code> object of the wxWidgets class and use that tag to get the actual wxLua object in C++.
+<p>
+A class tag is an integer ID used to identify wxWidgets class types (<code>wxDC</code>, <code>wxWindow</code>, <code>wxCheckBox</code>, etc.) and are found in <code>wxLuaBindClass</code> structures. The tag is also stored in the metatable of all userdata objects that wxLua pushes into Lua to identify what the userdata is, see also "int wxlua_ttag(lua_State* L, int stack_idx)". 
+<p>
+The <code>wxLuaBindClass</code> structure is a description of the C++ version of the wxWidget class that the wxLua binding uses to, well, bind the class to Lua.
+<p>
+<DL>
+<dt><dd><pre>
+
+struct wxLuaBindClass // defines a LUA C++ class interface
+
+{
+
+    const char      *name;          // name of the class
+
+    wxLuaBindMethod *methods;       // pointer to methods for this class
+
+    int              methods_n;     // number of methods
+
+    wxClassInfo     *classInfo;     // pointer to the wxClassInfo associated with this class
+
+    int             *class_tag;     // lua tag for user data allocated by ourselves
+
+    const char      *baseclassName; // name of base class
+
+    wxLuaBindClass  *baseclass;     // Pointer to the base class or NULL for none.
+
+                                    // This member is set after all the bindings are
+
+                                    // registered since the base class may be from
+
+                                    // a different module (a library perhaps).
+
+                                    // See wxLuaBinding::SetBaseClass
+
+
+
+    wxLuaBindDefine* enums;         // Class member enums (if any)
+
+    int              enums_n;       // number of enums
+
+};
+
+</pre>
+</DL>
+(You can find the definition of wxLuaBindClass in wxlbind.h)
+<p>
+The <code>class_tag</code> member is what you want.  It is a pointer to a constant defined at start-up. (the structures are initialized in modules/wxbind/src/wxXXX_bind.cpp) Now how does one get the class description of a particular wxWidget class?
+<p>
+<DL>
+<dt><dd><pre>wxLuaBindClass* wxLuaState::GetLuaClass(const char* class_name)</pre>
+</DL>
+<p>
+This method returns a pointer to a <code>wxLuaBindClass</code> structure which will contain the class tag you can use to retrieve the actual object. class_name should specify the C++ name of the <code>wxWidgets</code> class, such as <code>"wxPaintDC"</code> or <code>"wxFrame"</code>.
+<p>
+<DL>
+<dt><dd><pre>void* wxLuaState::GetUserDataType(int index, int tag)</pre>
+</DL>
+<p>
+index is the normal stack index that you would use to access any other element of the stack. tag is the value returned from <code>wxLuaBindClass::class_tag</code> (remember that this member is a pointer to an int) <code>GetUserDataType</code> will return the object that was requested. 
+<p>
+There are many examples of how wxLua gets and pushes objects from and to Lua in the files modules/wxbind/src/*.cpp which are generated from the interface files in bindings/wxwidgets/*.i. These use the actual integer variable, which you can also use if you either include the header where they're declared or declare them yourself as an extern variable.
+<p>
+Example:
+<DL>
+<dt><dd><pre>
+
+int Paint(lua_State* L)
+
+{
+
+	wxLuaState wxlState(L);
+
+	wxPaintDC *dc;
+
+
+
+	unsigned int tag;
+
+	wxLuaBindClass* wxl_class;
+
+
+
+	wxl_class = wxlState.GetLuaClass("wxPaintDC");     // get the WXLUACLASS
+
+	tag = *wxl_class-&gt;class_tag;                       // remember to dereference the class_tag member!
+
+	dc = (wxPaintDC*)wxlState.GetUserDataType(1, tag); // get the actual object
+
+
+
+	  // ///////////////////////// //
+
+	 //    Paint code goes here   //
+
+	// ///////////////////////// //
+
+
+
+	return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+notes: wxLuaBindClass: defined in modules/wxlua/include/wxlbind.h 
+<p>
+<H3>Discussion</H3>
+<p>
+<DL>
+<dt><dd>I actually started researching this a while back when I was using wxLua to try and write a quick and dirty map editor and wanted to make sure I could optimize the paint handler.  It took me a while to figure out and wanted to make sure that it was documented so somebody else looking to do the same thing didn't have to dive into and try and decipher the source code like I had to. --Nick
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ExtractingWxClasses" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ExtractingWxClasses" >history</a><br>Last edited July 26, 2007 1:01 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ExtractingWxClasses" >(diff)</a>
+</body>
+</html>

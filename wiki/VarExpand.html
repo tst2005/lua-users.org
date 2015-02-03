@@ -1,0 +1,148 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Var Expand</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=VarExpand&amp;body=1" title="List pages referring to VarExpand">Var Expand</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Advanced version of bash-like inline variable expanding. Original version comes from PiL 1, but later was rewritten to allow extended synthax and combined with "code expanding" example from the same great book. -- <a href="../wiki/KetmarDark.html" >KetmarDark</a>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- version: 0.0.1</span>
+
+<span class="comment">-- code: Ketmar // Avalon Group</span>
+
+<span class="comment">-- public domain</span>
+
+
+
+<span class="comment">-- expand $var and ${var} in string</span>
+
+<span class="comment">-- ${var} can call Lua functions: ${string.rep(' ', 10)}</span>
+
+<span class="comment">-- `$' can be screened with `\'</span>
+
+<span class="comment">-- `...': args for $&lt;number&gt;</span>
+
+<span class="comment">-- if `...' is just a one table -- take it as args</span>
+
+<span class="keyword">function</span> ExpandVars (s, ...)
+
+  <span class="keyword">local</span> args = {...};
+
+  args = #args == 1 <span class="keyword">and</span> <span class="library">type</span>(args[1]) == <span class="string">"table"</span> <span class="keyword">and</span> args[1] <span class="keyword">or</span> args;
+
+  <span class="comment">-- return true if there was an expansion</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> DoExpand (iscode)
+
+    <span class="keyword">local</span> was = <span class="keyword">false</span>;
+
+    <span class="keyword">local</span> mask = iscode <span class="keyword">and</span> <span class="string">"()%$(%b{})"</span> <span class="keyword">or</span> <span class="string">"()%$([%a%d_]*)"</span>;
+
+    <span class="keyword">local</span> drepl = iscode <span class="keyword">and</span> <span class="string">"\\$"</span> <span class="keyword">or</span> <span class="string">"\\\\$"</span>;
+
+    s = s:gsub(mask, <span class="keyword">function</span> (pos, code)
+
+      <span class="keyword">if</span> s:sub(pos-1, pos-1) == <span class="string">"\\"</span> <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">"$"</span>..code;
+
+      <span class="keyword">else</span> was = <span class="keyword">true</span>; <span class="keyword">local</span> v, err;
+
+        <span class="keyword">if</span> iscode <span class="keyword">then</span> code = code:sub(2, -2);
+
+        <span class="keyword">else</span> <span class="keyword">local</span> n = <span class="library">tonumber</span>(code);
+
+          <span class="keyword">if</span> n <span class="keyword">then</span> v = args[n]; <span class="keyword">end</span>;
+
+        <span class="keyword">end</span>;
+
+        <span class="keyword">if</span> <span class="keyword">not</span> v <span class="keyword">then</span>
+
+          v, err = <span class="library">loadstring</span>(<span class="string">"return "</span>..code); <span class="keyword">if</span> <span class="keyword">not</span> v <span class="keyword">then</span> <span class="library">error</span>(err); <span class="keyword">end</span>;
+
+          v = v();
+
+        <span class="keyword">end</span>;
+
+        <span class="keyword">if</span> v == <span class="keyword">nil</span> <span class="keyword">then</span> v = <span class="string">""</span>; <span class="keyword">end</span>;
+
+        v = <span class="library">tostring</span>(v):gsub(<span class="string">"%$"</span>, drepl);
+
+        <span class="keyword">return</span> v;
+
+      <span class="keyword">end</span>;
+
+    <span class="keyword">end</span>);
+
+    <span class="keyword">if</span> <span class="keyword">not</span> (iscode <span class="keyword">or</span> was) <span class="keyword">then</span> s = s:gsub(<span class="string">"\\%$"</span>, <span class="string">"$"</span>); <span class="keyword">end</span>;
+
+    <span class="keyword">return</span> was;
+
+  <span class="keyword">end</span>;
+
+
+
+  <span class="keyword">repeat</span> DoExpand(<span class="keyword">true</span>); <span class="keyword">until</span> <span class="keyword">not</span> DoExpand(<span class="keyword">false</span>);
+
+  <span class="keyword">return</span> s;
+
+<span class="keyword">end</span>;
+
+
+
+
+
+list = { <span class="string">"one"</span>, field = <span class="string">"hi!"</span> };
+
+name = <span class="string">"Lua"</span>; status = <span class="string">"great"</span>
+
+<span class="library">print</span>(
+
+  ExpandVars(
+
+    <span class="string">"${name} is $status. ${string.rep('#', 3)} \\${!} \\$isn't it? "</span>..
+
+      <span class="string">"${list.field}, ${list [1]}, $_VERSION, ${10/2}, ${'$'}, $1"</span>,
+
+    {<span class="string">"arg"</span>}));
+
+  <span class="comment">--&gt; Lua is great. ### ${!} $isn't it? hi!, one, Lua 5.1, 5, $, arg</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/StringInterpolation.html" >StringInterpolation</a> - other interpolation solutions
+<li> <a href="../wiki/TextTemplate.html" >TextTemplate</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=VarExpand" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=VarExpand" >history</a><br>Last edited October 18, 2008 9:43 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=VarExpand" >(diff)</a>
+</body>
+</html>

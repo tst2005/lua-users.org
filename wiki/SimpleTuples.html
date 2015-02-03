@@ -1,0 +1,222 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Simple Tuples</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SimpleTuples&amp;body=1" title="List pages referring to SimpleTuples">Simple Tuples</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+A very simple interned immutable 2-tuple implementation. Tuple members cannot be <code>nil</code> or <code>NaN</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- An interned 2-tuple type, in pure Lua.</span>
+
+<span class="comment">--</span>
+
+<span class="keyword">do</span>
+
+  <span class="comment">-- The constructor makes a tuple function, which has its own</span>
+
+  <span class="comment">-- intern table.</span>
+
+        
+
+  <span class="keyword">local</span> <span class="library">setmetatable</span> = <span class="library">setmetatable</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> tmaker(a)
+
+    <span class="keyword">return</span> {__index = <span class="keyword">function</span>(t, b)
+
+                        <span class="keyword">local</span> <span class="keyword">function</span> tuple() <span class="keyword">return</span> a, b <span class="keyword">end</span>
+
+                        t[b] = tuple
+
+                        <span class="keyword">return</span> tuple
+
+                      <span class="keyword">end</span>,
+
+            __mode = <span class="string">"kv"</span>
+
+           }
+
+  <span class="keyword">end</span> 
+
+  <span class="keyword">local</span> meta = {
+
+      __index = <span class="keyword">function</span>(t, a)
+
+                  <span class="keyword">local</span> v = <span class="library">setmetatable</span>({}, tmaker(a))
+
+                  t[a] = v
+
+                  <span class="keyword">return</span> v
+
+                <span class="keyword">end</span>,
+
+      __mode = <span class="string">"k"</span>
+
+  } 
+
+  <span class="keyword">return</span> <span class="keyword">function</span>()
+
+    <span class="keyword">local</span> intern = <span class="library">setmetatable</span>({}, meta)
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(a, b)
+
+      <span class="keyword">return</span> intern[a][b]
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The <code>__mode</code> lines are optional; in practice, I use this with tuple-caches which are not long-lived, and it is easier to throw away the entire cache.
+<p>
+Usage: Put the above in a file named, for example, <code>TupleCache.lua</code>. Create a tuple function:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> FooTuple = <span class="library">require</span><span class="string">"TupleCache"</span>()
+
+</pre>
+
+</DL>
+<p>
+Then you can create new <code>FooTuples</code> using the tuple function:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> t = FooTuple(obja, objb)
+
+</pre>
+
+</DL>
+<p>
+The <code>FooTuple</code> function itself has the only reference to the cache tables, so the cache tables will be garbage collected once <code>FooTuple</code> no longer has references. However, the tuples themselves will continue to exist; you simply cannot make new ones.
+<p>
+To extract the values of a tuple, call it:
+<pre class="code">
+<span class="keyword">local</span> obja, objb = t()
+
+</pre>
+
+<p>
+If you really need tuples capable of containing <code>nil</code> and <code>NaN</code>, you can use this version:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="comment">-- The constructor makes a tuple function, which has its own</span>
+
+  <span class="comment">-- intern table.</span>
+
+
+
+  <span class="keyword">local</span> <span class="library">rawget</span>, <span class="library">setmetatable</span> = <span class="library">rawget</span>, <span class="library">setmetatable</span>
+
+  <span class="keyword">local</span> NIL, NAN = {}, {}
+
+  
+
+  <span class="keyword">local</span> <span class="keyword">function</span> check(t, a)
+
+    <span class="keyword">if</span> a == a <span class="keyword">and</span> a ~= <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> a <span class="keyword">end</span>
+
+    <span class="keyword">local</span> fixa = a <span class="keyword">and</span> NAN <span class="keyword">or</span> NIL
+
+    <span class="keyword">return</span> fixa, <span class="library">rawget</span>(t, fixa)
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> tmaker(a)
+
+    <span class="keyword">return</span> {__index = <span class="keyword">function</span>(t, b)
+
+                        <span class="keyword">local</span> fixb, tuple = check(t, b)
+
+                        tuple = tuple <span class="keyword">or</span> <span class="keyword">function</span>() <span class="keyword">return</span> a, b <span class="keyword">end</span>
+
+                        t[fixb] = tuple
+
+                        <span class="keyword">return</span> tuple
+
+                      <span class="keyword">end</span>
+
+           }
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> meta = {
+
+      __index = <span class="keyword">function</span>(t, a)
+
+                  <span class="keyword">local</span> fixa, v = check(t, a)
+
+                  v = v <span class="keyword">or</span> <span class="library">setmetatable</span>({}, tmaker(a))
+
+                  t[fixa] = v
+
+                  <span class="keyword">return</span> v
+
+                <span class="keyword">end</span>
+
+  }
+
+  <span class="keyword">return</span> <span class="keyword">function</span>()
+
+    <span class="keyword">local</span> intern = <span class="library">setmetatable</span>({}, meta)
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(a, b)
+
+      <span class="keyword">return</span> intern[a][b]
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/FunctionalTuples.html" >FunctionalTuples</a> - another approach to implementing tuples using functions and not interning
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SimpleTuples" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SimpleTuples" >history</a><br>Last edited August 3, 2007 4:08 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SimpleTuples" >(diff)</a>
+</body>
+</html>

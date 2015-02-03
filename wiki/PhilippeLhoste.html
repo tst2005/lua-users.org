@@ -1,0 +1,161 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Philippe Lhoste</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PhilippeLhoste&amp;body=1" title="List pages referring to PhilippeLhoste">Philippe Lhoste</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em><strong>Philippe Lhoste data.</strong></em> <img src="http://Phi.Lho.free.fr/images/animations/Flag_France.gif">
+<p>
+Long time Lua admirer and Lua mailing list lurker, with occasional interventions...
+Well, not so occasional, a Web interface to the mailing list seems to show I am (was... start of 2003) in the top ten contributors of the list...
+Currently (2006), much less active, lot of discussion is well over my head, and I have other interests (but still like Lua a lot!).
+<p>
+<H2>How I use Lua?</H2>
+<p>
+Beyond the first test program à la Hello World!, I use it for small utilities, like converting Windows' high Ascii (Ansi) to Mac characters or HTML entities (see below).
+I don't use much advanced Lua features like co-routines or metatables (except for experimenting with classes).
+<p>
+I made in C a Lua interface to a DLL provided by a client to test the API it provided (an address book). It was a great improvement over the hard-coded C test program I made before, since I could easily and quickly (no compilation) change test programs, verify bugs are gone, etc.
+I will write something about it someday, as it was a quite learning experience and I had some ideas I would share.
+<p>
+I started also a Lua Win32 library. A big work (to be done), probably always in progress.
+<p>
+I wrote in Lua a set of scripts to manipulate postal addresses in tab separated fields (Excel or Access export). These scripts can separate first name from last name, normalize first name (capitalization, add missing French accents), separate number from way name, normalize way name for the target town, etc.
+Also format these data to make routing labels (printed on fast dot printer accepting only fixed-width non-graphical Dos Ascii data...).
+This is the most comprehensive work I did with Lua, with very nice uses of its features like the capability to put functions in data arrays.
+<p>
+I have done a little <a href="http://Phi.Lho.free.fr/softwares/PhiLhoSoft/Lua/index.html">[Lua page]</a>, where I give MSVC++6 projects to compile Lua, and Windows binaries of Lua 4.0 (made prior to the official ones). I made also them for Lua 5.0. And a small distribution: Lua.exe, LuaC.exe and the manual with index, suitable to test and run small utilities. Files can be downloaded at <a href="http://Phi.Lho.free.fr/#downloads">[my French site]</a>
+<p>
+<H2>Code samples</H2>
+<p>
+I plan to improve this page with code snippets, etc.
+Currently, code snippets can be found here, at the <a href="../wiki/PhiLhoSoftLuaSamples.html" >PhiLhoSoftLuaSamples</a> page (badly outdated!).
+<p>
+I have uploaded a number of my little Lua utility programs on the Wiki. Here are most of them:
+<p>
+<H3>Character encoding and decoding</H3>
+<p>
+<UL>
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/EncodeEntities.lua">[EncodeEntities.lua]</a> -- Encode high Ascii chars to HTML entities.
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/Entities2AccentedChars.lua">[Entities2AccentedChars.lua]</a> -- Reverse of the above
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/3EncodeEntities.lua">[3EncodeEntities.lua]</a> -- Experimenting best ways of encoding chars to entities.
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/Test3EncodeEntities.lua">[Test3EncodeEntities.lua]</a> -- Test of the above.
+</UL>
+<p>
+<UL>
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/mailtoObfuscate.lua">[mailtoObfuscate.lua]</a> -- Obfuscate an e-mail address, (trying) to avoid spam.
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/ROT-13.lua">[ROT-13.lua]</a> -- Simple ROT-13 converter.
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/Win2Dos.lua">[Win2Dos.lua]</a> -- Functions to convert Win Ansi chars to MS-Dos chars and back.
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/Win2Mac.lua">[Win2Mac.lua]</a> -- Functions to convert Win Ansi chars to Mac (OS9) chars and back.
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/ConvertFile.lua">[ConvertFile.lua]</a> -- Convert a file from Windows (CRLF, 8859-1) to Mac (CR, specific encoding) or to Dos (CRLD, PC-8) or back.
+</UL>
+<p>
+<H3>File massaging</H3>
+<p>
+<UL>
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/FileSplitJoint.lua">[FileSplitJoint.lua]</a> -- Split a file in several smaller parts or joint parts of a file previously splitted.
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/FileFilter.lua">[FileFilter.lua]</a> -- Convert a file to another file, line per line.
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/ChangeFile.lua">[ChangeFile.lua]</a> -- Apply changes on a given file: read whole file at once, write it back.
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/CreateHtmlToc.lua">[CreateHtmlToc.lua]</a> -- Create an HTML table of content (TOC) from an HTML file. Made mostly for the Lua manual...
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/ListItems.lua">[ListItems.lua]</a> -- List items extracted from a text file.
+</UL>
+<p>
+<H3>Quines</H3>
+<p>
+Programs whose output is the source of the program itself...
+<p>
+<UL>
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/Quine5-1.lua">[Quine5-1.lua]</a>
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/Quine5-2.lua">[Quine5-2.lua]</a>
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/Quine5-3.lua">[Quine5-3.lua]</a>
+</UL>
+<p>
+<H3>Dump Object</H3>
+<p>
+Back to serious Lua programming, after a big gap... (2006/07/13)
+<p>
+This program returns a textual representation of "any" Lua object, including tables (and nested tables).
+Functions are not decompiled (of course).
+It sticks strictly to the real table constructor syntax, so the result can be reparsed by Lua to recreate the object, at least if there are NO complex objects (functions, userdata...).
+It handles references correctly, except for cycles (a ref. b which ref. a).
+<p>
+<UL>
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/DumpObject.lua">[DumpObject.lua]</a> -- The function, and a helper function to write output to be reusable with dofile.
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/TestDumpObject.lua">[TestDumpObject.lua]</a> -- Test of the above function, with a table covering a good deal of table constructor syntax.
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/TestDumpObject2.lua">[TestDumpObject2.lua]</a> -- Same as above, without functions, to test if reading back a table and dumping it again provides the same table.
+</UL>
+<p>
+Edit (2006/11/07): I exclude keywords (v.5.1) from "naked" string keys.
+I saw that I could dump functions with string.dump, but I should encode (eg. in Base64) the result to Ascii to be clean, and anyway when loading the result, the functions should be decoded back.
+Edit (2007/03/15): Special, compact handling of empty tables. Also corrected a bug in quotes around tostring result ("foo').
+<p>
+<H3>Miscellaneous</H3>
+<p>
+<UL>
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/LTN7.lua">[LTN7.lua]</a> -- My implementation of the LTN7: Modules &amp; Packages by Roberto Ierusalimschy &lt;<a href="http://www.lua.org/notes/ltn007.html&gt">http://www.lua.org/notes/ltn007.html&gt</a>;
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/TestLTN7.lua">[TestLTN7.lua]</a> -- Test the previous one.
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/RenameFiles.lua">[RenameFiles.lua]</a> -- Rename the files given on the command line, transforming a pattern to another (hard-coded!).
+<li> <a href="http://lua-users.org/files/wiki_insecure/users/PhiLho/Split.lua">[Split.lua]</a> -- Split a string along a given separator.
+</UL>
+<p>
+<H2>Misc./Personal Sandbox</H2>
+<p>
+Old signature...
+<pre>
+
+--=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=--
+
+Philippe Lhoste (Paris -- France)
+
+Professional programmer and amateur artist
+
+Programmeur professionnel et artiste amateur
+
+http://Phi.Lho.free.fr
+
+--=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=--
+
+</pre>
+<p>
+I can link to an external image! <img src="http://Phi.Lho.free.fr/images/artwork/Wizardress_i.gif">
+And now, from within the Wiki itself! <img src="/files/wiki_insecure/users/PhiLho/PLc205.png"> (self portrait, with bozo colors...)
+<p>
+<hr><em>I moved this here from the <a href="../wiki/LearningLua.html" >LearningLua</a> page</em>
+<p>
+<H3>Introduction to some Lua concepts</H3>
+<p>
+<UL>
+<li> <a href="../wiki/NewFor.html" >NewFor</a> give some thoughts on the Lua 5.0's new 'for' syntax.
+</UL>
+<p>
+<DL>
+<dt><dd><em>Since newbies are unlikely to be playing with version 5.0, and the syntax of version 5.0 is not finalised, I dont think its a very good idea to put the new <code>for</code> syntax here. Any learning material should really be related to the current stable/release version.</em> --NDT
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PhilippeLhoste" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PhilippeLhoste" >history</a><br>Last edited February 22, 2008 10:29 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PhilippeLhoste" >(diff)</a>
+</body>
+</html>

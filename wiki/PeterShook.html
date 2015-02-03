@@ -1,0 +1,470 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Peter Shook</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PeterShook&amp;body=1" title="List pages referring to PeterShook">Peter Shook</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<img src="/files/wiki_insecure/users/pshook/address.png">
+<p>
+I'm a C/Awk/Perl hacker who wasn't very pleased with Perl's large list of obscure functions and macros know as XS.  That and Perl's megaton size made me switch to Lua.  Although Perl's extension tools and documentation have improved since I switched to Lua, I won't go back to Perl simply because Lua is truly a joy to use.
+<p>
+<H3>Sample Lua Code</H3>
+<p>
+<UL>
+<li> <a href="../wiki/LuaToHtml.html" >LuaToHtml</a>
+<li> <a href="../wiki/TextTemplate.html" >TextTemplate</a>
+<li> <a href="../wiki/ClassesAndMethodsWithEventtable.html" >ClassesAndMethodsWithEventtable</a>
+<li> <a href="../wiki/RecursiveDataTypes.html" >RecursiveDataTypes</a>
+<li> <a href="../wiki/SimpleDebugger.html" >SimpleDebugger</a>
+</UL>
+<p>
+<H3>Sample C++ Code</H3>
+<p>
+<UL>
+<li> <a href="../wiki/SimpleCppBinding.html" >SimpleCppBinding</a>
+<li> <a href="../wiki/SimplerCppBinding.html" >SimplerCppBinding</a> using Luna for Lua 5.0
+<li> <a href="../wiki/CppBindingWithLunar.html" >CppBindingWithLunar</a>
+<li> <a href="../wiki/CallingLuaFromCpp.html" >CallingLuaFromCpp</a> using Lunar for Lua 5.0
+</UL>
+<p>
+<H3>Sample C Code</H3>
+<p>
+<UL>
+<li> <a href="../wiki/UserDataExample.html" >UserDataExample</a>
+<li> <a href="../wiki/UserDataWithPointerExample.html" >UserDataWithPointerExample</a>
+<li> <a href="../wiki/BindingWithMetatableAndClosures.html" >BindingWithMetatableAndClosures</a>
+<li> <a href="../wiki/BindingWithMembersAndMethods.html" >BindingWithMembersAndMethods</a>
+<li> <a href="../wiki/LexicalAnalysis.html" >LexicalAnalysis</a>
+</UL>
+<p>
+<H3>Hex Numbers Patch <a href="/files/wiki_insecure/users/pshook/lua-5.0-hex.patch">[1]</a></H3>
+<p>
+Lua can handle hex numbers with the <code>tonumber</code> function, but my fellow engineers are more comfortable with C's 0x syntax so I made this patch for them.
+<p>
+This patch is for 5.0 but it is so simple, you can easily get it to work with older verions of Lua.
+lua-5.1-alpha version <a href="/files/wiki_insecure/power_patches/5.1-alpha/hex.patch">[2]</a>
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua
+
+Lua 5.0  Copyright (C) 1994-2003 Tecgraf, PUC-Rio
+
+&gt; = 0x10
+
+16
+
+&gt; = 0x100
+
+256
+
+&gt; function hex(n)
+
+&gt;&gt;   return tonumber(n,16)
+
+&gt;&gt; end
+
+&gt;
+
+&gt; = 0xff == hex'FF'
+
+true
+
+&gt;
+
+
+
+</pre>
+</DL>
+<p>
+<p>
+<H3>Read Directory Patch <a href="/files/wiki_insecure/users/pshook/lua-5.0-dirlib.patch">[3]</a></H3>
+<p>
+This patch adds <code>chdir</code>, <code>opendir</code> and <code>stat</code> to the <code>os</code> table.
+It works on Linux, Cygwin and Mingwin.
+<p>
+<H3>Ruby Like Syntactic Sugar</H3>
+<p>
+For those who dislike typing <code>self.member</code> all the time, here is a version of
+<a href="/files/wiki_insecure/users/pshook/lauxlib.c">[lauxlib.c]</a>
+that changes <code>luaL_loadfile</code> and <code>luaL_loadbuffer</code> to substitute
+<code>@somename</code> for <code>self.somename</code> and <code>@somemethod(...)</code> for <code>self:somemethod(...)</code>.
+<p>
+You can also use <code>#</code> for comments.
+<DL>
+<dt><dd><pre>
+
+List = setmetatable({}, {__index = table})
+
+List.__index = List
+
+
+
+function List:new(...) return setmetatable(arg, self) end
+
+function List:push(x) @insert(x) return self end
+
+function List:pop() return @remove() end
+
+function List:shift() return @remove(1) end
+
+function List:append(list)
+
+  for _,elem in ipairs(list) do @insert(elem) end
+
+  return self
+
+end
+
+
+
+function List:fun(a, b)
+
+  @a = a
+
+  @b = b
+
+  return @n
+
+end
+
+
+
+x = List:new(1, 2, 5)
+
+x:foreachi(print)
+
+x:push(99)
+
+print(x:concat', ')
+
+print('fun', x:fun('one', 'two'), x:shift())
+
+x:foreach(print)
+
+</pre>
+</DL>
+Here is the output from the example above.
+<DL>
+<dt><dd><pre>
+
+$ lua eg.lua
+
+1       1
+
+2       2
+
+3       5
+
+1, 2, 5, 99
+
+fun     4       1
+
+1       2
+
+2       5
+
+3       99
+
+a       one
+
+b       two
+
+n       3 
+
+</pre>
+</DL>
+<p>
+<H3>Local by Default</H3>
+<p>
+Those with a Python or PHP background probably prefer variables within
+functions to be local by default.  This is easly done in Lua 5.0 by
+using the <code>newindex</code> event to give functions a new environment
+when they are stored in the package.
+<p>
+For exampe:
+<DL>
+<dt><dd><pre>
+
+local Pkg = {}
+
+
+
+local function fixfuncs(env, name, value)
+
+  rawset(env, name, value)
+
+  if type(value)=='function' then
+
+    print('newfunction', env, name, value)
+
+    setfenv(value, setmetatable({}, {__index=env}))
+
+  end
+
+end
+
+
+
+setfenv(1, setmetatable(Pkg, {__index=getfenv(), __newindex=fixfuncs}))
+
+
+
+y = 0
+
+
+
+function one(x)
+
+  y = x
+
+  return y
+
+end
+
+
+
+function two()
+
+  Pkg.y = 99
+
+  y = 2
+
+  return y
+
+end
+
+
+
+local function three()
+
+  y = 3
+
+  return y
+
+end
+
+
+
+print(y, one(1), y, two(), y, three(), y)
+
+</pre>
+</DL>
+The code above should ouput the following:
+<DL>
+<dt><dd><pre>
+
+$ lua test1.lua
+
+newfunction     table: 0xa0459f0        one     function: 0xa046ab8
+
+newfunction     table: 0xa0459f0        two     function: 0xa0466d8
+
+0       1       0       2       99      3       3
+
+</pre>
+</DL>
+If you want to access varaibles in either the package or global scope,
+you'll have to prefix them with either <code>Pkg.</code> or <code>_G.</code>.
+The <code>newindex</code> event won't work on local functions,
+but if you're not a Perl programmer you probably don't care.
+<p>
+<H3>New Table and Funciton Patch <a href="/files/wiki_insecure/users/pshook/lua-5.0-newtm.patch">[4]</a></H3>
+<p>
+<p>
+What if you wanted to magically alter the function environments
+for local function too?
+Here is a dubious patch that adds <code>newfunction</code> and <code>newtable</code> events.
+The metamethod for the <code>newfunction</code> event is called whenever a function
+is created in an environment with a <code>__newfunction</code> key in its metatable.
+<p>
+We can rewrite the previous example like so:
+<DL>
+<dt><dd><pre>
+
+local Pkg = {}
+
+
+
+local function fixfuncs(env, f)
+
+  print('newfunction', env, f)
+
+  setfenv(f, setmetatable({}, {__index=env}))
+
+end
+
+
+
+setfenv(1, setmetatable(Pkg, {__index=getfenv(), __newfunction=fixfuncs}))
+
+
+
+y = 0
+
+
+
+function one(x)
+
+  y = x
+
+  return y
+
+end
+
+
+
+function two()
+
+  Pkg.y = 99
+
+  y = 2
+
+  return y
+
+end
+
+
+
+local function three()
+
+  y = 3
+
+  return y
+
+end
+
+
+
+print(y, one(1), y, two(), y, three(), y)
+
+</pre>
+</DL>
+Now even function <code>three</code>'s <code>y</code> variable is local.
+<DL>
+<dt><dd><pre>
+
+$ lua test2.lua
+
+newfunction     table: 0xa0459f0        function: 0xa045fb0
+
+newfunction     table: 0xa0459f0        function: 0xa046478
+
+newfunction     table: 0xa0459f0        function: 0xa040730
+
+0       1       0       2       99      3       99
+
+</pre>
+</DL>
+<p>
+<H3>Separate Methods Patch <a href="/files/wiki_insecure/users/pshook/lua-5.0-self.patch">[5]</a></H3>
+<p>
+This patch changes the semantics of <code>object:method()</code>
+to use a new and separate <code>self</code> event instead of the usual <code>index</code> event.
+This lets you add some class to your tables, and still leaves the <code>index</code>
+event free for other uses.
+<DL>
+<dt><dd><pre>
+
+local Pkg = {}
+
+
+
+local function fixtable(env, t)
+
+  print('newtable', env, t)
+
+  setmetatable(t, {__self=table})
+
+end
+
+
+
+setfenv(1, setmetatable(Pkg, {__index=getfenv(), __newtable=fixtable}))
+
+
+
+t = { 'one', 'two', 'three' }
+
+
+
+print(t:concat'/', t:getn(), t:remove(1), t:remove(), t:getn())
+
+</pre>
+</DL>
+Here is the ouput for this example:
+<DL>
+<dt><dd><pre>
+
+$ lua test3.lua
+
+newtable        table: 0xa0459f0        table: 0xa045f98
+
+one/two/three   3       one     three   1
+
+</pre>
+</DL>
+<p>
+<p>
+<H3>Lua for Coldfire 5282</H3>
+Here is a tar file that compiles with m68k-elf-gcc <a href="/files/wiki_insecure/lua-5282.tgz">[6]</a>
+<p>
+<H3>The from patch <a href="/files/wiki_insecure/power_patches/5.1-alpha/lua-5.1-alpha-from.patch">[7]</a></H3>
+Here is a patch to unpack named values from a table value so you can do things like this:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ src/lua
+
+Lua 5.1 (alpha)  Copyright (C) 1994-2005 Lua.org, PUC-Rio
+
+&gt; write from io
+
+&gt; format from string
+
+&gt;
+
+&gt; function printf(...) write(format(...)) end
+
+&gt;
+
+&gt; printf("I should have written this patch %d years ago\n", 2)
+
+I should have written this patch 2 years ago
+
+&gt;
+
+</pre>
+</DL>
+<p>
+Here is a basic version of the patch that uses the existing keyword <code>in</code> instead of <code>from</code> <a href="/files/wiki_insecure/power_patches/5.1-alpha/basic-from.patch">[8]</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PeterShook" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PeterShook" >history</a><br>Last edited September 8, 2005 3:39 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PeterShook" >(diff)</a>
+</body>
+</html>

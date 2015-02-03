@@ -1,0 +1,353 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Persistent Tables</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PersistentTables&amp;body=1" title="List pages referring to PersistentTables">Persistent Tables</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  Certain features like <code>settagmethod</code> are no longer present in Lua 5.</strong>
+<p>
+I had to wait for a big download today, so i had time to implement this fancy idea, that was roaming around in my head for quite some time:
+persistent tables!  Ain't Lua surprising? The basic implementation is less than 100 lines! and it works without any additional C-code!
+<p>
+Code follows:
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Copyright (c) 2001 by Peter Prade - all rights reserved</span>
+
+
+
+<span class="comment">-- this file introduces a new table "type" that is persistent between sessions</span>
+
+<span class="comment">-- each entry in such a table will be saved as a seperate file which </span>
+
+<span class="comment">-- returns the value when executed with dofile</span>
+
+
+
+<span class="comment">-- tag methods are used to keep those files up to date and to load values that</span>
+
+<span class="comment">-- are not yet loaded</span>
+
+
+
+<span class="comment">-- todo: make all the globals local</span>
+
+persistent_tag = newtag()
+
+persistent_location = {} <span class="comment">-- lookup table for locations of each persistent table</span>
+
+persistent_delimiter = <span class="string">"."</span> <span class="comment">-- how to delimit one index from another in filenames</span>
+
+persistent_debug = <span class="keyword">nil</span> <span class="comment">-- set to non-nil for debugging output</span>
+
+
+
+<span class="comment">-- we need to convert any type index to a string (which we use for the location)</span>
+
+<span class="keyword">function</span> index_to_string(index)
+
+  <span class="keyword">if</span> <span class="library">type</span>(index) == <span class="string">"string"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> index
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="library">type</span>(index) == <span class="string">"number"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="string">"-"</span>..<span class="library">tostring</span>(index)
+
+  <span class="keyword">end</span>
+
+  
+
+  <span class="comment">-- todo: at least allow persistent tables as indizes (via links ;-)</span>
+
+  <span class="library">print</span>(<span class="string">"cannot make indexstring from type: "</span>..<span class="library">type</span>(index)) 
+
+  <span class="keyword">return</span> <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- loads a value from the given location</span>
+
+<span class="keyword">function</span> persistent_load(location)
+
+  <span class="keyword">if</span> persistent_debug <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"load from"</span>, location) <span class="keyword">end</span>
+
+  <span class="keyword">local</span> value = <span class="library">dofile</span>(location)
+
+  <span class="keyword">if</span> <span class="library">type</span>(value) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+    make_persistent(value, location)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> value
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- save a value to the given location</span>
+
+<span class="keyword">function</span> persistent_save(location, value)
+
+  <span class="keyword">local</span> string_to_save = <span class="string">""</span>
+
+  <span class="comment">-- todo: check if old value was a table, and if so, delete old contents</span>
+
+  <span class="keyword">if</span> <span class="library">type</span>(value) == <span class="string">"nil"</span> <span class="keyword">then</span>
+
+    string_to_save = <span class="string">"return nil"</span> <span class="comment">-- todo: better delete file</span>
+
+  <span class="keyword">elseif</span> <span class="library">type</span>(value) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+    make_persistent(value, location)
+
+    string_to_save = <span class="string">"return {}"</span>
+
+  <span class="keyword">elseif</span> <span class="library">type</span>(value) == <span class="string">"string"</span> <span class="keyword">then</span>
+
+    string_to_save = <span class="string">"return \""</span>..value..<span class="string">"\""</span>
+
+  <span class="keyword">elseif</span> <span class="library">type</span>(value) == <span class="string">"number"</span> <span class="keyword">then</span>
+
+    string_to_save = <span class="string">"return "</span>..value..<span class="string">""</span>
+
+  <span class="keyword">else</span>
+
+    <span class="comment">-- todo: at least functions can be saved as chunks</span>
+
+    <span class="library">print</span>(<span class="string">"cannot save type "</span>..<span class="library">type</span>(value)..<span class="string">" yet!"</span>) 
+
+    <span class="keyword">return</span>
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- todo: if we want to build a directory tree (using a delimiter of "/") </span>
+
+  <span class="comment">-- we need to create the directories here: create_path(location)</span>
+
+  <span class="keyword">if</span> persistent_debug <span class="keyword">then</span> <span class="library">print</span>(<span class="string">"save to"</span>, location) <span class="keyword">end</span>
+
+  <span class="keyword">local</span> f = openfile(location,<span class="string">"w"</span>)
+
+  write(f, string_to_save)
+
+  closefile(f)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- tag method for reading from persistent tables</span>
+
+<span class="keyword">function</span> persistent_get(<span class="library">table</span>, index)
+
+  <span class="keyword">local</span> value = <span class="library">rawget</span>(<span class="library">table</span>, index)
+
+  <span class="keyword">if</span> value == <span class="keyword">nil</span> <span class="keyword">then</span>	
+
+    <span class="keyword">local</span> index_string = index_to_string(index)
+
+    <span class="keyword">if</span> index_string <span class="keyword">then</span>
+
+      value = persistent_load(persistent_location[<span class="library">table</span>]..
+
+                  persistent_delimiter..index_string)
+
+      <span class="library">rawset</span>(<span class="library">table</span>, index, value)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> value
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- tag method for writing to persistent tables</span>
+
+<span class="keyword">function</span> persistent_set(<span class="library">table</span>, index, value)
+
+  <span class="library">rawset</span>(<span class="library">table</span>, index, value) <span class="comment">-- todo: if i overwrite a table here, free it!</span>
+
+  <span class="keyword">local</span> index_string = index_to_string(index)
+
+  <span class="keyword">if</span> index_string <span class="keyword">then</span>
+
+    persistent_save(persistent_location[<span class="library">table</span>]..
+
+              persistent_delimiter..index_string, value)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- activate tag methods</span>
+
+settagmethod (persistent_tag, <span class="string">"gettable"</span>, persistent_get)
+
+settagmethod (persistent_tag, <span class="string">"settable"</span>, persistent_set)
+
+
+
+<span class="comment">-- you only need to call this once for your "root" persistent table.</span>
+
+<span class="comment">-- but you can make as many tables persistent as you like </span>
+
+<span class="comment">-- (as long as those tables are stored at different locations)</span>
+
+<span class="comment">-- any table within this table will be made persistent as well</span>
+
+<span class="keyword">function</span> make_persistent(<span class="library">table</span>,location)
+
+  <span class="keyword">if</span> tag(<span class="library">table</span>)~=persistent_tag <span class="keyword">then</span>
+
+    persistent_location[<span class="library">table</span>] = location
+
+    settag(<span class="library">table</span>,persistent_tag)
+
+    <span class="keyword">for</span> index,value <span class="keyword">in</span> <span class="library">table</span> <span class="keyword">do</span>
+
+      persistent_set(<span class="library">table</span>,index,value) <span class="comment">-- rewrite table contents</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">if</span> persistent_location[<span class="library">table</span>] ~= location <span class="keyword">then</span>
+
+      <span class="library">print</span>(<span class="string">"table with location of"</span>, persistent_location[<span class="library">table</span>])
+
+      <span class="library">print</span>(<span class="string">"reused at"</span>,location)
+
+      <span class="library">print</span>(<span class="string">"-&gt; cannot store other than simple trees yet!"</span>)
+
+      <span class="comment">-- todo: store links to other location...</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">---------------------------------------------------------------------</span>
+
+<span class="comment">-- use any directory you'd like as "root": (just make sure the directory </span>
+
+<span class="comment">-- exists, as i cannot create it with just the baselib)</span>
+
+persistent_root = <span class="string">"~/persistent_lua/"</span> 
+
+
+
+<span class="comment">-- make a table persistent for testing:</span>
+
+persistent = {}
+
+make_persistent(persistent,persistent_root)
+
+
+
+<span class="comment">-- works also nice: make_persistent(globals(),"C:/Anywhere/")</span>
+
+
+
+<span class="comment">-- now let's do some fancy testing.</span>
+
+<span class="comment">-- any contents of the table "persistent" will also be kept as files</span>
+
+
+
+<span class="keyword">if</span> persistent.test == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+  persistent.test = <span class="string">"hello!"</span>
+
+  persistent.table = {<span class="string">"hello!"</span>,<span class="string">"world!"</span>;x=1,y=999}
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span>(persistent.test, persistent.table[2], persistent.table.y)
+
+
+
+<span class="keyword">for</span> i = 1,20 <span class="keyword">do</span>
+
+  <span class="library">print</span>(persistent.table[i])
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">for</span> i = 1,10 <span class="keyword">do</span>
+
+  <span class="comment">-- watch the strings grow every time you call this file:</span>
+
+  persistent.table[i] = <span class="library">tostring</span>(persistent.table[i])..<span class="library">tostring</span>(i)
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> i = 11,20 <span class="keyword">do</span>
+
+  persistent.table[i] = i
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> i = 8,12 <span class="keyword">do</span>
+
+  persistent.table[i] = <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+
+
+persistent.table.parent = persistent <span class="comment">-- doesn't work correctly yet.</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Add comments here</H3>
+<p>
+<em>Wow, this is great! I was looking for something exactly like that. Now all that I would need is to use a db-file instead of the filesystem to store the tables.</em> --<a href="../wiki/MartinSpernau.html" >MartinSpernau</a>
+<p>
+<em>OK, look here:</em> <a href="../wiki/PersistentTablesSqlite.html" >PersistentTablesSqlite</a> -- <a href="../wiki/DougCurrie.html" >DougCurrie</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PersistentTables" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PersistentTables" >history</a><br>Last edited January 6, 2007 3:14 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PersistentTables" >(diff)</a>
+</body>
+</html>

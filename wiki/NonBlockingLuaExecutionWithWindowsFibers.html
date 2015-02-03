@@ -1,0 +1,215 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Non Blocking Lua Execution With Windows Fibers</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=NonBlockingLuaExecutionWithWindowsFibers&amp;body=1" title="List pages referring to NonBlockingLuaExecutionWithWindowsFibers">Non Blocking Lua Execution With Windows Fibers</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em>Part of the <a href="../wiki/NonBlockingLuaExecution.html" >NonBlockingLuaExecution</a> feature proposal.</em>
+<p>
+The example below is a console application which runs a Lua script but can be stopped anytime by pressing a key. The script can do whatever it wants and the program will still process keystrokes.
+<p>
+<em>Main.cpp:</em>
+<DL>
+<dt><dd><pre>
+
+#ifndef _WIN32_WINNT
+
+#define _WIN32_WINNT 0x0400 // Necessary to enable fiber functions.
+
+#endif
+
+#include &lt;Windows.h&gt;
+
+#include &lt;conio.h&gt;
+
+
+
+extern "C"
+
+{
+
+#include "lua.h"
+
+#include "lualib.h"
+
+#include "lauxlib.h"
+
+}
+
+
+
+LPVOID g_PrimaryFiber = NULL;
+
+LPVOID g_LuaFiber = NULL;
+
+lua_State* pLua = NULL;
+
+
+
+VOID CALLBACK LuaFiberProc(PVOID lpParameter)
+
+{
+
+    luaL_dofile(pLua, "Script.lua");
+
+}
+
+
+
+int main()
+
+{
+
+    pLua = luaL_newstate();
+
+    luaL_openlibs(pLua);
+
+
+
+    g_PrimaryFiber = ConvertThreadToFiber(NULL);
+
+    g_LuaFiber = CreateFiber(0, LuaFiberProc, NULL);
+
+    for (;;)
+
+    {
+
+        if (_kbhit())
+
+        {
+
+            printf("This program has successfully used fibers!\n");
+
+            printf("Goodbye.\n");
+
+            return 0;
+
+        }
+
+        SwitchToFiber(g_LuaFiber);
+
+    }
+
+}
+
+</pre>
+</DL>
+<p>
+<em>Here's a section of lvm.c showing the change to be made:</em>
+<DL>
+<dt><dd><pre>
+
+...
+
+////////////////
+
+// CHANGES HERE
+
+////////////////
+
+#ifndef _WIN32_WINNT
+
+#define _WIN32_WINNT 0x0400
+
+#endif
+
+#include &lt;Windows.h&gt;
+
+
+
+extern LPVOID g_PrimaryFiber;
+
+////////////////
+
+////////////////
+
+
+
+void luaV_execute (lua_State *L, int nexeccalls) {
+
+  LClosure *cl;
+
+  StkId base;
+
+  TValue *k;
+
+  const Instruction *pc;
+
+ reentry:  /* entry point */
+
+  lua_assert(isLua(L-&gt;ci));
+
+  pc = L-&gt;savedpc;
+
+  cl = &amp;clvalue(L-&gt;ci-&gt;func)-&gt;l;
+
+  base = L-&gt;base;
+
+  k = cl-&gt;p-&gt;k;
+
+  /* main loop of interpreter */
+
+  for (;;) {
+
+////////////////
+
+// CHANGES HERE
+
+////////////////
+
+    Instruction i;
+
+    StkId ra;
+
+    SwitchToFiber(g_PrimaryFiber);
+
+    i = *pc++;
+
+////////////////
+
+////////////////
+
+    if ((L-&gt;hookmask &amp; (LUA_MASKLINE | LUA_MASKCOUNT)) &amp;&amp;
+
+        (--L-&gt;hookcount == 0 || L-&gt;hookmask &amp; LUA_MASKLINE)) {
+
+...
+
+</pre>
+</DL>
+<p>
+It works by running the program in two fibers: the primary fiber and the Lua fiber. The primary fiber is the main part of the program, and the Lua fiber is where the Lua script runs. luaV_execute is changed to switch back to the primary fiber between script operations, and the primary fiber switches back to the Lua fiber when it's done with its processing.
+<p>
+Known issues:
+<UL>
+<li> The script must not exit, for this program cannot detect when the Lua fiber has completed!
+<li> This program does not do proper error checking or clean-up.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=NonBlockingLuaExecutionWithWindowsFibers" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=NonBlockingLuaExecutionWithWindowsFibers" >history</a><br>Last edited March 28, 2008 12:50 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=NonBlockingLuaExecutionWithWindowsFibers" >(diff)</a>
+</body>
+</html>

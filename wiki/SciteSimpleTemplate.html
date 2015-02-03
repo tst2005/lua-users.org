@@ -1,0 +1,194 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Simple Template</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteSimpleTemplate&amp;body=1" title="List pages referring to SciteSimpleTemplate">Scite Simple Template</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Apply tabular values to a template text</H3>
+This Lua script for Scite (see <a href="../wiki/SciteScripts.html" >SciteScripts</a>) helps you repeat the same text template to be filled with tabular values.
+<p>
+Say you have several lines of tab separated values. Each line will be split (tab character) into values. Ex:
+<DL>
+<dt><dd><pre>
+
+af	Afghanistan
+
+za	Afrique Du Sud
+
+al	Albanie
+
+dz	Algérie
+
+de	Allemagne
+
+//ad	Andorre
+
+ao	Angola
+
+ai	Anguilla
+
+aq	Antarctique
+
+ag	Antigua
+
+[...]
+
+fr	France	SELECTED
+
+[...]
+
+zw	Zimbabwe
+
+</pre>
+</DL>
+<p>
+Now write the template (it can be multiline). It must appear just after your values. Ex:
+<DL>
+<dt><dd><pre>
+
+&lt;option value="&lt;1&gt;" &lt;3&gt;&gt;&lt;2&gt;&lt;/option&gt;
+
+</pre>
+</DL>
+<p>
+The script will duplicate and fill automatically the template with your values.
+It is quite simple: 
+<UL>
+<li> "&lt;0&gt;" will be replaced by the line index,
+<li> "&lt;1&gt;" by the first value, 
+<li> "&lt;2&gt;" by the second value,
+<li> etc.
+</UL>
+<p>
+Carefully select the template (from top to bottom) and run the script. The generated text will be inserted after the template. Ex:
+<pre>
+
+&lt;option value="af" &gt;Afghanistan&lt;/option&gt;
+
+&lt;option value="za" &gt;Afrique Du Sud&lt;/option&gt;
+
+&lt;option value="al" &gt;Albanie&lt;/option&gt;
+
+&lt;option value="dz" &gt;Algérie&lt;/option&gt;
+
+&lt;option value="de" &gt;Allemagne&lt;/option&gt;
+
+&lt;option value="ao" &gt;Angola&lt;/option&gt;
+
+&lt;option value="ai" &gt;Anguilla&lt;/option&gt;
+
+&lt;option value="aq" &gt;Antarctique&lt;/option&gt;
+
+&lt;option value="ag" &gt;Antigua,Et,Barbuda&lt;/option&gt;
+
+[...]
+
+&lt;option value="fr" SELECTED&gt;France&lt;/option&gt;
+
+[...]
+
+&lt;option value="zw" &gt;Zimbabwe&lt;/option&gt;
+
+</pre>
+<p>
+If you find it usefull, here's the script :
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- we assume the template definition is the current selection</span>
+
+<span class="keyword">local</span> template = editor:GetSelText()
+
+
+
+<span class="comment">-- now duplicate and fill the template</span>
+
+<span class="comment">-- for each line before the template definition</span>
+
+<span class="keyword">local</span> lastline = editor:LineFromPosition(editor.SelectionStart)-1
+
+<span class="keyword">local</span> res = <span class="string">""</span>
+
+<span class="keyword">for</span> index=0,lastline <span class="keyword">do</span>
+
+	<span class="keyword">local</span> line = editor:GetLine(index)
+
+	<span class="keyword">if</span> <span class="library">string.len</span>(line) &gt; 2 <span class="keyword">and</span> <span class="library">string.sub</span>(line,1,2) ~= <span class="string">"//"</span> <span class="keyword">then</span>
+
+		<span class="comment">-- split tab separated columns</span>
+
+		<span class="keyword">local</span> values = { [<span class="string">"&lt;0&gt;"</span>] = index+1 }
+
+		<span class="keyword">local</span> i = 0
+
+		<span class="keyword">for</span> p <span class="keyword">in</span> <span class="library">string.gfind</span>(line, <span class="string">"[^\t\r\n]+"</span>) <span class="keyword">do</span>
+
+			i = i+1
+
+			values[<span class="string">"&lt;"</span>..i..<span class="string">"&gt;"</span>] = p
+
+		<span class="keyword">end</span>
+
+		<span class="comment">-- fill template with values</span>
+
+		res = res..<span class="library">string.gsub</span>(template, <span class="string">"(&lt;%d+&gt;)"</span>, <span class="keyword">function</span>(p) <span class="keyword">return</span> values[p] <span class="keyword">end</span>)
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- insert &amp; select generated content</span>
+
+editor:insert(editor.SelectionEnd, res)
+
+editor:SetSel(editor.SelectionEnd, -1)
+
+</pre>
+
+</DL>
+<p>
+I like to hit Alt+Shift+T to run the script:
+<pre>
+
+command.name.33.*=Templatization!
+
+command.mode.33.*=subsystem:lua,savebefore:no,groupundo
+
+command.shortcut.33.*=Alt+Shift+T
+
+command.33.*=dofile $(SciteDefaultHome)/lua/templatization.lua
+
+</pre>
+<p>
+<p>
+<em>--Philippe</em>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteSimpleTemplate" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteSimpleTemplate" >history</a><br>Last edited August 31, 2006 6:49 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteSimpleTemplate" >(diff)</a>
+</body>
+</html>

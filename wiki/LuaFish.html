@@ -1,0 +1,761 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Fish</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaFish&amp;body=1" title="List pages referring to LuaFish">Lua Fish</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua<code></code>Fish provides various Lua modules for parsing Lua 5.1 source code via <a href="../wiki/LuaPeg.html" >LuaPeg</a> into abstract syntax trees (AST) and serializing
+ASTs back to Lua code.  It also has experimental support for LISP-ish style macros, static type checking, and compiling Lua to C.
+<p>
+<H2>Description</H2>
+<p>
+Lua<code></code>Fish is similar in application to Metalua <a href="http://luaforge.net/projects/metalua/">[1]</a>, Cheese <a href="http://luaforge.net/projects/cheese/">[2]</a>, and Lua<code></code>Parse <a href="http://luaparse.luaforge.net/">[3]</a> but is based on LPeg <a href="http://www.inf.puc-rio.br/~roberto/lpeg.html">[4]</a>.  This project might merge with Metalua in the future, though Metalua is based on gg.  A very similar project is <a href="http://luaforge.net/projects/leg/">[Leg]</a> <a href="/lists/lua-l/2007-11/msg00383.html">[5]</a>.
+<p>
+The macro processing provides some interesting capabilities such as static type checking and code analysis.  The macros operate at compile time on the AST to associate a type (or metatable) with a lexical.  The macros use standard Lua function call syntax, so there is no change to the grammar but only to the semantics.
+<p>
+<H2>Status - WARNING</H2>
+<p>
+The source analysis parts of <a href="../wiki/LuaFish.html" >LuaFish</a> were largely superseded by <a href="../wiki/LuaInspect.html" >LuaInspect</a>.  <a href="../wiki/LuaFish.html" >LuaFish</a> is still useful as an <a href="../wiki/LuaPeg.html" >LuaPeg</a> based parser though.
+<p>
+The parsing, AST manipulation, and serialization is fairly robust
+but could still have errors, and the interface is subject to change.
+The AST format should be brought in sync with the
+<a href="http://github.com/fab13n/metalua/blob/master/doc/ast.txt">[Metalua AST format]</a>
+(minus lineinfo which likely will be changed/removed in Metalua).
+<p>
+The macros, static type checking, and Lua-&gt;C compiler are
+incomplete or broken in various areas and should be considered
+experimental.  In fact, they might no longer be maintained.
+See <a href="../wiki/LuaInspect.html" >LuaInspect</a> for newer stuff.
+<p>
+Please report and bugs or bug fixes to this wiki page.
+<p>
+<H2>Download files</H2>
+<p>
+<UL>
+<li> <a href="http://github.com/davidm/lua-fish">[latest sources on github]</a>
+<li> <a href="http://github.com/davidm/lua-fish/archives/032f22dca31d5b2dd490f2500c5e5b80b8c096a6">[luafish-0.7.2]</a> (2010-09-21, LPeg 0.9 compatible)
+<li> older versions: <a href="http://math2.org/download/luafish-0.7.tar.gz">[luafish-0.7.tar.gz]</a> <a href="http://math2.org/download/luafish-0.6.tar.gz">[luafish-0.6.tar.gz]</a> <a href="http://math2.org/download/luafish-0.5.tar.gz">[luafish-0.5.tar.gz]</a> <a href="http://math2.org/download/luafish-0.4.tar.gz">[luafish-0.4.tar.gz]</a> <a href="http://math2.org/download/luafish-0.3.tar.gz">[luafish-0.3.tar.gz]</a> <a href="http://math2.org/download/luafish-0.2.tar.gz">[luafish-0.2.tar.gz]</a> <a href="http://math2.org/download/luafish-0.1.tar.gz">[luafish-0.1.tar.gz]</a>
+</UL>
+<p>
+<H2>Author</H2>
+<p>
+<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>Examples</H2>
+<p>
+<H3>Example: Converting Lua to an AST</H3>
+<p>
+The AST of the following file
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- example for Lua-&gt;C compiler.</span>
+
+<span class="keyword">local</span> x,y = 4,5
+
+x = x + 1
+
+<span class="keyword">local</span> <span class="keyword">function</span> f(x)
+
+  <span class="keyword">return</span> x * x
+
+<span class="keyword">end</span>
+
+x = f(x)
+
+<span class="library">print</span>(x)
+
+</pre>
+
+</DL>
+<p>
+can be quickly displayed as follows:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua bin/luafish.lua -a examples/1.lua
+
+{tag="Block",{tag="Local",{tag="NameList",{tag="Id","x"},{tag="Id","y"}},{tag="E
+
+xpList",{tag="Number",4},{tag="Number",5} } },{tag="Assign",{tag="VarList",{tag="I
+
+d","x"} },{tag="ExpList",{tag="Op","+",{tag="Id","x"},{tag="Number",1} } } },{tag="L
+
+ocalFunctionDef",{tag="Id","f"},{tag="NameList",{tag="Id","x"}},{tag="Block",{ta
+
+g="Return",{tag="ExpList",{tag="Op","*",{tag="Id","x"},{tag="Id","x"} } } } }  },{tag=
+
+"Assign",{tag="VarList",{tag="Id","x"}},{tag="ExpList",{tag="Call",{tag="Id","f"
+
+},{tag="ExpList",{tag="Id","x"} } } } },{tag="Call",{tag="Id","print"},{tag="ExpList
+
+",{tag="Id","x"} } } }
+
+</pre>
+</DL>
+<p>
+<H3>Example: Static Type Checking and Undefined Variable Detection</H3>
+<p>
+This example demonstrates some of the static type checking capabilities.  Types are bound to lexicals at compile time via the TYPED/NUMBER/STRING macros or or by automatic deduction.  Types are checked and constant expressions are evaluated at compile time.  The REQUIRE macro provides compile-time macro and type import and also does a regular <code>require</code> at run-time.  All global variables are disabled via the NOGLOBALS macro (except those bound to lexicals via REQUIRE), so global variable access (including misspelled lexicals) trigger a compile-time error.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- type_usage2.lua</span>
+
+<span class="comment">-- LuaFish static type checking example.</span>
+
+<span class="comment">-- Using math library.</span>
+
+<span class="comment">-- Requires LuaFish 0.4.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Note: CAPS identifiers are typically macros.</span>
+
+
+
+<span class="comment">-- Compile-time import of static typing macros NUMBER, STRING, and TYPED</span>
+
+REQUIRE <span class="string">'luafish.type'</span>
+
+
+
+<span class="comment">-- disable global variable usage</span>
+
+NOGLOBALS()
+
+
+
+<span class="comment">-- Compile-time import of static type definitions for standard modules.</span>
+
+<span class="keyword">local</span> <span class="library">math</span> = REQUIRE <span class="string">'math'</span>
+
+<span class="keyword">local</span> <span class="library">_G</span> = REQUIRE <span class="string">'_G'</span>
+
+
+
+<span class="keyword">local</span> <span class="library">print</span> = <span class="library">_G</span>.print
+
+
+
+<span class="comment">-- False conditional demonstrates that static type checking is done</span>
+
+<span class="comment">-- at compile-time.</span>
+
+<span class="keyword">if</span> <span class="keyword">false</span> <span class="keyword">then</span>
+
+  <span class="library">print</span>(<span class="library">math.sqrt</span>) <span class="comment">-- ok</span>
+
+  <span class="comment">--print(math.asdf) -- compile error: asdf not in math</span>
+
+
+
+  <span class="comment">--print(math.sqrt('one')) -- compile error: arg must be number</span>
+
+  <span class="comment">-- print(math.sqrt(2,3)) -- compile error: num args</span>
+
+  <span class="comment">-- print(math.sqrt(-1)) -- compile error: arg must be non-negative</span>
+
+  <span class="library">print</span>(<span class="library">math.sqrt</span>(2)) <span class="comment">-- ok</span>
+
+
+
+  <span class="keyword">local</span> x = 2  <span class="comment">-- weak, implicit type Number</span>
+
+  <span class="comment">--x() -- compiler error: not callable</span>
+
+  x = <span class="library">print</span>() <span class="comment">-- implicit type not unknown after calling unknown function</span>
+
+  x() <span class="comment">-- ok now</span>
+
+
+
+  <span class="comment">-- Note: compare this to the above.</span>
+
+  <span class="keyword">local</span> x = TYPED(-3) <span class="comment">-- bind strong, implicit type to lexical</span>
+
+  <span class="comment">--local x = NUMBER(-3)  -- alternate form with explicit type</span>
+
+  <span class="comment">--x() -- compile error: not callable</span>
+
+  x = <span class="library">print</span>() <span class="comment">-- does not modify strong type</span>
+
+  <span class="comment">--x() -- compile error: not callable</span>
+
+
+
+  <span class="keyword">local</span> x = -3
+
+  <span class="comment">--print(math.sqrt(x)) -- compile error: arg must be non-negative</span>
+
+  x = x + 2
+
+  <span class="comment">--print(math.sqrt(x)) -- compile error: arg must be non-negative</span>
+
+  x = x + 1
+
+  <span class="library">print</span>(<span class="library">math.sqrt</span>(x)) <span class="comment">-- ok</span>
+
+
+
+  <span class="comment">--math.sqrt(math.sin(-math.pi/2)) -- compile error: arg must be non-negative</span>
+
+
+
+  <span class="keyword">local</span> x = STRING(<span class="library">print</span>()) <span class="comment">-- bind string type, unknown value f()</span>
+
+  x = 5 <span class="comment">-- doesn't affect strong type</span>
+
+        <span class="comment">-- TODO: we could guard against such assignment.</span>
+
+  <span class="comment">--print(math.sqrt(x)) -- compile error: arg must be number</span>
+
+
+
+  <span class="keyword">local</span> sqrt = <span class="library">math.sqrt</span>
+
+  <span class="comment">-- print(sqrt(-2)) -- compile error: arg must be non-negative</span>
+
+
+
+  <span class="keyword">local</span> sqrt = TYPED(<span class="library">math.sqrt</span>)
+
+  <span class="comment">-- print(sqrt(-2)) -- compile error: arg must be non-negative</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span> <span class="string">'type_usage2.lua : done'</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>Example: Macro Handling</H3>
+<p>
+Here is another example of using the experimental macro processing capabilities with modules.  This uses one of the styles for processing macros.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- module_usage2.lua</span>
+
+<span class="comment">-- LuaFish example that tests square2.lua module.</span>
+
+<span class="comment">-- It uses both the static type and runtime definition</span>
+
+<span class="comment">-- in square2.lua.</span>
+
+
+
+<span class="library">print</span> <span class="string">'DEBUG:main:begin compiletime'</span> <span class="comment">-- trace</span>
+
+
+
+<span class="comment">-- TSquare is the static type of square2.</span>
+
+<span class="keyword">local</span> TSquare = <span class="library">require</span> <span class="string">"square2"</span>
+
+
+
+<span class="comment">-- This compiles and executes the given code string.</span>
+
+<span class="comment">-- During compilation, the SQUARE macro is evaluated.</span>
+
+<span class="comment">-- The SQUARE macro is defined as TSquare.bind, which</span>
+
+<span class="comment">-- binds the given lexical to the TSquare static type</span>
+
+<span class="comment">-- and returns an empty code block that replaces the macro</span>
+
+<span class="comment">-- in the AST.  The code is then statically checked</span>
+
+<span class="comment">-- against the bound static types.  Finally, the code</span>
+
+<span class="comment">-- is executed.</span>
+
+<span class="library">require</span> <span class="string">"luafish.staticmodule"</span> {
+
+  SQUARE = TSquare.bind, ISSQUARE = TSquare.isa
+
+} <span class="string">[[
+
+  print 'DEBUG:main:end compiletime'
+
+  print 'DEBUG:main:begin runtime'
+
+
+
+  -- Load run-time behavior of square2.
+
+  local Square = require "square2" . class
+
+
+
+  -- Create instance.  Assign to lexical.
+
+  -- Bind static-type to lexical.
+
+  local m = Square.create(5); SQUARE(m)
+
+
+
+  -- This demonstrates that even though the following code is
+
+  -- not executed at run-time, it is still compile-time checked.
+
+  if false then
+
+    m:setcolor('blue') -- ok
+
+    local a = m.hello           -- compile error (field name)
+
+    local b = m.setcolor(m,'blue') -- ok
+
+    local b = m.setcolor(m,5)   -- compile error (arg type)
+
+    local b = m.setcolor(m,5,6) -- compile error (num args)
+
+
+
+    local b = (m * 2):area(1)   -- compile error (num args)
+
+
+
+    -- local a = false + false  -- compile error (op not defined)
+
+    local a = false and true    -- ok
+
+    local a = 5 + 3^3           -- ok
+
+  end
+
+
+
+  print 'DEBUG:main:end runtime'
+
+]]</span>
+
+
+
+<span class="comment">--[[OUTPUT:
+
+DEBUG:main:begin compiletime
+
+DEBUG:square2:begin compiletime
+
+DEBUG:square2:end compiletime
+
+DEBUG:square2:begin runtime
+
+DEBUG:square2:end runtime
+
+static __index  [TSquare Class] setcolor
+
+static call     {"Id","m"}      {"String","blue"}
+
+static __index  [TSquare Class] hello
+
+ERROR:  hello not in [TSquare Class]
+
+static __index  [TSquare Class] setcolor
+
+static call     {"Id","m"}      {"String","blue"}
+
+static __index  [TSquare Class] setcolor
+
+static call     {"Id","m"}      {"Number",5}
+
+ERROR:  second param must be string
+
+static __index  [TSquare Class] setcolor
+
+static call     {"Id","m"}      {"Number",5}    {"Number",6}
+
+ERROR:  second param must be string
+
+ERROR:  expected two arguments
+
+static __mul    [TSquare Class] table: 0127EE68
+
+ERROR:  first op must be TSquare
+
+static __index  [TSquare Class] area
+
+static call     {"Parens",{"*",{"Id","m"},{"Number",2} } }        {"Number",1}
+
+ERROR:  expected zero arguments
+
+DEBUG:main:end compiletime
+
+DEBUG:main:begin runtime
+
+DEBUG:main:end runtime
+
+--]]</span>
+
+</pre>
+
+</DL>
+<p>
+where the module is defined as
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- square2.lua</span>
+
+<span class="comment">-- LuaFish example of a module that indirectly</span>
+
+<span class="comment">-- contains macros.  Contains both</span>
+
+<span class="comment">-- static type check and run-time behavior.</span>
+
+
+
+<span class="comment">-- Static type definition.</span>
+
+<span class="keyword">local</span> TSquare = {}; <span class="keyword">do</span>
+
+  <span class="library">print</span> <span class="string">'DEBUG:square2:begin compiletime'</span>  <span class="comment">-- trace</span>
+
+
+
+  <span class="keyword">local</span> Macro = <span class="library">require</span> <span class="string">"luafish.macro"</span>
+
+
+
+  <span class="comment">-- Helper functions.</span>
+
+  <span class="keyword">local</span> report = <span class="keyword">function</span>(...) <span class="library">print</span>(<span class="string">'ERROR:'</span>, ...) <span class="keyword">end</span>
+
+  <span class="keyword">local</span> check = <span class="keyword">function</span>(test,message)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> test <span class="keyword">then</span> report(message) <span class="keyword">else</span> <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="library">setmetatable</span>(TSquare, {
+
+    __tostring = <span class="keyword">function</span>() <span class="keyword">return</span> <span class="string">'[TSquare Class]'</span> <span class="keyword">end</span>
+
+  })
+
+  <span class="comment">-- bind lexical to this type.</span>
+
+  <span class="keyword">function</span> TSquare.bind(obj_ast)
+
+    obj_ast.stype = TSquare
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- tests if expression is of this type</span>
+
+  <span class="keyword">function</span> TSquare.isa(obj_ast)
+
+    <span class="keyword">return</span> <span class="string">'value'</span>, obj_ast.stype == TSquare
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> is_method = {area=<span class="keyword">true</span>,perimeter=<span class="keyword">true</span>,setcolor=<span class="keyword">true</span>}
+
+  <span class="keyword">function</span> TSquare:__index(k)
+
+    <span class="library">print</span>(<span class="string">'static __index'</span>, self, k)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> is_method[k] <span class="keyword">then</span>
+
+      report(<span class="library">tostring</span>(k) .. <span class="string">' not in '</span> .. <span class="library">tostring</span>(TSquare))
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> k == <span class="string">'setcolor'</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">function</span>(self, o, ...)
+
+        <span class="library">print</span>(<span class="string">'static call'</span>, self, o, ...)
+
+        check(self.stype == TSquare, <span class="string">'first param must be TSquare'</span>)
+
+        check(Macro.TString.isa(o.stype), <span class="string">'second param must be string'</span>)
+
+        <span class="keyword">if</span> <span class="library">select</span>(<span class="string">'#'</span>, ...) ~= 0 <span class="keyword">then</span>
+
+          report(<span class="string">'expected two arguments'</span>)
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">return</span> <span class="keyword">function</span>(self, ...)
+
+        <span class="library">print</span>(<span class="string">'static call'</span>, self, ...)
+
+        <span class="keyword">if</span> <span class="library">select</span>(<span class="string">'#'</span>, ...) ~= 0 <span class="keyword">then</span>
+
+          report(<span class="string">'expected zero arguments'</span>)
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> TSquare:__mul(other)
+
+    <span class="library">print</span>(<span class="string">'static __mul'</span>, self, other)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> (check(stype == TSquare, <span class="string">'first op must be TSquare'</span>) <span class="keyword">or</span>
+
+            check(Macro.TNumber.isa(other), <span class="string">'second op must be number'</span>))
+
+    <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+    <span class="keyword">return</span> TSquare
+
+  <span class="keyword">end</span>
+
+  <span class="library">print</span> <span class="string">'DEBUG:square2:end compiletime'</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Run-time behavior.</span>
+
+TSquare.class = <span class="library">require</span> <span class="string">"luafish.staticmodule"</span> {} <span class="string">[[
+
+  print 'DEBUG:square2:begin runtime'
+
+
+
+  local Square = {}
+
+  Square.__index = Square
+
+  function Square.create(length)
+
+    return setmetatable({length=length}, Square)
+
+  end
+
+  function Square:area(length) return self.length^2 end
+
+  function Square:perimeter(length) return self.length*4 end
+
+  function Square:setcolor(color) self.color = color end
+
+  function Square:__mul(other, val)
+
+    return Square.create(self.length * val)
+
+  end
+
+
+
+  print 'DEBUG:square2:end runtime'
+
+
+
+  return Square
+
+]]</span>
+
+
+
+<span class="keyword">return</span> TSquare
+
+</pre>
+
+</DL>
+<p>
+You can think of the static type description as a metatable that is attached to a lexical and operated on at compile time.
+<p>
+Another way to use macros is to place the macro-enabled code in a separate file and use the replacement macro-enabled versions of <code>require</code> or <code>dofile</code>.
+<p>
+<H3>Example: Lua -&gt; C Compiler</H3>
+<p>
+This Lua-&gt;C compiler is very-very preliminary and makes many assumptions.  It's more of a prototype.  It should have more checks and trigger errors if it cannot ensure valid compilation to equivalent C.
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua 1.lua 
+
+25 
+
+ 
+
+$ lua lib/luafish/lua2c.lua 1.lua | gcc -xc - 
+
+ 
+
+$ ./a.out 
+
+25.000000 
+
+ 
+
+ 
+
+-- input: 1.lua -- 
+
+ 
+
+local x,y = 4,5 
+
+ 
+
+x = x + 1 
+
+ 
+
+local function f(x) 
+
+  return x * x 
+
+end 
+
+ 
+
+x = f(x) 
+
+ 
+
+print(x) 
+
+ 
+
+ 
+
+-- output: 1.c -- 
+
+ 
+
+#include &lt;stdio.h&gt;
+
+double f(double x) {
+
+return x * x;
+
+}
+
+int main() {
+
+double x = 4;
+
+double y = 5;
+
+x = x + 1;
+
+x = f(x);
+
+printf("%f\n", x);
+
+return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+For more examples and details, see the distribution examples and source code.
+<p>
+<H3>See Also</H3>
+<p>
+<UL>
+<li> <a href="../wiki/LpegRecipes.html" >LpegRecipes</a>
+<li> <a href="../wiki/LuaGrammar.html" >LuaGrammar</a>
+</UL>
+<p>
+<p>
+<H2>Lua<code></code>Fish Source Analysis - Take Two (a.k.a. Lua<code></code>Analyze)</H2>
+<p>
+Here's a preview of a redesigned source analyzer based on some principles learned from the <a href="../wiki/LuaFish.html" >LuaFish</a> work (warning: alpha version):  <a href="http://math2.org/download/luaanalyze-20080925b.tar.gz">[luaanalyze-20080925b.tar.gz]</a>
+<p>
+The new code tries to make the design more practical.  It also uses gg/mlp (from Metalua) rather than LPeg. Example file:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- examples/ex1.lua</span>
+
+<span class="keyword">do</span>
+
+  <span class="comment">--! typeimport('luaanalyze.library.standard')</span>
+
+  <span class="comment">--! typematch('idx$', 'luaanalyze.type.number')</span>
+
+  <span class="comment">--! checkglobals()</span>
+
+  <span class="comment">--! checktypes()</span>
+
+
+
+  <span class="keyword">for</span> my_idx=1,10 <span class="keyword">do</span>
+
+    <span class="keyword">local</span> s = <span class="library">string</span>
+
+    <span class="keyword">local</span> f = s.format
+
+    <span class="comment">--print(f(my_idx)) -- fails: got number expected string</span>
+
+
+
+    <span class="comment">--print(myy_idx) -- fails: undefined global</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span>(myy_idx) <span class="comment">-- no error</span>
+
+</pre>
+
+</DL>
+<p>
+To check, run "<code>lua luaanalyze.lua examples/ex1.lua</code>".  Comments prefixed by '!' are interpreted by the source analyzer.  There's quite a few interesting things that should be stated about the above example (more on this later).
+<p>
+WARNING: luaanalyze is superseded by <a href="../wiki/LuaInspect.html" >LuaInspect</a>.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaInspect.html" >LuaInspect</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaFish" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaFish" >history</a><br>Last edited September 22, 2010 5:28 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaFish" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,1439 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Hacks</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaHacks&amp;body=1" title="List pages referring to LuaHacks">Lua Hacks</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page lists Lua hacks.  We use <em>hack</em> in the following manner taken from Wikipedia <a href="http://en.wikipedia.org/wiki/Hack_%28technology_slang%29.html">[1]</a>:
+<p>
+<DL>
+<dt><dd>In modern computer programming, a "hack" can refer to a solution or method which functions correctly but which is "ugly" in its concept, which works outside the accepted structures and norms of the environment, or which is not easily extendable or maintainable (see kludge)....In a similar vein, a "hack" may refer to works outside of computer programming. For example, a math hack means a clever solution to a mathematical problem.
+</DL>
+<p>
+Hacks can be less elegant, less practical, and less recommended than <a href="../wiki/LuaDesignPatterns.html" >LuaDesignPatterns</a>.  However, they are still interesting for academic value.  They may lead to more elegant solutions or provide useful inspiration on other problems.
+<p>
+Each hack is identified with a name and contains a description of what it tries to do and how it does it.
+<p>
+<em>Some examples use getfenv or setfenv, which were retired after Lua 5.1.</em>
+<p>
+<p>
+<H3>Hacks on other Pages</H3>
+<p>
+<UL>
+<li> <a href="../wiki/ExpressionsAsStatements.html" >ExpressionsAsStatements</a> - rewriting statements as expressions
+<li> <a href="../wiki/SwitchStatement.html" >SwitchStatement</a> - lists implementations of C-style switch statements
+<li> <a href="../wiki/BoundScalarGlobalsOne.html" >BoundScalarGlobalsOne</a> - defining global variables that invoke C functions on get/set
+<li> <a href="../wiki/MakingLuaLikeRuby.html" >MakingLuaLikeRuby</a> - simulating some of the semantics of Ruby in Lua
+<li> <a href="../wiki/CustomOperators.html" >CustomOperators</a> - defining new operators beyond the built-in ones
+<li> <a href="../wiki/StatementsInExpressions.html" >StatementsInExpressions</a> - reusing subexpressions in an expression
+<li> <a href="../wiki/ExpressionTemplatesInLua.html" >ExpressionTemplatesInLua</a> - a Lua coding technique similar to C++ expression templates
+<li> <a href="../wiki/GettingVariablesFromValues.html" >GettingVariablesFromValues</a> - gets variables of values passed to a function (e.g. pass-by-reference)
+<li> <a href="../wiki/RuntimeSyntax.html" >RuntimeSyntax</a> - automates the run-time simulation of what resembles syntax extensions
+</UL>
+<p>
+<H3>Hack: Modules a la Perl</H3>
+<p>
+The following example makes Lua behave like Perl's Exporter/import thing for exporting module variables into the caller namespace.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- file test.lua</span>
+
+<span class="keyword">local</span> mymodule = <span class="library">require</span>(<span class="string">"mymodule"</span>)
+
+<span class="library">assert</span>(hello == <span class="keyword">nil</span>) <span class="comment">-- not imported</span>
+
+mymodule.hello()
+
+
+
+<span class="keyword">local</span> mymodule = <span class="library">require</span>(<span class="string">"mymodule"</span>):import{<span class="string">"hello"</span>}
+
+hello()
+
+<span class="library">assert</span>(goodbye == <span class="keyword">nil</span>) <span class="comment">-- not imported</span>
+
+<span class="library">assert</span>(mymodule.print == <span class="keyword">nil</span>) <span class="comment">-- not visible</span>
+
+ 
+
+<span class="library">require</span>(<span class="string">"mymodule"</span>):import{<span class="string">":all"</span>}
+
+goodbye()
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- file mymodule.lua</span>
+
+ 
+
+<span class="comment">-- Globals get collected by this table.</span>
+
+<span class="keyword">local</span> collector = {}
+
+<span class="library">setfenv</span>(1, <span class="library">setmetatable</span>(collector, {__index = <span class="library">_G</span>}))
+
+ 
+
+<span class="comment">-- Now define the module functions.</span>
+
+ 
+
+<span class="keyword">function</span> hello()
+
+  <span class="library">print</span>(<span class="string">"hello?"</span>)
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> goodbye()
+
+  <span class="library">print</span>(<span class="string">"goodbye?"</span>)
+
+<span class="keyword">end</span>
+
+ 
+
+<span class="comment">-- Used to import functions into caller namespace</span>
+
+<span class="comment">-- (like in Perl's "import" function in Exporter.pm)</span>
+
+<span class="keyword">function</span> import(self, option)
+
+  <span class="comment">-- convert any option list to set</span>
+
+  <span class="keyword">local</span> optionset = {}
+
+  <span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">ipairs</span>(option) <span class="keyword">do</span> optionset[v] = <span class="keyword">true</span> <span class="keyword">end</span>
+
+  <span class="comment">-- import selected variables into caller namespace</span>
+
+  <span class="keyword">local</span> env = <span class="library">getfenv</span>(2)
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(collector) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> optionset[<span class="string">":all"</span>] <span class="keyword">or</span> optionset[k] <span class="keyword">then</span> env[k] = v <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+ 
+
+<span class="comment">-- Return public module object (don't expose globals)</span>
+
+<span class="keyword">local</span> mymodule = {}
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(collector) <span class="keyword">do</span> mymodule[k] = v <span class="keyword">end</span>
+
+<span class="keyword">return</span> mymodule
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+-- output
+
+hello?
+
+hello?
+
+goodbye?
+
+</pre>
+</DL>
+<p>
+Note: It's preferrable to use things like <code>mymodule = requre "mymodule"; local hello = mymodule.hello</code> instead, which only import a single symbol into your namespace (cleaner).  import{":all"} has similar uses and disadvantages of Java's static import.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>, 2006-10, Lua 5.1
+<p>
+<H3>Hack: Dynamically Scoped Variables</H3>
+<p>
+Warning: the following is academic and isn't really recommended for most situations.
+<p>
+Back in the good-ol'-days, before the popularity of static scoping, we had dynamic scoping (<a href="http://en.wikipedia.org/wiki/Scope_(programming).html">[Wikipedia:Scope_(programming)]</a>).  Let's simulate that in Lua.
+<p>
+To do so, we can create a function that wraps the provided function to apply dynamic scoping to certain variables:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- (func, varnames*) --&gt; func</span>
+
+<span class="keyword">function</span> dynamic(func, ...)
+
+  <span class="keyword">local</span> varnames = {...}
+
+  <span class="keyword">local</span> saves = {}
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+    <span class="keyword">for</span> _,varname <span class="keyword">in</span> <span class="library">ipairs</span>(varnames) <span class="keyword">do</span> saves[varname] = <span class="library">_G</span>[varname] <span class="keyword">end</span>
+
+    <span class="keyword">local</span> result = pack2(func(...))
+
+    <span class="keyword">for</span> _,varname <span class="keyword">in</span> <span class="library">ipairs</span>(varnames) <span class="keyword">do</span> <span class="library">_G</span>[varname] = saves[varname] <span class="keyword">end</span>
+
+    <span class="keyword">return</span> unpack2(result)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The above function uses the <code>pack2</code> and <code>unpack2</code> functions from the "Vararg Saving" design pattern in <a href="../wiki/VarargTheSecondClassCitizen.html" >VarargTheSecondClassCitizen</a>.  <code>dynamic</code> saves and restores the values of the given global variables before and after the function call, thereby simulating dynamic variables.  Here's an example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+test2 = dynamic(<span class="keyword">function</span>()
+
+  <span class="library">print</span>(<span class="string">"test2:"</span>, x, y)
+
+  x = 6
+
+  y = 7
+
+  <span class="keyword">return</span> x, y
+
+<span class="keyword">end</span>, <span class="string">'y'</span>)
+
+
+
+test1 = dynamic(<span class="keyword">function</span>()
+
+  <span class="library">print</span>(<span class="string">"test1:"</span>, x, y)
+
+  x = 4
+
+  y = 5
+
+  <span class="library">print</span>(<span class="string">"test2:"</span>, test2())
+
+  <span class="library">print</span>(<span class="string">"test1:"</span>, x, y)
+
+<span class="keyword">end</span>, <span class="string">'x'</span>)
+
+
+
+x = 2
+
+y = 3
+
+test1()
+
+<span class="comment">-- Output:</span>
+
+<span class="comment">--   print("main:", x, y)</span>
+
+<span class="comment">--   test1:  2       3</span>
+
+<span class="comment">--   test2:  4       5</span>
+
+<span class="comment">--   test2:  6       7</span>
+
+<span class="comment">--   test1:  6       5</span>
+
+<span class="comment">--   main:   2       5</span>
+
+</pre>
+
+</DL>
+<p>
+Note: languages that support RAII (<a href="http://en.wikipedia.org/wiki/Resource_Acquisition_Is_Initialization.html">[Wikipedia:Resource_Acquisition_Is_Initialization]</a>) can implement this with RAII.  There may be some ways to simulate RAII in Lua (<a href="/lists/lua-l/2006-09/msg00846.html">LuaList:2006-09/msg00846.html</a>).
+<p>
+The above code does not properly handle functions that raise exceptions.  That would require inserting a <code>pcall</code> into <code>dynamic</code>.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>, 2007-01
+<p>
+<H3>Pattern: Local by Default Scoping</H3>
+<p>
+Warning: the following is academic and isn't really recommended for most situations.
+<p>
+In Lua, if you assign a value to an undefined variable, the variable is created as a global rather than a local.  Let's change this to make variables local by default (like in Python <a href="http://docs.python.org/tut/node11.html#SECTION0011200000000000000000">[2]</a>).  By "local" we mean in the sense of smallest lexical scope, not in the Lua implementation sense of being stored in the Lua stack (here, we internally implement locals with globals on the heap).
+<p>
+As in the previous "Dynamically Scoped Variables" design pattern, we create a utility function that wraps other functions that we want to assign this behavior to and makes use of the <code>pack2</code> and <code>unpack2</code> functions:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> localbydefault(func)
+
+  <span class="keyword">local</span> upenv = <span class="library">getfenv</span>(2)
+
+  <span class="keyword">local</span> mt = {}; mt.__index = upenv
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+    <span class="keyword">local</span> env = <span class="library">setmetatable</span>({}, mt)  <span class="comment">-- storage for locals</span>
+
+
+
+    <span class="keyword">local</span> oldenv = <span class="library">getfenv</span>(func)
+
+    <span class="library">setfenv</span>(func, env)
+
+    <span class="keyword">local</span> result = pack2(func(...))
+
+    <span class="library">setfenv</span>(func, oldenv)
+
+    <span class="keyword">return</span> unpack2(result)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span></pre>
+
+</DL>
+<p>
+This causes a temporary environment for locals to be created for each function call.
+<p>
+Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+test2 = localbydefault(<span class="keyword">function</span>()
+
+  <span class="library">print</span>(<span class="string">"test2:"</span>, x, y)
+
+  x = 6; y = 7
+
+  <span class="library">_G</span>.z = 8
+
+  <span class="keyword">return</span> x, y
+
+<span class="keyword">end</span>)
+
+
+
+test1 = localbydefault(<span class="keyword">function</span>()
+
+  <span class="library">print</span>(<span class="string">"test1:"</span>, x, y)
+
+  x = 4; y = 5
+
+  <span class="library">print</span>(<span class="string">"test1:"</span>, x, y)
+
+  <span class="library">print</span>(<span class="string">"test2:"</span>, test2())
+
+  <span class="library">print</span>(<span class="string">"test1:"</span>, x, y)
+
+
+
+  localbydefault(<span class="keyword">function</span>() <span class="comment">-- nested</span>
+
+    <span class="library">print</span>(<span class="string">"test3:"</span>, x, y)
+
+    x = 9; y = 10
+
+    <span class="library">print</span>(<span class="string">"test3:"</span>, x, y)
+
+  <span class="keyword">end</span>)()
+
+  <span class="library">print</span>(<span class="string">"test1:"</span>, x, y)
+
+<span class="keyword">end</span>)
+
+
+
+x = 2
+
+test1()
+
+<span class="library">print</span>(<span class="string">"main:"</span>, x, y, z)
+
+<span class="comment">-- Output:</span>
+
+<span class="comment">--   test1:  2       nil</span>
+
+<span class="comment">--   test1:  4       5</span>
+
+<span class="comment">--   test2:  2       nil</span>
+
+<span class="comment">--   test2:  6       7</span>
+
+<span class="comment">--   test1:  4       5</span>
+
+<span class="comment">--   test3:  4       5</span>
+
+<span class="comment">--   test3:  9       10</span>
+
+<span class="comment">--   test1:  4       5</span>
+
+<span class="comment">--   main:   2       nil     8</span>
+
+</pre>
+
+</DL>
+<p>
+Note how globals can be accessed via the <code>_G</code> variable.
+<p>
+This approach works for recursive functions too:
+<p>
+<DL>
+<dt><dd><pre class="code">
+fibonacci = localbydefault(<span class="keyword">function</span>(n)
+
+  <span class="keyword">if</span> n == 1 <span class="keyword">then</span> <span class="keyword">return</span> 0
+
+  <span class="keyword">elseif</span> n == 2 <span class="keyword">then</span> <span class="keyword">return</span> 1
+
+  <span class="keyword">else</span>
+
+    x1 = fibonacci(n - 1)
+
+    x2 = fibonacci(n - 2)
+
+    <span class="keyword">return</span> x1 + x2
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>)
+
+<span class="library">assert</span>(fibonacci(10) == 34)
+
+</pre>
+
+</DL>
+<p>
+The above function was written to use temporary variables in such a way that it would fail if those temporary variables were globals rather than locals (e.g. try removing the <code>localbydefault</code> from that).  However, <code>x1</code> and <code>x2</code> are indeed lexically scoped locals, and the function works.
+<p>
+-- David Manura, 2007-01
+<p>
+//Comment: What is pack2 and unpack2
+<p>
+<H3>Hack: Mimicking C++ Iostreams</H3>
+<p>
+Warning: the following is academic and isn't really recommended for most situations.  
+<p>
+C++ iostreams <a href="http://en.wikipedia.org/wiki/Iostream.html">[3]</a> are used as such:
+<p>
+<DL>
+<dt><dd><pre class="code">
+#include &lt;iostream&gt;
+
+using namespace std;
+
+int main()
+
+{
+
+    cout &lt;&lt; <span class="string">"hello"</span> &lt;&lt; <span class="string">"world"</span> &lt;&lt; 123 &lt;&lt; endl;
+
+    <span class="keyword">return</span> 0;
+
+}
+
+</pre>
+
+</DL>
+<p>
+We can mimick that in Lua as such.
+<p>
+<DL>
+<dt><dd><pre class="code">
+cout = <span class="keyword">function</span> (str)
+
+  <span class="keyword">if</span> str ~= <span class="keyword">nil</span> <span class="keyword">then</span>
+
+    <span class="library">io.write</span>(<span class="library">tostring</span>(str), <span class="string">" "</span>)
+
+  <span class="keyword">else</span>
+
+    <span class="library">io.write</span>(<span class="string">"\n"</span>)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> cout
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre class="code">
+cout <span class="string">"hello"</span> <span class="string">"world"</span> (123) () <span class="comment">--&gt; "hello world 123\n"</span>
+
+</pre>
+
+</DL>
+<p>
+You might even add sticky formatting functions too:
+<p>
+<DL>
+<dt><dd><pre class="code">
+cout <span class="string">"asdf"</span> (intfmt(3)) (i)
+
+</pre>
+
+</DL>
+<p>
+See also <a href="../wiki/SimpleStringBuffer.html" >SimpleStringBuffer</a> for a related example.
+<p>
+<H3>Hack: Accessing Lexical Variables in the Caller / Lexical String Interpolation</H3>
+<p>
+Warning: the following is academic and isn't really recommended for most situations.  
+<p>
+As shown in <a href="../wiki/StringInterpolation.html" >StringInterpolation</a>, one can define a function that access variables lexically scoped in its caller:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> x = 3
+
+<span class="library">assert</span>(interp <span class="string">"x = ${x}"</span> == <span class="string">"x = 3"</span>)
+
+</pre>
+
+</DL>
+<p>
+This is done via the <code>debug.getlocal</code>.
+<p>
+Another application for this might be to eliminate the need for passing locals in "Stringified Anonymous Functions" in <a href="../wiki/ShortAnonymousFunctions.html" >ShortAnonymousFunctions</a>.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H3>Hack: Modifying Bytecode</H3>
+<p>
+This example modifies bytecode at run-time.  Possibly more useful tricks could be based on it.  Note that <code>string.dump</code> does not preserve up-values, which limits the usefulness of this (but see also <a href="../wiki/PlutoLibrary.html" >PlutoLibrary</a>).
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> add(x,y) <span class="keyword">return</span> x + y <span class="keyword">end</span>
+
+<span class="keyword">function</span> test(x,y)
+
+  <span class="library">print</span>(<span class="string">"here is waht the answer is..."</span>)
+
+  <span class="library">print</span>(<span class="string">"teh answer is"</span>, add(x,y))
+
+<span class="keyword">end</span>
+
+ 
+
+<span class="keyword">local</span> replacements = {
+
+  [<span class="string">"teh"</span>] = <span class="string">"the"</span>,
+
+  [<span class="string">"waht"</span>] = <span class="string">"what"</span>
+
+}
+
+<span class="keyword">function</span> fix_spelling()
+
+  <span class="keyword">local</span> env = <span class="library">getfenv</span>(2)
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(env) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(v) == <span class="string">"function"</span> <span class="keyword">then</span>
+
+      <span class="keyword">local</span> success, bytes = <span class="library">pcall</span>(<span class="keyword">function</span>() <span class="keyword">return</span> <span class="library">string.dump</span>(v) <span class="keyword">end</span>)
+
+      <span class="keyword">if</span> success <span class="keyword">then</span>
+
+        <span class="keyword">local</span> is_changed, n = <span class="keyword">false</span>, <span class="keyword">nil</span>
+
+        <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(replacements) <span class="keyword">do</span>
+
+          bytes, n = bytes:gsub(k, v)
+
+          is_changed = is_changed <span class="keyword">or</span> (n &gt; 0)          
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">if</span> is_changed <span class="keyword">then</span>
+
+          env[k] = <span class="library">assert</span>(<span class="library">loadstring</span>(bytes))
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+ 
+
+fix_spelling()
+
+ 
+
+test(2,3)
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua test.lua
+
+here is what the answer is...
+
+the answer is   5
+
+</pre>
+</DL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>, 2007-03
+<p>
+<H3>Hack: Proxy Table of Local Variables, _L</H3>
+<p>
+Warning: this example is academic and not really intended for production use.
+<p>
+Here's how we might create a proxy table that does reading/writing of local variables an get/set.  Internally it uses <code>debug.getlocal</code> and <code>debug.setlocal</code> calls, which is what makes this a hack.  
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Returns a proxy table representing all locals visible to the</span>
+
+<span class="comment">-- given stack level &lt;level&gt;.  The table is readable</span>
+
+<span class="comment">-- and writable (writing modifies the local).</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- If &lt;level&gt; is nil, the default used is 1,</span>
+
+<span class="comment">-- which indicates the stack level of the caller.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- NOTE: This function is based on debug.getlocal()</span>
+
+<span class="comment">-- and may be slow.</span>
+
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> Nil = {} <span class="comment">-- placeholder (for storing nils in tables)</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> getstackdepth(level)
+
+    <span class="keyword">local</span> n = 1
+
+    <span class="keyword">while</span> <span class="library">debug.getinfo</span>(n+level+1, <span class="string">""</span>) ~= <span class="keyword">nil</span> <span class="keyword">do</span> n=n+1 <span class="keyword">end</span>
+
+    <span class="keyword">return</span> n
+
+  <span class="keyword">end</span>
+
+<span class="keyword">function</span> getlocals(level)
+
+  level = (level <span class="keyword">or</span> 1) + 1
+
+
+
+  <span class="comment">-- Note: this correctly handles the case where two locals have the</span>
+
+  <span class="comment">-- same name: "local x=1; local x=2 ... get_locals() ... local x=3".</span>
+
+
+
+  <span class="keyword">local</span> mt = {}
+
+  <span class="keyword">local</span> proxy = <span class="library">setmetatable</span>({}, mt)
+
+  <span class="keyword">local</span> levels = {}   <span class="comment">-- map: variable name --&gt; stack level</span>
+
+  <span class="keyword">local</span> indicies = {} <span class="comment">-- map: variable name --&gt; stack index</span>
+
+
+
+  <span class="keyword">local</span> depth = getstackdepth(level)
+
+
+
+  <span class="keyword">for</span> k=1,depth <span class="keyword">do</span>
+
+    <span class="comment">-- Determine number of locals (nlocs)</span>
+
+    <span class="comment">-- Note: it would be easier if debug.getinfo returned nlocs.</span>
+
+    <span class="keyword">local</span> nlocs = 0
+
+    <span class="keyword">while</span> <span class="library">debug.getlocal</span>(level, nlocs+1) <span class="keyword">do</span> nlocs = nlocs + 1 <span class="keyword">end</span>
+
+
+
+    <span class="comment">-- Record locations of locals by name.</span>
+
+    <span class="keyword">for</span> n=nlocs,1,-1 <span class="keyword">do</span>
+
+      <span class="keyword">local</span> lname, lvalue = <span class="library">debug.getlocal</span>(level, n)
+
+      <span class="keyword">if</span> lvalue == <span class="keyword">nil</span> <span class="keyword">then</span> lvalue = Nil <span class="keyword">end</span>  <span class="comment">-- placeholder</span>
+
+      <span class="keyword">if</span> <span class="keyword">not</span> levels[lname] <span class="keyword">then</span>  <span class="comment">-- not shadowed</span>
+
+        levels[lname] = level
+
+        indicies[lname] = n
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    level = level + 1
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- proxy handlers for read/write on table.</span>
+
+  <span class="keyword">function</span> mt.__index(t, k)
+
+    <span class="keyword">local</span> depthdiff = getstackdepth(2) - depth
+
+    <span class="keyword">if</span> depthdiff &lt; 0 <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"stack out of scope"</span>, 2) <span class="keyword">end</span>
+
+    <span class="keyword">local</span> level = levels[k]
+
+    <span class="keyword">local</span> v
+
+    <span class="keyword">if</span> level <span class="keyword">then</span>
+
+      level = level + depthdiff  <span class="comment">-- a correction</span>
+
+      <span class="keyword">local</span> _; _, v = <span class="library">debug.getlocal</span>(level, indicies[k])
+
+      <span class="keyword">if</span> v == Nil <span class="keyword">then</span> v = <span class="keyword">nil</span> <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> v
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> mt.__newindex(t, k, v)
+
+    <span class="keyword">local</span> depthdiff = getstackdepth(2) - depth
+
+    <span class="keyword">if</span> depthdiff &lt; 0 <span class="keyword">then</span> <span class="library">error</span>(<span class="string">"stack out of scope"</span>, 2) <span class="keyword">end</span>
+
+    <span class="keyword">local</span> level = levels[k]
+
+    <span class="keyword">if</span> level <span class="keyword">then</span>
+
+      level = level + depthdiff  <span class="comment">-- a correction</span>
+
+      <span class="library">debug.setlocal</span>(level, indicies[k], v)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- note: "stack out of scope" could be made more robust (see test suite)</span>
+
+
+
+  <span class="keyword">return</span> proxy
+
+<span class="keyword">end</span> <span class="keyword">end</span>
+
+
+
+<span class="comment">-- test suite</span>
+
+<span class="keyword">function</span> test()
+
+  <span class="keyword">local</span> <span class="keyword">function</span> update(L)
+
+    <span class="library">assert</span>(L.x == 10)
+
+    L.x = 20
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> L2
+
+
+
+  <span class="keyword">local</span> x = 1
+
+  <span class="keyword">local</span> y = 3
+
+  <span class="keyword">local</span> z = 5
+
+  <span class="keyword">function</span> f1()
+
+    <span class="keyword">local</span> x = 2
+
+    <span class="keyword">local</span> y = <span class="keyword">nil</span>
+
+    <span class="keyword">local</span> x = 4
+
+    <span class="keyword">local</span> _L = getlocals()
+
+    <span class="library">assert</span>(_L.w == <span class="keyword">nil</span>)
+
+    <span class="library">assert</span>(_L.x == 4)
+
+    <span class="library">assert</span>(_L.y == <span class="keyword">nil</span>)
+
+    <span class="library">assert</span>(_L.z == 5)
+
+    _L.z = 6  <span class="comment">-- modify local through table!</span>
+
+    <span class="library">assert</span>(z == 6 <span class="keyword">and</span> _L.z == 6)
+
+    z = 7
+
+    <span class="library">assert</span>(z == 7 <span class="keyword">and</span> _L.z == 7)
+
+    _L.x = 10
+
+    <span class="library">assert</span>(x == 10 <span class="keyword">and</span> _L.x == 10)
+
+    update(_L)
+
+    <span class="library">assert</span>(x == 20 <span class="keyword">and</span> _L.x == 20)
+
+
+
+    L2 = _L
+
+
+
+    <span class="keyword">local</span> x = 5  <span class="comment">-- doesn't interfere</span>
+
+  <span class="keyword">end</span>
+
+  f1()
+
+
+
+  <span class="comment">-- Note: L2 is invalid at this scope.</span>
+
+  <span class="comment">-- print(L2.x)  -- will correctly raise an error</span>
+
+  <span class="comment">-- L2.x = 1  -- will correctly raise an error</span>
+
+  <span class="comment">-- update(L2) -- opps, this doesn't trigger "stack out of scope"</span>
+
+
+
+  <span class="library">print</span> <span class="string">"done"</span>
+
+<span class="keyword">end</span>
+
+test()
+
+</pre>
+
+</DL>
+<p>
+--I did not write the above, I'm a totally different person--
+<p>
+I really find this page interesting. I read through these trying to understand them. I didn't understand the title or the code with this one, so I decided to skip over it. Now just recently I did exactly what this code does, but shorter, and more efficient.
+<p>
+Using this code, _L always exist, it does not have to be redefined over and over with '_L = getlocals()' it is also readable and writeable. It is much simpler to understand and not as overcomplicated as the code above. The code is as follows;
+<p>
+<pre class="code">
+<span class="comment">--Setup--</span>
+
+setlocal = <span class="keyword">function</span>(lvl, name, val)
+
+   <span class="keyword">local</span> setlocal = saved
+
+   <span class="keyword">if</span> lvl ~= 0 <span class="keyword">then</span>
+
+      lvl = lvl + 1
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">local</span> i = 1
+
+   <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+      <span class="keyword">local</span> var, value = <span class="library">debug.getlocal</span>(lvl, i)
+
+      <span class="keyword">if</span> <span class="keyword">not</span> var <span class="keyword">then</span>
+
+         <span class="keyword">break</span>
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> var == name <span class="keyword">then</span>
+
+         <span class="library">debug.setlocal</span>(lvl, i, val)
+
+      <span class="keyword">end</span>
+
+      i = i + 1
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">--End of setup--</span>
+
+
+
+<span class="comment">--Code--</span>
+
+<span class="library">setmetatable</span>(<span class="library">_G</span>, {
+
+   __index = <span class="keyword">function</span>(tab, var, val)
+
+      <span class="keyword">if</span> var == <span class="string">"_L"</span> <span class="keyword">then</span>
+
+         <span class="keyword">local</span> variables = {}
+
+         <span class="keyword">local</span> idx = 1
+
+         <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+            <span class="keyword">local</span> ln, lv = <span class="library">debug.getlocal</span>(2, idx)
+
+            <span class="keyword">if</span> ln ~= <span class="keyword">nil</span> <span class="keyword">then</span>
+
+               variables[ln] = lv
+
+            <span class="keyword">else</span>
+
+               <span class="keyword">break</span>
+
+            <span class="keyword">end</span>
+
+            idx = 1 + idx
+
+         <span class="keyword">end</span>
+
+         <span class="keyword">return</span> <span class="library">setmetatable</span>({}, {
+
+            __index = variables,
+
+            __newindex = <span class="keyword">function</span>(tab, var, val)
+
+               <span class="library">rawset</span>(variables, var, val)
+
+               setlocal(2, var, val)
+
+            <span class="keyword">end</span>
+
+         })
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+})
+
+<span class="comment">--End of code--</span>
+
+
+
+<span class="comment">--Tests--</span>
+
+<span class="keyword">local</span> a = 1
+
+<span class="library">print</span>(a)
+
+_L.a = 5
+
+<span class="library">print</span>(a)
+
+<span class="library">print</span>(_L.a)
+
+<span class="comment">--End of tests--</span>
+
+</pre>
+
+<p>
+I feel as if I should give credit to u0b34a0f6ae from stackoverflow for providing part of the setlocal function, which he posted here; "<a href="http://stackoverflow.com/questions/2834579/print-all-local-variables-accessible-to-the-current-scope-in-lua">http://stackoverflow.com/questions/2834579/print-all-local-variables-accessible-to-the-current-scope-in-lua</a>" (It was marked as best answer)
+<p>
+I'm currently trying to implement a metatable for _L comment underneath here if you have any ideas on how I could do this.
+<p>
+<H3>Hack: User-defined Control Structures and Keywords</H3>
+<p>
+The following simulates user-defined control structures and keywords, allowing a certain level of metaprogramming. (See also <a href="../wiki/RuntimeSyntax.html" >RuntimeSyntax</a>.)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> Expr = {}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> ev(o) <span class="comment">-- terminate and eval expression</span>
+
+  <span class="keyword">if</span> <span class="library">getmetatable</span>(o) == Expr <span class="keyword">then</span> <span class="keyword">return</span> o.END() <span class="keyword">else</span> <span class="keyword">return</span> o <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> Expr.__unm(a) <span class="keyword">return</span> -ev(a) <span class="keyword">end</span>
+
+<span class="keyword">function</span> Expr.__len(a) <span class="keyword">return</span> #ev(a) <span class="keyword">end</span>
+
+<span class="keyword">function</span> Expr.__add(a, b) <span class="keyword">return</span> ev(a) + ev(b) <span class="keyword">end</span>
+
+<span class="keyword">function</span> Expr.__sub(a, b) <span class="keyword">return</span> ev(a) - ev(b) <span class="keyword">end</span>
+
+<span class="keyword">function</span> Expr.__mul(a, b) <span class="keyword">return</span> ev(a) * ev(b) <span class="keyword">end</span>
+
+<span class="keyword">function</span> Expr.__div(a, b) <span class="keyword">return</span> ev(a) / ev(b) <span class="keyword">end</span>
+
+<span class="keyword">function</span> Expr.__pow(a, b) <span class="keyword">return</span> ev(a) ^ ev(b) <span class="keyword">end</span>
+
+<span class="keyword">function</span> Expr.__concat(a,b) <span class="keyword">return</span> ev(a) .. ev(b) <span class="keyword">end</span>
+
+<span class="keyword">function</span> Expr.__eq(a,b) <span class="keyword">return</span> ev(a) == ev(b) <span class="keyword">end</span>
+
+<span class="keyword">function</span> Expr.__lt(a,b) <span class="keyword">return</span> ev(a) &lt; ev(b) <span class="keyword">end</span>
+
+<span class="keyword">function</span> Expr.__le(a,b) <span class="keyword">return</span> ev(a) &lt;= ev(b) <span class="keyword">end</span>
+
+<span class="keyword">function</span> Expr.__index(a,b) <span class="keyword">return</span> ev(a)[ev(b)] <span class="keyword">end</span>
+
+<span class="comment">--function Expr.__newindex(a,b,c) ev(a)[ev(b)] = ev(c) end</span>
+
+<span class="keyword">function</span> Expr.__call(o, ...)
+
+  <span class="keyword">if</span> ... == <span class="string">';'</span> <span class="keyword">then</span> <span class="keyword">return</span> o.END()
+
+  <span class="keyword">elseif</span> o.__CALL <span class="keyword">then</span> <span class="keyword">return</span> o.__CALL(...)
+
+  <span class="keyword">else</span> <span class="keyword">return</span> ev(a)(...) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Expr:clear()
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(self) <span class="keyword">do</span> self[k] = <span class="keyword">nil</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> eval(t)
+
+  <span class="keyword">if</span> <span class="library">type</span>(t) == <span class="string">"function"</span>  <span class="keyword">or</span> <span class="library">getmetatable</span>(t) == Expr <span class="keyword">then</span> <span class="keyword">return</span> t() <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> s = <span class="string">""</span>
+
+  <span class="keyword">local</span> ts = {}
+
+  <span class="keyword">local</span> vals = {}
+
+  <span class="keyword">if</span> <span class="library">type</span>(t) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+    <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+      <span class="keyword">if</span> <span class="library">type</span>(k) ~= <span class="string">"number"</span> <span class="keyword">then</span>
+
+        vals[#ts+1] = v
+
+        ts[#ts+1] = k
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    t = t[1]
+
+    s = ((#ts &gt; 0) <span class="keyword">and</span> <span class="string">"local "</span> .. <span class="library">table.concat</span>(ts, <span class="string">","</span>) .. <span class="string">" = ...; "</span> <span class="keyword">or</span> <span class="string">""</span>)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> s = s .. <span class="string">"return "</span> .. t
+
+  <span class="keyword">local</span> f = <span class="library">loadstring</span>(s)
+
+  <span class="keyword">return</span> f(<span class="library">unpack</span>(vals, 1, #ts))
+
+<span class="keyword">end</span>
+
+<span class="comment">--print(eval {[[x+y]], x = 2, y = 5})</span>
+
+
+
+<span class="keyword">function</span> Expr.EVAL (expr)
+
+  <span class="keyword">return</span> eval(expr)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Expr.IF (cond)
+
+  <span class="keyword">local</span> o = <span class="library">setmetatable</span>({}, Expr)
+
+  <span class="keyword">function</span> o.THEN (stat)
+
+    o:clear()
+
+    <span class="keyword">function</span> o.END ()
+
+      <span class="keyword">if</span> (eval(cond)) <span class="keyword">then</span>
+
+        eval(stat)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    o.__CALL = o.END
+
+    <span class="keyword">return</span> o
+
+  <span class="keyword">end</span>; <span class="keyword">return</span> o
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Expr.LET (name)
+
+  <span class="keyword">local</span> o = <span class="library">setmetatable</span>({}, Expr)
+
+  <span class="keyword">function</span> o.EQUAL (expr)
+
+    o:clear()
+
+    <span class="keyword">function</span> o.END ()
+
+      <span class="library">_G</span>[name] = eval(expr)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">function</span> o.IN (expr2)
+
+      o:clear(); <span class="keyword">function</span> o.END()
+
+        <span class="keyword">local</span> oldval = <span class="library">_G</span>[name]
+
+        <span class="library">_G</span>[name] = eval(expr)
+
+        <span class="keyword">local</span> <span class="keyword">function</span> helper(...)
+
+          <span class="library">_G</span>[name] = oldval
+
+          <span class="keyword">return</span> ...
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> helper(eval(expr2))
+
+      <span class="keyword">end</span>; <span class="keyword">return</span> o
+
+    <span class="keyword">end</span>; <span class="keyword">return</span> o
+
+  <span class="keyword">end</span>
+
+  o.__CALL = o.EQUAL
+
+  <span class="keyword">return</span> o
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> Expr.FOR (var)
+
+  <span class="keyword">local</span> o = <span class="library">setmetatable</span>({}, Expr)
+
+  <span class="keyword">function</span> o.FROM (i1)
+
+    o:clear(); <span class="keyword">function</span> o.TO (i2)
+
+      o:clear(); <span class="keyword">function</span> o.DO (expr)
+
+        o:clear(); <span class="keyword">function</span> o.END()
+
+          <span class="keyword">for</span> n=eval(i1),eval(i2) <span class="keyword">do</span>
+
+            <span class="library">_G</span>[var] = n
+
+            eval(expr)
+
+          <span class="keyword">end</span>
+
+        <span class="keyword">end</span>; <span class="keyword">return</span> o
+
+      <span class="keyword">end</span>; <span class="keyword">return</span> o
+
+    <span class="keyword">end</span>; <span class="keyword">return</span> o
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> o
+
+<span class="keyword">end</span>
+
+
+
+Expr.__index = Expr
+
+
+
+<span class="library">setmetatable</span>(<span class="library">_G</span>, Expr)
+
+
+
+<span class="comment">-- TEST</span>
+
+
+
+LET <span class="string">'x'</span> .EQUAL <span class="string">'1'</span> <span class="string">';'</span>
+
+LET <span class="string">'y'</span> .EQUAL <span class="string">'3'</span> <span class="string">';'</span>
+
+IF <span class="string">'x == 1'</span> .THEN <span class="string">'print(x+2)'</span> <span class="string">';'</span>
+
+FOR <span class="string">'n'</span> .FROM <span class="string">'1'</span> .TO <span class="string">'3'</span> .DO (
+
+  IF <span class="string">'n &gt; 1'</span> .THEN <span class="string">'print(n,x)'</span>
+
+) <span class="string">';'</span>
+
+<span class="library">print</span>(1 + (LET <span class="string">'x'</span> <span class="string">'2'</span> .IN <span class="string">'x*y'</span>) + 1)
+
+<span class="library">print</span>(EVAL <span class="string">'x'</span>)
+
+
+
+<span class="comment">--[[OUTPUT:
+
+3
+
+2       1
+
+3       1
+
+8
+
+1
+
+--]]</span>
+
+</pre>
+
+</DL>
+<p>
+-- <a href="../wiki/DavidManura.html" >DavidManura</a>, 2007-07
+<p>
+<H3>Hack: Ruby-like Symbols</H3>
+<p>
+Ruby has a feature called Symbols, which implements string-interning with a special syntax. There it's common practice to use symbols as the keys to hashes. As Lua already does string-interning by default, this hack is academic. It works by abusing the __index metamethod, filling with a function that just returns the key it was queried for as the value.
+<p>
+<DL>
+<dt><dd><pre class="code">
+S=<span class="library">setmetatable</span>({},{__index=<span class="keyword">function</span>(S,k) <span class="keyword">return</span> k <span class="keyword">end</span>})
+
+<span class="library">print</span>( S.Symbol_Name )
+
+</pre>
+
+</DL>
+<p>
+A more useful expression of this hack would be as an alternative to any form of creating an enumeration table via a function. The string is cached for performance. Also, its been formatted for readability.
+<p>
+<DL>
+<dt><dd><pre class="code">
+Enum = <span class="library">setmetatable</span>( {}, {
+
+  __index=<span class="keyword">function</span>(E, k)
+
+    E[k] = k
+
+    <span class="keyword">return</span> k
+
+<span class="keyword">end</span>})
+
+
+
+<span class="library">print</span>( Enum.Apple, Enum.Banana, Enum.Carrot )
+
+</pre>
+
+</DL>
+<p>
+<H3>Hack: Require module without quotes</H3>
+<p>
+Similiar to abusing the __index metamethod for ruby-style symbols, we can skip the need to enclose a module name in quotes when requiring it. This one builds up a string at the dot notation, as modules could be hidden deep in a directory tree. The arbitrary limit is that the directory structure assumes the first subdirectory. The require function needs to be wrapped as well, as it doesn't try to perform tostring on tables passed in.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> wrap_require = <span class="library">require</span>
+
+  <span class="library">require</span> = <span class="keyword">function</span>(t) wrap_require(<span class="library">tostring</span>(t)) <span class="keyword">end</span>
+
+  <span class="keyword">local</span> mt = {}
+
+  <span class="keyword">function</span> mt:__index(key)
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>({path=<span class="library">rawget</span>(self, <span class="string">"path"</span>)..<span class="string">"."</span>..key}, mt)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> mt:__tostring()
+
+    <span class="keyword">return</span> <span class="library">rawget</span>(self, <span class="string">"path"</span>) <span class="keyword">or</span> <span class="string">""</span>
+
+  <span class="keyword">end</span>
+
+  lib = <span class="library">setmetatable</span>({path=<span class="string">"lib"</span>},mt)
+
+<span class="keyword">end</span>
+
+<span class="keyword">do</span>
+
+
+
+<span class="library">require</span>(lib.foo.bar)
+
+</pre>
+
+</DL>
+<p>
+<H3>Hack: s(g)etfenv in Lua 5.2</H3>
+<p>
+In Lua 5.2 both setfenv and getfenv were deprecated and removed. Although many prefer the dynamic enviorments, as opposed to lexical ones. The idea to this was that enviorments should not be accessible outside it's function. Though many of the hacks on this page use these. They are great for testing purposes, although not really reccomended in regular use, or as a major part of your program because it uses the debug library, which breaks some general Lua rules, and can be slow.
+<p>
+I did not write these, I found them both on the Internet and thought they deserved a place here, together. I think they were both posted on stackoverflow, a quick google search will reveal who wrote them.
+Here's the code:
+<p>
+<pre class="code">
+<span class="comment">--Setup</span>
+
+<span class="keyword">function</span> <span class="library">setfenv</span>(f, t)
+
+   f = (<span class="library">type</span>(f) == <span class="string">'function'</span> <span class="keyword">and</span> f <span class="keyword">or</span> <span class="library">debug.getinfo</span>(f + 1, <span class="string">'f'</span>).func)
+
+   <span class="keyword">local</span> name
+
+   <span class="keyword">local</span> up = 0
+
+   <span class="keyword">repeat</span>
+
+      up = up + 1
+
+      name = <span class="library">debug.getupvalue</span>(f, up)
+
+   <span class="keyword">until</span> name == <span class="string">'_ENV'</span> <span class="keyword">or</span> name == <span class="keyword">nil</span>
+
+   <span class="keyword">if</span> name <span class="keyword">then</span>
+
+      <span class="library">debug.upvaluejoin</span>(f, up, <span class="keyword">function</span>() <span class="keyword">return</span> t <span class="keyword">end</span>, 1)
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> <span class="library">getfenv</span>(f)
+
+   f = (<span class="library">type</span>(f) == <span class="string">'function'</span> <span class="keyword">and</span> f <span class="keyword">or</span> <span class="library">debug.getinfo</span>(f + 1, <span class="string">'f'</span>).func)
+
+   <span class="keyword">local</span> name, val
+
+   <span class="keyword">local</span> up = 0
+
+   <span class="keyword">repeat</span>
+
+      up = up + 1
+
+      name, val = <span class="library">debug.getupvalue</span>(f, up)
+
+   <span class="keyword">until</span> name == <span class="string">'_ENV'</span> <span class="keyword">or</span> name == <span class="keyword">nil</span>
+
+   <span class="keyword">return</span> val
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">--Tests</span>
+
+<span class="keyword">function</span> x()
+
+   <span class="library">print</span>(hi)
+
+<span class="keyword">end</span>
+
+
+
+x() <span class="comment">--nil</span>
+
+<span class="library">print</span>(hi) <span class="comment">--nil</span>
+
+<span class="library">setfenv</span>(x, {<span class="library">print</span> = <span class="library">print</span>, hi = 5})
+
+x() <span class="comment">--5</span>
+
+<span class="library">print</span>(hi) <span class="comment">--nil</span>
+
+
+
+<span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">pairs</span>(<span class="library">getfenv</span>(x)) <span class="keyword">do</span>
+
+   <span class="library">print</span>(i, v)
+
+<span class="keyword">end</span>
+
+<span class="comment">--print function address</span>
+
+<span class="comment">--hi 5</span>
+
+<span class="library">setfenv</span>(x, {})
+
+
+
+x() <span class="comment">--attempt to call global 'print' (a nil value)</span>
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaHacks" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaHacks" >history</a><br>Last edited August 23, 2014 5:59 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaHacks" >(diff)</a>
+</body>
+</html>

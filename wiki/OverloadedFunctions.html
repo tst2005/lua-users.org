@@ -1,0 +1,195 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Overloaded Functions</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=OverloadedFunctions&amp;body=1" title="List pages referring to OverloadedFunctions">Overloaded Functions</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Overloaded functions let you call one function and have it dispatch to different implementations based on the argument types. C++ and Java have support for this at the language level; in Lua you can roll your own at runtime:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> overloaded()
+
+    <span class="keyword">local</span> fns = {}
+
+    <span class="keyword">local</span> mt = {}
+
+    
+
+    <span class="keyword">local</span> <span class="keyword">function</span> oerror()
+
+        <span class="keyword">return</span> <span class="library">error</span>(<span class="string">"Invalid argument types to overloaded function"</span>)
+
+    <span class="keyword">end</span>
+
+    
+
+    <span class="keyword">function</span> mt:__call(...)
+
+        <span class="keyword">local</span> argv = {...}
+
+        <span class="keyword">local</span> default = self.default
+
+        
+
+        <span class="keyword">local</span> signature = {}
+
+        <span class="keyword">for</span> i,arg <span class="keyword">in</span> <span class="library">ipairs</span> {...} <span class="keyword">do</span>
+
+            signature[i] = <span class="library">type</span>(arg)
+
+        <span class="keyword">end</span>
+
+        
+
+        signature = <span class="library">table.concat</span>(signature, <span class="string">","</span>)
+
+        
+
+        <span class="keyword">return</span> (fns[signature] <span class="keyword">or</span> self.default)(...)
+
+    <span class="keyword">end</span>
+
+    
+
+    <span class="keyword">function</span> mt:__index(key)
+
+        <span class="keyword">local</span> signature = {}
+
+        <span class="keyword">local</span> <span class="keyword">function</span> __newindex(self, key, value)
+
+            <span class="library">print</span>(key, <span class="library">type</span>(key), value, <span class="library">type</span>(value))
+
+            signature[#signature+1] = key
+
+            fns[<span class="library">table.concat</span>(signature, <span class="string">","</span>)] = value
+
+            <span class="library">print</span>(<span class="string">"bind"</span>, <span class="library">table.concat</span>(signature, <span class="string">", "</span>))
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">local</span> <span class="keyword">function</span> __index(self, key)
+
+            <span class="library">print</span>(<span class="string">"I"</span>, key, <span class="library">type</span>(key))
+
+            signature[#signature+1] = key
+
+            <span class="keyword">return</span> <span class="library">setmetatable</span>({}, { __index = __index, __newindex = __newindex })
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> __index(self, key)
+
+    <span class="keyword">end</span>
+
+    
+
+    <span class="keyword">function</span> mt:__newindex(key, value)
+
+        fns[key] = value
+
+    <span class="keyword">end</span>
+
+    
+
+    <span class="keyword">return</span> <span class="library">setmetatable</span>({ default = oerror }, mt)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+You can use this like so:
+<p>
+<DL>
+<dt><dd><pre class="code">
+foo = overloaded()
+
+
+
+<span class="comment">-- if passed a number, return its square</span>
+
+<span class="keyword">function</span> foo.number(n)
+
+    <span class="keyword">return</span> n^2
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- if passed a string, convert it to a number and call the numeric version</span>
+
+<span class="keyword">function</span> foo.string(s)
+
+    <span class="keyword">return</span> foo(<span class="library">tonumber</span>(s))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- if passed a string _and_ a number, act like string.rep</span>
+
+foo.string.number = <span class="library">string.rep</span>
+
+
+
+<span class="comment">-- if given anything else, act like print</span>
+
+foo.default = <span class="library">print</span>
+
+
+
+<span class="comment">--- begin test code ---</span>
+
+foo(6)
+
+=&gt; 36
+
+foo(<span class="string">"4"</span>)
+
+=&gt; 16
+
+foo(<span class="string">"not a valid number"</span>)
+
+=&gt; <span class="library">error</span> (attempt to perform arithmetic on a <span class="keyword">nil</span> value)
+
+foo(<span class="string">"foo"</span>, 4)
+
+=&gt; foofoofoofoo
+
+foo(<span class="keyword">true</span>, <span class="keyword">false</span>, {})
+
+=&gt; <span class="keyword">true</span>    <span class="keyword">false</span>   <span class="library">table</span>: 0x12345678
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=OverloadedFunctions" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=OverloadedFunctions" >history</a><br>Last edited July 29, 2009 10:19 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=OverloadedFunctions" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Peters Std Lib</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PetersStdLib&amp;body=1" title="List pages referring to PetersStdLib">Peters Std Lib</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is the standard library that we use for our project so far. 
+It's not really a proposal but rather a snapshot of what we are using currently.
+(see also: <a href="../wiki/StandardLibraryProposal.html" >StandardLibraryProposal</a>)
+<p>
+<em><strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  It does not run as is under Lua 5.</strong></em>
+<p>
+It defines these functions.  Some are listed on separate pages:
+<p>
+<DL>
+<dt><dd>String functions: strcapitalize, strjoin, strsplit, sort (upgrade), findfile, readfile and writefile:
+</DL>
+<p>
+<DL>
+<dt><dd>Table functions (<a href="../wiki/PitLibTablestuff.html" >PitLibTablestuff</a>): tadd, tcopy, tdump, tfind
+</DL>
+<p>
+<DL>
+<dt><dd>Directory functions (<a href="../wiki/PitLibDirectoryStuff.html" >PitLibDirectoryStuff</a>): dodirectory and fordirectory
+</DL>
+<p>
+<H2>String functions</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- like strupper applied only to the first character</span>
+
+<span class="keyword">function</span> strcapitalize(str)
+
+  <span class="keyword">return</span> strupper(strsub(str, 1, 1)) .. strlower(strsub(str, 2))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Concat the contents of the parameter list,</span>
+
+<span class="comment">-- separated by the string delimiter (just like in perl)</span>
+
+<span class="comment">-- example: strjoin(", ", {"Anna", "Bob", "Charlie", "Dolores"})</span>
+
+<span class="keyword">function</span> strjoin(delimiter, list)
+
+  <span class="keyword">local</span> len = getn(list)
+
+  <span class="keyword">if</span> len == 0 <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">""</span> <span class="keyword">end</span>
+
+  <span class="keyword">local</span> <span class="library">string</span> = list[1]
+
+  <span class="keyword">for</span> i = 2, len <span class="keyword">do</span> <span class="library">string</span> = <span class="library">string</span> .. delimiter .. list[i] <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">string</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Split text into a list consisting of the strings in text,</span>
+
+<span class="comment">-- separated by strings matching delimiter (which may be a pattern). </span>
+
+<span class="comment">-- example: strsplit(",%s*", "Anna, Bob, Charlie,Dolores")</span>
+
+<span class="keyword">function</span> strsplit(delimiter, text)
+
+  <span class="keyword">local</span> list = {}
+
+  <span class="keyword">local</span> pos = 1
+
+  <span class="keyword">if</span> strfind(<span class="string">""</span>, delimiter, 1) <span class="keyword">then</span> <span class="comment">-- this would result in endless loops</span>
+
+    <span class="library">error</span>(<span class="string">"delimiter matches empty string!"</span>)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+    <span class="keyword">local</span> first, last = strfind(text, delimiter, pos)
+
+    <span class="keyword">if</span> first <span class="keyword">then</span> <span class="comment">-- found?</span>
+
+      tinsert(list, strsub(text, pos, first-1))
+
+      pos = last+1
+
+    <span class="keyword">else</span>
+
+      tinsert(list, strsub(text, pos))
+
+      <span class="keyword">break</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> list
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- a better standard compare function for sort</span>
+
+<span class="keyword">local</span> standard_cmp = <span class="keyword">function</span>(a,b) 
+
+  <span class="keyword">if</span> <span class="library">type</span>(a) == <span class="library">type</span>(b) <span class="keyword">then</span> 
+
+    <span class="keyword">return</span> a &lt; b 
+
+  <span class="keyword">end</span> 
+
+  <span class="keyword">return</span> <span class="library">type</span>(a) &lt; <span class="library">type</span>(b) 
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- upgrade sort function </span>
+
+<span class="comment">-- (default compare function now accepts different types in table)</span>
+
+<span class="keyword">function</span> sort(<span class="library">table</span>, f_cmp)
+
+  <span class="keyword">return</span> %sort(<span class="library">table</span>, f_cmp <span class="keyword">or</span> %standard_cmp)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- check if a file exists, returns nil if not</span>
+
+<span class="keyword">function</span> findfile(name)
+
+  <span class="keyword">local</span> f = openfile(name, <span class="string">"r"</span>)
+
+  <span class="keyword">if</span> f <span class="keyword">then</span>
+
+    closefile(f)
+
+    <span class="keyword">return</span> 1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- read entire file and return as string</span>
+
+<span class="keyword">function</span> readfile(name)
+
+  <span class="keyword">local</span> f = openfile(name, <span class="string">"rt"</span>)
+
+  <span class="keyword">local</span> s = read(f, <span class="string">"*a"</span>)
+
+  closefile(f)
+
+  <span class="keyword">return</span> s
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- write string to a file</span>
+
+<span class="keyword">function</span> writefile(name, content)
+
+  <span class="keyword">local</span> f = openfile(name, <span class="string">"wt"</span>)
+
+  write(f, content)
+
+  closefile(f)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PetersStdLib" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PetersStdLib" >history</a><br>Last edited January 10, 2007 4:39 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PetersStdLib" >(diff)</a>
+</body>
+</html>

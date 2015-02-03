@@ -1,0 +1,754 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Resumable Vm Patch</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ResumableVmPatch&amp;body=1" title="List pages referring to ResumableVmPatch">Resumable Vm Patch</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a patch to make the Lua VM fully resumable. It solves most
+of the practical problems with coroutines still present in
+<a href="http://www.lua.org/versions.html#5.1">[Lua 5.1]</a>.
+<p>
+In particular, you can now:
+<UL>
+<li> Yield across all metamethods (except <code>__gc</code>).
+<li> Yield across iterator functions (<code>for x in func</code>).
+<li> Yield across callbacks (<code>table.foreach()</code>, <code>dofile()</code>, ...).
+<li> Yield across protected callbacks (<code>pcall()</code>, <code>xpcall()</code>, ...).
+<li> Yield from C functions and resume back to them.
+</UL>
+<p>
+This is a new and <em>fully portable</em> approach to this problem. It combines
+ideas from Eric Jacobs 'improved coroutines' patch and experiences gained
+from working on my 'true C coroutines' patch. The changes to the Lua core
+are as little intrusive as possible, owing to a flexible yield mechanism.
+One side-effect is a faster <code>pcall()</code> and a slightly faster Lua VM in general.
+<p>
+License notice: I hereby declare that all work I contributed to the Lua core is
+to be governed under the same license as the Lua core itself. -- <a href="../wiki/MikePall.html" >MikePall</a>
+<p>
+Greg Falcon aka <a href="../wiki/VeLoSo.html" >VeLoSo</a> has offered to be the new maintainer of the patch.
+Please direct all questions about the patch to him.
+<p>
+<em>I've decided to continue my work on a different approach to the yield-across-C problem. Please have a look at <a href="http://coco.luajit.org/">[Coco]</a>, too. Both approaches have their benefits and drawbacks. For more info search the <a href="http://lua-users.org/lists/lua-l/">[Lua mailing list archive]</a> for "Coco" and/or "RVM". -- <a href="../wiki/MikePall.html" >MikePall</a></em>
+<p>
+I second this.  <a href="http://coco.luajit.org/">[Coco]</a> has a good many benefits over this patch.  It is a much more elegant approach, it is better tested, it requires no modifications to your Lua C functions to make them resumable, it works on a great many platforms, and it is required for <a href="http://luajit.org/luajit.html">[LuaJIT 1.x]</a>.  Coco is probably the correct choice for your project if you need improved coroutine support.
+<p>
+That said, I think this patch is valuable because of its ANSI C approach, which allows it to work on all platforms where Lua builds, and which might help lead to a future Lua core with better coroutine behavior.  -- <a href="../wiki/VeLoSo.html" >VeLoSo</a>
+<p>
+<a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a> implements an approach like this <a href="/lists/lua-l/2009-08/msg00540.html">[1]</a>.
+<p>
+<H2>Download</H2>
+<p>
+Click to download the patch
+<a href="/files/wiki_insecure/users/VeLoSo/lua5.1-rvm.patch">[versus 5.1 final]</a>.
+<p>
+Update 2006-04-16 <a href="../wiki/VeLoSo.html" >VeLoSo</a>: Patch against Lua 5.1 final.  No major changes.  I did remove some performance patches that did not further the goal of a resumable VM (for clarity's sake). I updated this patch for 5.1 with a good amount of care, though it's possible I may have missed some subtle point. Buyer beware.
+<p>
+Update 2005-05-24 <a href="../wiki/MikePall.html" >MikePall</a>: Patch against Lua 5.1-work6. No major functional changes,
+but some internal reorganization. It's now possible get a traceback from
+a dead coroutine (like in the baseline). The new operators in work6
+(*s and a%b) are of course resumable, too.
+<p>
+A number of fixes for the Lua 5.1-work6 baseline have been included in the patch:
+MSVC number2int fix, *s performance improvement, remove undefined
+lua_checkpc assertion.
+<p>
+<p>
+<H2>Compatibility</H2>
+<p>
+The Lua API has <strong>not</strong> been changed and there is <strong>no need</strong> to change
+anything in existing Lua code. In particular you can now put code that
+uses <code>pcall()</code> inside a coroutine and still yield from the protected
+functions <em>without</em> any code change.
+<p>
+There is <strong>no need</strong> to change existing C code, too. But of course existing
+functions are not fully resumable because the old C API did not provide
+such a capability. This is <em>only</em> a concern if your C functions need
+callbacks (<code>lua_call</code>) or protected calls (<code>lua_pcall</code>) <em>and</em> you want to
+yield from the called functions.
+<p>
+There is a handful of new C API functions that allow you to make your C
+functions resumable. The conversion is pretty straightforward. E.g. I had
+to change only a couple of lines each to make the standard Lua library
+functions resumable. See below for a tutorial.
+<p>
+<p>
+<H2>How it Works</H2>
+<p>
+The changes to the Lua core are non-intrusive due to a special trick in the
+new yield mechanism: Whenever there are intervening (but resumable) C call
+boundaries, the yield mechanism just throws a 'yield error' to quickly
+unfold the C stack. There is no need to check for a yield condition on
+return of each and every function call all the way through the bottom of
+the C stack.
+<p>
+This helps minimize the changes to the VM core and makes it easy to convert
+over existing C functions. There is no performance impact on the standard
+control flow (i.e. without yielding).
+<p>
+BTW: The yield throw mechanism is not used in the standard situation
+of a <code>coroutine.yield()</code> to avoid the overhead of longjmp.
+<p>
+The protected call mechanism has been changed to avoid using a setjmp
+wrapper whenever there is already such a wrapper in the C stack. Unwinding
+the C stack and the Lua stack are now two separate concerns. This makes
+<code>pcall()</code> as cheap as a function call: ~10-15% faster on x86 and even more
+on CPUs with many registers, e.g. ~30% on IA64 (Itanium).
+<p>
+I've done quite a bit of instruction profiling and cache-miss profiling
+and derived several tiny optimizations to the Lua core. E.g. coroutines
+need ~10% less memory.
+<p>
+I fixed a few bugs/misfeatures, too:
+<UL>
+<li> An intermittent call to the 'call' hook when returning to a Lua function from <code>coroutine.yield()</code> has been removed.
+<li> The Lua stack frame is no longer destroyed by <code>coroutine.resume()</code> when the count/line hook yields.
+<li> The call/return hooks properly disable yielding.
+<li> Dead coroutines can be safely recycled (only after ok return from <code>lua_resume</code>). But only from the C API right now (just push a new function and arguments on the stack and resurrect it with <code>lua_resume</code>).
+</UL>
+<p>
+Note that the patch looks a bit lengthy due to many one-line changes
+and some code that had to be moved around in ldo.c. Really,
+there isn't that much new code except for the new stack unwind mechanism
+and the VM opcode resume handling.
+<p>
+<p>
+<H2>Lua API Extensions</H2>
+<p>
+There is only one new function:
+<pre>
+
+  epcall(err, f, arg1, arg2, ...)
+
+</pre>
+It is intended as a saner replacement for the odd <code>xpcall()</code> API that does
+not allow you to pass arguments to a protected function when you want
+to set an error handler, too. This implied that you needed to artificially
+create closures for use with <code>xpcall()</code>. <code>epcall()</code> has no such restrictions.
+<p>
+<code>epcall()</code> behaves in every respect like <code>pcall()</code>, except that it sets an
+error handler function to be called before the Lua stack is unwound
+(like <code>xpcall()</code> does).
+<p>
+<code>xpcall()</code> is retained for compatibility only.
+<p>
+<p>
+Another minor change is that you get a different error message when
+a yield fails:
+<p>
+<UL>
+<li> OLD: "attempt to yield across metamethod/C-call boundary"
+<li> NEW: "attempt to yield across non-resumable call boundary"
+</UL>
+<p>
+This better reflects the circumstances when this error happens now
+(if at all).
+<p>
+<p>
+<H2>C API Extensions</H2>
+<p>
+A new set of <code>lua_v*</code> and <code>lua_i*</code> functions augment <code>lua_call()</code>,
+<code>lua_pcall()</code> and <code>lua_yield()</code>:
+<pre>
+
+  void   lua_call (lua_State *L, int nargs, int nresults);
+
+| void  lua_vcall (lua_State *L, int nargs, int nresults, void *ctx);
+
+| void  lua_icall (lua_State *L, int nargs, int nresults, int ictx);
+
+  void  lua_pcall (lua_State *L, int nargs, int nresults, int ef);
+
+| void lua_vpcall (lua_State *L, int nargs, int nresults, int ef, void *ctx);
+
+| void lua_ipcall (lua_State *L, int nargs, int nresults, int ef, int ictx);
+
+  int   lua_yield (lua_State *L, int nargs);
+
+| int  lua_vyield (lua_State *L, int nargs, void *ctx);
+
+| int  lua_iyield (lua_State *L, int nargs, int ictx);
+
+</pre>
+(Don't worry, most of these are just macros with proper casts.)
+<p>
+The new functions take a context argument (either a <code>void *</code> or an <code>int</code>)
+which can be used to save the current state of the running C function.
+Using these API functions with a non-NULL/non-zero context argument
+indicates to the Lua core that your C function is resumable (i.e. the
+callbacks are allowed to yield).
+<p>
+The classic non-resumable API functions <code>lua_call()</code>, <code>lua_pcall()</code> and
+<code>lua_yield()</code> are just macros, passing a NULL context argument to the
+<code>lua_v*</code> equivalents.
+<p>
+<p>
+Two new API functions can be used to retrieve the context:
+<pre>
+
+| void *lua_vcontext (lua_State *L);
+
+| int   lua_icontext (lua_State *L);
+
+</pre>
+On the first call of a C function the context is initialized to NULL/zero.
+When a coroutine yields and is resumed again, a resumable C function
+is simply called again. But this time the context is guaranteed to be
+non-NULL/non-zero and reflects the saved state of the C function
+(or the error number in case an error is caught by <code>lua_vpcall</code>/<code>lua_ipcall</code>).
+<p>
+<p>
+You have to be aware that the C stack including your C function <em>may</em> be
+unwound when you use the new API functions for callbacks. This can <em>only</em>
+happen when the callback (or any function called from it) yields. In
+this case the control flow never <em>returns</em> to your C function from the
+new API call. Instead your C function will be <em>called</em> again when the
+coroutine is resumed.
+<p>
+<p>
+This means that you have to save all context your C function keeps.
+Either by passing a specific context argument to the API call (a flag,
+an index/counter or a pointer) and/or by saving the context on the
+Lua stack (<em>before</em> making the API call). See below for a tutorial.
+<p>
+When a coroutine is resumed, any functions higher in the call stack are
+completed before resuming (returning to) functions lower in the stack.
+There are no restrictions on the use of the Lua value stack before or
+after using any of the above API functions because there cannot be an
+active function higher in the stack while a C function is executing
+(unlike when it is suspended).
+<p>
+<p>
+All <code>lua_*yield()</code> API functions are tail calls in the sense that you <strong>must</strong>
+use them with a return statement, like this:
+<pre>
+
+  return lua_vyield(L, na, ctx);
+
+</pre>
+The call may or may not return to your C function before executing the
+return statement, depending on whether the standard yield or the yield
+throw mechanism is used. Do <strong>not</strong> attempt to outsmart this mechanism by
+adding code between the yield call and the return statement. When the
+context is NULL/zero (or <code>lua_yield</code> is used), your function will not
+be called again (a tail yield). Otherwise it will be called again when
+the coroutine is resumed.
+<p>
+<p>
+<code>lua_vpcall</code>/<code>lua_ipcall</code> may fall back to the classic behaviour of creating
+a setjmp wrapper on the C stack. This happens when no such wrapper exists
+yet or when there is an intervening non-resumable call boundary in the
+C stack (e.g. when used from hooks or from <code>__gc</code>). Of course the resulting
+call stack is not resumable, but then it wasn't resumable before that,
+anyway. You will hardly notice in practice because the standalone Lua
+executable (<code>lua.c</code>) always wraps the main chunk with <code>lua_pcall()</code> and of
+course <code>lua_resume()</code> creates a setjmp wrapper, too.
+<p>
+Another point to note about <code>lua_vpcall</code>/<code>lua_ipcall</code> (but not <code>lua_pcall</code>)
+is that they <em>may</em> leave the callback function and its arguments on the
+stack below the error message, in case of error (sorry, but this is very
+difficult to solve in the Lua core). You have to be careful not to make
+any assumptions about relative stack levels when the protected call fails.
+Of course the error message is guaranteed to be in the topmost stack slot
+(relative index -1) and anything below the callback function (absolute
+index 1..(func-1)) is still intact, too.
+<p>
+<p>
+I removed <code>lua_cpcall()</code> from the core and replaced it with a simple macro
+using standard API calls. I suggest that it be deprecated because it's
+redundant.
+<p>
+<p>
+<H2>Tutorial: Keeping the Context</H2>
+<p>
+Here is a short tutorial showing the changes you need to make to your
+C functions to make them resumable (changed/new marked with **/++).
+<p>
+<p>
+<H3>EXAMPLE #1: Simple flag -- <code>table.foreach()</code>:</H3>
+<pre>
+
+    static int foreach (lua_State *L) {
+
+++    if (lua_vcontext(L)) goto resume;
+
+      luaL_checktype(L, 1, LUA_TTABLE);
+
+      luaL_checktype(L, 2, LUA_TFUNCTION);
+
+      lua_pushnil(L);  /* first key */
+
+      for (;;) {
+
+        if (lua_next(L, 1) == 0)
+
+          return 0;
+
+        lua_pushvalue(L, 2);  /* function */
+
+        lua_pushvalue(L, -3);  /* key */
+
+        lua_pushvalue(L, -3);  /* value */
+
+**      lua_icall(L, 2, 1, 1);
+
+++  resume:
+
+        if (!lua_isnil(L, -1))
+
+          return 1;
+
+        lua_pop(L, 2);  /* remove value and result */
+
+      }
+
+    }
+
+</pre>
+Here everything needed to resume is already on the Lua stack (the
+previous key). So replacing <code>lua_call()</code> with <code>lua_icall()</code> and setting a
+simple flag (1) is all you need to do.
+<p>
+Also note that the <code>goto</code> can safely jump around the initial checks because
+the stack contents are guaranteed to stay the same when your C function
+is resumed. This omits redundant checks (e.g. the standard mechanism to
+check userdata metatables is slow).
+<p>
+If you really, really hate <code>goto</code>s then of course you can use <code>if</code>/<code>switch</code>
+constructs, too. But you have to realize that they obscure the 'standard'
+control flow. This is one of the cases where it makes perfect sense to
+use <code>goto</code>. And your compiler will print a big fat warning when you jump
+into a loop and forget to fetch the loop counter from the context, too.
+<p>
+<p>
+<H3>EXAMPLE #2: Loop counter -- <code>print()</code>:</H3>
+<pre>
+
+    static int luaB_print (lua_State *L) {
+
+      int n = lua_gettop(L);  /* number of arguments */
+
+**    int i = lua_icontext(L);
+
+++    if (i) {
+
+++      n -= 2;  /* compensate for tostring function and result */
+
+++      goto resume;
+
+++    }
+
+      lua_getglobal(L, "tostring");
+
+      for (i=1; i&lt;=n; i++) {
+
+        const char *s;
+
+        lua_pushvalue(L, -1);  /* function to be called */
+
+        lua_pushvalue(L, i);   /* value to print */
+
+**      lua_icall(L, 1, 1, i);
+
+++  resume:
+
+        s = lua_tostring(L, -1);  /* get result */
+
+        if (s == NULL)
+
+          return luaL_error(L, "`tostring' must return a string to `print'");
+
+        if (i&gt;1) fputs("\t", stdout);
+
+        fputs(s, stdout);
+
+        lua_pop(L, 1);  /* pop result */
+
+      }
+
+      fputs("\n", stdout);
+
+      return 0;
+
+    }
+
+</pre>
+Here we simply store the loop counter in the context. You need to be
+careful to use only non-zero indexes because a zero context argument
+marks a non-resumable call (and could not be distinguished from the
+initial call, anyway).
+<p>
+The stack level may change during the execution of the function and this
+can lead to a number of problems on resumption. Either keep it at a fixed
+level (you can ensure this with <code>lua_settop()</code>) or use only relative indexes
+<p>
+or compensate for it after retrieving the context (see above).
+<p>
+<p>
+<H3>EXAMPLE #3: Protected calls -- <code>pcall()</code>:</H3>
+<pre>
+
+    static int luaB_pcall (lua_State *L) {
+
+++    int status = lua_icontext(L);
+
+++    if (status) goto resume;
+
+      luaL_checkany(L, 1);
+
+**    status = lua_ipcall(L, lua_gettop(L) - 1, LUA_MULTRET, 0, -1);
+
+++  resume:
+
+~~    if (status &gt; 0) {  /* error */
+
+~~      lua_pushboolean(L, 0);
+
+~~      lua_insert(L, -2);  /* args may be left on stack with vpcall/ipcall */
+
+~~      return 2;  /* return status + error */
+
+~~    }
+
+~~    else {  /* ok */
+
+~~      lua_pushboolean(L, 1);
+
+~~      lua_insert(L, 1);
+
+~~      return lua_gettop(L);  /* return status + all results */
+
+~~    }
+
+~~  }
+
+</pre>
+There are four cases that can happen with <code>lua_vpcall</code>/<code>lua_ipcall</code>:
+<p>
+<UL>
+<li> return with   status == 0:    no yield, callback ok
+<li> return with   status == err:  no yield, callback throws error
+<li> resume with  context == ctx:  yielded,  callback ok
+<li> resume with icontext == err:  yielded,  callback throws error
+</UL>
+<p>
+Unless you need the context argument for your own purposes (avoid the
+range for the error numbers though), you can simply set the context to -1
+and assign it to the status on resume. This allows for a simple check
+for <code>&gt; 0</code> (error) or <code>&lt;= 0</code> (ok). You cannot use zero because this marks
+a non-resumable pcall.
+<p>
+The above code works around the fact that <code>lua_vpcall</code>/<code>lua_ipcall</code> <strong>may</strong>
+leave the call function and its arguments on the stack (but only when
+an error is thrown during call setup). It's easier to explicitly code
+the two possible outcomes than using inline conditionals (as before).
+<p>
+<p>
+<H3>EXAMPLE #4: Userdata pointer:</H3>
+<pre>
+
+    typedef struct { ... } mytype_t;
+
+
+
+    static int my_userdata_method (lua_State *L) {
+
+      mytype_t *ud = (mytype_t *)lua_vcontext(L);
+
+++    if (ud) goto resume;
+
+      ud = (mytype_t *)luaL_checkudata(L, 1, MYTYPE_HANDLE);
+
+      if (ud == NULL) ... /* error handling */
+
+      ... /* check other args here */
+
+
+
+      ... /* start processing */
+
+      ... /* be sure to save all context in the userdata structure */
+
+**    lua_vcall(L, na, nr, ud);  /* pass userdata as context */
+
+++  resume:
+
+      ... /* continue processing */
+
+    }
+
+</pre>
+This is a typical example of a userdata method. Most of the time you can
+store all needed context in the userdata and just use the userdata pointer
+itself as a context argument. Of course the userdata is still on the stack
+(it must be or it may be garbage collected), so you could just retrieve
+the pointer again. But that would be slower and the context argument is
+already there, so why not make good use of it?
+<p>
+Userdata methods are a perfect example for <code>lua_vyield()</code>, too:
+<pre>
+
+      while (read_operation(ud, ...) == BLOCKING) {
+
+        ... /* do any processing needed after a blocking indication */
+
+**      return lua_vyield(L, na, ud);
+
+++  resume:
+
+        ... /* do any processing needed resuming the read */
+
+      }
+
+</pre>
+Here a potentially blocking I/O operation is attempted. Instead of
+blocking, the operation returns a special status flag (BLOCKING).
+This allows you to save the context and yield (e.g. back to a coroutine
+scheduler), avoiding to block on the I/O operation. When the function
+is resumed, you just retry, continue or finish the I/O operation. This
+needs to be done in a loop if the I/O operation may block repeatedly.
+<p>
+<p>
+<H3>EXAMPLE #5a: State machine with <code>switch</code>:</H3>
+<pre>
+
+    static int myfunction (lua_State *L) {
+
+++    int state = lua_icontext(L);
+
+++    switch (state) {
+
+++    case 0:  /* initial call */
+
+        ...
+
+**      lua_vcall(L, na, nr, 1);
+
+++    case 1:
+
+        ...
+
+**      lua_vcall(L, na, nr, 2);
+
+++    case 2:
+
+        ...
+
+**      lua_vcall(L, na, nr, 3);
+
+++    case 3:
+
+        ...
+
+        return n;
+
+      }
+
+    }
+
+</pre>
+Sometimes you need to use a bunch of callbacks or yields interspersed
+in linear control flow. Here it may be beneficial to use a state machine
+and save the current state (the position in the control flow) in the
+context. You can assign the states by hand for simple needs (as shown above,
+but probably with defines instead of numbers). For more complex needs you
+could use macros or even a precompiler (written in Lua, of course?) to
+generate the state machine automatically from your code.
+<p>
+<p>
+<H3>EXAMPLE #5b: State machine with <code>goto</code>:</H3>
+<p>
+If you are using GCC you will be delighted to hear that it has a very useful
+(but non-standard) extension called <em>labels as values</em> aka <em>computed goto</em>.
+Read more about in the GCC info docs.
+<p>
+This is best combined with the local label extension inside a macro. Here
+is the above example converted to use this feature (cleaner and quite a bit
+faster, too):
+<pre>
+
+++  #define rvcall(L, na, nr) \
+
+++    ({ __label__ RR; lua_vcall(L, (na), (nr), &amp;&amp;RR); RR: ; })
+
+
+
+    static int myfunction (lua_State *L) {
+
+++    void *cont = lua_vcontext(L);
+
+++    if (cont) goto *cont;
+
+      ...
+
+**    rvcall(L, na, nr);
+
+      ...
+
+**    rvcall(L, na, nr);
+
+      ...
+
+**    rvcall(L, na, nr);
+
+      ...
+
+      return n;
+
+    }
+
+</pre>
+<p>
+<H2>To Yield or Not To Yield</H2>
+<p>
+Here is table showing you exactly where your code can yield and where it cannot.
+<p>
+Note that most of the remaining "no's" are irrelevant in practice.
+<pre>
+
+Yield across ...  | Yield from ...         | Ok? | Rationale
+
+------------------+------------------------+-----+---------------------------
+
+for x in func     | iterator function      | Yes |
+
+VM operations     | metamethod except __gc | Yes |
+
+(anywhere)        | __gc metamethod        | No  | Difficult, rarely useful
+
+(anywhere)        | count/line hook        | Yes | Only via C API hooks
+
+(anywhere)        | call/return hooks      | No  | Does anyone need this?
+
+error processing  | err. handler/traceback | No  | Not very useful
+
+------------------+------------------------+-----+---------------------------
+
+pcall()           | protected callback     | Yes |
+
+xpcall()          | protected callback     | Yes | [Deprecated]
+
+epcall()      NEW | protected callback     | Yes | Sane API, replaces xpcall
+
+print()           | tostring() callback    | Yes |
+
+tostring()        | __tostring metamethod  | Yes |
+
+dofile()          | chunk                  | Yes | It was simple :-)
+
+table.foreach()   | callback               | Yes |
+
+table.foreachi()  | callback               | Yes |
+
+string.gsub()     | callback               | No  | Tricky, I have no use case
+
+table.sort()      | callback, __lt metam.  | No  | Not very useful
+
+require()         | chunk                  | No  | Not very useful
+
+debug.sethook()   | Lua hook function      | No  | Please use a C hook
+
+load()            | chunk reader           | No  | Parser is not resumable
+
+------------------+------------------------+-----+---------------------------
+
+lua_call()        | callback               | No  | For compatibility (macro)
+
+lua_vcall()   NEW | callback               | Yes |
+
+lua_icall()   NEW | callback               | Yes | (macro)
+
+lua_pcall()       | protected callback     | No  | For compatibility (macro)
+
+lua_cpcall()      | protected callback     | No  | For compatibility (macro)
+
+lua_vpcall()  NEW | protected callback     | Yes |
+
+lua_ipcall()  NEW | protected callback     | Yes | (macro)
+
+lua_load()        | chunk reader           | No  | Parser is not resumable
+
+------------------+------------------------+-----+---------------------------
+
+lua_equal()       | __eq metamethod        | No  | (*)
+
+lua_lessthan()    | __lt metamethod        | No  | (*)
+
+lua_gettable()    | __index metamethod     | No  | (*)
+
+lua_getfield()    | __index metamethod     | No  | (*)
+
+lua_settable()    | __newindex metamethod  | No  | (*)
+
+lua_setfield()    | __newindex metamethod  | No  | (*)
+
+lua_concat()      | __concat metamethod    | No  | (*)
+
+------------------+------------------------+-----+---------------------------
+
+</pre>
+(*) There is no need. Just call the metamethod with <code>lua_vcall</code>/<code>lua_icall</code>.
+Or perform these kinds of operations with Lua code (always resumable).
+<p>
+<p>
+<H2>TODO</H2>
+<p>
+<UL>
+<li> Make coroutines first class citizens by making them callable (without a closure wrapper). There is no need for an artificial distinction between functions and coroutines, anyway (except at lower layers).
+</UL>
+<p>
+<UL>
+<li> A way to resume a coroutine and immediately throw an error. This can be used to involuntarily stop a coroutine and still give it a chance to clean up its state and resources with a pcall wrapper. This is useful for timeouts and related stuff and avoids having special case code in every yielding function. An extension to the C API is straightforward (a 10 line change to give <code>lua_resume(L, -1)</code> a meaning). But I still have no idea for a nice Lua API other than introducing a new <code>coroutine.eresume(co, err)</code> function.
+</UL>
+<p>
+<UL>
+<li> Fix <code>debug.sethook()</code> inheritance with coroutines. The C hook function and the hook mask is already inherited. But the current implementation does not realize this and does not copy the Lua hook function (stored in a special table anchored at the registry).
+</UL>
+<p>
+<UL>
+<li> Hooks for yield/resume events. No way to catch all cases right now with other hooks.
+</UL>
+<p>
+<UL>
+<li> Hooks for throw/catch events. Required for a full blown debugger.
+</UL>
+<p>
+<UL>
+<li> Document that C hook functions must not call <code>lua_gettable</code>/<code>lua_settable</code> with objects that have metamethods. Otherwise the PC of the Lua function is destroyed. It is advised to wrap any such activity inside a function called with <code>lua_call()</code> (where this is perfectly ok) or to use <code>lua_rawget</code>/<code>lua_rawset</code> instead. (This affects all Lua 5.1-work versions and is not due to my patch.)
+</UL>
+<p>
+<UL>
+<li> Document that compiling the Lua core with C++ exceptions makes throwing   errors <strong>dead slow</strong>. In fact there is no need to compile the core with C++ at all. No matter how you compile it, it provides a C API only. And you ought to catch <em>all</em> C++ exceptions in your own module code, anyway. At least now you get a proper error message if you forget to do so.
+</UL>
+<p>
+<UL>
+<li> Remove some int=&gt;void*=&gt;int casts that can generate undefined ANSI C behavior.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ResumableVmPatch" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ResumableVmPatch" >history</a><br>Last edited July 3, 2010 11:32 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ResumableVmPatch" >(diff)</a>
+</body>
+</html>

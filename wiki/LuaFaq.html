@@ -1,0 +1,422 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Faq</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaFaq&amp;body=1" title="List pages referring to LuaFaq">Lua Faq</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page contains unofficial answers to frequently asked questions about Lua.  It is maintained by the Lua community.  Questions covered in the official Lua FAQ <a href="http://www.lua.org/faq.html">[1]</a> will not be answered here.
+<p>
+<strong>If you have a question about Lua,</strong> and haven't had any luck finding the answer in available resources, such as the Lua documentation and this FAQ, the best thing to do is post it to lua-l <a href="http://www.lua.org/lua-l.html">[2]</a>.  That will allow the most people to see it in the shortest time, and you are likely to get a timely response.  If some experienced person on the list feels that your question is frequently asked, they may add an entry to this FAQ.
+<p>
+Also see this standalone FAQ <a href="http://batbytes.com/luafaq/">[3]</a>.
+<p>
+<H2>FAQ Topics</H2>
+<UL>
+<li> <strong>Lua Background</strong>
+<UL>
+<li> Where can I learn Lua? -- see <a href="../wiki/LearningLua.html" >LearningLua</a>
+<li> Why Lua instead of Language X? -- see <a href="../wiki/LuaComparison.html" >LuaComparison</a>
+<li> Where is the Lua source repository/test suite/roadmap?  -- see <a href="../wiki/LuaDevelopmentModel.html" >LuaDevelopmentModel</a>
+</UL>
+<li> <strong>Lua Language and Syntax</strong>
+<UL>
+<li> How is conditional compilation done in Lua?
+<li> Why don't the __gc and __len metamethods work on tables?
+<li> Why does Lua lack the += operator, etc.?
+<li> Why are arrays indexed from 1? -- see <a href="../wiki/CountingFromOne.html" >CountingFromOne</a>
+<li> Small lambda expressions, <code>function() return ... end</code>, are verbose. -- see <a href="../wiki/ShortAnonymousFunctions.html" >ShortAnonymousFunctions</a>
+<li> Can I interpolate variables in strings, "a ${foo} b"? -- see <a href="../wiki/StringInterpolation.html" >StringInterpolation</a>.
+<li> Can I use a conditional expression like "x ? y : b" in C? -- see <a href="../wiki/TernaryOperator.html" >TernaryOperator</a>
+<li> Why doesn't Lua have a continue statement in loops? -- see <a href="../wiki/ContinueProposal.html" >ContinueProposal</a>
+<li> Does Lua have a switch statement? -- see <a href="../wiki/SwitchStatement.html" >SwitchStatement</a>
+<li> Can <code>nil</code>'s be stored in tables?  -- see <a href="../wiki/StoringNilsInTables.html" >StoringNilsInTables</a>.
+<li> Why won't this Lua code off the internet execute? (Converting to Lua 5).
+<li> What does "[C]:" refer to in error messages?
+<li> How can I avoid reloading Lua files from harddisk?
+<li> How does one sleep/pause for N seconds? -- see <a href="../wiki/SleepFunction.html" >SleepFunction</a>
+<li> Does Lua support Unicode? -- see <a href="../wiki/LuaUnicode.html" >LuaUnicode</a>
+<li> How can bitwise operations be performed? -- see <a href="../wiki/BitwiseOperators.html" >BitwiseOperators</a>
+</UL>
+<li>  <strong>Lua Programming - Patterns, Techniques, and Paradigms</strong>
+<UL>
+<li> Does Lua support any GUI? -- see the GUI section in <a href="../wiki/LibrariesAndBindings.html" >LibrariesAndBindings</a>
+<li> How can I access the file system? -- see <a href="../wiki/FileSystemOperations.html" >FileSystemOperations</a>
+<li> How do I parse command line arguments?  -- see <a href="../wiki/CommandLineParsing.html" >CommandLineParsing</a>
+<li> How are modules implemented in Lua?  -- see <a href="../wiki/ModuleDefinition.html" >ModuleDefinition</a>
+<li> Does Lua support object oriented programming? -- see <a href="../wiki/ObjectOrientedProgramming.html" >ObjectOrientedProgramming</a>
+<li> How should I handle errors? -- see <a href="../wiki/ErrorHandling.html" >ErrorHandling</a>.
+<li> How can resources be released on scope exit (like C++ RAII)? -- see <a href="../wiki/ResourceAcquisitionIsInitialization.html" >ResourceAcquisitionIsInitialization</a>
+<li> How should I document my Lua code?  -- see <a href="../wiki/DocumentingLuaCode.html" >DocumentingLuaCode</a>.
+<li> How can I test my Lua code?  -- see <a href="../wiki/UnitTesting.html" >UnitTesting</a>.
+<li> How can access of undefined variables be caught in Lua? -- see <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>
+<li> Is there a debugger for Lua? -- see <a href="../wiki/DebuggingLuaCode.html" >DebuggingLuaCode</a>
+<li> Is there a profiler for Lua? -- see <a href="../wiki/ProfilingLuaCode.html" >ProfilingLuaCode</a>
+</UL>
+<li> <strong>C API Programming and Compiling Lua</strong>
+<UL>
+<li>  How can I compile C programs that use Lua?
+<li> Lua isn't working with my C++ program! Why am I getting compiler and linker errors?
+<li> I'm getting segfaults when I run my Lua script. Why doesn't Lua catch the errors?
+<li> I get mysterious crashes or malloc errors in the middle of ltable.c
+<li> My application used to work, but I updated it to Lua 5.1 and it now crashes during initialization (OR: Why do I get a "no calling environment" error?)
+<li> Why isn't there an <code>extern "C"</code> block, required for C++, in the API header?
+<li> I heard Lua is implemented using a VM (like Java).  Is it documented?  Can I write VM instructions directly?
+<li> Are there some guidelines to follow? -- see <a href="../wiki/LibraryGuidelines.html" >LibraryGuidelines</a>
+<li> What to do when a _CrtIsValidHeapPointer assertion failure happens?
+<li> Why does luaopen_io need to be lua_called? (OR: Why does my library-created file segfault on :close() but work otherwise?)
+<li> How can I traverse a table in C?
+</UL>
+<li> <strong>What makes Lua any more embeddable than other languages?</strong>
+<UL>
+<li> Wouldn't an embedded unit limit my choice of platforms and compilers?
+<li> If I embed the Lua source, won't it clash with my coding habits?
+<li> Will the API force me to use the interpreter's complex structures to exchange data?
+<li> Could Lua's memory management clash with the host's requirements?
+<li> Wouldn't an interpreter be too resource-hungry to embed in a limited system?
+</UL>
+</UL>
+<p>
+<H2>Lua Programming</H2>
+<p>
+<H3>How is conditional compilation done in Lua?</H3>
+Lua does not include a preprocessor, so how does one do conditional compilation?  First, what is the purpose of conditional compilation?  Often it is used only to control the definition of functions or variables at the global scope.  In Lua this can be done simply with the <code>if</code> statement:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">if</span> some_option <span class="keyword">then</span>
+
+    my_table = { ... }
+
+
+
+    <span class="keyword">function</span> foo()
+
+        ...
+
+    <span class="keyword">end</span>
+
+<span class="keyword">else</span>
+
+    ...
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Some argue that this will still generate byte code, wasting CPU time and memory.  Since conversion to byte code can always be done offline, the issue of CPU time can be easily resolved.  Regarding memory, byte code size is often insignificant compared to dynamic memory usage.  Nonetheless, a solution for avoiding unecessary byte code is to use the C preprocessor:
+<p>
+<DL>
+<dt><dd><pre class="code">
+#<span class="keyword">if</span> SOME_OPTION
+
+    my_table = { ... }
+
+
+
+    <span class="keyword">function</span> foo()
+
+        ...
+
+    <span class="keyword">end</span>
+
+#<span class="keyword">else</span>
+
+    ...
+
+#endif
+
+</pre>
+
+</DL>
+<p>
+For example, using <code>gcc</code>, the code above can be run like this:
+<DL>
+<dt><dd><pre>
+
+gcc -E -P -DSOME_OPTION -x c test.lua | lua
+
+</pre>
+</DL>
+<p>
+<H3>Why doesn't the <code>__gc</code> and <code>__len</code> metamethods work on tables?</H3>
+Userdata objects frequently require some explicit destructor to run when the object is about to be deleted, and Lua provides the <code>__gc</code> metamethod for that purpose. However, this is not allowed on tables for efficiency.
+<p>
+Normally, there is no need to set a destructor on a table, since the table will be deleted automatically, and any references the table contains will then be garbage collected normally. A possible workaround is to create a userdata; make the table the userdata's environment table, and place a reference to the userdata in the table. (Make sure that this is the only reference to the userdata.) When the table becomes collectable, the userdata's <code>__gc</code> metamethod will be run; Lua will not actually destroy the table before that happens because the table is referenced by the userdata.
+<p>
+<code>__len</code> on tables is scheduled to be supported in 5.2.  See <a href="../wiki/LuaFiveTwo.html" >LuaFiveTwo</a>.
+<p>
+<H3>Why does Lua lack the += operator, etc.?</H3>
+One of Lua's design goals is simplicity. Most languages are large, meaning that they have many sophisticated features built-in. Examples are C, C++, Python, Lisp, ML. A very few languages are small. Examples are Forth and Lua. Lua aims to provide a small range of atomic features which are truly essential, and from which many other sophisticated features can be constructed if desired. Examples of sophisticated features which can be added to Lua from within the language include modules, object orientation, and now exceptions and threads which can be implemented via coroutines in Lua 5. The absent += operator is one more example.
+<p>
+<em>I thought the reason was more practical.  Many argue for adding these operators because of the efficiency gains they enable.  But in Lua things would get confusing because of the extension system.  It's in the lua-l archives somewhere... --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a></em>
+<p>
+<em>I think it's more basic than that - you must draw a line in the sand for the amount of operators a small language should have. You allow +=, then people ask why not *= and -= etc etc. Before you know it, you have added many operators which simply makes it bigger. Small and simple is Lua's tenet.</em>
+<p>
+If you really want to, see <a href="../wiki/CustomOperators.html" >CustomOperators</a>.
+<p>
+<H3>Why won't this Lua code off the internet execute? (Converting to Lua 5)</H3>
+From Lua 4.x to Lua 5.0, most library functions were moved into tables -- for instance, <code>read()</code> and <code>write()</code> now must be accessed from a global table, for instance, as <code>io.read()</code> or <code>io.write()</code>. Other functions, such as readfrom(), no longer exist. (<code>io.popen()</code> can be used if supported by your platform.)
+<p>
+There were also a variety of syntactical changes; the <code>%upvalue</code> syntax no longer exists, since Lua has true lexical scoping since version 5.0; <code>%</code> is now the remainder operator.
+<p>
+The use of the special <code>arg</code> variable for vararg functions is deprecated, and will be removed from a future version. Vararg functions should be rewritten to use the new <code>...</code> pseudo-value, but a short-term workaround is to start the function with:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> va(x, ...)
+
+  <span class="keyword">local</span> arg = { n=<span class="library">select</span>(<span class="string">'#'</span>, ...), ... }
+
+  <span class="comment">-- rest of function</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Since Lua 5.1, the abbreviated <code>for k, v in tab</code> syntax no longer works; it should be replaced by <code>for k, v in pairs(tab)</code>.
+<p>
+Any code which used tagmethods will have to be rewritten to use metamethods instead.
+<p>
+In case of desperation, old versions of Lua continue to be available in source form from the Lua webpages.
+<p>
+Related - <a href="../wiki/LuaFiveFeatures.html" >LuaFiveFeatures</a>, <a href="../wiki/MigratingToFiveOne.html" >MigratingToFiveOne</a>.
+<p>
+<H3>What does "[C]:" refer to in error messages?</H3>
+<p>
+It means the error occurred inside a C/C++ function.
+<p>
+<H3>How can I avoid reloading Lua files from harddisk?</H3>
+<p>
+When a file is read, the whole content is compiled into a normal Lua function. Since Lua functions can be stored in any normal variable, you can avoid reloading files by keeping the compiled function somewhere. As an example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+foo = <span class="library">assert</span>(<span class="library">loadfile</span>(<span class="string">"foo.lua"</span>)) <span class="comment">-- if there is an compilation error, the script will raise an error here</span>
+
+<span class="keyword">for</span> i=1,100 <span class="keyword">do</span> 
+
+  foo() <span class="comment">-- call the script file's function 100 time - the file is not loaded from HD!</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H2>Lua API Programming</H2>
+<p>
+<H3>How can I compile C programs that use Lua?</H3>
+<p>
+If you use gcc as a compiler, execute the following command:
+<p>
+gcc -llua program.c -o outputfile
+<p>
+You may also need to link against some more libraries. Add the following paramaters to the above command if necessary.
+<p>
+-lm #link against the math library
+<p>
+-ldl #link against the dl library
+<p>
+<H3>Lua isn't working with my C++ program!  Why am I getting compiler and linker errors?</H3>
+Lua indeed works with C++.  You need to <code>extern "C"</code> the Lua header files since they are ANSI C headers.  See the next FAQ and <a href="../wiki/BuildingLua.html" >BuildingLua</a>.  For a more sophisticated solutions, see "Code wrappers" on <a href="../wiki/LuaAddons.html" >LuaAddons</a>.
+<p>
+<H3>I'm getting segfaults when I run my Lua script. Why doesn't Lua catch the errors?</H3>
+Lua does not verify that API calls have correct arguments. You have probably corrupted the stack, referenced an invalid stack index, or pushed too many things on the stack (see <code>luaL_checkstack()</code>). Enable api checking while you are debugging. For Lua 5.1, compile with <code>-DLUA_USE_APICHECK</code>; see this message for Lua 5.0 instructions: <a href="http://lua-users.org/lists/lua-l/2003-11/msg00150.html">[4]</a>
+<p>
+<H3>I get mysterious crashes or malloc errors in the middle of ltable.c</H3>
+Most likely, you have created an executable with two copies of liblua. This typically happens when you statically link liblua into a dynamically loadable extension module.
+<p>
+As of Lua 5.0, this configuration is not supported; you may only have one instance of liblua in a given execution image.
+<p>
+<H3>My application used to work, but I updated it to Lua 5.1 and it now crashes during initialization (OR: Why do I get a "no calling environment" error?)</H3>
+<p>
+The state initialization procedure changed between Lua 5.0 and Lua 5.1. It is now necessary to <code>lua_call</code> the various <code>luaopen_*</code> functions. Previously, these were simply called with a normal C call, but doing so now will cause a crash (or the above mentioned error) during the initialization of the io library.
+<p>
+The easiest way to initialize a lua_State is to use <code>luaL_openlibs()</code> which is defined in the file <code>linit.c</code>, or to copy the code from that file, modifying the list of libraries to initialize according to your needs.
+<p>
+<H3>Why isn't there an <code>extern "C"</code> block, required for C++, in the API header?</H3>
+Lua is implemented in ANSI C.  No special treatment is given for the import of its interface into other languages, including C++.  To use the Lua header in C++, wrap it externally:
+<DL>
+<dt><dd><pre>
+
+extern "C" {
+
+    #include "lua.h"
+
+}
+
+</pre>
+</DL>
+<p>
+Another reason is that Lua is also correct C++ code. You can compile Lua with a C++ compiler without any changes. If it had the <code>extern "C"</code> declaration, Lua would generate a C interface even when compiled as a C++ library. See <a href="../wiki/BuildingLua.html" >BuildingLua</a>.
+<p>
+<H3>I heard Lua is implemented using a VM (like Java).  Is it documented?  Can I write VM instructions directly?</H3>
+Yes, Lua is implemented using a Virtual Machine.  Lua translates Lua code into blocks of VM instructions and then executes the VM instructions.
+<p>
+The VM format is not publicly documented and is likely to change at the whim of the Lua developers.  It isn't really recommended to try and write VM instructions directly.
+<p>
+I have a sneaking suspicion that someone (not a Lua developer) on the list wrote a document describing the VM instructions.
+<p>
+If you're interested in this kind of thing, you can use <code>luac -l</code> (<code>luac</code> is provided in the standard distribution) to see the VM instructions that Lua compiles a source into.  It's also not too hard to poke about in the sources to Lua to see what is going on (see lvm.c in the standard distribution).
+<p>
+<H3>What to do when a _CrtIsValidHeapPointer assertion failure happens?</H3>
+When doing Lua embedding, sometimes if you didn't clean the stack correctly, it might cause a _CrtIsValidHeapPointer assertion failure.
+<p>
+As the comment of the function _CrtIsValidHeapPointer says:
+"verify pointer is not only a valid pointer but also that it is from
+the 'local' heap. Pointers from another copy of the C runtime (even in the
+same process) will be caught."
+<p>
+Let's check the details of the 'invalid pointer'. When lua_open() return a lua_State* L, 
+it's with a stack of default size 45. If you make some fault not clear the return values of function,
+that garbage will finally pile up on the stack and crash the stack memory block. When
+a new op needs to increase the stack size, a realloc will happen, and the CRT will find that the
+old pointer is invalid and this will lead a _CrtIsValidHeapPointer failure.
+<p>
+To fix, just carefully check your code (using lua_gettop(L) to check the stack size) and clean the unused slot on the stack.
+<p>
+For the 'non local heap' one, please check and make sure Lua lib doesn't have a separate copy of CRT.
+<p>
+More details can be found here:<a href="http://www.blogcn.com/User4/al_lea/blog/39582295.html">http://www.blogcn.com/User4/al_lea/blog/39582295.html</a>
+<p>
+<H3>Why does luaopen_io need to be lua_called? (OR: Why does my library-created file segfault on :close() but work otherwise?)</H3>
+<p>
+The POSIX.1 standard specifies that one must use pclose instead of fclose to close a FILE* created with popen. The IO library uses function environments to specify on a per-file basis which close function is to be used. luaopen_io sets its own function environment so that the iolib functions that don't specify otherwise implicitly use fclose.
+<p>
+If you were to call luaopen_io directly instead of with lua_call, it would set the calling C function's function environment. (Worse, if you're calling it from the "outside", there will not even be a calling C function, and bad stuff will happen.) Using lua_call saves that from happening.
+<p>
+Also, if you're writing a Lua library and you want to return an iolib file handle, it's not as easy as it could be. On top of getting and using the metatable for "FILE*", you have to specify a __close in the function environment of your userdata (or the function creating it).
+<p>
+For example:
+<p>
+<DL>
+<dt><dd><pre>
+
+  /* when registering the C function that returns a file handle */
+
+  lua_pushcfunction(L, mycfunction);
+
+  lua_newtable(L);
+
+  lua_pushcfunction(L, myclose);
+
+  lua_setfield(L, -2, "__close");
+
+  lua_setfenv(L, -2);
+
+
+
+  /* when creating the actual filehandle */
+
+  FILE** p = (FILE**)lua_newuserdata(L, sizeof(FILE*));
+
+  luaL_getmetatable(L, "FILE*");
+
+  lua_setmetatable(L, -2);
+
+  *p = myfile;
+
+</pre>
+</DL>
+<p>
+<H3>How can I traverse a table in C?</H3>
+<p>
+Use <code>lua_next</code><a href="http://www.lua.org/manual/5.1/manual.html#lua_next">[5]</a>.  If the table is an array, you can instead call <code>lua_gettable</code><a href="http://www.lua.org/manual/5.1/manual.html#lua_gettable">[6]</a> or <code>lua_rawgeti</code><a href="http://www.lua.org/manual/5.1/manual.html#lua_rawgeti">[7]</a> in a loop that exits when <code>nil</code> is found or <code>lua_objlen</code><a href="http://www.lua.org/manual/5.1/manual.html#lua_objlen">[8]</a> is reached.  In other cases, its more convenient to call a Lua function that iterates over the table (see <a href="../wiki/TableSerialization.html" >TableSerialization</a>).
+<p>
+<H2>What makes Lua any more embeddable than other languages?</H2>
+<p>
+The main problem with embedding third-party code is that the host software (or the programmers) must sometimes adapt to fit around it. Lua adopts a number of strategies to prevent responsibilities from leaking between the embedded interpreter and the host program. If you have had previous experience with embedded interpreters, you might be inclined to ask some of the following questions.
+<p>
+<p>
+<H3>Wouldn't an embedded unit limit my choice of platforms and compilers?</H3>
+<p>
+The core source code of some projects relies heavily on OS-specific system calls. This situation is likely to occur when the software is developed primarily for a popular platform and then other platforms are supported via independent porting projects. Each porting project can follow its own agenda without worrying about the others. Conditional compilation (#ifdef, etc) is often used to provide separate code sequences for each supported platform.
+<p>
+This approach seems reasonable but the code may vary in quality among the platforms and the less popular ports may only appear months after each official release. If such code is embedded then the host program will only be able to run on the platforms supported by the embedded unit. If the host is to have identical features across all target platforms, then it may be necessary to delay development until all the ports are in alignment or else to use a less recent version of the unit.
+<p>
+Furthermore, some C source code uses non-standard features of a particular compiler. This is another common symptom of independent porting projects - each project can simply require developers to use the most popular compiler for their target platform. If an embedded unit depends on special features of compiler X then the host might also need to be compiled with compiler X. If, at this point, the host is already relying on different non-standard features of compiler Y then either the unit or the host might require heavy modification. 
+<p>
+Lua avoids all these problems by sticking to the common subset of ANSI C and C++ in its source. This gives the interpreter the best possible chance of working with whatever compiler is already being used for the host. Additionally, Lua uses no OS-specific routines and the exact same code base builds correctly on all known platforms.
+<p>
+<p>
+<H3>If I embed the Lua source, won't it clash with my coding habits?</H3>
+<p>
+Some organisations operate code quality policies that require programmers to eliminate all compiler warnings as they go along. Under these conditions, an embedded unit can be a major problem if its code generates warnings. At best, it might be necessary to check the list of warnings during every compilation to ensure none of them originated from the host program. At worst, it might be necessary to modify all offending code in the unit. A modified unit is, of course, no longer consistent with the standard distribution and so the same modifications will likely have to be repeated each time a new version of the unit is released. (An open source project might allow the modifications to be commited back to the main codebase, but there is no guarantee that other developers will maintain the same level of discipline in the future.)
+<p>
+Lua is designed with this issue in mind. During testing, the source is compiled with the maximum level of warnings on a number of compilers. Any resulting warnings are eliminated before the code is released.
+<p>
+<p>
+<H3>Will the API force me to use the interpreter's complex structures to exchange data?</H3>
+<p>
+Internally, an embeddable unit of code may use complex and esoteric data structures, often for perfectly valid reasons. However, if the unit's API also relies on these structures then the embedder may be forced to spend time learning the unit's way of doing things. This so-called "impedance mismatch" is particularly likely when embedding a scripting language. Some interpreters require their initial state (global variables, etc) to be set up by the host using the interpreter's data structures. Also, it will usually be necessary for the host and the interpreter to exchange data values from time to time. Ideally, the host shouldn't be forced to use the interpreter's structures for its own data or else to perform troublesome conversions each time data is exchanged.
+<p>
+Lua has a simple API where the initial state is created without using any of the interpreter's internal structures. Furthermore, data is exchanged with the host via a simple stack which receives and produces values in their natural C datatype.
+<p>
+The flipside of this issue is that the interpreter could use simple, well-behaved types in its API, but then require the host to reduce its own esoteric data to these types for purposes of exchange. This also forces the host to use conversion routines or to represent its own data in simple, unstructured types throughout. Lua's answer is to allow so-called userdata types. These are blocks of memory that Lua does not "understand" directly but which it can manipulate via callbacks to the host. Thus the standard Lua operations can be made to work directly on the host's data as if it were native to the interpreter.
+<p>
+<p>
+<H3>Could Lua's memory management clash with the host's requirements?</H3>
+<p>
+Lua uses its own automatic memory management which operates in a memory space of a fixed size determined by the host program. This means that no system calls will be needed to allocate memory during script execution. An interpreter can therefore be used in situations where such calls are unsafe.
+<p>
+However, automatic memory management can create problems in itself. Some garbage collection systems suffer from "pregnant pauses" where the main program freezes during collection cycles. Lua's incremental collection has the same time overheads as other techniques, but it spreads them evenly in small steps over the program's execution. Latency in such a system is very consistent, possibly even more so than in systems that use manual memory management. Furthermore, the time between collection steps and the time spent on each step can be controlled by the host on the fly. An embedded Lua can therefore be configured and tested for a specific latency requirement quite easily and should pass or fail tests cleanly during development rather than creating surprises after deployment.
+<p>
+For maximum flexibility, Lua can optionally store the host's userdata objects in its own memory space or let the host manage their memory explicitly. The host need not be wary of garbage collection for data it shares with the interpreter.
+<p>
+<p>
+<H3>Wouldn't an interpreter be too resource-hungry to embed in a limited system?</H3>
+<p>
+Lua code can be stored and loaded in a pre-compiled binary form which can be generated by its standard compiler tool, luac. The binary form is more memory-efficient than source text, but also allows another possibility for the interpreter: the parsing/compiling code can be removed altogether. This reduces the size of the already small Lua core to about 40K. Lua programs in binary form can also be encoded as C strings and easily stored in the host's source code. It is therefore convenient to use Lua in devices that lack a filesystem.
+<p>
+<hr><strong>NOTES</strong>
+<UL>
+<li> Moved outdated questions to <a href="../wiki/RetiredLuaFaq.html" >RetiredLuaFaq</a>.
+</UL>
+<p>
+<UL>
+<li> Unlike most FAQ's, this one is not stand-alone, but rather closely tied with the wiki.  It may often reference wiki pages.  Conversely, if an answer is more than a few paragraphs, it usually warrants creation of a wiki page on the topic.
+</UL>
+<p>
+<UL>
+<li> In order to keep the FAQ simple, questions and answers are kept relevant only to the most recent release of Lua.  It won't hold cruft regarding older versions, and won't cause confusion by venturing into planned features.
+</UL>
+<p>
+<UL>
+<li> When adding items to this FAQ, please avoid "forced questions".  These are questions that no one has really asked, but have been invented in order to teach Lua.  Such topics are best left for a Lua tutorial.  Some of the best FAQ items address what <em>isn't</em>, such as why Lua doesn't do something a certain way, or what to do about a missing feature.
+</UL>
+<p>
+<UL>
+<li> <em>NOTE: Please excuse the lack of a question index for the time being.  Someday we'll have support for automatic table of contents creation in the wiki.</em>
+</UL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaFaq" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaFaq" >history</a><br>Last edited November 19, 2010 1:43 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaFaq" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: This Wiki Implementation</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ThisWikiImplementation&amp;body=1" title="List pages referring to ThisWikiImplementation">This Wiki Implementation</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here are some notes regarding the wiki running at this site.
+The implementation of this wiki is derived from <a href="http://www.usemod.com/cgi-bin/wiki.pl">[UseModWiki]</a>, with numerous heavy-handed hacks by <a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a>.  The changes are mostly usability improvements and removal of excess features.  The source code <a href="http://memebeam.org/toys/NoNameWiki">[1]</a> and current running version info <a href="/cgi-bin/wiki.pl?action=Version">[3]</a> are available.
+However more important than implementation, the markup and to a certain extent the interface is what really defines a wiki system.  As long as a community can settle on these issues, it's quite easy to change the underlying implementation.
+In fact, other than minor maintenence, development of the current implementation may not continue.  The prime motivations being:
+<UL>
+<li> this implementation is in Perl which is slow (when lacking mod_perl)
+<li> a wiki implementation <a href="http://tavi.sourceforge.net/">[2]</a> with similar functionality (but using CSS) (maybe derived from an old version of usemod) exists and has these advantages:
+<UL>
+<li> code base is 1/3rd the size of current implementation
+<li> written in PHP and uses SQL database
+</UL>
+</UL>
+So a future task will be to modify that new wiki to use the same markup we have here, and switch implementations.
+Of course it's also possible to write a Lua implemention.  However one should note that 90% of a wiki implementation is spent on details such as database access, edit conflict resolution, page history management, security and robustness, etc.  In other words it's not as simple as just making a markup-to-HTML translator, and languages such as Python and PHP may be better suited for such implementations due to their extensive web and system support libraries.  If someone is interested in running Lua code dynamically within wiki pages that's another story however...
+<p>
+<hr>In support of a Lua wiki implementation: because of its security capabilities, Lua may be a good candidate for making a <a href="http://www.usemod.com/cgi-bin/mb.pl?CommunityProgrammableWiki">[CommunityProgrammableWiki]</a>.
+<p>
+-- <a href="../wiki/BayleShanks.html" >BayleShanks</a>
+<p>
+<DL>
+<dt><dd><a href="http://sputnik.freewisdom.org/">[Sputnik]</a> is very much designed with this in mind, though minding the need for control as well.  Certain things like templates, etc can be edited as any wiki content (provided you have access).  Additional code ("plugins") can be written and tested off-site and then pulled in using <a href="http://luarocks.org/">[LuaRocks]</a> -- YuriTakhteyev<a href="/cgi-bin/wiki.pl?action=edit&amp;id=YuriTakhteyev" >?</a>
+</DL>
+<p>
+<hr>There now exists a powerful Lua-based web platform tool with database support etc. It is called <a href="http://aranha.pepperfish.net/">[Aranha]</a> and is being developed and used by members of the community.
+<p>
+-- <a href="../wiki/DanielSilverstone.html" >DanielSilverstone</a>
+<p>
+<hr>We could even get this wiki on <a href="http://sputnik.freewisdom.org/">[Sputnik]</a> which is pure Lua and runs on the <a href="http://www.keplerproject.org/">[Kepler]</a> platform that can use a database system too through <a href="http://www.keplerproject.org/luasql/">[LuaSQL]</a>
+<p>
+-- <a href="../wiki/GeorgePetsagourakis.html" >GeorgePetsagourakis</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ThisWikiImplementation" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ThisWikiImplementation" >history</a><br>Last edited February 14, 2008 8:06 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ThisWikiImplementation" >(diff)</a>
+</body>
+</html>

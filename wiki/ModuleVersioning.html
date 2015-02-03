@@ -1,0 +1,308 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Module Versioning</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ModuleVersioning&amp;body=1" title="List pages referring to ModuleVersioning">Module Versioning</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The Lua standard library (<code>_G</code> table) contains a <code>_VERSION</code> variable set to <code>"Lua 5.1"</code> or <code>"Lua 5.2"</code> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-_VERSION">[1]</a>.  A number of other modules follow a similar convention of storing a <code>_VERSION</code> variable (as well as others variables like <code>_NAME</code>) in their module table.
+<p>
+Versions like "1.2.3b" might not be decimal numbers, so this is typically stored as a string.  Comparisons of these strings may be less than straightforward and may require special parsing/comparison functions like in <a href="../wiki/LuaRocks.html" >LuaRocks</a> <a href="https://github.com/keplerproject/luarocks/blob/master/src/luarocks/deps.lua">[deps.lua]</a> (see <a href="http://luarocks.org/en/Rockspec_format">[Rockspec format]</a>) or <a href="http://snippets.luacode.org/?p=snippets/Version_sort_131">[a simple version sort]</a>.  If certain stricter conventions are followed, then simple string comparison may be used (e.g. <code>"010.001.001" &gt; "009.005.001"</code>) or a "natural compare" <a href="/lists/lua-l/2011-11/msg00287.html">[3]</a> (<code>compare("10.1.1", "9.5.1")</code>).  Versions stored as numbers, either integers or floating point, also can allow simple comparisons (<code>010001001 &gt; 009005001</code> and <code>10.001.001 &gt; 9.005001</code>), but the zero padding makes it harder to read and possibly easily mistyped.   Versions numbers stored as floating point numbers would be problematic if Lua is compiled with integer numbers, and there is a not a single canonical way to format a floating point as a string (e.g. "1.010" v.s. "1.01" v.s. "1.010E+00").  Versions might alternately be represented as a table <a href="/lists/lua-l/2011-11/msg00306.html">[4]</a> (<code> {1,2,3,'b'} </code> or <code> {major=1,minor=2,micro=3,stage='b'} </code>), possibly with a comparison operators on its metatable loaded from some versioning module: <code>_VERSION = require 'someversionlib' '1.2.3b' </code> .
+<p>
+Here's some examples scanned from the modules in the <a href="../wiki/LuaDist.html" >LuaDist</a> repository:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ cd Repository
+
+$ grep -re 'VERSION *=[^=]' --include '*.lua'
+
+./copas/tests/cosocket.lua:_VERSION     = "0.1"
+
+./copas/src/copas/copas.lua:_VERSION     = "Copas 1.1.7"
+
+./wsapi-xavante/src/wsapi/common.lua:_G.wsapi._VERSION     = "WSAPI 1.3.4"
+
+./wsapi-xavante/src/wsapi/sapi.lua:	_VERSION = "WSAPI SAPI 1.0",
+
+./lemock/build/lemock.lua:_VERSION   = "LeMock 0.6"
+
+./cgilua/src/cgilua/cgilua.lua:_VERSION = "CGILua 5.1.4"
+
+./oil/lua/luaidl.lua:VERSION = '1.0.5'
+
+./oil/lua/socket/url.lua:_VERSION = "URL 1.0.1"
+
+./oil/lua/oil/compat.lua:VERSION = "OiL 0.5 beta"
+
+./oil/lua/luaidl/lex.lua:PRAGMA_VERSION          = '1.0'
+
+./oil/lua/oil.lua:VERSION = "OiL 0.5"
+
+./luajson/util/createRock.lua:	VERSION = ("%q"):format(version),
+
+./xavante/src/xavante/xavante.lua:_VERSION     = "Xavante 2.2.0"
+
+./lualogging/src/logging/logging.lua:_VERSION = "LuaLogging 1.1.4"
+
+./lua_uri/uri.lua:local M = { _NAME = "uri", VERSION = "1.0" }
+
+./luasoap/soap.lua:_VERSION = "1.0b"
+
+./getopt/getopt.lua:_VERSION = "0.1.1"
+
+The version number can be used to check version consistency at runtime, to advise a module to use a different version of an interface, or to load a different version of the module. For checking, sometimes you see things like local foo = require 'foo'; assert(foo._VERSION &gt;= 1.23), though possibly replacing the '&gt;=' test with something that parses the version nu
+
+./vstruct/vstruct/init.lua:_VERSION = "1.1"
+
+./dado/src/dado/object.lua:_VERSION = "Dado Object 1.2.0"
+
+./dado/src/dado/sql.lua:_VERSION = "Dado SQL 1.2.0"
+
+./dado/src/dado.lua:_VERSION = "Dado 1.2.0"
+
+./remdebug/src/remdebug/engine.lua:_VERSION = "1.0"
+
+./luasql-sqlite/src/ado/ado.lua:luasql._VERSION = "LuaSQL 2.1.1"
+
+./luasql-sqlite/src/jdbc/src/lua/jdbc.lua:luasql._VERSION = "LuaSQL 2.0.2"
+
+./luaidl/luaidl.lua:VERSION = '0.8.9b'
+
+./luaidl/luaidl/lex.lua:PRAGMA_VERSION    = '1.0'
+
+./wsapi-fcgi/src/wsapi/common.lua:_G.wsapi._VERSION     = "WSAPI 1.3.4"
+
+./wsapi-fcgi/src/wsapi/sapi.lua:	_VERSION = "WSAPI SAPI 1.0",
+
+./shake/src/shake/shake.lua:_VERSION = "Shake 1.0.2"
+
+./luasocket/src/url.lua:_VERSION = "URL 1.0.1"
+
+./luasocket/src/ltn12.lua:_VERSION = "LTN12 1.0.1"
+
+./venv/src/stable.lua:_VERSION = "Stable 1.0"
+
+./luasql-mysql/src/ado/ado.lua:luasql._VERSION = "LuaSQL 2.1.1"
+
+./luasql-mysql/src/jdbc/src/lua/jdbc.lua:luasql._VERSION = "LuaSQL 2.0.2"
+
+./penlight/lua/pl/utils.lua:utils._VERSION = "0.9.0"
+
+./abelhas/pso.lua:VERSION = "1.0"
+
+./luadoc/src/luadoc/init.lua:_VERSION = "LuaDoc 3.0.1"
+
+./lanes/tests/assert.lua:                    VERSION= 20070603,    -- last change (yyyymmdd)
+
+./rings/src/stable.lua:_VERSION = "Stable 1.0"
+
+./wsapi/src/wsapi/common.lua:_G.wsapi._VERSION     = "WSAPI 1.3.4"
+
+./wsapi/src/wsapi/sapi.lua:	_VERSION = "WSAPI SAPI 1.0",
+
+./luaglut/glut_test1.lua:print('_VERSION = ' .. _VERSION)
+
+./luaglut/glut_test1.lua:print('luagl.VERSION = '   .. luagl.VERSION)
+
+./luaglut/glut_test1.lua:print('luaglut.VERSION = ' .. luaglut.VERSION)
+
+./luaglut/glut_test2.lua:print('_VERSION = ' .. _VERSION)
+
+./luaglut/glut_test2.lua:print('luagl.VERSION = '   .. luagl.VERSION)
+
+./luaglut/glut_test2.lua:print('luaglut.VERSION = ' .. luaglut.VERSION)
+
+./luasec/src/https.lua:_VERSION   = "0.4"
+
+./luasec/src/ssl.lua:_VERSION   = "0.4"
+
+./luasql-sqlite3/src/ado/ado.lua:luasql._VERSION = "LuaSQL 2.1.1"
+
+./luasql-sqlite3/src/jdbc/src/lua/jdbc.lua:luasql._VERSION = "LuaSQL 2.0.2"
+
+./wxlua/bindings/genwxbind.lua:WXLUA_BINDING_VERSION = 27 -- Used to verify that the bindings are updated
+
+./luaxmlrpc/xmlrpc.lua:_VERSION = "1.0b"
+
+</pre>
+</DL>
+<p>
+For example,
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- copas/src/copas/copas.lua</span>
+
+.....
+
+<span class="library">module</span> (<span class="string">"copas"</span>, <span class="library">package.seeall</span>)
+
+<span class="comment">-- Meta information is public even if beginning with an "_"</span>
+
+_COPYRIGHT   = <span class="string">"Copyright (C) 2005-2010 Kepler Project"</span>
+
+_DESCRIPTION = <span class="string">"Coroutine Oriented Portable Asynchronous Services"</span>
+
+_VERSION     = <span class="string">"Copas 1.1.7"</span>
+
+.....
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- penlight/lua/pl/utils.lua</span>
+
+.....
+
+<span class="keyword">local</span> utils = {}
+
+utils._VERSION = <span class="string">"0.9.0"</span>
+
+.....
+
+</pre>
+
+</DL>
+<p>
+<p>
+In many cases, the project name (with mixed case and which may be less specific than the module name <code>_NAME</code>) is included in front of the version number, like <code>_G._VERSION</code> does.  [Why this would be worth doing, rather than using a separate variable, I don't know--DM]
+<p>
+<a href="../wiki/LuaDistributions.html" >LuaDistributions</a>--like <a href="../wiki/LuaRocks.html" >LuaRocks</a>, <a href="../wiki/LuaDist.html" >LuaDist</a>, debian, etc.--often impose a versioning scheme, though often on a package level rather than on a module level (where a package may contain multiple modules).  It can be a good idea to keep module and package versions the same.  Moreover, the distribution packages may be obtained by patching an upstream, so <a href="../wiki/LuaRocks.html" >LuaRocks</a> appends its own hyphen and number to the version set by the upstream (e.g. 2.0.1 may become 2.0.1-1 as discussed in <a href="http://luarocks.org/en/Rockspec_format">[Rockspec format]</a>).
+<p>
+The version number can be used to check version consistency at runtime, to advise a module to use a different version of an interface, or to load a different version of the module.  For checking, sometimes you see things like <code>local foo = require 'foo'; assert(foo._VERSION &gt;= 1.23)</code>, though possibly replacing the '<code>&gt;=</code>' test with something that parses the version number string.  In Perl, the <code>use</code> statement, which is somewhat analogous to Lua <code>require</code>, can be passed a version number (e.g. "<code>use foo 1.23;</code>" <a href="http://perldoc.perl.org/functions/use.html">[2]</a>), which is forwarded to the module, which could in fact do whatever it wants with it (e.g. check it or alter interface behavior).  In Lua, something similar might be done with <code>local foo = require 'foo' (1.23)</code>, but that's not typically seen.  <a href="../wiki/LuaRocks.html" >LuaRocks</a> provides an optional alternate form of <code>require</code> that not only checks but can recommend which version to load if multiple versions are installed (<a href="http://luarocks.luaforge.net/luadoc/modules/luarocks.require.html">[luarocks.require]</a>), but this is not used that much anymore.
+<p>
+Extracting a version from a module would typically involve loading the module and reading its <code>_VERSION</code> variable.  If the module is untrusted, you could load it in a sandbox or avoid execution by just doing rudimentary source code analysis (<a href="../wiki/ProgramAnalysis.html" >ProgramAnalysis</a>).  The same is true concerning enumerating the functions in a module.  A hash of the source might be used in place of a version, sort of like git, but hashes don't themselves provide sequencing <a href="/lists/lua-l/2011-11/msg00427.html">[5]</a>.
+<p>
+Some other languages have more formalized module versioning support and issues about them have been written about:
+<p>
+<UL>
+<li> Perl: <a href="http://dev.perl.org/perl6/rfc/78.html">[Perl RFC78]</a> <a href="http://perldoc.perl.org/perlmodstyle.html#Version-numbering">[permodstyle]</a> <a href="http://www.dagolden.com/index.php/369/version-numbers-should-be-boring/">[blog post: Version numbers should be boring]</a> <a href="http://search.cpan.org/perldoc?version">[version.pm]</a>
+<li> Python: <a href="http://www.python.org/dev/peps/pep-0008/">[PEP0008]</a> <a href="http://www.python.org/dev/peps/pep-0386/">[PEP0386]</a> <a href="http://www.python.org/dev/peps/pep-0396/">[PEP0396]</a> <a href="http://stackoverflow.com/questions/458550/standard-way-to-embed-version-into-python-package">[stackoverflow discussion]</a>
+<li> Ruby: <a href="http://stackoverflow.com/questions/2195573/why-use-a-nested-ruby-module-for-version-information">[stackoverflow post]</a>
+</UL>
+<p>
+<H2>Maintaining Interface Compatibility</H2>
+<p>
+Consider a module <code>foo</code> used by some program <code>myprogram.lua</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- foo.lua</span>
+
+<span class="keyword">return</span> {_VERSION=1.0; f = <span class="keyword">function</span>(x) <span class="keyword">return</span> x^2 <span class="keyword">end</span>; g = <span class="keyword">function</span>(x) <span class="keyword">return</span> x^3 <span class="keyword">end</span>}
+
+
+
+<span class="comment">-- myprogram.lua</span>
+
+<span class="keyword">local</span> foo = <span class="library">require</span> <span class="string">'foo'</span>
+
+<span class="library">print</span>(foo.g(2))
+
+</pre>
+
+</DL>
+<p>
+Now, say a new version of module <code>foo</code> comes out that breaks the interface (which is undesirable but sometimes does happen):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- foo.lua</span>
+
+<span class="keyword">return</span> {_VERSION=2.0; f = <span class="keyword">function</span>(x) <span class="keyword">return</span> x^2 <span class="keyword">end</span>; g = <span class="keyword">function</span>(x,y) <span class="keyword">return</span> x^2*y <span class="keyword">end</span>}
+
+</pre>
+
+</DL>
+<p>
+<code>myprogram.lua</code> will no longer work properly with the new <code>foo</code>.  We could update <code>myprogram</code> to work with <code>foo</code> version 2.0 or even with both version 1.0 and version 2.0.  There are various ways.  The following involves only a one line change:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- myprogram.lua</span>
+
+<span class="keyword">local</span> foo = <span class="library">require</span> <span class="string">'foo'</span>
+
+<span class="keyword">local</span> foo = <span class="library">setmetatable</span>({g = (foo._VERSION &lt; 2.0) <span class="keyword">and</span> foo.g <span class="keyword">or</span> <span class="keyword">function</span>(x) <span class="keyword">return</span> foo.g(x,x) <span class="keyword">end</span>}, {__index = foo})
+
+<span class="library">print</span>(foo.g(2))
+
+</pre>
+
+</DL>
+<p>
+It may also be possible to do this only with feature tests, without consulting <code>_VERSION</code> at all, e.g. <code>(foo.g(2,0) == 8)</code> .  The compatibility code could also be moved inside the <code>foo</code> module:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- foo.lua</span>
+
+<span class="keyword">local</span> M = {_VERSION=2.0; f = <span class="keyword">function</span>(x) <span class="keyword">return</span> x^2 <span class="keyword">end</span>; g = <span class="keyword">function</span>(x,y) <span class="keyword">return</span> x^2*y <span class="keyword">end</span>}
+
+M.version1 = <span class="library">setmetatable</span>({g = <span class="keyword">function</span>(x) <span class="keyword">return</span> M.g(x,x) <span class="keyword">end</span>}, {__index = M})
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- myprogram.lua  (works with both foo version 1 and 2)</span>
+
+<span class="keyword">local</span> foo = <span class="library">require</span> <span class="string">'foo'</span>; foo = foo.version1 <span class="keyword">or</span> foo
+
+<span class="library">print</span>(foo.g(2))
+
+</pre>
+
+</DL>
+<p>
+<code>foo</code> may alternately make the version 1 interface the default to avoid breaking existing code.  Another possibility is to rename the <code>foo</code> module to something different like <code>foo2</code> if the interface breaks.
+<p>
+Note also that as written it can be ok for two different versions of the <code>foo</code> interface to be used simultaneously in a program, such as in two different modules.  The <code>foo = foo.version1 or foo</code>, which selects version 1 of the interface, is lexically scoped.   
+<p>
+<DL>
+<dt><dd>--<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaVersionCompatibility.html" >LuaVersionCompatibility</a>
+<li> <a href="/lists/lua-l/2011-11/threads.html#00239">LuaList:2011-11/threads.html#00239</a> - "module _VERSION number scheme proposal" - discussion on various options
+<li> <a href="https://github.com/kikito/semver.lua">[simver]</a> -  semantic versioning in Lua (see also <a href="http://semver.org/">[semver.org]</a>)
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ModuleVersioning" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ModuleVersioning" >history</a><br>Last edited April 9, 2012 11:43 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ModuleVersioning" >(diff)</a>
+</body>
+</html>

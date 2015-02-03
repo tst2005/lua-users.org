@@ -1,0 +1,790 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Phi Lho Soft Lua Samples</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PhiLhoSoftLuaSamples&amp;body=1" title="List pages referring to PhiLhoSoftLuaSamples">Phi Lho Soft Lua Samples</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Some Lua 4.0 samples, written by <a href="../wiki/PhilippeLhoste.html" >PhilippeLhoste</a>, given for educational purpose, and maybe, for some, for practical use...
+All this is badly outdated...
+<p>
+<strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  It does not run as is under Lua 5.</strong>
+<p>
+<H2>99 Bottles of Beer.lua</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- 99 Bottles of Beer.lua</span>
+
+<span class="comment">-- http://www.ionet.net/~timtroyr/funhouse/beer.html</span>
+
+<span class="comment">-- Tim Robinson</span>
+
+<span class="comment">-- timtroyr(a)ionet.net</span>
+
+
+
+<span class="comment">-- Inspiration...</span>
+
+
+
+<span class="comment">-- 10 REM Basic version of 99 bottles of beer</span>
+
+<span class="comment">-- 20 FOR X=99 TO 1 STEP -1</span>
+
+<span class="comment">-- 30 PRINT X;"bottle(s) of beer on the wall,";X;"bottle(s) of beer"</span>
+
+<span class="comment">-- 40 PRINT "Take one down and pass it around,"</span>
+
+<span class="comment">-- 50 PRINT X-1;"bottle(s) of beer on the wall"</span>
+
+<span class="comment">-- 60 NEXT</span>
+
+<span class="comment">-- Added. Shouldn't display 0 bottles(s), above...</span>
+
+<span class="comment">-- 70 PRINT "No bottles of beer on the wall"</span>
+
+<span class="comment">-- 80 PRINT "Go to the store and buy some more"</span>
+
+
+
+<span class="comment">-- #!/bin/csh</span>
+
+<span class="comment">-- # Version #2.1 C-Shell version of 99 Bottles of Beer</span>
+
+<span class="comment">-- #</span>
+
+<span class="comment">-- # overhauled 1997-19-3 by Ken Bateman (kbateman(a)esinet.net)</span>
+
+<span class="comment">-- #</span>
+
+<span class="comment">-- foreach i (9 8 7 6 5 4 3 2 1 " ")</span>
+
+<span class="comment">--   foreach j (9 8 7 6 5 4 3 2 1 0)</span>
+
+<span class="comment">--   if ( $i$j != "99" ) echo $i$j " bottles of beer on the wall"</span>
+
+<span class="comment">--   echo -n $i$j "bottles of beer on the wall, "</span>
+
+<span class="comment">--   echo $i$j "bottles of beer"</span>
+
+<span class="comment">--   echo -n "Take one down, pass it around..."</span>
+
+<span class="comment">--   end</span>
+
+<span class="comment">-- end</span>
+
+<span class="comment">-- echo "no more bottles of beer on the wall"</span>
+
+<span class="comment">-- echo "No more bottles of beer on the wall, no more bottles of beer"</span>
+
+<span class="comment">-- echo "Go to the store, buy some more,"</span>
+
+<span class="comment">-- echo "99 bottles of beer on the wall"</span>
+
+<span class="comment">-- #end of script</span>
+
+
+
+<span class="comment">-- Lua 99 Bottles of Beer</span>
+
+<span class="comment">-- by Philippe Lhoste &lt;PhiLho(a)GMX.net&gt; http://Phi.Lho.free.fr</span>
+
+
+
+<span class="keyword">function</span> PrintBottleNumber(n)
+
+  <span class="keyword">local</span> bs
+
+  <span class="keyword">if</span> n == 0 <span class="keyword">then</span>
+
+    bs = <span class="string">"No more bottles"</span>
+
+  <span class="keyword">elseif</span> n == 1 <span class="keyword">then</span>
+
+    bs = <span class="string">"One bottle"</span>
+
+  <span class="keyword">else</span>
+
+    bs = n .. <span class="string">" bottles"</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> bs .. <span class="string">" of beer"</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">for</span> bn = 99, 1, -1 <span class="keyword">do</span>
+
+  write(PrintBottleNumber(bn), <span class="string">" on the wall, \n"</span>)
+
+  write(PrintBottleNumber(bn), <span class="string">"\n"</span>)
+
+  write(<span class="string">"Take one down and pass it around,\n"</span>)
+
+  write(PrintBottleNumber(bn-1), <span class="string">" on the wall, \n\n"</span>)
+
+<span class="keyword">end</span>
+
+write(<span class="string">"No more bottles of beer on the wall,\nNo more bottles of beer\n"</span>)
+
+write(<span class="string">"Go to the store, buy some more!\n"</span>)
+
+</pre>
+
+</DL>
+<p>
+<H2>gcd.lua</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- gcd.lua</span>
+
+<span class="comment">-- Greatest common divisor</span>
+
+
+
+<span class="comment">-- Unnecessary, here just to test argument passing</span>
+
+<span class="comment">-- use lua -f gcd.lua 1233 12, for example</span>
+
+<span class="keyword">if</span> arg <span class="keyword">then</span>
+
+  <span class="library">print</span>(<span class="string">"Arguments:"</span>)
+
+  <span class="keyword">for</span> i, v <span class="keyword">in</span> arg <span class="keyword">do</span>
+
+    <span class="library">print</span>(i, v)
+
+  <span class="keyword">end</span>
+
+  <span class="library">print</span><span class="string">""</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Take numerical arguments if exists,</span>
+
+<span class="comment">-- then check if there is a value, otherwise take default value</span>
+
+<span class="keyword">local</span> v1 = <span class="library">tonumber</span>((arg <span class="keyword">and</span> arg[1])) <span class="keyword">or</span> (v1 <span class="keyword">or</span> 121)
+
+<span class="keyword">local</span> v2 = <span class="library">tonumber</span>((arg <span class="keyword">and</span> arg[2])) <span class="keyword">or</span> (v2 <span class="keyword">or</span> 1221)
+
+
+
+<span class="keyword">function</span> gcd_plain(m, n)
+
+  <span class="comment">-- Using classical temporary variable</span>
+
+  <span class="keyword">local</span> t
+
+  <span class="keyword">while</span> m ~= 0 <span class="keyword">do</span>
+
+    t = m
+
+    m = mod(n, m)
+
+    n = t
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> n
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> gcd_hip(m, n)
+
+  <span class="comment">-- Using parallel assignment</span>
+
+  <span class="keyword">while</span> m ~= 0 <span class="keyword">do</span>
+
+    m, n = mod(n, m), m
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> n
+
+<span class="keyword">end</span>
+
+
+
+write(format(<span class="string">"Greatest common divisor of %d and %d is %d\n"</span>, v1, v2, gcd_plain(v1, v2)))
+
+write(format(<span class="string">"Greatest common divisor of %d and %d is %d\n"</span>, v1, v2, gcd_hip(v1, v2)))
+
+</pre>
+
+</DL>
+<p>
+<H2>Process File.lua</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Process File.lua</span>
+
+<span class="comment">-- Process a file</span>
+
+<span class="comment">-- by Philippe Lhoste &lt;PhiLho(a)GMX.net&gt; http://Phi.Lho.free.fr</span>
+
+<span class="comment">-- v. 1.2 -- 2001/07/27 -- Sample processing a bit smarter :-)</span>
+
+<span class="comment">-- v. 1.1 -- 2001/06/07 -- Standard I/O use</span>
+
+<span class="comment">-- v. 1.0 -- 2001/06/06</span>
+
+
+
+filenameIn  = (arg <span class="keyword">and</span> arg[1]) <span class="keyword">or</span> <span class="string">"-"</span>  <span class="comment">-- If absent, use standard input</span>
+
+filenameOut = (arg <span class="keyword">and</span> arg[2]) <span class="keyword">or</span> <span class="string">"-"</span>  <span class="comment">-- If absent, use standard output</span>
+
+
+
+<span class="comment">-- This version lowercases CSS identifiers as long as they are</span>
+
+<span class="comment">-- alone on a line, preceded by a tab.</span>
+
+<span class="keyword">function</span> ProcessLine(line)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> line <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="keyword">nil</span>
+
+  <span class="keyword">end</span>
+
+  line = gsub(line, <span class="string">"^\t([%u-]*):"</span>, <span class="keyword">function</span>(p) <span class="keyword">return</span> <span class="string">'\t'</span> .. strlower(p) .. <span class="string">':'</span> <span class="keyword">end</span>)
+
+  <span class="keyword">return</span> line .. <span class="string">'\n'</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> ProcessFile()
+
+  <span class="keyword">if</span> filenameIn ~= <span class="string">"-"</span> <span class="keyword">then</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> readfrom(filenameIn) <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>, filenameIn
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> filenameOut ~= <span class="string">"-"</span> <span class="keyword">then</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> writeto(filenameOut) <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>, filenameOut
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> processedLine
+
+  <span class="comment">-- Loop on the lines and process them</span>
+
+  <span class="keyword">repeat</span>
+
+    processedLine = ProcessLine(read())
+
+    <span class="keyword">if</span> processedLine <span class="keyword">then</span>  <span class="comment">-- ProcessLine returns nil if read line is nil (EOF)</span>
+
+      write(processedLine)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">until</span> processedLine == <span class="keyword">nil</span>
+
+<span class="comment">-- OR:</span>
+
+<span class="comment">--    while (ProcessLine(read())) do</span>
+
+<span class="comment">--      -- Do nothing, output is done in ProcessLine</span>
+
+<span class="comment">--    end</span>
+
+<span class="comment">--  write"That's all folks!"</span>
+
+  readfrom()  <span class="comment">-- Restore default reading</span>
+
+  writeto()    <span class="comment">-- Restore default writing</span>
+
+  <span class="keyword">return</span> 0, <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+
+
+result, fn = ProcessFile()
+
+<span class="keyword">if</span> <span class="keyword">not</span> result <span class="keyword">then</span>
+
+  <span class="library">print</span>(<span class="string">"Error in parameter: "</span> .. (fn <span class="keyword">or</span> <span class="string">'nil'</span>))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Split Long Lines.lua</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Split Long Lines.lua</span>
+
+<span class="comment">-- Process a file to split long lines at blanks</span>
+
+<span class="comment">-- by Philippe Lhoste &lt;PhiLho(a)GMX.net&gt; http://Phi.Lho.free.fr</span>
+
+<span class="comment">-- v. 1.1 -- 2001/06/07 -- Standard I/O use</span>
+
+<span class="comment">-- v. 1.0 -- 2001/06/06</span>
+
+
+
+filenameIn  = (arg <span class="keyword">and</span> arg[1]) <span class="keyword">or</span> <span class="string">"-"</span>  <span class="comment">-- If absent, use standard input</span>
+
+filenameOut = (arg <span class="keyword">and</span> arg[2]) <span class="keyword">or</span> <span class="string">"-"</span>  <span class="comment">-- If absent, use standard output</span>
+
+cutAt   = (arg <span class="keyword">and</span> arg[3] <span class="keyword">and</span> <span class="library">tonumber</span>(arg[3])) <span class="keyword">or</span> 80
+
+method = (arg <span class="keyword">and</span> arg[4]) <span class="keyword">or</span> <span class="string">"w"</span>  <span class="comment">-- Values: "w" (white space) or "r" (raw)</span>
+
+lineNb = 0  <span class="comment">-- For debug purpose</span>
+
+
+
+<span class="comment">-- Cut at a separator before the cutAt length, or at cutAt size if no separator is found.</span>
+
+<span class="comment">-- Return the remainder of the line.</span>
+
+<span class="keyword">function</span> CutAtWhiteSpace(chunk)
+
+  <span class="keyword">if</span> chunk <span class="keyword">and</span> chunk ~= <span class="string">""</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> len = min(strlen(chunk), cutAt)
+
+<span class="comment">--D--print("---" .. lineNb .. "-" .. "len: " .. len)</span>
+
+    <span class="keyword">local</span> i, c, remainder
+
+    <span class="keyword">local</span> splitPos = 0
+
+    <span class="comment">-- Search a separator from the end of the chunk</span>
+
+    <span class="keyword">for</span> i = len, 1, -1 <span class="keyword">do</span>
+
+      c = strsub(chunk, i, i)
+
+      <span class="comment">-- Separators = white space, tabulation, carriage return or line feed</span>
+
+      <span class="keyword">if</span> c == <span class="string">' '</span> <span class="keyword">or</span> c == <span class="string">'\t'</span> <span class="keyword">or</span> c == <span class="string">'\r'</span> <span class="keyword">or</span> c == <span class="string">'\n'</span> <span class="keyword">then</span>
+
+        splitPos = i
+
+        <span class="keyword">break</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> splitPos ~= 0 <span class="keyword">then</span>
+
+<span class="comment">--D--print("splitPos: " .. splitPos)</span>
+
+      <span class="comment">-- Found, split here</span>
+
+      write(strsub(chunk, 1, splitPos - 1) .. <span class="string">"\n"</span>)
+
+      remainder = strsub(chunk, splitPos + 1)
+
+    <span class="keyword">else</span>
+
+      <span class="comment">-- No separator found</span>
+
+<span class="comment">--D--print("Dump")</span>
+
+      write(strsub(chunk, 1, cutAt) .. <span class="string">"\n"</span>)  <span class="comment">-- Arbitrary cut at given size</span>
+
+      remainder = strsub(chunk, cutAt + 1)
+
+    <span class="keyword">end</span>
+
+<span class="comment">--D--print("remainder len: " .. strlen(remainder))</span>
+
+    <span class="keyword">return</span> remainder
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">return</span> <span class="keyword">nil</span>  <span class="comment">-- chunk is nil or an empty string: EOF</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Just dump the chunk, which has already the right size</span>
+
+<span class="keyword">function</span> CutAtLength(chunk)
+
+  <span class="keyword">if</span> chunk <span class="keyword">and</span> chunk ~= <span class="string">""</span> <span class="keyword">then</span>
+
+    write(chunk .. <span class="string">"\n"</span>)
+
+    <span class="keyword">return</span> <span class="string">""</span>
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">return</span> <span class="keyword">nil</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">if</span> method == <span class="string">"r"</span> <span class="keyword">then</span>
+
+  ProcessChunk = CutAtLength
+
+<span class="keyword">else</span>
+
+  ProcessChunk = CutAtWhiteSpace
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> ProcessFile()
+
+  <span class="keyword">if</span> filenameIn ~= <span class="string">"-"</span> <span class="keyword">then</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> readfrom(filenameIn) <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>, filenameIn
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> filenameOut ~= <span class="string">"-"</span> <span class="keyword">then</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> writeto(filenameOut) <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>, filenameOut
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> chunk
+
+  <span class="keyword">local</span> remainder = <span class="string">""</span>
+
+  <span class="comment">-- Loop on the lines and process them</span>
+
+  chunk = read(cutAt)
+
+  <span class="keyword">repeat</span>
+
+<span class="comment">--D--lineNb = lineNb + 1</span>
+
+    <span class="keyword">if</span> chunk <span class="keyword">and</span> strlen(remainder) &lt;= cutAt <span class="keyword">then</span>
+
+      <span class="comment">-- Process remainder of previous line and current chunk</span>
+
+      remainder = ProcessChunk(remainder .. chunk)
+
+      chunk = read(cutAt)
+
+    <span class="keyword">else</span>
+
+      <span class="comment">-- remainder growed too big, have to split it</span>
+
+      remainder = ProcessChunk(remainder)
+
+    <span class="keyword">end</span>
+
+<span class="comment">--D--print("%%" .. (remainder or "(nil)") .. "%% " .. lineNb)</span>
+
+  <span class="keyword">until</span> <span class="keyword">not</span> remainder
+
+<span class="comment">--D--write"That's all folks!"</span>
+
+  readfrom()  <span class="comment">-- Restore default reading</span>
+
+  writeto()    <span class="comment">-- Restore default writing</span>
+
+  <span class="keyword">return</span> 0, <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+
+
+result, fn = ProcessFile()
+
+<span class="keyword">if</span> <span class="keyword">not</span> result <span class="keyword">then</span>
+
+  <span class="library">print</span>(<span class="string">"Error in parameter: "</span> .. (fn <span class="keyword">or</span> <span class="string">'nil'</span>))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Hexa Dump.lua</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Hexa Dump.lua</span>
+
+<span class="comment">-- Dump a file in hexadecimal form.</span>
+
+<span class="comment">-- by Philippe Lhoste &lt;PhiLho(a)GMX.net&gt; http://Phi.Lho.free.fr</span>
+
+<span class="comment">-- v. 1.1 -- 2002/02/12 -- Moved the gsub(%c) out of write to avoid dumping the two return values</span>
+
+<span class="comment">-- v. 1.0 -- 2001/07/27</span>
+
+
+
+filenameIn  = (arg <span class="keyword">and</span> arg[1]) <span class="keyword">or</span> <span class="string">"-"</span>  <span class="comment">-- If absent, use standard input</span>
+
+filenameOut = (arg <span class="keyword">and</span> arg[2]) <span class="keyword">or</span> <span class="string">"-"</span>  <span class="comment">-- If absent, use standard output</span>
+
+
+
+<span class="comment">-- For debugging:</span>
+
+<span class="comment">--filenameIn = "Fav.ubx"</span>
+
+
+
+<span class="comment">-- My dumb dump</span>
+
+<span class="keyword">function</span> PLDumpString(fileContent)
+
+  <span class="keyword">local</span> len = strlen(fileContent)
+
+  <span class="keyword">local</span> line = <span class="string">""</span>
+
+  <span class="keyword">for</span> i = 1, len <span class="keyword">do</span>
+
+    line = line .. format(<span class="string">'%02X'</span>, strbyte(strsub(fileContent, i, i))) .. <span class="string">' '</span>
+
+    <span class="keyword">if</span> mod(i, 16) == 0 <span class="keyword">then</span>
+
+      write(line, <span class="string">'\n'</span>)
+
+      line = <span class="string">""</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> line ~= <span class="string">''</span> <span class="keyword">then</span>
+
+    write(line, <span class="string">'\n'</span>)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Roberto Ierusalimschy's dump</span>
+
+<span class="comment">-- with some "improvements" to make it more flexible.</span>
+
+<span class="comment">-- Slighly faster despite dumping more data...</span>
+
+bytesPerLine = 16
+
+bDumpOffset = 1
+
+bDumpAscii = 1
+
+
+
+<span class="keyword">function</span> DumpString(fileContent)
+
+  <span class="keyword">local</span> offset = 0
+
+  <span class="keyword">local</span> line
+
+  <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+    line = strsub(fileContent, offset + 1, offset + bytesPerLine)
+
+    <span class="keyword">if</span> line == <span class="string">''</span> <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    <span class="keyword">if</span> bDumpOffset <span class="keyword">then</span>
+
+      write(format(<span class="string">"%08X"</span>, offset), <span class="string">"  "</span>) <span class="comment">-- Write offset of the line</span>
+
+    <span class="keyword">end</span>
+
+    <span class="comment">-- Smart use of gsub: it doesn't do any replacement,</span>
+
+    <span class="comment">-- but instead is used as an iterator over the string bytes.</span>
+
+    gsub(line, <span class="string">"(.)"</span>,
+
+      <span class="keyword">function</span>(byte) write(format(<span class="string">"%02X "</span>, strbyte(byte))) <span class="keyword">end</span>
+
+    )
+
+    <span class="keyword">if</span> bDumpAscii <span class="keyword">then</span>
+
+      write(strrep(<span class="string">"   "</span>, bytesPerLine - strlen(line) + 1)) <span class="comment">-- align strings</span>
+
+      line = gsub(line, <span class="string">"%c"</span>, <span class="string">'.'</span>) <span class="comment">-- replace control chars by dot</span>
+
+      write(line)
+
+    <span class="keyword">end</span>
+
+    write(<span class="string">'\n'</span>)
+
+    offset = offset + bytesPerLine
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> ProcessFile()
+
+  <span class="keyword">local</span> fileInHandle
+
+  <span class="keyword">if</span> filenameIn ~= <span class="string">"-"</span> <span class="keyword">then</span>
+
+    <span class="comment">-- I must use openfile instead of readfrom because the later doesn't support binary mode</span>
+
+    fileInHandle = openfile(filenameIn, <span class="string">"rb"</span>)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> fileInHandle <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>, filenameIn
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    fileInHandle = _INPUT
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> filenameOut ~= <span class="string">"-"</span> <span class="keyword">then</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> writeto(filenameOut) <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>, filenameOut
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="library">print</span>(<span class="string">"Files: "</span>, filenameIn, filenameOut)
+
+  <span class="keyword">local</span> fileContent = read(fileInHandle, <span class="string">"*a"</span>)  <span class="comment">-- Read the whole file</span>
+
+  closefile(fileInHandle)
+
+  <span class="library">print</span>(<span class="string">"fileContent is "</span> .. strlen(fileContent) .. <span class="string">" bytes long"</span>)
+
+  t1 = clock()
+
+  PLDumpString(fileContent)
+
+  t2 = clock()
+
+  <span class="library">print</span>(<span class="string">"Time: "</span>, t2 - t1)
+
+  writeto()
+
+  <span class="keyword">if</span> filenameIn ~= <span class="string">"-"</span> <span class="keyword">then</span>
+
+    <span class="library">print</span>(remove(filenameOut))
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> filenameOut ~= <span class="string">"-"</span> <span class="keyword">then</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> writeto(filenameOut) <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>, filenameOut
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  t1 = clock()
+
+  DumpString(fileContent)
+
+  t2 = clock()
+
+  <span class="library">print</span>(<span class="string">"Time: "</span>, t2 - t1)
+
+  writeto()    <span class="comment">-- Restore default writing</span>
+
+  <span class="keyword">return</span> 0
+
+<span class="keyword">end</span>
+
+
+
+result, fn = ProcessFile()
+
+<span class="keyword">if</span> <span class="keyword">not</span> result <span class="keyword">then</span>
+
+  <span class="library">print</span>(<span class="string">"Error in parameter: "</span> .. (fn <span class="keyword">or</span> <span class="string">'nil'</span>))
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PhiLhoSoftLuaSamples" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PhiLhoSoftLuaSamples" >history</a><br>Last edited January 6, 2007 3:46 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PhiLhoSoftLuaSamples" >(diff)</a>
+</body>
+</html>

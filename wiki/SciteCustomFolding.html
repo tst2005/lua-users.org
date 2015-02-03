@@ -1,0 +1,112 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Custom Folding</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteCustomFolding&amp;body=1" title="List pages referring to SciteCustomFolding">Scite Custom Folding</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Recursively folds or unfolds a file. Normally, a click at a fold doesn't recursively fold and unfold. A Ctrl-click at a fold does recursively fold and unfold. However, if you want to limit the folding depth, you will need the following Lua script as a substitute.
+<p>
+<hr><pre class="code">
+<span class="comment">-- toggle folds, with customizable fold range</span>
+
+<span class="comment">-- khman 20060117, public domain</span>
+
+<span class="keyword">function</span> FoldSome()
+
+  <span class="keyword">local</span> FOLDSTART = 1024        <span class="comment">-- level to start folding (from 1024)</span>
+
+  <span class="keyword">local</span> FOLDDEPTH = 3           <span class="comment">-- fold depth; comment out if no limit</span>
+
+  <span class="comment">--------------------------------------------------------------------</span>
+
+  <span class="keyword">local</span> FOLDEND = FOLDSTART + (FOLDDEPTH <span class="keyword">or</span> 9999)
+
+  <span class="keyword">if</span> FOLDEND &lt;= FOLDSTART <span class="keyword">or</span> FOLDEND &gt; 4096 <span class="keyword">then</span> FOLDEND = 4096 <span class="keyword">end</span>
+
+  <span class="keyword">local</span> start, ending, hide
+
+  editor:Colourise(0, -1)       <span class="comment">-- update doc's folding info</span>
+
+  <span class="keyword">for</span> ln = 0, editor.LineCount - 1 <span class="keyword">do</span>
+
+    <span class="keyword">local</span> foldRaw = editor.FoldLevel[ln]
+
+    <span class="keyword">local</span> foldLvl = <span class="library">math.mod</span>(foldRaw, 4096)
+
+    <span class="keyword">local</span> foldHdr = <span class="library">math.mod</span>(<span class="library">math.floor</span>(foldRaw / 8192), 2) == 1
+
+    <span class="comment">-- fold if within limits and is a fold header</span>
+
+    <span class="keyword">if</span> foldHdr <span class="keyword">and</span> foldLvl &gt;= FOLDSTART <span class="keyword">and</span> foldLvl &lt; FOLDEND <span class="keyword">then</span>
+
+      <span class="keyword">local</span> expanded = editor.FoldExpanded[ln]
+
+      <span class="keyword">if</span> foldLvl == FOLDSTART <span class="keyword">and</span> <span class="keyword">not</span> start <span class="keyword">then</span> <span class="comment">-- start fold block</span>
+
+        <span class="comment">-- fix a hide/show setting for whole doc, for consistency</span>
+
+        <span class="keyword">if</span> hide == <span class="keyword">nil</span> <span class="keyword">then</span> hide = expanded <span class="keyword">end</span>
+
+        start = ln + 1 <span class="comment">-- remember range</span>
+
+        ending = editor:GetLastChild(ln, foldLvl)
+
+      <span class="keyword">end</span>
+
+      editor.FoldExpanded[ln] = <span class="keyword">not</span> hide
+
+    <span class="keyword">end</span>
+
+    <span class="comment">-- if end of block, perform hide or show operation</span>
+
+    <span class="keyword">if</span> start <span class="keyword">and</span> ln == ending <span class="keyword">then</span>
+
+      <span class="keyword">if</span> hide <span class="keyword">then</span>
+
+        editor:HideLines(start, ending)
+
+      <span class="keyword">else</span>
+
+        editor:ShowLines(start, ending)
+
+      <span class="keyword">end</span>
+
+      start, ending = <span class="keyword">nil</span>, <span class="keyword">nil</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span><span class="comment">--for</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteCustomFolding" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteCustomFolding" >history</a><br>Last edited August 31, 2006 7:35 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteCustomFolding" >(diff)</a>
+</body>
+</html>

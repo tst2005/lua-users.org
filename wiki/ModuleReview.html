@@ -1,0 +1,191 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Module Review</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ModuleReview&amp;body=1" title="List pages referring to ModuleReview">Module Review</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page reviews Lua modules.  One goal is to identify one or more sets of quasi-official/important modules that are recommended over others as best practices and for inclusion in Lua standard libraries and Lua distributions (e.g. LuaForWindows<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaForWindows" >?</a>).
+<p>
+<H2>Function Categories</H2>
+<p>
+These are the areas of functions that are important for standard libraries and distributions to cover, along with modules that best satisfy those needs.
+<p>
+<strong>Key:</strong> [W] = included in LuaForWindows<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaForWindows" >?</a>. [K] = included in Kepler<a href="http://www.keplerproject.org/kepler/reference.html">[1]</a>.  [A] = ANSI C.  [L] = pure Lua implementation (no C)
+<p>
+<UL>
+<li> <strong>Basic data structures, utility functions</strong>
+<UL>
+<li> PenLight<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PenLight" >?</a><a href="http://penlight.luaforge.net">[2]</a>? [L mostly] - table/list/set/map operations, string functions, utility functions, I/O utility functions, functional programming, list comprehensions, file path parsing, command line parsing  (see also <a href="../wiki/StandardLibraries.html" >StandardLibraries</a>) - (good docs, but design quite in flux as as 200906).
+</UL>
+<li> <strong>OS / System</strong>
+<UL>
+<li> Note: some of these require platform support in C.
+<li> <strong>file system manipulation</strong>: <a href="../wiki/FileSystemOperations.html" >FileSystemOperations</a>
+<li> <strong>file path name manipulation</strong> (e.g. like boost filesystem <a href="http://www.boost.org/doc/libs/1_37_0/libs/filesystem/doc/index.htm">[3]</a>) - see <a href="../wiki/FileSystemOperations.html" >FileSystemOperations</a>
+<li> <strong>Command-line parsing</strong> (<a href="../wiki/CommandLineParsing.html" >CommandLineParsing</a> - which one?)
+<li> <strong>Date/time</strong> - which one?
+<li> <strong>networking/sockets</strong>: LuaSocket<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaSocket" >?</a> [W|K] - quality=?, usefulness=high (others?)
+<UL>
+<li> SSL - <a href="http://www.inf.puc-rio.br/~brunoos/luasec/">[LuaSec]</a>?
+</UL>
+<li> <strong>Multitasking</strong> (<a href="../wiki/MultiTasking.html" >MultiTasking</a> - which one?)
+<li> <strong>OS specific</strong> (e.g. POSIX / Win32) - which ones? lposix <a href="http://luaforge.net/projects/lposix/">[4]</a> ?
+</UL>
+<li> <strong>Foreign-function interfaces (FFI)</strong> - these can interface to non-Lua code, much extending the capabilities of Lua
+<UL>
+<li> Note: these typically require platform support in C.
+<li> <strong>Lua-&gt;C</strong>: Alien [W]
+<li> <strong>Lua-&gt;Python</strong>: <a href="../wiki/LunaticPython.html" >LunaticPython</a> [W-planned] (note: currently LGPL)
+<li> <strong>Lua-&gt;Java</strong>: (which one?)
+<li> <strong>Windows-specific</strong>:
+<UL>
+<li> <strong>Lua-&gt;.NET</strong>: <a href="../wiki/LuaInterface.html" >LuaInterface</a> [W]
+<li> <strong>Lua-&gt;COM</strong>: <a href="../wiki/LuaCom.html" >LuaCom</a> [W]
+</UL>
+</UL>
+<li> <strong>Parsing / Serialization / Formats</strong>
+<UL>
+<li> Note: all of these can probably be implemented in both pure Lua [L] or (for possibly greater efficiency) ANSI C [A].
+<li> <strong>bitwise operations</strong> (<a href="../wiki/BitwiseOperators.html" >BitwiseOperators</a> - probably Bit<code></code>Op) - applications: binary file/protocol processing, algorithms, interfacing to C APIs (e.g. Alien).
+<li> <strong>struct manipulation</strong> - <a href="../wiki/StructurePacking.html" >StructurePacking</a>
+<li> <strong>Unicode</strong> (which one?)
+<li> <strong>PEG</strong>: LPeg [W|A] - quality=high, usefulness=high - applications: lexing/parsing beyond regular expressions
+<li> <strong>regular expression</strong> library (lrexlib? MIT licensed but uses BSD regex libraries (PCRE or Oniguruma) or POSIX regex.h (license?))   concerns: <a href="/lists/lua-l/2008-08/msg00059.html">[12]</a>. is this as needed given LPeg?)
+<li> <strong>XML parsing</strong> (which one? LuaExpat<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaExpat" >?</a>? [W|K] MIT license) - see <a href="../wiki/LuaXml.html" >LuaXml</a>
+<li> <strong>JSON parsing</strong> - <a href="../wiki/JsonModules.html" >JsonModules</a>
+<li> <strong>CSV parsing</strong>? (which one?) - <a href="../wiki/LuaCsv.html" >LuaCsv</a>
+<li> <strong>Lua parsing</strong>: Allowing Lua to parse itself has theoretical as well as practical importance, including building compilers and source analyzers.  There are a number of distinct approaches:
+<UL>
+<li> The gg and mlp parsing modules contained in <a href="../wiki/MetaLua.html" >MetaLua</a>.  [L]  mlp parses Lua source (optionally with syntax extensions) to an AST.  It is built upon gg, which can parse more general grammars (not just Lua) and can also be useful.  The lexer is based on Yueliang.  A number of Lua source analysis tools and compiler reimplementations use mlp.  The AST design/interface is well thought out and is used as well in full <a href="../wiki/MetaLua.html" >MetaLua</a> applications.  Testing has been performed by a number of users.  It is implemented in Lua, which is convenient but unlikely makes the fastest parser.
+<li> Leg <a href="http://leg.luaforge.net">[5]</a> may be another candidate.  Leg is used in the Shake <a href="http://shake.luaforge.net/">[6]</a> unit testing framework.  Leg is based on LPeg (see above), so it should be efficient.  Leg doesn't appear to generate a well defined AST (like <a href="../wiki/MetaLua.html" >MetaLua</a>).  A nice extension would be for it to generate <a href="../wiki/MetaLua.html" >MetaLua</a> style ASTs for consistency (this might be done in the similarish LPeg parser contained in [<a href="../wiki/LuaFish.html" >LuaFish</a>]).
+<li> Another approach is to use Lua's own lexer code (llex.c), such as with lhf's libraries <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#ltokens">[7]</a><a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#tokenf">[8]</a>.
+<li> For others, see <a href="../wiki/LuaGrammar.html" >LuaGrammar</a>.
+</UL>
+<li> <strong>Encoding</strong>
+<UL>
+<li> <strong>base64</strong> - (which one?  see bottom of <a href="../wiki/BaseSixtyFour.html" >BaseSixtyFour</a>)
+</UL>
+<li> <strong>Compression/Decompression</strong> - see <a href="../wiki/CompressionAndArchiving.html" >CompressionAndArchiving</a>
+<UL>
+<li> <strong>ZIP</strong> file read/write (LuaZip<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaZip" >?</a>? [W|K] - read-only ZIP. MIT licensed but uses zzpiblib [zziplib.sourceforge.net] library, which is dual MPL/LGPL licensed) - applications: extracting <a href="../wiki/LuaRocks.html" >LuaRocks</a> archives, system administration (e.g. compressing log files / extracting archives), compressed virtual file systems (e.g. perhaps modules stored in a ZIP archive and loaded with a custom searcher function), reading ZIP-based formats (e.g. OpenOffice<a href="/cgi-bin/wiki.pl?action=edit&amp;id=OpenOffice" >?</a> docs).
+<li> <strong>zlib</strong> read/write (LuaZlib<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaZlib" >?</a>? <a href="http://luaforge.net/projects">[/luazlib/]</a>) - applications <a href="http://en.wikipedia.org/wiki/Zlib#Applications.html">[9]</a>)
+</UL>
+<li> <strong>Lua object persistence</strong> - <a href="../wiki/PlutoLibrary.html" >PlutoLibrary</a>
+</UL>
+<li> <strong>Cryptographic</strong> - <a href="../wiki/CryptographyStuff.html" >CryptographyStuff</a>
+<UL>
+<li> Note: all of these can probably be implemented in both pure Lua [L] or (for possibly greater efficiency) ANSI C [A].
+<li> <strong>Digest</strong>
+<UL>
+<li> <strong>MD5</strong>: (MD5? [W|K] [A-C99?]  MIT licensed.  supports DES too) - applications: validating archive integrity (e.g. <a href="../wiki/LuaRocks.html" >LuaRocks</a>), general cryptographic hashing for security (e.g. storing password hashes) and web apps.
+<li> <strong>SHA1, CRC32</strong> - which ones?
+</UL>
+<li> <strong><a href="../wiki/UniversallyUniqueIdentifiers.html" >UniversallyUniqueIdentifiers</a></strong> - UUID generation
+</UL>
+<li> <strong>Testing/Debugging/Profiling</strong>
+<UL>
+<li> <strong><a href="../wiki/UnitTesting.html" >UnitTesting</a></strong> - which one?
+<li> <strong>Profiler:</strong> (<a href="../wiki/ProfilingLuaCode.html" >ProfilingLuaCode</a> - which ones?) (<a href="../wiki/LuaProfiler.html" >LuaProfiler</a>? [W])
+</UL>
+<li> <strong>Module deployment</strong> - <a href="../wiki/LuaRocks.html" >LuaRocks</a> [W-planned]
+<li> <strong>Packaging</strong> - <a href="../wiki/BinToCee.html" >BinToCee</a> or related modules?  srlua <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#srlua">[10]</a>?
+<li> <strong>Graphics/Multimedia</strong> - second tier
+<UL>
+<li> Note: these typically require platform support in C.
+<li> <strong>GUI Toolkits</strong> (<a href="../wiki/GraphicalUserInterfaceToolkits.html" >GraphicalUserInterfaceToolkits</a> - which one? IUP [W] and wxLua [W] ?) - large size?
+<li> <strong>Image manipulation</strong> (which one? Lua-GD? [W] CD? [W] a cairo module?) (<a href="../wiki/LibrariesAndBindings.html" >LibrariesAndBindings</a> - which ones?)
+<li> <strong>OpenGL</strong> (<a href="../wiki/LibrariesAndBindings.html" >LibrariesAndBindings</a> - which one?)
+<li> <strong>Sound/video</strong> (<a href="../wiki/LibrariesAndBindings.html" >LibrariesAndBindings</a> - which ones?)
+</UL>
+<li> <strong>Database</strong> - second tier
+<UL>
+<li> <strong>SQL</strong>: LuaSQL [W] - quality=?, usefulness=med
+</UL>
+<li> <strong>Web Applications</strong> - second tier
+<UL>
+<li> (see Kepler [K] <a href="http://www.keplerproject.org/kepler/reference.html">[1]</a>)
+</UL>
+<li> <strong>Numerical/math</strong> - second tier
+<UL>
+<li> (<a href="../wiki/LibrariesAndBindings.html" >LibrariesAndBindings</a> - which ones?)
+<li> <strong>matrix</strong> library - There is <a href="../wiki/LuaMatrix.html" >LuaMatrix</a> [L] and then is <a href="http://luaforge.net/projects/numlua/">[Numeric Lua]</a> (C/Fortan)
+<li> <strong>big number</strong> support (this may be first tier) - which one?
+<li> <strong>special functions</strong>: bessel, elliptic, erf, ... - which one?
+<li> <strong>statistical</strong>?
+</UL>
+<li> <strong>Other</strong> - second tier?
+<UL>
+<li> LuaJIT (possibly first tier)
+<li> <a href="../wiki/MetaLua.html" >MetaLua</a> (see also mlp and gg above)
+<li> <strong>RS232</strong> serial communication - which one? see <a href="../wiki/SerialCommunication.html" >SerialCommunication</a>
+</UL>
+</UL>
+<p>
+<H2>Module Levels</H2>
+<p>
+Modules may be ranked into multiple levels of importance or applicability.  A distribution might include the lower levels but not fully support the higher levels.
+<p>
+<UL>
+<li> <strong>Zeroth tier</strong> - Lua standard library and any other modules implemented in ANSI C
+<li> <strong>First tier</strong> - these modules should be highly useful, have high quality, have a small size, have a permissive license, and work on a reasonably large number of platforms (including POSIX and Win32)
+<li> <strong>Second tier</strong> - these may be essential only to certain classes of applications and have a larger size
+</UL>
+<p>
+<H2>Characteristics Measured</H2>
+<p>
+These qualities are useful for determining the appropriateness of including modules in standard libraries and distributions.
+<p>
+<UL>
+<li> <strong>Usefulness</strong> - A module is highly useful if it is needed in a large, diverse set of applications.  For example, a large number of programs require non-ANSI file system operations or bitwise manipulation operations.  Note: a module could still be quite useful even if it has low implementation quality (defined below).
+<li> <strong>Implementation quality</strong> - This pertains to good interface design and low number of bugs (extensive test suite).  Note: certain distributions might make quality assurance guarantees, such as for critical applications.
+<li> <strong>Packaging quality</strong> - This includes other non-functional quality areas: documentation, <a href="../wiki/LuaRocks.html" >LuaRocks</a> spec inclusion, build system, etc.
+<li> <strong>License</strong> - e.g. MIT or otherwise.  Note: certain distributions might restrict themselves to only MIT licenses (compatible with Lua), while others might allow or disallow open source or proprietary libraries (e.g. debian free/nonfree <a href="http://en.wikipedia.org/wiki/Debian#Additional_repositories.html">[11]</a>)
+<li> <strong>Dependencies</strong> - OS dependencies, dependence on system libraries, compiler dependencies (e.g. GCC/MSVC), and implementation language (e.g. pure Lua or C).  Note: a Windows distribution would not include Linux-specific modules, and certain distributions might restrict themselves to pure Lua modules or ANSI C modules.
+<li> <strong>Size</strong> - some things like GUI toolkits may bloat some distributions too much.  Increased size also increases difficulty to ensure quality/testing.  A small library that does one thing well is preferred over a large library that does many things ok.
+</UL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaDistributions.html" >LuaDistributions</a> - distributions may include many of these modules
+<UL>
+<li> <a href="http://luaforwindows.luaforge.net/">[Lua For Windows]</a> - web page lists modules included in LuaForWindows<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaForWindows" >?</a>.
+<li> <a href="http://www.keplerproject.org/en/Modules">[Kepler]</a> - web page lists modules included in Kepler.
+<li> <a href="http://luarocks.luaforge.net/rocks/">[LuaRocks main repository]</a> - note: inclusion in <a href="../wiki/LuaRocks.html" >LuaRocks</a> does not provide much of a guarantee about quality and usefulness.
+</UL>
+<li> <a href="../wiki/StandardLibraries.html" >StandardLibraries</a> - other efforts at Lua library standardization
+<li> Other standard libraries (those useful for comparison)
+<UL>
+<li> <a href="http://docs.python.org/library/">[The Python Standard Library]</a>
+<li> <a href="http://www.boost.org/development/submissions.html">[Boost Library Submission Process]</a> - for comparison, the process used to standardize C++ modules
+<li> <a href="http://www.dsource.org/projects/tango/docs/current/">[The Tango library]</a> - one of the two standard libraries for the D language
+</UL>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ModuleReview" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ModuleReview" >history</a><br>Last edited February 22, 2011 1:48 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ModuleReview" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,584 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Proxy Dll</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaProxyDll&amp;body=1" title="List pages referring to LuaProxyDll">Lua Proxy Dll</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This implements a thin proxy Win32 DLL named lua5.1.dll and that is a drop-in replacement of the <a href="../wiki/LuaBinaries.html" >LuaBinaries</a> DLL of the same name.  It has almost no implementation of its own but instead transparently passes calls to a copy of the Lua core statically linked into the EXE.  This allows your EXE to statically link Lua but still be able to use Lua extension modules that dynamically link to lua5.1.dll.  See comments in luaproxydll.h for more details.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- expand.lua - Generates Lua proxy DLL source code.</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> map(f, t)
+
+  <span class="keyword">local</span> t = {<span class="library">unpack</span>(t)}
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span> t[k] = f(v) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> foreach(fmt, t)
+
+  <span class="keyword">return</span> <span class="library">table.concat</span>(map(<span class="keyword">function</span>(s) <span class="keyword">return</span> <span class="library">string.format</span>(fmt, s) <span class="keyword">end</span>, t))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- API functions defined in LuaBinaries - http://luabinaries.luaforge.net/</span>
+
+<span class="keyword">local</span> apifuncs = {
+
+  <span class="string">"lua_tolstring"</span>,<span class="string">"lua_typename"</span>,<span class="string">"lua_pushfstring"</span>,<span class="string">"lua_pushvfstring"</span>,
+
+  <span class="string">"lua_getlocal"</span>,<span class="string">"lua_getupvalue"</span>,<span class="string">"lua_setlocal"</span>,<span class="string">"lua_setupvalue"</span>,
+
+  <span class="string">"lua_topointer"</span>,<span class="string">"lua_iscfunction"</span>,<span class="string">"lua_isnumber"</span>,<span class="string">"lua_isstring"</span>,
+
+  <span class="string">"lua_isuserdata"</span>,<span class="string">"lua_toboolean"</span>,<span class="string">"lua_type"</span>,<span class="string">"lua_equal"</span>,
+
+  <span class="string">"lua_lessthan"</span>,<span class="string">"lua_rawequal"</span>,<span class="string">"lua_checkstack"</span>,<span class="string">"lua_cpcall"</span>,
+
+  <span class="string">"lua_error"</span>,<span class="string">"lua_getmetatable"</span>,<span class="string">"lua_gettop"</span>,<span class="string">"lua_load"</span>,
+
+  <span class="string">"lua_next"</span>,<span class="string">"lua_pcall"</span>,<span class="string">"lua_pushthread"</span>,<span class="string">"lua_setfenv"</span>,
+
+  <span class="string">"lua_setmetatable"</span>,<span class="string">"lua_resume"</span>,<span class="string">"lua_status"</span>,<span class="string">"lua_yield"</span>,
+
+  <span class="string">"lua_dump"</span>,<span class="string">"lua_gc"</span>,<span class="string">"lua_gethook"</span>,<span class="string">"lua_gethookcount"</span>,
+
+  <span class="string">"lua_gethookmask"</span>,<span class="string">"lua_getinfo"</span>,<span class="string">"lua_getstack"</span>,<span class="string">"lua_sethook"</span>,
+
+  <span class="string">"lua_getallocf"</span>,<span class="string">"lua_tocfunction"</span>,<span class="string">"lua_atpanic"</span>,<span class="string">"lua_tointeger"</span>,
+
+  <span class="string">"lua_tonumber"</span>,<span class="string">"lua_tothread"</span>,<span class="string">"lua_newstate"</span>,<span class="string">"lua_newthread"</span>,
+
+  <span class="string">"lua_objlen"</span>,<span class="string">"lua_touserdata"</span>,<span class="string">"lua_close"</span>,<span class="string">"lua_call"</span>,
+
+  <span class="string">"lua_concat"</span>,<span class="string">"lua_createtable"</span>,<span class="string">"lua_getfenv"</span>,<span class="string">"lua_getfield"</span>,
+
+  <span class="string">"lua_gettable"</span>,<span class="string">"lua_insert"</span>,<span class="string">"lua_pushboolean"</span>,<span class="string">"lua_pushcclosure"</span>,
+
+  <span class="string">"lua_pushinteger"</span>,<span class="string">"lua_pushlightuserdata"</span>,<span class="string">"lua_pushlstring"</span>,
+
+  <span class="string">"lua_pushnil"</span>,<span class="string">"lua_pushnumber"</span>,<span class="string">"lua_pushstring"</span>,<span class="string">"lua_pushvalue"</span>,
+
+  <span class="string">"lua_rawget"</span>,<span class="string">"lua_rawgeti"</span>,<span class="string">"lua_rawset"</span>,<span class="string">"lua_rawseti"</span>,
+
+  <span class="string">"lua_remove"</span>,<span class="string">"lua_replace"</span>,<span class="string">"lua_setfield"</span>,<span class="string">"lua_settable"</span>,
+
+  <span class="string">"lua_settop"</span>,<span class="string">"lua_xmove"</span>,<span class="string">"lua_newuserdata"</span>,<span class="string">"lua_setallocf"</span>,
+
+  <span class="string">"luaL_prepbuffer"</span>,<span class="string">"luaL_checklstring"</span>,<span class="string">"luaL_findtable"</span>,<span class="string">"luaL_gsub"</span>,
+
+  <span class="string">"luaL_optlstring"</span>,<span class="string">"luaL_newmetatable"</span>,<span class="string">"luaL_argerror"</span>,<span class="string">"luaL_callmeta"</span>,
+
+  <span class="string">"luaL_checkoption"</span>,<span class="string">"luaL_error"</span>,<span class="string">"luaL_getmetafield"</span>,<span class="string">"luaL_loadbuffer"</span>,
+
+  <span class="string">"luaL_loadfile"</span>,<span class="string">"luaL_loadstring"</span>,<span class="string">"luaL_ref"</span>,<span class="string">"luaL_typerror"</span>,
+
+  <span class="string">"luaL_checkinteger"</span>,<span class="string">"luaL_optinteger"</span>,<span class="string">"luaL_checknumber"</span>,
+
+  <span class="string">"luaL_optnumber"</span>,<span class="string">"luaL_newstate"</span>,<span class="string">"luaL_openlib"</span>,<span class="string">"luaL_addlstring"</span>,
+
+  <span class="string">"luaL_addstring"</span>,<span class="string">"luaL_addvalue"</span>,<span class="string">"luaL_buffinit"</span>,<span class="string">"luaL_checkany"</span>,
+
+  <span class="string">"luaL_checkstack"</span>,<span class="string">"luaL_checktype"</span>,<span class="string">"luaL_pushresult"</span>,<span class="string">"luaL_register"</span>,
+
+  <span class="string">"luaL_unref"</span>,<span class="string">"luaL_where"</span>,<span class="string">"luaL_checkudata"</span>,<span class="string">"luaopen_base"</span>,
+
+  <span class="string">"luaopen_debug"</span>,<span class="string">"luaopen_io"</span>,<span class="string">"luaopen_math"</span>,<span class="string">"luaopen_os"</span>,
+
+  <span class="string">"luaopen_package"</span>,<span class="string">"luaopen_string"</span>,<span class="string">"luaopen_table"</span>,<span class="string">"luaL_openlibs"</span>,
+
+  <span class="string">"luaU_dump"</span>,<span class="string">"luaM_toobig"</span>,<span class="string">"luaM_realloc_"</span>,<span class="string">"luaS_newlstr"</span>,
+
+  <span class="string">"luaD_growstack"</span>,<span class="string">"luaF_newproto"</span>
+
+}
+
+
+
+
+
+<span class="keyword">local</span> luaproxydll_h = <span class="string">[[
+
+/**
+
+  luaproxydll.h - C header file for Lua proxy DLL (lua5.1.dll).
+
+  (autogenerated from expand.lua)
+
+ 
+
+  == Discussion ==
+
+
+
+  Lua extension modules in Windows typically dynamically link
+
+  against the lua5.1.dll defined in Lua Binaries
+
+  (http://luabinaries.luaforge.net/).  This assumes
+
+  your EXE also dynamically links against lua5.1.dll.
+
+  If your EXE instead statically links against lua5.1.dll,
+
+  then you have two copies of the Lua core, which is
+
+  redundant and also can cause subtle problems.
+
+
+
+  The proxy DLL defined here is a drop-in-replacement for
+
+  the standard lua5.1.dll.  It acts as a thin proxy that
+
+  exports the same interface as the standard lua5.1.dll and
+
+  transparently forwards calls to the Lua core functions
+
+  defined in the EXE.
+
+
+
+  Before extension modules attempt to load and call the
+
+  proxy DLL, the EXE must load the proxy DLL and call the
+
+  additional proxy_init() function in the proxy DLL, passing
+
+  it the addresses of the Lua core functions in the EXE.
+
+
+
+  The resultant DLL should be small (less than 10K).
+
+  The compilation can omit the C run-time.
+
+
+
+  To use this in your EXE, include luaproxydll.h and then run
+
+
+
+
+
+  LUAPROXYDLL_INIT().  You may need to remove the "LUAI_FUNC" before
+
+  these functions in the Lua source:
+
+  
+
+    luaU_dump
+
+    luaM_toobig
+
+    luaM_realloc_
+
+    luaS_newlstr
+
+    luaD_growstack
+
+    luaF_newproto
+
+
+
+  Note: LUAPROXYDLL_IMPLEMENTATION is undefined in the EXE.
+
+  
+
+  Author: (c) David Manura, 2007-01-30
+
+  Licensed under the same terms as Lua 5.1 itself.
+
+*/
+
+
+
+#ifndef LUAPROXYDLL_H
+
+#define LUAPROXYDLL_H
+
+
+
+#ifdef __cplusplus
+
+extern "C" {
+
+#endif
+
+
+
+typedef const void * const luaproxydll_t;
+
+
+
+/** Pointers to Lua core functions in the EXE.
+
+    The EXE should prepare this and pass it to
+
+    the luaproxydll_init function.
+
+  */
+
+struct luaproxydll_Funcs {
+
+]]</span> .. foreach(<span class="string">[[
+
+    luaproxydll_t %s;
+
+]]</span>, apifuncs) .. <span class="string">[[
+
+};
+
+/* not passed: luaP_opmodes, luaP_opnames */
+
+
+
+
+
+/* These are only used by the EXE */
+
+#ifndef LUAPROXYDLL_IMPLEMENTATION
+
+
+
+/* reference Lua core functions */
+
+#include &lt;lua.h&gt;
+
+#include &lt;lauxlib.h&gt;
+
+#include &lt;lualib.h&gt;
+
+/* void luaU_dump();
+
+   void luaM_toobig();
+
+   void luaM_realloc_();
+
+   void luaS_newlstr();
+
+   void luaD_growstack();
+
+   void luaF_newproto(); */
+
+#include &lt;lfunc.h&gt;
+
+#include &lt;lundump.h&gt;
+
+#include &lt;lstring.h&gt;
+
+#include &lt;ldo.h&gt;
+
+
+
+/** Table of Lua core function pointers. */
+
+const struct luaproxydll_Funcs luaproxydll_funcs = {
+
+]]</span> .. foreach(<span class="string">[[
+
+    %s,
+
+]]</span>, apifuncs) .. <span class="string">[[
+
+};
+
+/* not passed: luaP_opmodes, luaP_opnames */
+
+
+
+
+
+/** load proxy DLL. Call this in your EXE to load and initialize the proxy DLL. */
+
+#define LUAPROXYDLL_INIT() \
+
+{ \
+
+    HMODULE hmodule = LoadLibrary("lua5.1.dll"); \
+
+    if (hmodule) { \
+
+        typedef void (*func_t)(const luaproxydll_Funcs *); \
+
+        func_t initfunc = (func_t)GetProcAddress(hmodule, "luaproxydll_init"); \
+
+        if (initfunc) { \
+
+            initfunc(&amp;luaproxydll_funcs); \
+
+        } \
+
+    } \
+
+}
+
+
+
+/* Register Lua core functions from the EXE into the proxy DLL.
+
+   funcs must remain valid until the proxy DLL is
+
+   unloaded or no longer used.
+
+  */
+
+void luaproxydll_init(struct luaproxydll_Funcs * funcs);
+
+
+
+#endif /* not LUAPROXYDLL_IMPLEMENTATION */
+
+
+
+#ifdef __cplusplus
+
+}
+
+#endif
+
+
+
+#endif /* first include */
+
+]]</span>
+
+
+
+<span class="keyword">local</span> luaproxydll_c = <span class="string">[[
+
+/***
+
+  luaproxydll.c - C implementation file for the Lua proxy dll.
+
+  (autogenerated from expand.lua)
+
+  
+
+  Author: (c) David Manura, 2007-01-30
+
+  Licensed under the same terms as Lua 5.1 itself.
+
+ ***/
+
+
+
+#define LUAPROXYDLL_IMPLEMENTATION /* used by luaproxydll.h */
+
+
+
+#include &lt;windows.h&gt;
+
+#include "luaproxydll.h"
+
+
+
+static struct luaproxydll_Funcs s_funcs;
+
+
+
+/* Macro for defining a proxy function.
+
+   This is a direct jump (single "jmp" assembly instruction"),
+
+   preserving stack and return address.
+
+   The following uses MSVC inline assembly which may not be
+
+   portable with other compilers.
+
+ */
+
+
+
+#define PROXY(name) \
+
+  void __declspec(naked) name() { __asm { jmp s_funcs.name } }
+
+
+
+/* Define all the proxy functions specified in lua5.1.def. */
+
+]]</span> .. foreach(<span class="string">[[
+
+PROXY(%s)
+
+]]</span>, apifuncs) .. <span class="string">[[
+
+/* note: luaP_opmodes and luaP_opnames are defined in lopcodes.c */
+
+
+
+
+
+    BOOL APIENTRY
+
+DllMain(HANDLE module, DWORD reason, LPVOID reserved)
+
+{
+
+    /* DEBUG: MessageBox(NULL, "proxyload", "", MB_OK); */
+
+    return TRUE;
+
+}
+
+
+
+    void
+
+luaproxydll_init(struct luaproxydll_Funcs * funcs)
+
+{
+
+    int n;
+
+    for (n=0; n &lt; sizeof(struct luaproxydll_Funcs); n++) {
+
+      ((unsigned char*)(void*)&amp;s_funcs)[n] = 
+
+        ((unsigned char*)(void*)funcs)[n];
+
+    }
+
+    /* nope: s_funcs = funcs; */
+
+}
+
+]]</span>
+
+
+
+<span class="keyword">local</span> GNUmakefile = <span class="string">[[
+
+# GNUmakefile - Makefile for luaproxydll.dll for MSVC compiler.
+
+# (autogenerated from expand.lua)
+
+
+
+all:
+
+	cl /O2 /LD /GS- luaproxydll.c ../lua/src/lopcodes.c \
+
+	    /link /def:lua5.1.def /out:lua5.1.dll /nodefaultlib /entry:DllMain
+
+
+
+clean:
+
+	rm -f *~ *.obj *.exp *.lib
+
+purge: clean
+
+	rm -f luaproxydll.[hc] lua5.1.def GNUmakefile lua5.1.dll
+
+]]</span>
+
+
+
+<span class="keyword">local</span> lua5_1_def = <span class="string">[[
+
+; lua5.1.def
+
+; (autogenerated from expand.lua)
+
+VERSION 5.1
+
+EXPORTS
+
+]]</span> .. foreach(<span class="string">[[
+
+  %s
+
+]]</span>, apifuncs) .. <span class="string">[[
+
+  luaP_opmodes
+
+  luaP_opnames
+
+
+
+  ; special
+
+  luaproxydll_init
+
+]]</span>
+
+
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>{
+
+  [luaproxydll_h] = <span class="string">"luaproxydll.h"</span>,
+
+  [luaproxydll_c] = <span class="string">"luaproxydll.c"</span>,
+
+  [lua5_1_def] = <span class="string">"lua5.1.def"</span>,
+
+  [GNUmakefile] = <span class="string">"GNUmakefile"</span>
+
+} <span class="keyword">do</span>
+
+  <span class="library">io.output</span>(v); <span class="library">io.write</span>(k)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<em>David, what are the benefits of the above configuration over the common one (lua.exe + lua5.1.dll)?</em>
+--<a href="../wiki/ShmuelZeigerman.html" >ShmuelZeigerman</a>
+<p>
+<DL>
+<dt><dd>It's partly a matter of taste in terms of packaging.  In the standard configuration you have (app.exe + lua5.1.dll + extension.dll), where app.exe always depends on lua5.1.dll.  In the proxy configuration you also have (app.exe + lua5.1.dll + extension.dll), but here lua5.1.dll is under 10K and app.exe does not depend on lua5.1.dll except if extension.dll needs to be used.  If you don't use the extension, then app.exe will run fine by itself.  Also, any patches or variant builds of Lua are generally applied to app.exe, and lua5.1.dll is left untouched.  In fact, you could have app1.exe with one variant build of Lua (e.g. linked against the VC6 CRT) and app2.exe with another variant build (e.g. linked against the VC8 CRT), both of which would proxy through the same lua5.1.dll file (which is possible since lua5.1.dll does not link to the CRT, and each process loads a separate in-memory instance of the DLL).  Maybe others have ideas for improvements--there's some hackery in the above.  --<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+You can also use this trick (I used version 3 below) to make a normal looking lua5.1.dll that proxies to a tweaked distribution like LuaPlus_1100.dll. Once again for the purpose of letting <a href="../wiki/LuaBinaries.html" >LuaBinaries</a> dll's work.  --ferrix
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaProxyDll.html" >LuaProxyDll</a> | <a href="../wiki/LuaProxyDllTwo.html" >LuaProxyDllTwo</a> | <a href="../wiki/LuaProxyDllThree.html" >LuaProxyDllThree</a> | <a href="../wiki/LuaProxyDllFour.html" >LuaProxyDllFour</a>
+</UL>
+<p>
+<em>Any ideas for making these page names more descriptive?</em>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaProxyDll" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaProxyDll" >history</a><br>Last edited September 6, 2008 2:56 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaProxyDll" >(diff)</a>
+</body>
+</html>

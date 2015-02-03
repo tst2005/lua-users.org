@@ -1,0 +1,153 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Making Lua Like Ruby</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MakingLuaLikeRuby&amp;body=1" title="List pages referring to MakingLuaLikeRuby">Making Lua Like Ruby</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Let's give Lua some of the semantics of Ruby <a href="http://en.wikipedia.org/wiki/Ruby_programming_language.html">[1]</a>.  For example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+;(3):times(<span class="keyword">function</span>(x) <span class="library">print</span>(x) <span class="keyword">end</span>)
+
+
+
+hash = H{x = 1, y = 2, z = 3}
+
+hash:delete_if(<span class="keyword">function</span>(key, value) <span class="keyword">return</span> key == <span class="string">'y'</span> <span class="keyword">end</span>)
+
+hash:each(<span class="keyword">function</span>(key, value)
+
+  puts(key, value)
+
+<span class="keyword">end</span>)
+
+
+
+<span class="comment">--[[OUTPUT:
+
+1
+
+2
+
+3
+
+x       1
+
+z       3
+
+--]]</span>
+
+</pre>
+
+</DL>
+<p>
+which is implemented as such:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- This is rather incomplete but is a start.</span>
+
+
+
+<span class="comment">-- ruby numbers</span>
+
+<span class="keyword">local</span> mt = {}
+
+<span class="library">debug.setmetatable</span>(0, mt)
+
+<span class="keyword">local</span> funcs = {}
+
+<span class="keyword">function</span> funcs.times(num, func)
+
+  <span class="keyword">for</span> i=1,num <span class="keyword">do</span> func(i) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+mt.__index = funcs;
+
+
+
+<span class="comment">-- ruby hash</span>
+
+<span class="keyword">local</span> h_mt = {}
+
+h_mt.__index = h_mt
+
+<span class="keyword">function</span> h_mt:each(func)
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(self) <span class="keyword">do</span> func(k,v) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> h_mt:delete_if(func)
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(self) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> func(k,v) <span class="keyword">then</span> self[k] = <span class="keyword">nil</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> H(t)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>(t, h_mt)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- ruby functions</span>
+
+puts = <span class="library">print</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/MakingLuaLikePhp.html" >MakingLuaLikePhp</a>
+</UL>
+<p>
+<em>Backlinks such as the following are clutter-- page title link already provides them</em>
+<DL>
+<dt><dd>In a way, yes, but it involves two clicks rather than one to navigate to them and is not very visible.  It may be better if backlinks were displayed on the bottom of a page.  --<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+<UL>
+<li> This is in <a href="../wiki/LuaHacks.html" >LuaHacks</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MakingLuaLikeRuby" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MakingLuaLikeRuby" >history</a><br>Last edited May 2, 2009 1:24 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MakingLuaLikeRuby" >(diff)</a>
+</body>
+</html>

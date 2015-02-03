@@ -1,0 +1,88 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Scoping</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaScoping&amp;body=1" title="List pages referring to LuaScoping">Lua Scoping</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following pages in the reference manual describe Lua's scoping rules:
+<p>
+<UL>
+<li> <a href="http://www.lua.org/manual/5.2/manual.html#3.5">http://www.lua.org/manual/5.2/manual.html#3.5</a>
+</UL>
+<p>
+Some pages concerning Lua variable scoping:
+<p>
+<UL>
+<li> <a href="../wiki/LocalByDefault.html" >LocalByDefault</a> - Lua is rather "global by default"
+<li> <a href="../wiki/LuaScopingDiscussion.html" >LuaScopingDiscussion</a> - static and lexical scope comments
+<li> <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>
+</UL>
+<p>
+<H2>Older Historical Notes on Lua 4.0 Scoping Rules</H2>
+<p>
+<em><a href="../wiki/VersionNotice.html" >VersionNotice</a>: The following is only true for versions of lua prior to 4.1work3. Current Lua versions have full lexical scoping.</em>
+<p>
+This page will describe Lua's scoping rules.  Furthermore it will attempt to do so without using the terms "static scoping" and "lexical scoping" whose meaning can vary depending on the person or text (see <a href="../wiki/LuaScopingDiscussion.html" >LuaScopingDiscussion</a>).
+<p>
+<H3>Introduction</H3>
+In Lua there are local and global scopes.  Variables default to global scope unless they have the <code>local</code> qualifier.
+<p>
+The binding of variable names is, to use a taboo word, static.  This is a useful property because it means you can always determine what variable a given name is bound to from the source code.  In contrast, in a language with dynamic binding, this may depend on context.
+<p>
+Scopes are created naturally by functions, control constructs (<code>for</code>, <code>if</code>, etc.), and chunks.  A scope can also be created explicitly using <code>do...end</code>.
+<p>
+<H3>Function scope limitation</H3>
+Function scopes have a special limitation in that outer scopes (other than the global scope) may not be accessed.  This applies to any function, but is most noticable in the case of nested functions where you may want to access locals of the enclosing scope.
+<p>
+<H3>Upvalues</H3>
+Upvalues were added to work around the function scope limitation.  Prefixing an outer-scope variable reference with <code>%</code> produces a copy of that variable as of the function's instantiation.  Only the immediate scope containing the function and the global scope may be accessed in this manner.
+<p>
+Since the variable is a copy, it's not possible for the function to alter the original value.  A common solution to this problem is to put such variables inside a table and access the table as an upvalue.  The table acts as a function closure.
+<DL>
+<dt><dd><pre>
+
+local closure = { a=5 }
+
+local foo = function()
+
+    %closure.a = %closure.a + 1
+
+    %closure.b = 'hello'
+
+end
+
+</pre>
+</DL>
+<p>
+Someone may tell you that upvalues are a feature of Lua, but don't believe it.
+<p>
+<H3>Special access to scope contents</H3>
+The global scope can be accessed as a table from Lua using the function <code>globals</code>.  The local scope can also be accessed using debugging interfaces.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaScoping" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaScoping" >history</a><br>Last edited July 20, 2012 11:46 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaScoping" >(diff)</a>
+</body>
+</html>

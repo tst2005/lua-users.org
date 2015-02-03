@@ -1,0 +1,279 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Sand Boxes</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SandBoxes&amp;body=1" title="List pages referring to SandBoxes">Sand Boxes</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page uses setfenv in it's examples, setfenv is no longer available as of Lua 5.2, so it needs an update. If you use Lua 5.2 do not use this code, I would have updated this myself, but I have no expirience in sandboxing.
+<p>
+This page discusses issues relating to sandboxing: running untrusted Lua code in a restricted Lua environment.
+<p>
+<H2>WARNING!!!</H2>
+<p>
+Sandboxing is tricky and generally speaking difficult to get right <a href="/lists/lua-l/2011-02/msg01606.html">[3]</a>.  You should start by trusting nothing and only permit things that you are absolutely sure are safe (i.e. whitelist rather than blacklist approach).  It's difficult to be sure some code is safe without thorough knowledge of the language and implementation (e.g. hash table performance may have poor performance in rare cases <a href="/lists/lua-l/2012-01/msg00497.html">[4]</a>).  It's also possible there could be a bug in the Lua implementation (see <a href="http://www.lua.org/bugs.html">[bugs]</a>), so you should monitor bug reports on the mailing list and possibly take additional steps for isolation in the event of such a breach, such as operating system level isolation mechanisms (like restricted user accounts or a <a href="http://en.wikipedia.org/wiki/Chroot.html">[chroot jail]</a>).  You should also keep your operating system patched and secured by means like firewalls.  Operating system level resource limits may also be necessary <a href="/lists/lua-l/2011-02/msg01106.html">[5]</a>.  Restricting to a subset of the Lua language can mitigate some of these concerns.
+<p>
+See some libs in "Sandboxing" chapter of <a href="../wiki/LibrariesAndBindings.html" >LibrariesAndBindings</a>.
+<p>
+The following notes are probably incomplete and intended only as a starting point.
+<p>
+<H2>A Simple Sandbox</H2>
+<p>
+The following is one of the simplest sandboxes.  It is also one of the most restrictive, except it doesn't handle resource exhaustion issues.
+<p>
+<pre class="code">
+<span class="comment">-- make environment</span>
+
+<span class="keyword">local</span> env = {} <span class="comment">-- add functions you know are safe here</span>
+
+
+
+<span class="comment">-- run code under environment [Lua 5.1]</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> run(untrusted_code)
+
+  <span class="keyword">if</span> untrusted_code:byte(1) == 27 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">"binary bytecode prohibited"</span> <span class="keyword">end</span>
+
+  <span class="keyword">local</span> untrusted_function, message = <span class="library">loadstring</span>(untrusted_code)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> untrusted_function <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span>, message <span class="keyword">end</span>
+
+  <span class="library">setfenv</span>(untrusted_function, env)
+
+  <span class="keyword">return</span> <span class="library">pcall</span>(untrusted_function)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- run code under environment [Lua 5.2]</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> run(untrusted_code)
+
+  <span class="keyword">local</span> untrusted_function, message = <span class="library">load</span>(untrusted_code, <span class="keyword">nil</span>, <span class="string">'t'</span>, env)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> untrusted_function <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span>, message <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">pcall</span>(untrusted_function)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- test</span>
+
+<span class="library">assert</span>(<span class="keyword">not</span> run <span class="string">[[print(debug.getinfo(1))]]</span>) <span class="comment">--&gt; fails</span>
+
+<span class="library">assert</span>(run <span class="string">[[x=1]]</span>) <span class="comment">--&gt; ok</span>
+
+<span class="library">assert</span>(run <span class="string">[[while 1 do end]]</span>) <span class="comment">--&gt; ok (but never returns)</span>
+
+</pre>
+
+<p>
+Code in this sandbox can create variables in the sandbox environment, create values of primitive types (thereby allocating memory), and perform computations.  There is no limit to memory usage and computation, so the untrusted code could still severely impact system performance unless further restrictions are made.  The sandbox does not have access to I/O nor functions and variables outside its environment.  The only way for the sandbox to communicate with the external world is by affecting its environment (e.g. getting and setting variables and calling functions in that environment), assuming there is code outside the sandbox that also has access to those variables and functions.
+<p>
+You could write a parser that accepts a subset of the Lua language (e.g. prevents loops), but this will likely still be insufficient to fully prevent CPU exhaustion.
+<p>
+<H2>Table of Variables</H2>
+<p>
+The following is a list of Lua 5.1 variables with descriptions of how safe they for use in sandbox environments.  Note that whether a variable is safe or not may **depend on the security requirements of your particular application** and your Lua state.  No warranty is given that the following listing is complete or correct, but it is only a guideline.  To make a sandbox you should start with an empty environment and pull in only functions you know for certain to be safe <a href="http://article.gmane.org/gmane.comp.lang.lua.general/67830">[1]</a> (i.e. a whitelist not a blacklist).  You should not rely on the manual providing a complete list of functions (e.g. <a href="../wiki/HiddenFeatures.html" >HiddenFeatures</a>).
+<p>
+NOTE: The following list has not been updated for Lua 5.2.
+<p>
+<UL>
+<li> <code>assert</code> - SAFE
+<li> <code>collectgarbage</code> - UNSAFE - can globally and adversely affect garbage collection
+<li> <code>dofile</code> - UNSAFE - The may read arbitrary files on the file system.  It can also read standard  input.  The code is run under the global environment, not the sandbox, so this can be used to break out of the sandbox.  Related discussion: <a href="../wiki/DofileNamespaceProposal.html" >DofileNamespaceProposal</a>.  Also unsafe if file is compiled bytecodes (see <code>load</code>).
+<li> <code>error</code> - SAFE
+<li> <code>_G</code> - UNSAFE - by default this contains the global environment.  You may, however, want to set this variable to contain the environment of the sandbox.
+<li> <code>getfenv</code> - UNSAFE - this can locate an environment outside of the sandbox, thereby breaking out of the sandbox.  <a href="/lists/lua-l/2007-11/msg00202.html">LuaList:2007-11/msg00202.html</a>
+<li> <code>getmetatable</code> - UNSAFE - Note that <code>getmetatable""</code> returns the metatable of strings.  Modification of the contents of that metatable can break code outside the sandbox that relies on this string behavior.  Similar cases may exist unless objects are protected appropriately via <code>__metatable</code>.  Ideally <code>__metatable</code> should be immutable.
+<li> <code>ipairs</code> -- SAFE
+<li> <code>load</code> - UNSAFE.  The function returned has the global environment, thereby breaking out of the sandbox.  More seriously, is dangerous if loading bytecode rather than Lua source: <a href="/lists/lua-l/2010-08/msg00487.html">LuaList:2010-08/msg00487.html</a> .
+<li> <code>loadfile</code> - UNSAFE.  See <code>load</code> and <code>dofile</code>
+<li> <code>loadstring</code> -- UNSAFE.  See <code>load</code>.  Even this:
+</UL><DL>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> oldloadstring = <span class="library">loadstring</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> safeloadstring(s, chunkname)
+
+  <span class="keyword">local</span> f, message = oldloadstring(s, chunkname)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> f <span class="keyword">then</span>
+
+    <span class="keyword">return</span> f, message
+
+  <span class="keyword">end</span>
+
+  <span class="library">setfenv</span>(f, <span class="library">getfenv</span>(2))
+
+  <span class="keyword">return</span> f
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<dt><dd>isn't safe.  For example, <code>pcall(safeloadstring, some_script)</code> will load <code>some_script</code> in global environment. --<a href="../wiki/SergeyRozhenko.html" >SergeyRozhenko</a>
+</DL><UL>
+<li> <code>next</code> - SAFE
+<li> <code>pairs</code> - SAFE
+<li> <code>pcall</code> - SAFE
+<li> <code>print</code> - SAFE (assuming output to <code>stdout</code> is ok)
+<li> <code>rawequal</code> - UNSAFE (potentially?) - bypasses metatables
+<li> <code>rawget</code> - UNSAFE - bypasses metatables
+<li> <code>rawset</code> - UNSAFE - bypasses metatables
+<li> <code>select</code> - SAFE
+<li> <code>setfenv</code> - UNSAFE - can modify environments of functions that are up the call-chain and outside the sandbox
+<li> <code>setmetatable</code> - UNSAFE - see <code>getmetatable</code>
+<li> <code>tonumber</code> - SAFE
+<li> <code>tostring</code> - SAFE
+<li> <code>type</code> - SAFE
+<li> <code>unpack</code> - SAFE
+<li> <code>_VERSION</code> - SAFE
+<li> <code>xpcall</code> - SAFE
+<li> <code>coroutine</code> - UNSAFE - modifying this table could affect code outside the sandbox
+<li> <code>coroutine.create</code> - SAFE
+<li> <code>coroutine.resume</code> - SAFE
+<li> <code>coroutine.running</code> - SAFE
+<li> <code>coroutine.status</code> - SAFE
+<li> <code>coroutine.wrap</code> - SAFE
+<li> <code>coroutine.yield</code> - SAFE (probably) - assuming caller handles this
+<li> <code>module</code> - UNSAFE - for example, modifies globals (e..g <code>package.loaded</code>) and provides access to environments outside the sandbox.
+<li> <code>require</code> - UNSAFE - modifies globals (e.g. <code>package.loaded</code>), provides access to environments outside the sandbox, and accesses the file system.
+<li> <code>package</code> - UNSAFE - modifying this table could affect code outside the sandbox        
+<li> <code>package.*</code> - UNSAFE - affects module loading outside the sandbox
+<li> <code>package.loaded</code> - UNSAFE - provides access to modules loaded outside the sandbox
+<li> <code>package.loaders</code> - UNSAFE - provides access to loading modules outside the sandbox
+<li> <code>package.loadlib</code> - UNSAFE - loads arbitrary executable code that runs outside of Lua
+<li> <code>package.path/package.cpath</code> - UNSAFE (effectively) since this is probably useful only for UNSAFE functions.  In itself, it is probably SAFE, for reading that is.
+<li> <code>package.preload</code> - UNSAFE (probably) - may allow loading modules outside the sandbox
+<li> <code>package.seeall</code> - UNSAFE - provides access to the global environment
+<li> <code>string</code> - UNSAFE - modifying this table could affect code outside the sandbox
+<li> <code>string.byte</code> - SAFE
+<li> <code>string.char</code> - SAFE
+<li> <code>string.dump</code> - UNSAFE (potentially) - allows seeing implementation of functions.
+<li> <code>string.find</code> - SAFE -- warning: a number of functions like this can still lock up the CPU <a href="/lists/lua-l/2011-02/msg01595.html">[6]</a>
+<li> <code>string.format</code> - SAFE
+<li> <code>string.gmatch</code> - SAFE
+<li> <code>string.gsub</code> - SAFE
+<li> <code>string.len</code> - SAFE
+<li> <code>string.lower</code> - SAFE
+<li> <code>string.match</code> - SAFE
+<li> <code>string.rep</code> - SAFE
+<li> <code>string.reverse</code> - SAFE
+<li> <code>string.sub</code> - SAFE
+<li> <code>string.upper</code> - SAFE
+<li> <code>table</code> - UNSAFE - modifying this table could affect code outside the sandbox
+<li> <code>table.insert</code> - SAFE
+<li> <code>table.maxn</code> - SAFE
+<li> <code>table.remove</code> - SAFE
+<li> <code>table.sort</code> - SAFE
+<li> <code>math</code> - UNSAFE - modifying this table could affect code outside the sandbox
+<li> <code>math.abs</code> - SAFE
+<li> <code>math.acos</code> - SAFE
+<li> <code>math.asin</code> - SAFE
+<li> <code>math.atan</code> - SAFE
+<li> <code>math.atan2</code> - SAFE
+<li> <code>math.ceil</code> - SAFE
+<li> <code>math.cos</code> - SAFE
+<li> <code>math.cosh</code> - SAFE
+<li> <code>math.deg</code> - SAFE
+<li> <code>math.exp</code> - SAFE
+<li> <code>math.floor</code> - SAFE
+<li> <code>math.fmod</code> - SAFE
+<li> <code>math.frexp</code> - SAFE
+<li> <code>math.huge</code> - SAFE
+<li> <code>math.ldexp</code> - SAFE
+<li> <code>math.log</code> - SAFE
+<li> <code>math.log10</code> - SAFE
+<li> <code>math.max</code> - SAFE
+<li> <code>math.min</code> - SAFE
+<li> <code>math.modf</code> - SAFE
+<li> <code>math.pi</code> - SAFE
+<li> <code>math.pow</code> - SAFE
+<li> <code>math.rad</code> - SAFE
+<li> <code>math.random</code> - SAFE (mostly) - but note that returned numbers are pseudorandom, and calls to this function affect subsequent calls.  This may have statistical implications.
+<li> <code>math.randomseed</code> - UNSAFE (maybe) - see <code>math.random</code>
+<li> <code>math.sin</code> - SAFE
+<li> <code>math.sinh</code> - SAFE
+<li> <code>math.sqrt</code> - SAFE
+<li> <code>math.tan</code> - SAFE
+<li> <code>math.tanh</code> - SAFE
+<li> <code>io</code> - UNSAFE - modifying this table could affect code outside the sandbox        
+<li> <code>io.*</code> - These can be UNSAFE as they provide access to the file system.  Note also that <code>io.close</code> on standard file handles (e.g. <code>io.stdin</code>) may be unsafe and could cause a crash.
+<li> <code>io.read</code> - SAFE (probably)
+<li> <code>io.write</code> - SAFE (probably) - note: potentially could consume all disk space, thereby bringing down a system
+<li> <code>io.flush</code> - SAFE (probably)
+<li> <code>io.type</code> - SAFE
+<li> <code>os</code> - UNSAFE - modifying this table could affect code outside the sandbox        
+<li> <code>os.clock</code> - SAFE
+<li> <code>os.date</code> - UNSAFE - This can crash on some platforms (undocumented).  For example, <code>os.date'%v'</code>.  It is reported that this will be fixed in 5.2 or 5.1.3.
+<li> <code>os.difftime</code> - SAFE
+<li> <code>os.execute</code> - UNSAFE - calls external programs
+<li> <code>os.exit</code> - UNSAFE - terminates program
+<li> <code>os.getenv</code> - UNSAFE (potentially) - depending on what environment variables contain
+<li> <code>os.remove</code> - UNSAFE - modifies file system
+<li> <code>os.rename</code> - UNSAFE - modifies file system
+<li> <code>os.setlocale</code> - UNSAFE - modifies global locale, affecting code outside the sandbox
+<li> <code>os.time</code> - SAFE
+<li> <code>os.tmpname</code> - UNSAFE (maybe) - only in that it provides some information on the structure of the file system
+<li> <code>debug</code> - UNSAFE - modifying this table could affect code outside the sandbox        
+<li> <code>debug.*</code> - UNSAFE - functions here can break out of the sandbox and access variables outside the sandbox.  Note warnings in the Lua Reference Manual concerning <code>debug</code>.
+<li> <code>newproxy</code> - UNSAFE (potentially) - This is an undocumented function (<a href="../wiki/HiddenFeatures.html" >HiddenFeatures</a>), so it does not have a specified interface that you can rely on.  <code>newproxy(nil)</code> and <code>newproxy(true)</code> are probably safe, though fairly useless if <code>getmetatable</code> is disabled, at least for the proxy.  <code>newproxy(o)</code> where <code>o</code> is another proxy object will assign the metatable of <code>o</code> to the new proxy, so there are potential side-effects on <code>o</code> or the metatable of <code>o</code> for any exposed proxy <code>o</code>.
+</UL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>Older Comments</H2>
+<p>
+Anonymous: Attacks to consider:
+<UL>
+<li> io functions, you will have to remove/hide/wrap them, of course
+<li> when hiding the env, make sure the untrusted code can't getenv(some_lib_function) to get it back
+<li> dofile('/home/username/.some_other_app/passwords') can read a totally unrelated Lua config file
+<li> loading unrelated C libraries from other projects
+<li> Lua 5.0: maybe the user can add a metatable a string object, which affects all string concatenations, tricking a library function into manipulating the wrong files (Lua 5.1 requires C the API to do this)
+<li> ??? maybe the stacktrace can be expected to get back the env ???
+<li> Running an infinite loop. (Bad, but not really harmful.)
+<li> Using up all available memory.
+<li> Check critical function arguments (stuff with metamethods attached where string/int expected)
+<li> The usual C stuff (buffer overflow, integer overflow) just requires careful coding
+<li> __gc on userdata metatables
+</UL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> The lua-l archive <a href="http://lua-users.org/lists/lua-l/">[2]</a> contains discussions on sandboxing.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SandBoxes" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SandBoxes" >history</a><br>Last edited July 7, 2014 7:49 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SandBoxes" >(diff)</a>
+</body>
+</html>

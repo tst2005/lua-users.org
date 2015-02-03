@@ -1,0 +1,142 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Compiling Toluapp Without Scons</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CompilingToluappWithoutScons&amp;body=1" title="List pages referring to CompilingToluappWithoutScons">Compiling Toluapp Without Scons</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Compiling Tolua++ without SCons</H2>
+<p>
+I wanted to post this on the tolua++ site but they dont have a wiki.
+<p>
+The tolua++ INSTALL file lets you figure out how to compile it without SCons. Its easy enough, but I wanted to save the people the 5 ( err... 15 ) minutes they need to figure this out.
+<p>
+<H3>Using GCC/Mingw</H3>
+<p>
+I am using gcc 3.4.2, on a mingw installation. But I think this should work for most people, at least those using gcc, with minor modifications.
+<p>
+*First you want to cd to the directory of your tolua++ folder you downloaded and extracted.
+<pre>
+
+cd &lt;path_to_tolua++_folder&gt;\src\lib
+
+</pre>
+The commands used are :
+<pre>
+
+tolua++_1.0.5\src\lib&gt; gcc -shared -o tolua++.dll *.c &lt;path_to_lua&gt;\Lua502.dll -I ..\..\include -I &lt;path_to_lua&gt;\include
+
+</pre>
+- This will create the dynamic library tolua++.dll in the src\lib directory.
+<pre>
+
+tolua++_1.0.5-1\src\lib&gt; gcc -c *.c  -I ..\..\include -I &lt;path_to_lua&gt;\include
+
+tolua++_1.0.5-1\src\lib&gt; ar rcsv libtolua++.a *.o
+
+</pre>
+- This will create the static linking library in the src\lib dir.
+<pre>
+
+tolua++_1.0.5\src\bin&gt; gcc tolua.c toluabind.c -I ..\..\include -I &lt;path_to_lua&gt;\include -L ..\lib\ -ltolua++ -L &lt;path_to_lua&gt;\Lua502.dll 
+
+</pre>
+- This creates the tolua++ executable in the src\bin dir, assuming the libtolua++.a was created in the src\lib dir.
+<p>
+Note1: If you are linking against the lua static library instead of the dynamic library, replace <code>&lt;path_to_lua&gt;\Lua502.dll</code> with <code>-L &lt;path_to_lua&gt;\lib -llua .</code>
+<p>
+<p>
+<H3>Using Visual Studio 2003</H3>
+<p>
+<pre>DLL</pre>
+<p>
+Open the <code>"File-&gt;New Project"</code> menu.  From the project types listbox, select <code>"Visual C++ Projects-&gt;Win32"</code>.  From the Templates listbox, select <code>"Win32 project"</code>.  For a project name, type in <code>"tolua++"</code>.
+<p>
+When the wizard opens, select <code>"Application Settings"</code> on the right hand side.  Choose <code>"DLL"</code> and click <code>'Finish'</code>.
+<p>
+In the Solution Explorer right click on <code>"source files"</code> and select <code>"Add-&gt;Existing Item"</code>.  Browse to the location of the tolua++\src\lib directory.  Highlight all .c and .h files and add them to the project.  You may also optionally want to add the tolua++.h file from the include directory into the <code>"header files"</code> folder.
+<p>
+<p>
+Right click on the tolua++ project in the Solution Explorer and select <code>"Properties"</code>.  
+<p>
+Under the <code>"C/C++ -&gt; General"</code> section select the <code>"Additional include directories"</code> option.  Navigate to the location of your Lua include files.
+<p>
+Under the <code>"C/C++ -&gt; Preprocessor"</code> section add the following: <code>TOLUA_API=extern __declspec(dllexport)</code>
+Under the <code>"C/C++ -&gt; Precompiled headers"</code> section, turn off precompiled headers.
+Under the <code>"Linker -&gt; General"</code> section select the <code>"additional library directories"</code> option and navigate to the location of your Lua .lib library files.
+Under the <code>"Linker -&gt; Input"</code> section add lua.lib and lualib.lib (assuming those are your lua libraries).
+<p>
+<p>
+Compiling the project should result in a tolua++.dll.
+<p>
+<p>
+<pre>EXE</pre>
+<p>
+To create tolua++.exe, open the <code>"File-&gt;New Project"</code> menu, select <code>Visual C++-&gt; Win32 -&gt; Win32 console</code> project.  Add the files tolua.c and toluabind.c to the project.
+<p>
+You will need to add all of the relevant lua include and library directories to this project.  The process is the same as above.  Under the <code>"C/C++ -&gt; Preprocessor"</code> section, add: <code>TOLUA_API=extern __declspec(dllimport)</code>, ... etc ...
+<p>
+Note that for v1.0.92, I had to remove the TOLUA_API that appears in toluabind.c:
+<pre>
+
+int TOLUA_API tolua_tolua_open (lua_State* tolua_S)
+
+</pre>
+becomes
+<pre>
+
+int tolua_tolua_open (lua_State* tolua_S)
+
+</pre> 
+<p>
+<H3>Using Visual Studio 2005</H3>
+<p>
+The same comments as above (for vs2003) generally apply, although some minor tweaks need to be made.
+<p>
+Note that, due to VS' poor c99 support, 'toluabind.c' in the "EXE" build will not compile. There are many lines that look like:
+<p>
+...
+int top;
+top = lua_gettop(tolua_S);
+static unsigned char B[] = {
+...
+<p>
+<p>
+These need to be changed to:
+<p>
+...
+int top = lua_gettop(tolua_S);
+static unsigned char B[] = {
+...
+<p>
+<p>
+or similar.
+<p>
+Tested with vs2005 (no service packs) and tolua++ 1.0.91.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CompilingToluappWithoutScons" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CompilingToluappWithoutScons" >history</a><br>Last edited March 6, 2013 3:17 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CompilingToluappWithoutScons" >(diff)</a>
+</body>
+</html>

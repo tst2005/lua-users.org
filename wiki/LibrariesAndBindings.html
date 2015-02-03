@@ -1,0 +1,445 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Libraries And Bindings</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LibrariesAndBindings&amp;body=1" title="List pages referring to LibrariesAndBindings">Libraries And Bindings</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em><a href="../wiki/LuaDirectory.html" >LuaDirectory</a> &gt; <a href="../wiki/LuaAddons.html" >LuaAddons</a> &gt;</em> Libraries<code></code>And<code></code>Bindings
+<hr>This is a list of libraries implemented in Lua or implemented in another language (e.g. C) but having a Lua interface. For older libraries and bindings, see the <a href="../wiki/LuaAddonsArchive.html" >LuaAddonsArchive</a>.
+<p>
+Modules can also be found on <a href="../wiki/LuaForge.html" >LuaForge</a>. Lua <a href="../wiki/ModuleReview.html" >ModuleReview</a> intends to arrange some of them.
+<p>
+<em>Note to authors: This page is part of <a href="../wiki/LuaAddons.html" >LuaAddons</a> &#8212; please read the instructions there before making changes to this list.  Please don't mark an entry with an open-ended version (e.g. "5.x"), as it will likely be incorrect the moment a new Lua version is released.</em>
+<p>
+For something to be listed on this page, it must be possible to "require" it into a typical Lua application.  Examples of what <em>not</em> to list:
+<UL>
+<li> XYZ server or app that uses Lua for scripting or config
+<li> XYZ engine or framework for C++ apps which is scriptable in Lua (but cannot extend existing Lua apps)
+</UL>
+<p>
+<p>
+<H2>GUI toolkits and graphics</H2>
+<p>
+<UL>
+<li> <a href="../wiki/GraphicalUserInterfaceToolkits.html" >GraphicalUserInterfaceToolkits</a> - toolkits for creating GUI widgets or controls.
+<li> <a href="../wiki/LuaGraphics.html" >LuaGraphics</a> - 2D/3D Lua-codable graphics frameworks.
+<li> <a href="../wiki/OpenGraphicsLibrary.html" >OpenGraphicsLibrary</a> - OpenGL/3D
+<li> SDL (Simple Direct<code></code>Media Layer)
+<UL>
+<li> <a href="../wiki/LuaModuleLuaSdl.html" >LuaModuleLuaSdl</a> (4.0, 5.0) - bindings of SDL to Lua 4.0; patches for 5.0. See also <a href="http://en.wikipedia.org/wiki/Simple_DirectMedia_Layer.html">[SDL]</a>.
+<li> <a href="http://luaforge.net/projects/luasdl/">[LuaSDL]</a> (5.1) - a tolua++ binding for SDL, SDL_image, SDL_mixer, SDL_net and SDL_ttf.
+<li> <a href="http://lage.luaforge.net/">[lAGE]</a> (5.1) - a tiny game engine for 2D adventure games, in the style of old Lucas<code></code>Arts adventures. Uses Lua as the script language and SDL for the multimedia part.
+<li> See also <a href="/lists/lua-l/2008-08/msg00310.html">[9]</a> (via FFI)
+</UL>
+<li> <a href="http://www.cranksoftware.com/storyboard">[Crank Storyboard]</a> - Engine and development environment targeting graphics systems on embedded platforms (SDL, frame buffer, Direct FB, Win32 DGI, QNX TDK, Khronos OpenVG/OpenGL, and others).  Uses Lua for logic and glue. <a href="http://www.cranksoftware.com/cranksoftware/docs/html/ch02s04.html">[1]</a>.  Commercial.
+<li> Image Manipulation
+<UL>
+<li> <a href="http://www.tecgraf.puc-rio.br/cd/">[CD]</a> (5.1) - a platform-independent graphics library with a binding for Lua.
+<li> <a href="http://lua-gd.luaforge.net/">[Lua-GD]</a> (5.1) - a <a href="http://www.boutell.com/gd/">[GD Graphics Library]</a> binding for Lua.
+<li> <a href="http://www.dynaset.org/dogusanh">[Lua-Cairo]</a> (5.1) - A <a href="http://www.cairographics.org/">[Cairo Graphics Library]</a> binding for Lua. (There are similar works at <a href="http://luaforge.net/projects/luacairo/">http://luaforge.net/projects/luacairo/</a> and <a href="http://imago.functionalfuture.com/">http://imago.functionalfuture.com/</a>)
+<li> <a href="https://bitbucket.org/lucashnegri/lgob">[lgob]</a> (5.1) Use Cairo (and many GObject-based libraries, e.g. GTK+) directly from Lua.
+<li> <a href="https://github.com/pavouk/lgi">[lgi]</a> (5.1/5.2) - <a href="http://live.gnome.org/GObjectIntrospection">[gobject-introspection]</a> based dynamic Lua binding to <a href="http://en.wikipedia.org/wiki/GObject.html">[GObject based]</a> libraries. It allows using many introspected libraries including most of Gnome libs, Clutter, DBus/GDbus, GStreamer, WebKit<a href="/cgi-bin/wiki.pl?action=edit&amp;id=WebKit" >?</a>, databases with GDA, and many, many more.
+<li> <a href="http://asbradbury.org/projects/lua-imlib2/">[lua-imlib2]</a> (5.1) - A binding to the imlib2 image manipulation library.
+<li> <a href="http://www.tecgraf.puc-rio.br/im/">[IM]</a> (5.1) - an image manipulation library with a binding for Lua. Includes support for scientific image processing.
+<li> <a href="https://github.com/tnodir/luafreeimage">[LuaFreeImage]</a> (5.1) - <a href="http://freeimage.sourceforge.net">[FreeImage]</a> interface to Lua.
+</UL>
+<li> Desktop Publishing
+<UL>
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lpdf">[lpdf]</a> (5.0/5.1) - a library for generating PDF files based on PDFlib <a href="http://www.pdflib.com/">[2]</a>.
+<li> <a href="http://luahpdf.luaforge.net/">[LuaHPDF]</a> (5.1) - a Lua binding to the Haru Free PDF Library <a href="http://libharu.sf.net/">[3]</a>. Last updated in 2007.
+<li> PDF can also be generated by <a href="http://www.tecgraf.puc-rio.br/cd">[CD]</a> and <a href="http://luaforge.net/projects/luacairo/">[LuaCairo]</a>.
+<li> <a href="http://code.google.com/p/fpdf-plus-plus/downloads/list">[luaFPDF]</a> a pure lua port of PHP FPDF library, it isn't complete but is functional, any comments, suggestions, enhancements are welcome.
+</UL>
+<li> Plots/Graphs
+<UL>
+<li> <a href="http://luaforge.net/projects/ldislin/">[ldislin]</a> (5.1) - A Lua wrapper for the <a href="http://www.dislin.de/">[DISLIN]</a> plotting and widgets library from MPS.
+<li> <a href="http://luagraph.luaforge.net/">[LuaGRAPH]</a> (5.0/5.1) - A library to create, manipulate, layout and render graphs. Based on the <a href="http://www.graphviz.org/">[GRAPHVIZ]</a> library from AT&amp;T.
+<li> <a href="http://plplot.sf.net">[PLplot]</a> (5.0/5.1) - PLplot is a cross-platform software package for creating scientific plots. Lua bindings were added 02/2009.
+</UL>
+<li> Other
+<UL>
+<li> <a href="http://www.tcs.eng.br/freesoftware/luabarcode/">[LuaBarcode]</a> (5.0) - a barcode library for Lua (I2of5 barcodes).
+<li> <a href="http://speedata.github.com/luaqrcode/">[qrencode.lua]</a> (5.1) - QRCode library in pure Lua 
+<li> <a href="http://sputnik.freewisdom.org/lib/colors/">[Colors]</a> (5.1) - Color manipulation in HSV color space. [*L]
+<li> <a href="http://github.com/engla/python-keybinder">[libkeybinder]</a> (5.1) - Global keyboard shortcuts for GTK+ Applications.
+<li> <a href="http://luapower.com/easing">[luapower/easing]</a> (5.x) - Easing functions.
+</UL>
+</UL>
+<p>
+<H2>Audio</H2>
+<p>
+<UL>
+<li> <a href="http://viremo.eludi.net/proteaAudio/">[proteaAudio]</a> (5.1) - a free cross-platform 2D audio library for C++ and Lua.
+<li> <a href="http://lua-espeak.luaforge.net/">[Lua-eSpeak]</a> (5.1) - a Lua binding to the <a href="http://en.wikipedia.org/wiki/eSpeak.html">[eSpeak]</a> speech synthesis engine.
+<li> <a href="http://www.csounds.com/">[Csound]</a> <a href="http://en.wikipedia.org/wiki/Csound.html">[4]</a> (5.1) - a software audio synthesis environment, with interfaces to C/C++, Tcl, Python, Java, Lua and Lisp.
+<li> <a href="https://code.google.com/p/abclua/">[ABCLua]</a> (5.1) - an <a href="http://en.wikipedia.org/wiki/ABC_notation.html">[ABC]</a> notation music format parsing and creation library, with support for MIDI conversion.
+</UL>
+<p>
+<H2>Networking</H2>
+<p>
+<H3>Generic / Low-level</H3>
+<p>
+<UL>
+<li> <a href="http://w3.impa.br/~diego/software/luasocket/">[LuaSocket]</a> (5.0/5.1) - a library for socket programming in Lua.
+<li> <a href="https://github.com/Neopallium/nixio">[Nixio]</a> - System, Networking and I/O library for Lua.
+<li> <a href="https://github.com/Neopallium/lua-zmq">[LuaZMQ]</a> - Lua bindings to the <a href="http://zero.mq/">[ZeroMQ]</a> Publish/Subscribe, Request/Response, Push/Pull message passing library.
+<li> <a href="https://github.com/moteus/lzmq/">[lzmq]</a> (5.1/5.2) - Lua binding to the <a href="http://zeromq.org/">[ZeroMQ]</a> 3.x library.
+<li> <a href="https://github.com/Neopallium/lua-handlers">[LuaHandlers]</a> - Provides a set of async. callback based handlers for working with raw TCP/UDP socket, ZeroMQ sockets, or HTTP requests.
+<li> <a href="https://github.com/tnodir/luasys">[LuaSys]</a> (5.1/5.2) - yet another system library for Lua. (Also contains: 1) sockets; 2) event notification mechanism; 3) win32 stuff: registry, service; 4) serial communication; 5) threading).
+<li> <a href="http://www.dynaset.org/dogusanh">[DSAS/DSASC]</a> (5.1) - Dyna<code></code>Set Application Server and Client, a simple server/client networking API for Lua. Relies on <a href="http://www.msobczak.com/prog/yami/">[YAMI]</a>.
+<li> <a href="/files/wiki_insecure/users/tnodir/">[LuaBER]</a> (5.0) - simple Basic Encoding Rules (<a href="http://en.wikipedia.org/wiki/Basic_Encoding_Rules.html">[BER]</a>) of Abstract Syntax Notation One (<a href="http://en.wikipedia.org/wiki/ASN.1">[ASN.1]</a>/CCITT X.680, <a href="http://en.wikipedia.org/wiki/OSI_model.html">[OSI]</a> Layer 6) implementation.
+<li> <a href="http://pobox.com/~taj.khattra/luaspread.html">[luaspread]</a> (5.1) - a Lua interface to the Spread Group Communication System.
+<li> <a href="http://pobox.com/~taj.khattra/luadjbdns.html">[luadjbdns]</a> (5.1) - a Lua interface to the djbdns and skadns DNS client libraries.
+<li> <a href="http://luacurl.luaforge.net">[LuaCURL]</a> (5.0/5.1) - a Lua interface to the <a href="http://en.wikipedia.org/wiki/cURL.html">[libcurl]</a> file transfer library.
+<li> <a href="http://luaforge.net/projects/luasnmp/">[LuaSNMP]</a> (5.0/5.1) - A library for Simple Network Management (SNMP) programming in Lua. Based on the net-snmp library.
+<li> <a href="http://software77.net/geoip-software.htm">[webnet77]</a> (5.1) - a library for IP to country lookup. [*L]
+<li> <a href="http://luaforge.net/projects/swirl/">[swirl]</a> (5.1) - implements <a href="http://en.wikipedia.org/wiki/BEEP.html">[BEEP]</a>, a framework for creating application-level protocols.
+<li> <a href="http://www.aspl.es/vortex">[LuaVortex]</a> (5.1) - implements <a href="http://en.wikipedia.org/wiki/BEEP.html">[BEEP]</a>, a framework for creating application-level protocols.
+<li> <a href="../wiki/LuaApr.html" >LuaApr</a> binds the socket interface provided by the Apache Portable Runtime (APR) library.
+<li> Queueing / Threading
+<UL>
+<li> See <a href="../wiki/MultiTasking.html" >MultiTasking</a>.
+</UL>
+<li> HTML
+<UL>
+<li> <a href="http://www.tecgraf.puc-rio.br/~tomas/htk/">[HTK]</a> (5.0/5.1) - a library of Lua constructors for HTML elements. [*L]
+<li> <a href="http://www.bessems.biz/luatidy/">[Lua HTML Tidy]</a> (5.0) - a Lua to <a href="http://en.wikipedia.org/wiki/HTML_Tidy.html">[HTML Tidy]</a> binding.
+<li> <a href="http://sputnik.freewisdom.org/lib/xssfilter/">[XSSFilter]</a> (5.1) - A module to filter HTML to safeguard against cross-site scripting (XSS) attacks. [*L]
+</UL>
+<li> XML / XML-RPC / SOAP
+<UL>
+<li> See <a href="../wiki/LuaXml.html" >LuaXml</a>.
+</UL>
+<li> JSON-RPC
+<UL>
+<li> <a href="http://json.luaforge.net/">[JSONRPC4Lua]</a> (5.0/5.1) - JSON-RPC-over-http client (or server in a CGILua environment) for Lua. [*L]
+<li> (see also <em>JSON</em> under <em>Text processing</em> below)
+</UL>
+<li> <a href="https://github.com/lipp/tango">[tango]</a> (5.1) - A simple RPC library with customizable serialization. Depends on Copas and LuaSocket<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaSocket" >?</a>.
+<li> <a href="http://ratchet.icgood.net/">[ratchet]</a> (5.1/5.2) - a multi-socket control mechanism, similar to Python's gevent, with support for ZeroMQ, SSL, DNS, SMTP, HTTP.
+<li> <a href="http://luvit.io/">[Luvit]</a> (5.1) - Lua + node.js's libUV + JIT: event-driven non-blocking I/O for network applications.
+<li> <a href="https://github.com/jzrake/lua-hdf5">[Lua HDF5]</a> (5.1/5.2) - Low and high-level Lua interface to the HDF5 library. Compare to h5py.
+<li> <a href="https://github.com/jzrake/lua-mpi">[Lua MPI]</a> (5.1/5.2) - Lua bindings for MPI (Message Passing Interface).
+<li> <a href="http://25thandClement.com/~william/projects/cqueues.html">[cqueues]</a> (5.1/5.2/5.3) - Comprehensive abstraction over O(1) sockets, signals, and file notification on Linux, *BSD, OS X, and Solaris. Also includes buffered socket I/O, SSL/TLS I/O, file descriptor passing, POSIX thread wrapper, DNS library with recursive and stub resolution, and complete bindings to OpenSSL's certificate and key management API. No callbacks, so fully interoperable with other C or Lua event loops, or usable as a standalone event loop.
+<li> <a href="http://lipp.github.com/lua-websockets/">[lua-websockets]</a> (5.1/5.2) - Websockets (V13) for Lua.
+</UL>
+<p>
+<H3>Specific / Application level</H3>
+<UL>
+<li> Web frameworks
+<UL>
+<li> <a href="http://keplerproject.org/">[Kepler]</a> <a href="http://en.wikipedia.org/wiki/Kepler_(software).html">[5]</a> (5.0/5.1) - the portable web development platform. No longer under active development.
+<li> <a href="http://keplerproject.org/en/Orbit">[Orbit]</a> (5.1) - an <a href="http://en.wikipedia.org/wiki/Model-view-controller.html">[MVC]</a>-oriented web framework. No longer under active development.
+<li> <a href="http://leafo.net/lapis/#lang=lua">[Lapis]</a> (5.1) - A web framework for MoonScript<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MoonScript" >?</a> &amp; OpenResty<a href="/cgi-bin/wiki.pl?action=edit&amp;id=OpenResty" >?</a>.
+<li> <a href="http://moonstalk.org/">[Moonstalk]</a> (5.1) - a web hosting backend and web development framework. No longer under active development.
+<li> <a href="http://www.savarese.com/software/wispers/">[Web Wispers]</a> (5.1) - distributed service-oriented web development framework.
+<li> <a href="http://code.google.com/p/lua-web-tools/">[Lua Web Tools]</a> (5.1/5.2) - template based web applications, Apache 2 module. No longer under active development.
+<li> <a href="http://tir.mongrel2.org/">[Tir]</a> (5.1) - simple Lua web framework built specially for Mongrel2. No longer under active development.
+<li> <a href="http://ophal.org/">[Ophal]</a> (5.1) - Drupal-like web framework for Lua
+<li> <a href="http://jetbus.io/">[Jet]</a> (5.1, 5.2) - Realtime Message Bus for Lua, Node.js and Browser
+</UL>
+<li> CGI / Web Server Bindings
+<UL>
+<li> <a href="../wiki/CommonGatewayInterface.html" >CommonGatewayInterface</a> - CGI libraries and resources
+<li> <a href="http://wsapi.luaforge.net/">[WSAPI]</a> (5.1) - an API layer that abstracts the web server from Lua web applications.
+<li> <a href="http://httpd.apache.org/docs/trunk/mod/mod_lua.html">[mod_lua (official module)]</a> (5.1/5.2) - An Apache 2.4/2.5 module for Lua-scripting web pages and server hooks. See also <a href="../wiki/ModWombat.html" >ModWombat</a>.
+<li> <a href="http://oss.digirati.com.br/mod_lua/2.0/">[mod_lua (unofficial module)]</a> (5.0) - an Apache 2 module to enable web based applications much like PHP.
+<li> <a href="http://keplerproject.org/cgilua/">[CGILua]</a> (5.0/5.1) - a tool for creating dynamic HTML pages and manipulating input data from forms using an Apache 2 module, Fast-CGI or traditional CGI. [*L]
+<li> <a href="http://code.google.com/p/luaisapi/">[luaisapi]</a> (5.1) - IIS <a href="http://en.wikipedia.org/wiki/Internet_Server_Application_Programming_Interface.html">[ISAPI]</a> library for Lua.
+<li> <a href="http://sputnik.freewisdom.org/lib/recaptcha/">[reCaptcha]</a> (5.1) - a Lua interface to <a href="http://en.wikipedia.org/wiki/reCAPTCHA.html">[reCAPTCHA]</a>.
+</UL>
+<li> Web Servers
+<UL>
+<li> <a href="http://keplerproject.org/xavante/">[Xavante]</a> (5.1) - a Lua Web server (HTTP/1.1) that handles requests with Copas and uses CGILua as the native template engine.
+<li> <a href="http://www.steve.org.uk/Software/lua-httpd">[lua-httpd]</a> (5.0) - a simple networking binding and sample webserver implemented using it.
+<li> <a href="http://code.google.com/p/lua-web-server/">[Ladle]</a> (5.1) - an experimental web server written in the Lua programming language and is configurable via XML. [*L]
+</UL>
+<li> CMS / Wiki
+<UL>
+<li> <a href="http://spu.tnik.org/">[Sputnik]</a> (5.1) - an extensible wiki framework. Depends on Kepler and <a href="http://spu.tnik.org/en/Saci">[Saci]</a>. [*L]
+<li> <a href="http://alt.textdrive.com/nanoki/">[Nanoki]</a> (5.1) - a full-featured wiki and HTTP/1.1 engine. [*L]
+<li> <a href="http://loona.neoscientists.org/">[LOona]</a> (5.1) - small, fast and extensible CMS with wiki-like features.
+<li> <a href="http://ophal.org/">[Ophal]</a> (5.1) - Content Management Framework (a framework to create CMSs).
+</UL>
+<li> Web browsers
+<UL>
+<li> <a href="http://mshine.luaforge.net/">[Moonshine]</a> (5.1) - an embedded Lua environment for Mozilla Firefox. Implemented as an XPI extension; allows Firefox extensions to be developed using Lua code rather than Java<code></code>Script.
+<li> <a href="http://luakit.org">[Luakit]</a> (5.1) - a highly configurable, micro-browser framework based on WebKit<a href="/cgi-bin/wiki.pl?action=edit&amp;id=WebKit" >?</a> and GTK+, extensible by Lua.
+</UL>
+<li> E-mail
+<UL>
+<li> <a href="http://luaforge.net/projects/luapop3/">[LuaPOP3]</a> (5.0) - a POP3 client library for Lua.
+<li> <a href="http://lua.net-core.org/sputnik.lua?p=Tethys:About">[Tethys]</a> (5.1) - an simple yet extensible SMTP server. Designed to avoid the configuration nightmare that are most SMTP servers. [*L]
+<li> IMAP: <a href="http://thread.gmane.org/gmane.comp.lang.lua.general/89384/focus=89389">[6]</a> tiny IMAP server implemented in Lua (preliminary) [*L]
+<li> <a href="https://github.com/moteus/lua-pop3/">[Lua-POP3]</a> (5.1/5.2) - a POP3 client library for Lua.
+</UL>
+<li> Chat / IM / VoIP
+<UL>
+<li> <a href="http://matthewwild.co.uk/projects/verse">[Verse]</a> (5.1) - a Jabber/XMPP library for Lua.
+<li> <a href="http://prosody.im/">[Prosody]</a> (5.1) - a lightweight XMPP server written entirely in Lua (using common libraries/modules where necessary). [*L]
+<li> <a href="http://code.google.com/p/luamodo/">[luamodo]</a> (5.1) - an object oriented IRC bot framework.
+<li> <a href="http://www.freeswitch.org/">[FreeSWITCH]</a> (5.1) - an open source communications framework for creation of voice and chat driven products scaling from a soft-phone up to a soft-switch. Supports SIP, H.323, IAX2, XMPP, and more. Includes conferencing, interactive voice response, text to speech/automatic speech recognition, PSTN interconnection, etc. Interfaces with C/C++, Perl, Python, Lua, Java<code></code>Script, Java and Mono/.NET.
+<li> <a href="http://code.google.com/p/altalena/">[ivrWorx]</a> - VoIP application prototyping tool (SIP,MRCP,RTSP,...).
+</UL>
+</UL>
+<p>
+<H2>Text processing</H2>
+<p>
+<UL>
+<li> Pattern Matching / Templates / Preprocessing
+<UL>
+<li> <a href="http://gema.sourceforge.net/new/gel.shtml">[Gel]</a> (5.0)  Gel: <a href="http://gema.sourceforge.net/new/">[Gema]</a> and Lua in a colloidal solution. Pattern matching over multiple lines, context sensitive matching and many other powerful mechanisms to transform text files.
+<li> <a href="http://thomas-lavergne.org/projects.html">[MixLua]</a> (5.1) - an onload preprocessor for Lua files and allow mixing of Lua code with other data.
+<li> <a href="http://luaforge.net/projects/lrexlib/">[lrexlib]</a> (5.1) - a POSIX and Perl (PCRE) regular expression library for Lua.
+<li> <a href="http://www.inf.puc-rio.br/~roberto/lpeg.html">[LPeg]</a> (5.1) - a New Pattern-Matching Library for Lua. See also <a href="../wiki/LpegRecipes.html" >LpegRecipes</a>.
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#ltokens">[ltokens]</a> (5.0/5.1) - a library for lexical analysis of Lua code, based on the Lua lexer.
+<li> See also <a href="../wiki/LuaGrammar.html" >LuaGrammar</a>.
+</UL>
+<li> Markup languages
+<UL>
+<li> <a href="http://www.frykholm.se/files/markdown.lua">[Markdown.lua]</a> (5.1) - an implementation of the Markdown text markup language in pure Lua. [*L]
+<li> <a href="http://asbradbury.org/projects/lua-discount/">[lua-discount]</a> (5.1) - an binding to Discount, a fast and conformant C implementation of the Markdown text markup language.
+<li> <a href="http://github.com/norman/lua-haml">[LuaHaml]</a>, an implementation of the <a href="http://en.wikipedia.org/wiki/Haml.html">[Haml]</a> template language
+</UL>
+<li> Data serialization languages
+<UL>
+<li> JSON:
+<UL>
+<li> See <a href="../wiki/JsonModules.html" >JsonModules</a> for a list of many JSON modules and a comparison of them.
+<li> <a href="http://www.kyne.com.au/~mark/software/lua-cjson.php">[Lua CJSON]</a> (5.1/5.2) - Fast JSON parsing/encoding support for Lua.
+</UL>
+<li> YAML
+<UL>
+<li> <a href="http://yaml.luaforge.net/">[yaml]</a> (5.1) - a LibYAML binding for Lua.
+<li> <a href="http://github.com/indeyets/syck/tree/master/ext/lua">[Syck]</a> (5.1) - Scripters' YAML Cobble-yourself-a-parser Kit. It's optimized for use with high-level interpreted languages, obtaining speed by writing directly to the symbol table of the language.
+</UL>
+<li> Cyan
+<UL>
+<li> <a href="http://github.com/GymbylCoding/Cyan">[Cyan]</a> - Convert tables to strings and vice-versa using Cyan encoding
+</UL>
+<li> See also <a href="../wiki/LuaXml.html" >LuaXml</a>.
+</UL>
+<li> Binary-to-text encoding
+<UL>
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lascii85">[lascii85]</a> (5.0/5.1/5.2) - an ASCII85<a href="http://en.wikipedia.org/wiki/Ascii85.html">[7]</a> library for Lua.
+<li> base64: See libraries at bottom of <a href="../wiki/BaseSixtyFour.html" >BaseSixtyFour</a>.
+<li> <a href="http://github.com/SatheeshJM/Ascii85-Encoding-in-Pure-Lua">[Ascii85]</a> - A pure Lua implementation of Ascii85<a href="http://en.wikipedia.org/wiki/Ascii85.html">[7]</a> Encoding
+</UL>
+<li> Analysis
+<UL>
+<li> <a href="http://sputnik.freewisdom.org/lib/diff/">[Diff for Lua]</a> (5.1) - a diff library, also providing an implementation of Least Common Subsequence. [*L]
+</UL>
+<li> See also <a href="../wiki/StringRecipes.html" >StringRecipes</a>.
+<li> <a href="https://yonaba.github.com/Allen">[Allen]</a> (5.x) - Lua Library for intensive strings processing.
+</UL>
+<p>
+<H2>Tables processing</H2>
+<UL>
+<li> <a href="http://yonaba.github.com/Moses">[Moses]</a>(5.x) - Library for tables processing.
+</UL>
+<p>
+<H2>Database access</H2>
+<p>
+<DL>
+<dt><dd>See <a href="../wiki/DatabaseAccess.html" >DatabaseAccess</a>.
+</DL>
+<p>
+<H2>AI</H2>
+<p>
+<DL>
+<dt><dd>See <a href="../wiki/ArtificialIntelligence.html" >ArtificialIntelligence</a>.
+</DL><UL>
+<li> <a href="https://github.com/Yonaba/Jumper">[Jumper]</a> (5.1) - Pathfinding Library for 2D grid-based games using Jump Point Search algorithm.
+</UL>
+<p>
+<H2>Math</H2>
+<p>
+<UL>
+<li> High-precision / Arbitrary precision
+<UL>
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lqd">[lqd]</a> (5.1/5.2) - a high-precision (double-double &amp; quad-double) mathematical library for Lua based on <a href="http://crd.lbl.gov/~dhbailey/mpdist/">[qd]</a>.
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lbc">[lbc]</a> (5.0/5.1/5.2) - a big-number library for Lua.
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lmapm">[lmapm]</a> (5.0/5.1/5.2) - an arbitrary precision library that contains transcendental functions.
+<li> <a href="http://luaforge.net/projects/ldecnumber/">[ldecNumber]</a> (5.1) - wrapper for IBM <a href="http://www.alphaworks.ibm.com/tech/decnumber">[decNumber]</a>. Implements General Decimal Arithmetic standard IEEE 754r. Full control over rounding modes and working precision.
+<li> <a href="http://members.chello.nl/~w.couwenberg/">[LGMP]</a> (5.1/5.2) - use <a href="http://gmplib.org/">[GMP]</a> the GNU multiple precision arithmetic library from Lua.
+</UL>
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lmathx">[lmathx]</a> (5.1/5.2) - an extension of the standard math library based on C99.
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lcomplex">[lcomplex]</a> (5.1/5.2)- a library for mathematical operations with complex numbers based on C99.
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#linterval">[linterval]</a> (5.1/5.2) - an interval arithmetic library based on <a href="http://www.ti3.tu-harburg.de/Software/PROFILEnglisch.html">[PROFIL/BIAS]</a>; implements interval type, vectors and matrices of this type. Includes an implicit curve plotter.
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lgpc">[lgpc]</a> (5.0/5.1/5.2) - a library for Boolean operations on polygons based on <a href="http://www.cs.man.ac.uk/~toby/alan/software/">[GP&#1057;]</a> the General Polygon Clipper library.
+<li> <a href="http://numlua.luaforge.net">[Numeric Lua]</a> (5.1) - a numeric package for Lua with support for complex numbers, multidimensional matrices, random number generation, and special functions. Most of the routines are wrappers for the Netlib libraries.
+<li> <a href="../wiki/LuaMatrix.html" >LuaMatrix</a> <a href="http://luamatrix.luaforge.net/">[8]</a> (5.1) - matrix operations in pure Lua. [*L] includes complex number library too.
+<li> <a href="http://philippe.castagliola.free.fr/LUA/complex.html">[complex]</a> - library for complex numbers written in pure Lua
+<li> <a href="http://www.nongnu.org/gsl-shell/index.html">[gslshell]</a> - Library and Lua shell interface binding to the GNU Scientific Library (GSL), including matrices, vectors, and various math routines
+<li> <a href="https://github.com/jzrake/lunum">[Lunum]</a> - fast numeric arrays for Lua, implemented entirely in C. Arrays behave just like numpy arrays, and support all numeric data types, including bool and complex. Array slicing is on the way. Works as a Lua module (shared library) or a simple C API to statically embed in applications. Actively used in physics research on distributed memory computing clusters.
+<li> <a href="https://yonaba.github.com/SOR">[SOR]</a>(5.x) - Library for solving linear equations.
+<li> <a href="http://scilua.org/sci.html">[SciLua]</a> (LuaJIT 2.0) - Pure LuaJIT library for general purpose scientific computing. Covers vector and matrix algebra, random (and quasi random) number generators, function minimization, distributions, special math functions, more.
+<li> <a href="http://scilua.org/rclient.html">[Rclient]</a> (LuaJIT 2.0) - Pure LuaJIT library, makes it possible to exchange data structures between LuaJIT and R and to execute arbitrary R programs directly from LuaJIT.
+<li> <a href="http://spencerparkin.github.com/GALua/">[GALua]</a> (5.2) - Adds multi-vector data-types to the Lua programming language.  Those familiar with geometric algebra may be interested in this module.
+<li> <a href="https://bitbucket.org/lucashnegri/lna/">[Lua Numerical Algorithms]</a> - Pure LuaJIT library that provides matrix operations (mostly via LAPACKE and FFI), function minimization, integration, FFT, complex numbers, and others.
+<li> <a href="http://luapower.com/affine2d">[luapower/affine2d]</a> - 2D affine transforms
+<li> <a href="http://luapower.com/eq">[luapower/eq]</a> - 2nd and 3rd degree equation solver
+<li> <a href="http://torch.ch/">[Torch]</a> - Scientific computing library with broad support for machine learning algorithms (requires LuaJIT and <a href="../wiki/LuaRocks.html" >LuaRocks</a>)
+</UL>
+<p>
+<H2>Compression</H2>
+<p>
+<UL>
+<li> see <a href="../wiki/CompressionAndArchiving.html" >CompressionAndArchiving</a>.
+</UL>
+<p>
+<H2>Cryptography</H2>
+<p>
+<UL>
+<li> see <a href="../wiki/CryptographyStuff.html" >CryptographyStuff</a>.
+</UL>
+<p>
+<H2>Binary Structure / Bitwise Op</H2>
+<p>
+<UL>
+<li> bitwise-operators: see <a href="../wiki/BitwiseOperators.html" >BitwiseOperators</a>.
+<li> structure packing: see <a href="../wiki/StructurePacking.html" >StructurePacking</a>.
+<li> <a href="/files/wiki_insecure/users/tnodir/">[LuaMem]</a> (5.0) - struct, array, call cfunction, file map.
+<li> <a href="http://ludis86.schmoock.net">[ludis86]</a> (5.1/LuaJIT) - binary code disassemlber <a href="http://udis86.sourceforge.net">[udis86]</a> bindings.
+</UL>
+<p>
+<H2>Persistence / Serialization</H2>
+<p>
+<UL>
+<li> <a href="http://luaforge.net/projects/pluto/">[Pluto]</a> (5.0/5.1) - heavy-duty persistence for Lua. See also <a href="../wiki/PlutoLibrary.html" >PlutoLibrary</a>.
+<li> <a href="https://github.com/fnuecke/eris">[Eris]</a> (5.2) - a port/rewrite of Pluto.
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lper">[lper]</a> (5.0/5.1) - a tool for making persistent Lua states using Linux Persistent Memory library (LPSM).
+<li> <a href="http://github.com/nobu-k/mplua">[mplua]</a> (5.1) - a binding to <a href="http://msgpack.sourceforge.net/">[MessagePack]</a>, a binary-based efficient object serialization library. Enables to exchange structured objects between many languages like JSON.
+<li> See also <a href="../wiki/TableSerialization.html" >TableSerialization</a>.
+</UL>
+<p>
+<H2>POSIX / Filesystem / Linux</H2>
+<p>
+<UL>
+<li> <a href="../wiki/FileSystemOperations.html" >FileSystemOperations</a> - libraries for file system operations
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lalarm">[lalarm]</a> (5.0/5.1/5.2) - an alarm library for Lua based on signal and SIGALRM.
+<li> <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lposix">[lposix]</a> (5.0/5.1) - a POSIX library for Lua.
+<li> <a href="https://github.com/luaposix/luaposix">[luaposix]</a> (5.1/5.2) - another POSIX library for Lua.
+<li> <a href="http://pobox.com/~taj.khattra/luainotify.html">[luainotify]</a> (5.1) - a Lua interface to the Linux inotify subsystem.
+<li> <a href="http://github.com/hoelzro/linotify">[linotify]</a> (5.0/5.1) - another Lua interface to inotify.
+<li> <a href="http://piratery.net/flu/">[Flu]</a> (5.1) - a Lua binding for <a href="http://en.wikipedia.org/wiki/Filesystem_in_Userspace.html">[FUSE]</a>.
+<li> <a href="../wiki/LuaApr.html" >LuaApr</a> provides portable access to most file system operations supported by the Apache Portable Runtime (APR) library.
+<li> <a href="http://github.com/gabrield/v4l-lua">[v4l-lua]</a> (5.1) - a Lua bind for V4L2 Cameras
+<li> <a href="http://25thandClement.com/~william/projects/lunix.html">[lunix]</a> (5.1/5.2/5.3) - Bindings to common Unix interfaces, both POSIX and extensions, with emulation where not natively available. For example, BSD getifaddrs will work on all supported platforms, even those which lack it in their libc. POSIX clock_gettime and sigtimedwait are supported on all platforms, even though several lack a native implementation of one or the other. Developed and maintained on Linux/glibc, OS X, Solaris, AIX, FreeBSD, NetBSD, and OpenBSD.
+</UL>
+<p>
+<H2>Shell</H2>
+<p>
+<UL>
+<li> <a href="http://ztact.com/software/Luashell">[Luashell]</a> (5.1) - facilitates writing shell scripts in Lua.
+<li> <a href="http://www.tecgraf.puc-rio.br/~scuri/ntlua/">[NTLua]</a> (5.1) - a Lua module and console application to create Windows NT administration and logon scripts.
+<li> <a href="../wiki/LuaExpect.html" >LuaExpect</a> lists Lua implementations of the famous <a href="http://en.wikipedia.org/wiki/Expect.html">[Expect]</a> tool
+</UL>
+<p>
+<H2>Logging</H2>
+<p>
+<UL>
+<li> <a href="http://keplerproject.org/lualogging/">[LuaLogging]</a> (5.1) - A simple API to use logging features in Lua. [*L]
+<li> <a href="https://github.com/moteus/lua-log/">[lua-log]</a> (5.1/5.2) - Asynchronous logging library for Lua.
+</UL>
+<p>
+<H2>Internationalization (i18n)</H2>
+<p>
+<UL>
+<li> <a href="http://ittner.github.com/lua-iconv/">[lua-iconv]</a> (5.0/5.1) - bindings to the <a href="http://en.wikipedia.org/wiki/Iconv.html">[iconv]</a> library.
+</UL>
+<p>
+<H2>Documentation</H2>
+<p>
+<UL>
+<li> <a href="http://luaforge.net/projects/doctest/">[doctest]</a> (5.1) - a module that strives to integrate documentation and testing by example. Idea from python-doctest. [*L]
+</UL>
+<p>
+<H2>Testing</H2>
+<p>
+<UL>
+<li> See <a href="../wiki/UnitTesting.html" >UnitTesting</a>.
+</UL>
+<p>
+<H2>Events / Queueing / Threading / Parallelism</H2>
+<p>
+<UL>
+<li> See <a href="../wiki/MultiTasking.html" >MultiTasking</a>.
+</UL>
+<p>
+<H2>Calling interfaces</H2>
+<p>
+<UL>
+<li> See <a href="../wiki/BindingCodeToLua.html" >BindingCodeToLua</a>.
+</UL>
+<p>
+<H2>Sandboxing</H2>
+<p>
+<UL>
+<li> <a href="http://safelua.sf.net/">[Safe Lua]</a> - a variant of Lua that allows creating advanced sandboxes
+</UL>
+<p>
+<H2>Hardware</H2>
+<p>
+<UL>
+<li> <a href="http://luaforge.net/projects/lualibusb/">[lualibusb]</a> - a libusb binding for general USB devices.
+<li> <a href="http://piratery.net/luausb/">[luausb]</a> - a libusb1 binding for general USB devices.
+<li> <a href="http://sites.google.com/site/rubblepiles/hardware-stuff">[luahidapi]</a> - a hidapi binding for USB HID devices.
+</UL>
+<p>
+<H2>Miscellaneous</H2>
+<p>
+<UL>
+<li> <a href="https://github.com/rrthomas/lua-stdlib/">[stdlib]</a> (5.1/5.2) - a collection of Lua modules for general programming. See also <a href="../wiki/StandardLibraries.html" >StandardLibraries</a>. [*L]
+<li> <a href="/files/wiki_insecure/users/VijayAswadhati/Lusti.zip">[LUSTI]</a> (5.0) - Lua binding for Universal Search Tree Interface (more for learning Lua with C). 
+<li> <a href="http://keplerproject.org/venv/">[VEnv]</a> (5.0) - Provides a way to execute a Lua function in a separate environment, protecting the original one. [*L]
+<li> <a href="http://keplerproject.org/compat/">[Compat-5.1]</a> (5.0) - simulates the Lua 5.1 package model under Lua 5.0 so you can use 5.1 packages. [*L]
+<li> <a href="https://code.google.com/p/luasvn/">[LuaSVN]</a> (5.1) - A library that allows to use some Subversion (SVN) facilities inside Lua programs.
+<li> <a href="http://github.com/silentbicycle/tamale">[Tamale]</a> (5.1) - Structural, Erlang-style pattern-matching for Lua. Works over data structures, not just strings.
+<li> <a href="http://luaforge.net/projects/class/">[The Lua Class Library]</a> - A class library (provides support for the class keyword)
+<li> <a href="http://LuaOS.net/">[LuaOS.net]</a> - Lua-based operating systems.
+<li> <a href="http://qooplua.codeplex.com">[qOOP]</a> (5.1) - A simple, lightweight Lua Library which offers lots of OOP facilities using Lua Programming Language.
+<li> <a href="http://yonaba.github.com/Binary-Heaps">[Binary Heaps]</a>(5.x) - Implementation of binary heaps in pure Lua.
+<li> <a href="http://yonaba.github.com/Lua-Class-System/">[Lua Class System]</a>(5.x) - Lighweight OOP framework for Lua.
+<li> <a href="https://gist.github.com/4410474">[Basic Class Model]</a>(5.x) - A partial implementation of Python's class model for Lua, written in only 150 lines
+<li> <a href="http://luapower.com/oo">[luapower/oo]</a>(5.x) - Object system with virtual properties, overriding hooks and introspection in 200 LOC
+<li> <a href="http://luapower.com/tuple">[luapower/tuple]</a>(5.x) - Tuples that can be used as table keys
+</UL>
+<p>
+<H2>To delete</H2>
+<p>
+The following are proposed to be removed from this page because they are not libraries or bindings but uses of Lua.
+<p>
+<UL>
+<li> <a href="../wiki/BlitzLua.html" >BlitzLua</a> (5.1) - a Lua runtime environment written in BlitzMAX with access to many BlitzMAX/MaxGUI modules (including 2D and 3D graphics, sound and networking). (<em>note: the link currently points into this wiki (which is usually a bad idea in this list) but this will change as soon as the package has its own web site</em>)
+</UL>
+<p>
+<hr>Footnotes: [*L] pure Lua implementation (no C)
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LibrariesAndBindings" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LibrariesAndBindings" >history</a><br>Last edited August 29, 2014 6:10 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LibrariesAndBindings" >(diff)</a>
+</body>
+</html>

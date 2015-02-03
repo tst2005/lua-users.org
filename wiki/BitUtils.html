@@ -1,0 +1,285 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Bit Utils</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BitUtils&amp;body=1" title="List pages referring to BitUtils">Bit Utils</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+These are bitwise operations implemented entirely in Lua.
+<p>
+<H3>XOR</H3>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Bitwise XOR - thanks to Reuben Thomas</span>
+
+<span class="keyword">local</span> floor = <span class="library">math.floor</span>
+
+<span class="keyword">function</span> bxor (a,b)
+
+  <span class="keyword">local</span> r = 0
+
+  <span class="keyword">for</span> i = 0, 31 <span class="keyword">do</span>
+
+    <span class="keyword">local</span> x = a / 2 + b / 2
+
+    <span class="keyword">if</span> x ~= floor (x) <span class="keyword">then</span>
+
+      r = r + 2^i
+
+    <span class="keyword">end</span>
+
+    a = floor (a / 2)
+
+    b = floor (b / 2)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> r
+
+<span class="keyword">end</span></pre>
+
+</DL>
+<p>
+If you need speed, the following is a lot faster (Arno Wagner &lt;arno@wagner.name&gt;):
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> bin_xor(x, y)
+
+   <span class="keyword">local</span> z = 0
+
+   <span class="keyword">for</span> i = 0, 31 <span class="keyword">do</span>
+
+      <span class="keyword">if</span> (x % 2 == 0) <span class="keyword">then</span>                      <span class="comment">-- x had a '0' in bit i</span>
+
+         <span class="keyword">if</span> ( y % 2 == 1) <span class="keyword">then</span>                  <span class="comment">-- y had a '1' in bit i</span>
+
+            y = y - 1 
+
+            z = z + 2 ^ i                       <span class="comment">-- set bit i of z to '1' </span>
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">else</span>                                      <span class="comment">-- x had a '1' in bit i</span>
+
+         x = x - 1
+
+         <span class="keyword">if</span> (y % 2 == 0) <span class="keyword">then</span>                  <span class="comment">-- y had a '0' in bit i</span>
+
+            z = z + 2 ^ i                       <span class="comment">-- set bit i of z to '1' </span>
+
+         <span class="keyword">else</span>
+
+            y = y - 1 
+
+         <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+      y = y / 2
+
+      x = x / 2
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> z
+
+<span class="keyword">end</span></pre>
+
+</DL>
+<p>
+It is also possible to do this without using the power function.  The below implementation should be faster than the above in most cases.  Though admittedly I have not verified this experimentally.
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> xor(a,b)
+
+   pow = 1
+
+   c = 0
+
+   <span class="keyword">while</span> a &gt; 0 <span class="keyword">or</span> b &gt; 0 <span class="keyword">do</span>
+
+      c = c + (XOR_l[(a % 2)+1][(b % 2)+1] * pow)
+
+      a = <span class="library">math.floor</span>(a/2)
+
+      b = <span class="library">math.floor</span>(b/2)
+
+      pow = pow * 2
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">return</span> c
+
+<span class="keyword">end</span>
+
+
+
+XOR_l =
+
+{ 
+
+   {0,1},
+
+   {1,0},
+
+}
+
+</pre>
+
+</DL>
+<p>
+If speed is not your concern, the following could be shorter.
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> nand(x,y,z)
+
+    z=z <span class="keyword">or</span> 2^16
+
+    <span class="keyword">if</span> z&lt;2 <span class="keyword">then</span>
+
+        <span class="keyword">return</span> 1-x*y
+
+    <span class="keyword">else</span>
+
+        <span class="keyword">return</span> nand((x-x%z)/z,(y-y%z)/z,<span class="library">math.sqrt</span>(z))*z+nand(x%z,y%z,<span class="library">math.sqrt</span>(z))
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="library">math</span>[<span class="string">"not"</span>]=<span class="keyword">function</span>(y,z)
+
+    <span class="keyword">return</span> nand(nand(0,0,z),y,z)
+
+<span class="keyword">end</span>
+
+<span class="library">math</span>[<span class="string">"and"</span>]=<span class="keyword">function</span>(x,y,z)
+
+    <span class="keyword">return</span> nand(<span class="library">math</span>[<span class="string">"not"</span>](0,z),nand(x,y,z),z)
+
+<span class="keyword">end</span>
+
+<span class="library">math</span>[<span class="string">"or"</span>]=<span class="keyword">function</span>(x,y,z)
+
+    <span class="keyword">return</span> nand(<span class="library">math</span>[<span class="string">"not"</span>](x,z),<span class="library">math</span>[<span class="string">"not"</span>](y,z),z)
+
+<span class="keyword">end</span>
+
+<span class="library">math</span>[<span class="string">"xor"</span>]=<span class="keyword">function</span>(x,y,z)
+
+    <span class="keyword">return</span> <span class="library">math</span>[<span class="string">"and"</span>](nand(x,y,z),<span class="library">math</span>[<span class="string">"or"</span>](x,y,z),z)
+
+<span class="keyword">end</span></pre>
+
+</DL>
+<H3>Flags</H3>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> testflag(set, flag)
+
+  <span class="keyword">return</span> set % (2*flag) &gt;= flag
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> setflag(set, flag)
+
+  <span class="keyword">if</span> set % (2*flag) &gt;= flag <span class="keyword">then</span>
+
+    <span class="keyword">return</span> set
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> set + flag
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> clrflag(set, flag) <span class="comment">-- clear flag</span>
+
+  <span class="keyword">if</span> set % (2*flag) &gt;= flag <span class="keyword">then</span>
+
+    <span class="keyword">return</span> set - flag
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> set
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Test suite</span>
+
+b = {
+
+  [<span class="string">'_0000'</span>] = 0, [<span class="string">'_0001'</span>] = 1, [<span class="string">'_0010'</span>] = 2, [<span class="string">'_0011'</span>] = 3,
+
+  [<span class="string">'_1000'</span>] = 8, [<span class="string">'_1010'</span>] = 10, [<span class="string">'_1011'</span>] = 11,
+
+}
+
+<span class="library">assert</span>(<span class="keyword">not</span> testflag(b._0000, b._0001))
+
+<span class="library">assert</span>(<span class="keyword">not</span> testflag(b._0000, b._0010))
+
+<span class="library">assert</span>(<span class="keyword">not</span> testflag(b._0010, b._0001))
+
+<span class="library">assert</span>(    testflag(b._0010, b._0010))
+
+<span class="library">assert</span>(setflag(b._0000, b._0001) == b._0001)
+
+<span class="library">assert</span>(setflag(b._0000, b._0010) == b._0010)
+
+<span class="library">assert</span>(setflag(b._1010, b._0001) == b._1011)
+
+<span class="library">assert</span>(setflag(b._1010, b._0010) == b._1010)
+
+<span class="library">assert</span>(clrflag(b._0000, b._0001) == b._0000)
+
+<span class="library">assert</span>(clrflag(b._0000, b._0010) == b._0000)
+
+<span class="library">assert</span>(clrflag(b._1010, b._0001) == b._1010)
+
+<span class="library">assert</span>(clrflag(b._1010, b._0010) == b._1000)
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/BitwiseOperators.html" >BitwiseOperators</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BitUtils" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BitUtils" >history</a><br>Last edited September 25, 2013 5:30 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BitUtils" >(diff)</a>
+</body>
+</html>

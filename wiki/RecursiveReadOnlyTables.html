@@ -1,0 +1,390 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Recursive Read Only Tables</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=RecursiveReadOnlyTables&amp;body=1" title="List pages referring to RecursiveReadOnlyTables">Recursive Read Only Tables</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<strong>By:</strong> <a href="../wiki/VeLoSo.html" >VeLoSo</a>
+<p>
+<strong>Lua Version:</strong> 5.x
+<p>
+<strong>Prerequisites:</strong> Familiarity with metamethods (see <a href="../wiki/MetamethodsTutorial.html" >MetamethodsTutorial</a>)
+<p>
+In the spirit of <a href="../wiki/ReadOnlyTables.html" >ReadOnlyTables</a>, I needed a way to provide access control in a multi-user Lua system.  Notably, it is a requirement that users have read-only access to complex data structures, and should not be able to modify them in any way.
+<p>
+It is a goal that even savvy Lua users should not be able to circumvent the protection.
+<p>
+The (as yet mostly untested) solution I've come up with follows:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- cache the metatables of all existing read-only tables,</span>
+
+<span class="comment">-- so our functions can get to them, but user code can't</span>
+
+<span class="keyword">local</span> metatable_cache = <span class="library">setmetatable</span>({}, {__mode=<span class="string">'k'</span>})
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> make_getter(real_table)
+
+  <span class="keyword">local</span> <span class="keyword">function</span> getter(dummy, key)
+
+    <span class="keyword">local</span> ans=real_table[key]
+
+    <span class="keyword">if</span> <span class="library">type</span>(ans)==<span class="string">'table'</span> <span class="keyword">and</span> <span class="keyword">not</span> metatable_cache[ans] <span class="keyword">then</span>
+
+      ans = make_read_only(ans)
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> ans
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> getter
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> setter(dummy)
+
+  <span class="library">error</span>(<span class="string">"attempt to modify read-only table"</span>, 2)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> make_pairs(real_table)
+
+  <span class="keyword">local</span> <span class="keyword">function</span> <span class="library">pairs</span>()
+
+    <span class="keyword">local</span> key, value, real_key = <span class="keyword">nil</span>, <span class="keyword">nil</span>, <span class="keyword">nil</span>
+
+    <span class="keyword">local</span> <span class="keyword">function</span> nexter() <span class="comment">-- both args dummy</span>
+
+      key, value = <span class="library">next</span>(real_table, real_key)
+
+      real_key = key
+
+      <span class="keyword">if</span> <span class="library">type</span>(key)==<span class="string">'table'</span> <span class="keyword">and</span> <span class="keyword">not</span> metatable_cache[key] <span class="keyword">then</span>
+
+	key = make_read_only(key)
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> <span class="library">type</span>(value)==<span class="string">'table'</span> <span class="keyword">and</span> <span class="keyword">not</span> metatable_cache[value] <span class="keyword">then</span>
+
+	value = make_read_only(value)
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> key, value
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> nexter <span class="comment">-- values 2 and 3 dummy</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">pairs</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> make_read_only(t)
+
+  <span class="keyword">local</span> new={}
+
+  <span class="keyword">local</span> mt={
+
+    __metatable = <span class="string">"read only table"</span>,
+
+    __index = make_getter(t),
+
+    __newindex = setter,
+
+    __pairs = make_pairs(t),
+
+    __type = <span class="string">"read-only table"</span>}
+
+  <span class="library">setmetatable</span>(new, mt)
+
+  metatable_cache[new]=mt
+
+  <span class="keyword">return</span> new
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> ropairs(t)
+
+  <span class="keyword">local</span> mt = metatable_cache[t]
+
+  <span class="keyword">if</span> mt==<span class="keyword">nil</span> <span class="keyword">then</span>
+
+    <span class="library">error</span>(<span class="string">"bad argument #1 to 'ropairs' (read-only table expected, got "</span> ..
+
+	  <span class="library">type</span>(t) .. <span class="string">")"</span>, 2)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> mt.__pairs()
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<code>__type</code> and <code>__pairs</code> are set in each read-only table's metatable to support the cooresponding extensions to the standard library.  Other than the metamethods, this module only exports <code>ropairs</code>, a version of <code>pairs</code> for read-only tables (which uses <code>__pairs</code>), and <code>make_read_only</code>, a constructor of read-only tables.
+<p>
+I would prefer to cache the read-only version of each table so as to avoid making redundant copies (and support equality testing of read-only tables) but as <a href="../wiki/RiciLake.html" >RiciLake</a> points out at <a href="../wiki/GarbageCollectingWeakTables.html" >GarbageCollectingWeakTables</a>, cacheing recursive data is problematic in Lua.  Happily, read-only tables are rather lightweight, so this isn't as big as a problem as it could be.
+<p>
+In my implementation, I will probably modify the line <code>local new={} </code> in <code>make_read_only</code> to generate a new userdata instead, to properly catch attempts to treat a read-only table like a standard table (using, for instance, <code>pairs</code> or <code>ipairs</code> or <code>rawset</code> or <code>table.insert</code>.
+<p>
+I'm posting this early in hopes of getting some feedback.  I need a solution to this problem, and this turned out to be easier to code in pure Lua than I had hoped.  But any improvements would be welcomed.
+<p>
+A sample usage follows.
+<p>
+Protection seems to work fine:
+<DL>
+<dt><dd><pre>
+
+&gt; tab = { one=1, two=2, sub={} }
+
+&gt; tab.sub[{}]={}
+
+&gt; rotab=make_read_only(tab)
+
+&gt; =rotab.two
+
+2
+
+&gt; =rotab.three
+
+nil
+
+&gt; rotab.two='two'
+
+stdin:1: attempt to modify read-only table
+
+stack traceback: ...
+
+&gt; rotab.sub.foo='bar'
+
+stdin:1: attempt to modify read-only table
+
+stack traceback: ...
+
+</pre>
+</DL>
+<p>
+Unfortunately, each access of a subtable returns a freshly-created read-only table.  If a table is a key in a read-only table, you can't pull it out of the read-only table, but you can still use it as a key if you have access to it by other means.
+<p>
+<DL>
+<dt><dd><pre>
+
+&gt; key={'Lua!'}
+
+&gt; rot=make_read_only {[key]=12345}
+
+&gt; for k,v in ropairs(rot) do print (k,v) end
+
+table: 003DD990 12345
+
+&gt; for k,v in ropairs(rot) do print (k,v) end
+
+table: 00631568 12345
+
+&gt; =rot[key]
+
+12345
+
+&gt; for k,_ in ropairs(rot) do k[2]='Woot!' end
+
+stdin:1: attempt to modify read-only table
+
+stack traceback: ...
+
+</pre>
+</DL>
+<p>
+I want to strengthen this to honor the wrapped table's __index and __pairs metatables, and hopefully come up with a caching strategy that doesn't break garbage collection.  Maybe I'll post RecursiveReadOnlyTablesTwo<a href="/cgi-bin/wiki.pl?action=edit&amp;id=RecursiveReadOnlyTablesTwo" >?</a> one day.
+<p>
+-- <a href="../wiki/VeLoSo.html" >VeLoSo</a>
+<p>
+I saw your implementation and thought I would see if I could implement something that got around a few of the catches you were experiencing.  Some of the catches in your case break the code in my case.  One such case is that each subtable access returns a freshly-created read-only table.  I also was afraid of breaking garbage collection since the objects that I want to make read-only are created and destroyed extremely often.  I do not have the experience that I would like to working with metatables and these kinds of constructs so any advice or corrections would be much appreciated.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- recursive read-only definition</span>
+
+
+
+<span class="keyword">function</span> readOnly(t)
+
+	<span class="keyword">for</span> x, y <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+		<span class="keyword">if</span> <span class="library">type</span>(x) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+			<span class="keyword">if</span> <span class="library">type</span>(y) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+				t[readOnly(x)] = readOnly[y]
+
+			<span class="keyword">else</span>
+
+				t[readOnly(x)] = y
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">elseif</span> <span class="library">type</span>(y) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+			t[x] = readOnly(y)
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="keyword">local</span> proxy = {}
+
+	<span class="keyword">local</span> mt = {
+
+		<span class="comment">-- hide the actual table being accessed</span>
+
+		__metatable = <span class="string">"read only table"</span>, 
+
+		__index = <span class="keyword">function</span>(tab, k) <span class="keyword">return</span> t[k] <span class="keyword">end</span>,
+
+		__pairs = <span class="keyword">function</span>() <span class="keyword">return</span> <span class="library">pairs</span>(t) <span class="keyword">end</span>,
+
+		__newindex = <span class="keyword">function</span> (t,k,v)
+
+			<span class="library">error</span>(<span class="string">"attempt to update a read-only table"</span>, 2)
+
+		<span class="keyword">end</span>
+
+	}
+
+	<span class="library">setmetatable</span>(proxy, mt)
+
+	<span class="keyword">return</span> proxy
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> oldpairs = <span class="library">pairs</span>
+
+<span class="keyword">function</span> <span class="library">pairs</span>(t)
+
+	<span class="keyword">local</span> mt = <span class="library">getmetatable</span>(t)
+
+	<span class="keyword">if</span> mt==<span class="keyword">nil</span> <span class="keyword">then</span>
+
+		<span class="keyword">return</span> oldpairs(t)
+
+	<span class="keyword">elseif</span> <span class="library">type</span>(mt.__pairs) ~= <span class="string">"function"</span> <span class="keyword">then</span>
+
+		<span class="keyword">return</span> oldpairs(t)
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="keyword">return</span> mt.__pairs()
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+And some tests.  Note that the table.insert overwrites the read-only copy of the data, but does not corrupt the actual data source.  Anyone know a way around this?
+<pre>
+
+&gt; local test = {"a", "b", c = 12, {x = 1, y = 2}}
+
+&gt; test = readOnly(test)
+
+&gt; for k, v in pairs(test) do
+
+&gt;	print(k, v)
+
+&gt; end
+
+1	a
+
+2	b
+
+3	table: 0x806f34a0
+
+c	12
+
+&gt; =test[1]
+
+ a
+
+&gt; -- anyone know how to break this one?  The code above by VeLoSo also lets this through
+
+&gt; table.insert(test, "blah")
+
+&gt; =test[1]
+
+ blah
+
+&gt; test.new = 3
+
+stdin:1: attempt to modify read-only table
+
+stack traceback: ...
+
+&gt; test[3] = "something"
+
+stdin:1: attempt to modify read-only table
+
+stack traceback: ...
+
+&gt; test[3].new = "something"
+
+stdin:1: attempt to modify read-only table
+
+stack traceback: ...
+
+</pre>
+<p>
+I am not sure how safe this is from an expert who is given a read-only table, but it seems that since the table is only ever referenced indirectly through a closure, it should be completely safe from damage.  Also, as far as I can tell, this will not break garbage collection.  Let me know what you think.
+<p>
+-- ZachDwiel<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ZachDwiel" >?</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=RecursiveReadOnlyTables" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=RecursiveReadOnlyTables" >history</a><br>Last edited April 19, 2007 7:51 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=RecursiveReadOnlyTables" >(diff)</a>
+</body>
+</html>

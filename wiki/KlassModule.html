@@ -1,0 +1,688 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Klass Module</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=KlassModule&amp;body=1" title="List pages referring to KlassModule">Klass Module</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Another implementation of classes. Works with Lua 5.1 and Lua 5.2. Not the fastest one, but takes only about 2k (without comments), introduces "inherited(self, ...)" calls, has <code>isA()</code> method, and constructors. Destructors are also implemented, via unofficial/unsupported <code>newproxy()</code> trick or with "__gc" metamethod.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- $FILE klass.lua</span>
+
+<span class="comment">-- $VERSION 0.0.5</span>
+
+<span class="comment">-- $AUTHOR Ketmar</span>
+
+<span class="comment">-- $DESCRIPTION</span>
+
+<span class="comment">--   another simple prototype-based class engine with finalizers and support for 'inherited' calls</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- $LICENSE</span>
+
+<span class="comment">--   WTFPL</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- $DEPENDS</span>
+
+<span class="comment">--   kmodule</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- $USAGE</span>
+
+<span class="comment">--   local newclass = class(nil, "baseclass")</span>
+
+<span class="comment">--   function newclass:Method (...) print(self); end;</span>
+
+<span class="comment">--</span>
+
+<span class="comment">--   local class2 = class(newclass)</span>
+
+<span class="comment">--   function class2:Method (...) print(self); inherited(self, ...); end;</span>
+
+<span class="comment">--</span>
+
+<span class="comment">--   local inst = class2("argument to Constructor!");</span>
+
+<span class="comment">--</span>
+
+<span class="comment">--   iherited() will do nothing if there's no inherited method. %-)</span>
+
+<span class="comment">--   class can have 2 special methods:</span>
+
+<span class="comment">--     :Constructor (...)</span>
+
+<span class="comment">--     :Destructor ()</span>
+
+<span class="comment">--   `Destructor' will be called when class is going to be destroyed by GC</span>
+
+<span class="comment">--</span>
+
+<span class="comment">--   DO NOT FORGET TO PASS `self' TO inherited()!</span>
+
+<span class="comment">--</span>
+
+<span class="comment">--   earch method can know it's name from variable (not field!) method</span>
+
+<span class="comment">--</span>
+
+<span class="comment">--   one can add/alter methods in class or instance in runtime.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- $HISTORY</span>
+
+<span class="comment">--   [+] works with Lua 5.2 beta</span>
+
+<span class="comment">--   [+] added :isA(obj)</span>
+
+<span class="comment">--</span>
+
+
+
+<span class="comment">-- cache global functions</span>
+
+<span class="keyword">local</span> <span class="library">assert</span>, <span class="library">type</span>, <span class="library">rawget</span>, <span class="library">rawset</span> = <span class="library">assert</span>, <span class="library">type</span>, <span class="library">rawget</span>, <span class="library">rawset</span>;
+
+<span class="keyword">local</span> <span class="library">getmetatable</span>, <span class="library">setmetatable</span> = <span class="library">getmetatable</span>, <span class="library">setmetatable</span>;
+
+<span class="comment">--local newproxy = newproxy;</span>
+
+<span class="keyword">local</span> <span class="library">setfenv</span>, <span class="library">getfenv</span> = <span class="library">setfenv</span>, <span class="library">getfenv</span>;
+
+<span class="keyword">local</span> getinfo, getupvalue, setupvalue, upvaluejoin;
+
+<span class="keyword">local</span> newlua = <span class="keyword">false</span>;
+
+<span class="keyword">local</span> _klassG;
+
+
+
+<span class="comment">--local print, tostring = print, tostring;</span>
+
+
+
+
+
+<span class="keyword">if</span> <span class="keyword">not</span> <span class="library">setfenv</span> <span class="keyword">then</span>
+
+  <span class="library">require</span> <span class="string">"debug"</span>;
+
+  getinfo, getupvalue, setupvalue, upvaluejoin = <span class="library">debug.getinfo</span>, <span class="library">debug.getupvalue</span>, <span class="library">debug.setupvalue</span>, <span class="library">debug.upvaluejoin</span>;
+
+  newlua = <span class="keyword">true</span>;
+
+
+
+  <span class="library">setfenv</span> = <span class="keyword">function</span> (f, t)
+
+    f = (<span class="library">type</span>(f) == <span class="string">'function'</span> <span class="keyword">and</span> f <span class="keyword">or</span> getinfo(f+1, <span class="string">'f'</span>).func);
+
+    <span class="keyword">local</span> up, name = 0;
+
+    <span class="keyword">repeat</span>
+
+      up = up+1;
+
+      name = getupvalue(f, up)
+
+    <span class="keyword">until</span> name == <span class="string">'_ENV'</span> <span class="keyword">or</span> name == <span class="keyword">nil</span>;
+
+    <span class="keyword">if</span> name <span class="keyword">then</span>
+
+      upvaluejoin(f, up, <span class="keyword">function</span>() <span class="keyword">return</span> name; <span class="keyword">end</span>, 1); <span class="comment">-- use unique upvalue</span>
+
+      setupvalue(f, up, t);
+
+    <span class="keyword">end</span>;
+
+  <span class="keyword">end</span>;
+
+
+
+  <span class="library">getfenv</span> = <span class="keyword">function</span> (f)
+
+    f = (<span class="library">type</span>(f) == <span class="string">'function'</span> <span class="keyword">and</span> f <span class="keyword">or</span> getinfo(f+1, <span class="string">'f'</span>).func);
+
+    <span class="keyword">local</span> up, name, val = 0;
+
+    <span class="keyword">repeat</span>
+
+      up = up+1;
+
+      name, val = getupvalue(f, up);
+
+    <span class="keyword">until</span> name == <span class="string">'_ENV'</span> <span class="keyword">or</span> name == <span class="keyword">nil</span>;
+
+    <span class="keyword">return</span> val;
+
+  <span class="keyword">end</span>;
+
+
+
+  _klassG = _ENV;
+
+<span class="keyword">end</span>;
+
+
+
+
+
+<span class="library">module</span>(..., <span class="library">package.seeall</span>);
+
+
+
+
+
+<span class="keyword">local</span> specialFields = {
+
+  _className=<span class="keyword">true</span>,
+
+  _parent=<span class="keyword">true</span>,
+
+};
+
+
+
+
+
+<span class="comment">-- $DESCR</span>
+
+<span class="comment">--   find field in class or in it's parents</span>
+
+<span class="comment">-- $IN</span>
+
+<span class="comment">--   class</span>
+
+<span class="comment">--     class definition or instance</span>
+
+<span class="comment">--   fld</span>
+
+<span class="comment">--     field name (of any type)</span>
+
+<span class="comment">-- $OUT</span>
+
+<span class="comment">--  $OR good</span>
+
+<span class="comment">--   value</span>
+
+<span class="comment">--  $OR bad</span>
+
+<span class="comment">--   nil</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> findField (class, fld)
+
+  <span class="keyword">if</span> specialFields[fld] <span class="keyword">then</span> <span class="keyword">return</span> <span class="library">rawget</span>(class, fld); <span class="keyword">end</span>;
+
+  <span class="keyword">local</span> res;
+
+  <span class="keyword">repeat</span>
+
+    <span class="comment">--print("findField", fld, class._className);</span>
+
+    res = <span class="library">rawget</span>(<span class="library">rawget</span>(class, <span class="string">"_fields"</span>), fld); <span class="keyword">if</span> res ~= <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> res; <span class="keyword">end</span>;
+
+    <span class="comment">-- not found, go up</span>
+
+    class = <span class="library">rawget</span>(class, <span class="string">"_parent"</span>);
+
+  <span class="keyword">until</span> <span class="keyword">not</span> class;
+
+  <span class="comment">-- default result: nil</span>
+
+<span class="keyword">end</span>;
+
+
+
+
+
+<span class="comment">-- metatable for 'see everything'</span>
+
+<span class="comment">--local seeallmt = { __index = _G };</span>
+
+
+
+<span class="comment">-- $DESCR</span>
+
+<span class="comment">--   add field or method, install environment for method</span>
+
+<span class="comment">-- $IN</span>
+
+<span class="comment">--   class</span>
+
+<span class="comment">--     class definition or instance</span>
+
+<span class="comment">--   fld</span>
+
+<span class="comment">--     field name (of any type)</span>
+
+<span class="comment">--   value</span>
+
+<span class="comment">--     field value or metod</span>
+
+<span class="comment">-- $OUT</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> newField (class, fld, value)
+
+  <span class="keyword">local</span> fields = <span class="library">rawget</span>(class, <span class="string">"_fields"</span>);
+
+  <span class="keyword">if</span> <span class="library">type</span>(value) == <span class="string">"function"</span> <span class="keyword">then</span>
+
+    <span class="comment">-- new method, change envtable to make inherited() visible</span>
+
+    <span class="library">assert</span>(<span class="keyword">not</span> specialFields[fld]);
+
+    <span class="keyword">local</span> inh = <span class="keyword">function</span> (self, ...)
+
+      <span class="comment">--print("inherited", fld, class._className);</span>
+
+      <span class="keyword">local</span> m = <span class="library">rawget</span>(class, <span class="string">"_parent"</span>);
+
+      <span class="keyword">if</span> m <span class="keyword">then</span>
+
+        m = findField(m, fld); <span class="comment">-- search upwards</span>
+
+        <span class="keyword">if</span> m <span class="keyword">then</span> <span class="keyword">return</span> m(self, ...); <span class="keyword">end</span>;
+
+      <span class="keyword">end</span>;
+
+    <span class="keyword">end</span>;
+
+    <span class="comment">--local env = { method = fld };</span>
+
+    <span class="comment">--setmetatable(env, seeallmt); setfenv(inh, env);</span>
+
+    <span class="comment">--print(tostring(_ENV), tostring(package.seeall));</span>
+
+    <span class="keyword">local</span> seeallmt;
+
+    <span class="keyword">if</span> newlua <span class="keyword">then</span>
+
+      seeallmt = { __index = _ENV };
+
+    <span class="keyword">else</span>
+
+      seeallmt = { __index = <span class="library">_G</span> };
+
+    <span class="keyword">end</span>;
+
+    <span class="keyword">local</span> env = { method = fld, inherited = inh };
+
+    <span class="library">setmetatable</span>(env, seeallmt); <span class="library">setfenv</span>(value, env);
+
+  <span class="keyword">end</span>;
+
+  <span class="library">rawset</span>(specialFields[fld] <span class="keyword">and</span> class <span class="keyword">or</span> fields, fld, value);
+
+<span class="keyword">end</span>;
+
+
+
+
+
+<span class="keyword">local</span> classNew;
+
+<span class="comment">-- $DESCR</span>
+
+<span class="comment">--   create new class (with possible inheritance)</span>
+
+<span class="comment">-- $IN</span>
+
+<span class="comment">--   class parent</span>
+
+<span class="comment">--     parent or nil</span>
+
+<span class="comment">--   nil/str className</span>
+
+<span class="comment">--     class name</span>
+
+<span class="comment">-- $OUT</span>
+
+<span class="comment">--   class</span>
+
+<span class="keyword">function</span> class (parent, className)
+
+  <span class="keyword">if</span> className == <span class="keyword">nil</span> <span class="keyword">and</span> <span class="library">type</span>(parent) == <span class="string">"string"</span> <span class="keyword">then</span> className, parent = parent, <span class="keyword">nil</span>; <span class="keyword">end</span>;
+
+  <span class="keyword">local</span> res = {
+
+    New = classNew,
+
+    _className = className <span class="keyword">or</span> <span class="string">"&lt;unnamed&gt;"</span>,
+
+    _parent = parent,
+
+    _fields = {},
+
+    __call = classNew,
+
+    __index = findField,
+
+    __newindex = newField,
+
+  };
+
+  <span class="library">setmetatable</span>(res, res);
+
+  <span class="keyword">if</span> <span class="keyword">not</span> res.isA <span class="keyword">then</span>
+
+    <span class="comment">-- no 'isA' method, add it</span>
+
+    res.isA = <span class="keyword">function</span> (self, class)
+
+      <span class="keyword">while</span> self <span class="keyword">do</span>
+
+        <span class="keyword">if</span> self == class <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">true</span>; <span class="keyword">end</span>;
+
+        self = <span class="library">rawget</span>(self, <span class="string">"_parent"</span>);
+
+      <span class="keyword">end</span>;
+
+      <span class="keyword">return</span> <span class="keyword">false</span>;
+
+    <span class="keyword">end</span>;
+
+  <span class="keyword">end</span>;
+
+  <span class="keyword">return</span> res;
+
+<span class="keyword">end</span>;
+
+
+
+
+
+<span class="comment">-- $DESCR</span>
+
+<span class="comment">--   create new class instance</span>
+
+<span class="comment">-- $IN</span>
+
+<span class="comment">--   class</span>
+
+<span class="comment">--     class definition</span>
+
+<span class="comment">--   ...</span>
+
+<span class="comment">--     constructor args</span>
+
+<span class="comment">-- $OUT</span>
+
+<span class="comment">--   class_instance</span>
+
+classNew = <span class="keyword">function</span> (classDef, ...)
+
+  <span class="keyword">local</span> res = class(classDef, <span class="library">rawget</span>(classDef, <span class="string">"_className"</span>));
+
+  <span class="keyword">if</span> <span class="keyword">not</span> newlua <span class="keyword">then</span>
+
+    <span class="comment">-- this trick registers "object finalizer" in Lua 5.1</span>
+
+    <span class="keyword">local</span> proxy = <span class="library">newproxy</span>(<span class="keyword">true</span>); <span class="comment">-- create proxy (userdata) with empty metatable</span>
+
+    <span class="keyword">local</span> mt = <span class="library">getmetatable</span>(proxy);
+
+    mt.__gc = <span class="keyword">function</span> ()
+
+      <span class="keyword">local</span> dd = res.Destructor;
+
+      <span class="keyword">if</span> dd <span class="keyword">then</span> dd(res); <span class="keyword">end</span>;
+
+    <span class="keyword">end</span>;
+
+    <span class="library">rawset</span>(res, <span class="string">"__gc"</span>, proxy);
+
+  <span class="keyword">else</span>
+
+    <span class="comment">-- this trick registers "object finalizer" in Lua 5.2</span>
+
+    <span class="keyword">local</span> mt = <span class="library">getmetatable</span>(res);
+
+    <span class="library">rawset</span>(mt, <span class="string">"__gc"</span>, <span class="keyword">function</span> ()
+
+      <span class="keyword">local</span> dd = res.Destructor;
+
+      <span class="keyword">if</span> dd <span class="keyword">then</span> dd(res); <span class="keyword">end</span>;
+
+    <span class="keyword">end</span>);
+
+    <span class="library">setmetatable</span>(res, mt);
+
+  <span class="keyword">end</span>;
+
+  <span class="comment">-- end of "object finalizer" trick</span>
+
+  <span class="keyword">local</span> cc = res.Constructor; <span class="keyword">if</span> cc <span class="keyword">then</span> cc(res, ...); <span class="keyword">end</span>;
+
+  <span class="keyword">return</span> res;
+
+<span class="keyword">end</span>;
+
+
+
+
+
+<span class="keyword">if</span> newlua <span class="keyword">then</span>
+
+  _klassG.class = class;
+
+<span class="keyword">else</span>
+
+  <span class="library">_G</span>.class = class;
+
+<span class="keyword">end</span>;
+
+</pre>
+
+</DL>
+<p>
+and a testcase:
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"klass"</span>;
+
+
+
+<span class="library">print</span>(<span class="string">"\n\n==============================="</span>);
+
+
+
+
+
+<span class="keyword">local</span> BaseClass = class(<span class="string">"base"</span>);
+
+<span class="keyword">function</span> BaseClass:Constructor (...)
+
+  <span class="library">print</span>(<span class="string">"BaseClass."</span>..method);
+
+<span class="keyword">end</span>;
+
+
+
+<span class="keyword">function</span> BaseClass:Me (...)
+
+  <span class="library">print</span>(<span class="string">"BaseClass."</span>..method);
+
+  <span class="library">print</span>(self);
+
+<span class="keyword">end</span>;
+
+
+
+<span class="keyword">function</span> BaseClass:ClassName (...)
+
+  <span class="library">print</span>(<span class="string">"BaseClass."</span>..method);
+
+  <span class="keyword">return</span> <span class="string">"BaseClass"</span>;
+
+<span class="keyword">end</span>;
+
+
+
+<span class="keyword">function</span> BaseClass:Test ()
+
+  <span class="library">print</span>(<span class="string">"BaseClass."</span>..method);
+
+  inherited(self);
+
+<span class="keyword">end</span>;
+
+
+
+<span class="keyword">function</span> BaseClass:Destructor ()
+
+  <span class="library">print</span>(<span class="string">"BaseClass."</span>..method);
+
+  <span class="library">print</span>(self);
+
+<span class="keyword">end</span>;
+
+
+
+
+
+<span class="keyword">local</span> NewClass = class(BaseClass, <span class="string">"new"</span>);
+
+<span class="keyword">function</span> NewClass:Constructor (...)
+
+  <span class="library">print</span>(<span class="string">"NewClass."</span>..method);
+
+  inherited(self);
+
+<span class="keyword">end</span>;
+
+
+
+<span class="keyword">function</span> NewClass:ClassName (...)
+
+  <span class="library">print</span>(<span class="string">"NewClass."</span>..method);
+
+  <span class="keyword">return</span> <span class="string">"NewClass"</span>;
+
+<span class="keyword">end</span>;
+
+
+
+<span class="keyword">function</span> NewClass:Destructor ()
+
+  <span class="library">print</span>(<span class="string">"NewClass."</span>..method);
+
+  <span class="library">print</span>(self);
+
+  inherited(self);
+
+  <span class="library">print</span>(<span class="string">"NewClass instance is dead"</span>);
+
+<span class="keyword">end</span>;
+
+
+
+
+
+<span class="library">print</span>(<span class="string">"\27[37;1mcreating BaseClass instance...\27[0m"</span>);
+
+<span class="keyword">local</span> bc = BaseClass();
+
+<span class="library">print</span>(<span class="string">"\27[37;1mcreating NewClass instance...\27[0m"</span>);
+
+<span class="keyword">local</span> nc = NewClass();
+
+
+
+<span class="keyword">function</span> nc:Test ()
+
+  <span class="library">print</span>(<span class="string">"!!!"</span>);
+
+  inherited(self);
+
+<span class="keyword">end</span>;
+
+
+
+<span class="library">print</span>(<span class="string">"\27[37;1mbc:ClassName()\27[0m"</span>);
+
+<span class="library">print</span>(bc:ClassName());
+
+<span class="library">print</span>(<span class="string">"\27[37;1mnc:ClassName()\27[0m"</span>);
+
+<span class="library">print</span>(nc:ClassName());
+
+
+
+<span class="library">print</span>(<span class="string">"\27[37;1mbc:Me()\27[0m"</span>);
+
+bc:Me();
+
+<span class="library">print</span>(<span class="string">"\27[37;1mnc:Me()\27[0m"</span>);
+
+nc:Me();
+
+<span class="library">print</span>(<span class="string">"\27[37;1mnc:Test()\27[0m"</span>);
+
+nc:Test();
+
+
+
+<span class="comment">--[[
+
+print(BaseClass);
+
+print(NewClass);
+
+print(nc.parent);
+
+print(nc.parent.parent);
+
+]]</span>
+
+<span class="library">print</span>(<span class="string">"nc:isA(bc): "</span>..<span class="library">tostring</span>(nc:isA(bc)));
+
+<span class="library">print</span>(<span class="string">"nc:isA(BaseClass): "</span>..<span class="library">tostring</span>(nc:isA(BaseClass)));
+
+
+
+<span class="library">print</span>(<span class="string">"\27[37;1mdone\27[0m"</span>);
+
+
+
+bc = <span class="keyword">nil</span>; nc = <span class="keyword">nil</span>;
+
+<span class="library">collectgarbage</span>(<span class="string">"collect"</span>);
+
+<span class="library">collectgarbage</span>(<span class="string">"collect"</span>);
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=KlassModule" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=KlassModule" >history</a><br>Last edited August 30, 2011 3:03 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=KlassModule" >(diff)</a>
+</body>
+</html>

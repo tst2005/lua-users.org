@@ -1,0 +1,288 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Strings Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=StringsTutorial&amp;body=1" title="List pages referring to StringsTutorial">Strings Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Quotes</H2>
+<p>
+Strings are introduced in section 2.1 of the Reference Manual <a href="http://www.lua.org/manual/5.1/manual.html#2.1">[1]</a>. Strings can be defined using single quotes, double quotes, or double square brackets.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="string">"hello"</span>
+
+hello
+
+&gt; = <span class="string">'hello'</span>
+
+hello
+
+&gt; = <span class="string">[[hello]]</span>
+
+hello
+
+</pre>
+
+</DL>
+<p>
+Why so many ways to make a string?  It allows you to enclose one type of quotes in the other. e.g.,
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="string">'hello "Lua user"'</span>
+
+hello <span class="string">"Lua user"</span>
+
+&gt; = <span class="string">"Its [[content]] hasn't got a substring."</span>
+
+Its <span class="string">[[content]]</span> hasn<span class="string">'t got a substring.
+
+&gt; = [[Let'</span>s have more <span class="string">"strings"</span> please.]]
+
+Let's have more <span class="string">"strings"</span> please.
+
+</pre>
+
+</DL>
+<p>
+Double bracketed strings also have a few other special properties, discussed below.
+<p>
+<H2>Escape sequences</H2>
+<p>
+Lua can also handle C-like escape sequences. There are more details in the Reference Manual, section 2.1 <a href="http://www.lua.org/manual/5.1/manual.html#2.1">[1]</a>.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="string">"hello \"Lua user\""</span>
+
+hello <span class="string">"Lua user"</span>
+
+&gt; = <span class="string">'hello\nNew line\tTab'</span>
+
+hello
+
+New line        Tab
+
+</pre>
+
+</DL>
+<p>
+Escape sequences are not recognized when using double brackets, so:
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="string">[[hello\nNew line\tTab]]</span>
+
+
+
+hello\nNew line\tTab
+
+</pre>
+
+</DL>
+<p>
+<H2>Multiline quotes</H2>
+<p>
+Double square brackets can be used to enclose literal strings which traverse several lines. e.g.,
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="string">[[Multiple lines of text
+
+&gt;&gt; can be enclosed in double square
+
+&gt;&gt; brackets.]]</span>
+
+Multiple lines of text
+
+can be enclosed <span class="keyword">in</span> double square
+
+brackets.
+
+</pre>
+
+</DL>
+<p>
+<H3>Nesting quotes</H3>
+<p>
+Double square brackets allow nesting, but they require one or more <code>=</code> inserted in the outer-most brackets to distinguish them.  It doesn't matter how many <code>=</code> are inserted, as long as the number is the same in the beginning and ending brackets.
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="string">[[one [[two]]</span> one]]        <span class="comment">-- bad</span>
+
+stdin:1: nesting of <span class="string">[[...]]</span> is deprecated near <span class="string">'['</span>
+
+&gt; = <span class="string">[=[one [[two]] one]=]</span>      <span class="comment">-- ok</span>
+
+one <span class="string">[[two]]</span> one
+
+&gt; = <span class="string">[===[one [[two]] one]===]</span>  <span class="comment">-- ok too</span>
+
+one <span class="string">[[two]]</span> one
+
+&gt; = <span class="string">[=[one [ [==[ one]=]</span>       <span class="comment">-- ok. nothing special about the inner content.</span>
+
+one [ [==[ one
+
+</pre>
+
+</DL>
+<p>
+<H2>Concatenation</H2>
+<p>
+Strings can be joined together using the concatenation operator "<code>..</code>". e.g.,
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="string">"hello"</span> .. <span class="string">" Lua user"</span>
+
+hello Lua user
+
+&gt; who = <span class="string">"Lua user"</span>
+
+&gt; = <span class="string">"hello "</span>..who
+
+hello Lua user
+
+</pre>
+
+</DL>
+Numbers can be concatenated to strings. In this case they are <em>coerced</em> into strings and then concatenated. You can read more about coercion below.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="string">"Green bottles: "</span>..10
+
+Green bottles: 10
+
+&gt; = <span class="library">type</span>(<span class="string">"Green bottles: "</span>..10)
+
+<span class="library">string</span>
+
+</pre>
+
+</DL>
+<p>
+Doing a large number of concatenation operations may be slow because each concatenation may allocate a new string in memory.  The following three examples give the same result except the first may be much slower:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- slow</span>
+
+<span class="keyword">local</span> s = <span class="string">''</span>
+
+<span class="keyword">for</span> i=1,10000 <span class="keyword">do</span> s = s .. <span class="library">math.random</span>() .. <span class="string">','</span> <span class="keyword">end</span>
+
+<span class="library">io.stdout</span>:write(s)
+
+
+
+<span class="comment">-- fast</span>
+
+<span class="keyword">for</span> i=1,10000 <span class="keyword">do</span> <span class="library">io.stdout</span>:write(<span class="library">tostring</span>(<span class="library">math.random</span>()), <span class="string">','</span>) <span class="keyword">end</span>
+
+
+
+<span class="comment">-- fast, but uses more memory</span>
+
+<span class="keyword">local</span> t = {}
+
+<span class="keyword">for</span> i=1,10000 <span class="keyword">do</span> t[i] = <span class="library">tostring</span>(<span class="library">math.random</span>()) <span class="keyword">end</span>
+
+<span class="library">io.stdout</span>:write(<span class="library">table.concat</span>(t,<span class="string">','</span>), <span class="string">','</span>) 
+
+</pre>
+
+</DL>
+<p>
+<H2>The string library</H2>
+<p>
+Lua supplies a range of useful functions for processing and manipulating strings in its standard library. More details are supplied in the <a href="../wiki/StringLibraryTutorial.html" >StringLibraryTutorial</a>. Below are a few examples of usage of the string library.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">string.byte</span>(<span class="string">"ABCDE"</span>, 2) <span class="comment">-- return the ASCII value of the second character</span>
+
+66
+
+&gt; = <span class="library">string.char</span>(65,66,67,68,69) <span class="comment">-- return a string constructed from ASCII values</span>
+
+ABCDE
+
+&gt; = <span class="library">string.find</span>(<span class="string">"hello Lua user"</span>, <span class="string">"Lua"</span>) <span class="comment">-- find substring "Lua"</span>
+
+7       9
+
+&gt; = <span class="library">string.find</span>(<span class="string">"hello Lua user"</span>, <span class="string">"l+"</span>) <span class="comment">-- find one or more occurrences of "l"</span>
+
+3       4
+
+&gt; = <span class="library">string.format</span>(<span class="string">"%.7f"</span>, <span class="library">math.pi</span>) <span class="comment">-- format a number</span>
+
+3.1415927
+
+&gt; = <span class="library">string.format</span>(<span class="string">"%8s"</span>, <span class="string">"Lua"</span>) <span class="comment">-- format a string</span>
+
+     Lua
+
+</pre>
+
+</DL>
+<p>
+<H2>Coercion</H2>
+<p>
+Lua performs automatic conversion of numbers to strings and vice versa where it is appropriate. This is called <em>coercion</em>.
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="string">"This is Lua version "</span> .. 5.1 .. <span class="string">" we are using."</span>
+
+This is Lua version 5.1 we are using.
+
+&gt; = <span class="string">"Pi = "</span> .. <span class="library">math.pi</span>
+
+Pi = 3.1415926535898
+
+&gt; = <span class="string">"Pi = "</span> .. 3.1415927
+
+Pi = 3.1415927
+
+</pre>
+
+</DL>
+As shown above, during coercion, we do not have full control over the formatting of the conversion. To format the number as a string as we would like we can use the <code>string.format()</code> function. e.g.,
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">string.format</span>(<span class="string">"%.3f"</span>, 5.1)
+
+5.100
+
+&gt; = <span class="string">"Lua version "</span> .. <span class="library">string.format</span>(<span class="string">"%.1f"</span>, 5.1)
+
+Lua version 5.1
+
+</pre>
+
+</DL>
+This is explicit conversion using a function to convert the number, rather than coercion. You can read more about coercion of numbers in the <a href="../wiki/NumbersTutorial.html" >NumbersTutorial</a>.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=StringsTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=StringsTutorial" >history</a><br>Last edited October 22, 2013 7:53 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=StringsTutorial" >(diff)</a>
+</body>
+</html>

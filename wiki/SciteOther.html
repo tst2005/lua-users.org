@@ -1,0 +1,208 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Other</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteOther&amp;body=1" title="List pages referring to SciteOther">Scite Other</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The <a href="../wiki/SciteOther.html" >SciteOther</a> library is a small DLL with a Lua driver,
+which allows you to control another instance of SciTE.
+For instance, <code>OpenOther(file)</code> will open file in another 
+SciTE window; if there isn't any, SciTE will be launched
+again. In these notes, when I speak of another 'window' I
+will mean another <em>instance</em> of SciTE (what an Emacs person
+would call another 'frame')
+<p>
+You can find the DLL (compiled and as source) with the driver
+at <a href="http://home.mweb.co.za/sd/sdonovan/scite_other.zip">http://home.mweb.co.za/sd/sdonovan/scite_other.zip</a>.  Put
+the DLL in the same directory as your SciTE executable (the
+'default home') and load the Lua code from your Lua
+startup file.
+<p>
+The library uses the external SciTE Director interface
+to send commands to SciTE. A subset of these are given
+in the "Command line arguments" section of the SciTE
+help, but there are others available - the definitive
+reference is <code>SciTEBase::PerformOne</code> (SciTEBase.cxx, 4287)
+A general function <code>PerformOther(verb,arg)</code> is supplied,
+so <code>OpenOther(file)</code> is equivalent to <code>PerformOther('open',file)</code>.
+<p>
+<pre>
+
+close
+
+cwd            change working directory 
+
+find           search text 
+
+goto           line number[,column number] 
+
+open           file name 
+
+quit  
+
+replaceall     search text\000replacement text 
+
+saveas         file name 
+
+
+
+loadsession    session file
+
+extender       Lua expression
+
+menucommand    menu id
+
+
+
+These export commands apply to the currently shown file:
+
+
+
+exportashtml   output file
+
+exportasrtf    ''
+
+exportaspdf    ''
+
+exportaslatex  '' 
+
+exportasxml    ''
+
+</pre>
+<p>
+Remember that the argument to these 'verbs' must be
+a C (or Lua) style string. The director interface was
+designed this way so that one could search for special
+characters, etc.  For example, this will replace all
+tabs with spaces in the other window:
+<p>
+<pre>
+
+   PerformOther('replaceall','\t\000 ')
+
+</pre>
+<p>
+Here the octal constant \000 is used to separate the
+target from the replacement string.
+<p>
+Perhaps the verb with the most potential is 'extender',
+which allows you to execute Lua code in the other instance.
+For instance, this code will move to a position in the 
+other window, and call a Lua function to mark that position.
+<p>
+<pre>
+
+   PerformOther('goto',line)
+
+   PerformOther('extender','mark_current_line()')
+
+</pre>
+<p>
+The instance of SciTE which is running the show (so to
+speak) can also be driven by such commands, and this is
+suprisingly useful.  The function Perform executes these
+commands in the current window.  For example, 
+<code>Perform('close')</code> will close the current buffer. A particularly
+useful verb is 'menucommand', since this allows you full
+access to any SciTE functionality available through menus.
+I've supplied <code>Command(cmd)</code> to take advantage of this, and
+extracted most of the useful menu ids from SciTE.h.
+e.g. <code>Command 'IDM_BOOKMARK_TOGGLE'</code>  will set a bookmark at
+the cursor position.  
+<p>
+Finally, the <a href="../wiki/SciteOther.html" >SciteOther</a> library also supplies a 'quiet'
+replacement, <code>Execute(cmd)</code>, for <code>os.execute()</code>, which doesn't do
+that nasty flashing black box.
+<p>
+<H3>Notes and Limitations</H3>
+Currently <code>scite_other</code> will only work for Win32 platforms, but the
+equivalent Linux shared library would not be difficult to
+write. scite_other.c is in fact a good reference for people
+wishing to understand SciTE's Director interface.
+<p>
+<H3>Examples</H3>
+<p>
+This Lua function will close the current file and open it
+in another window.
+<p>
+<pre>
+
+  function open_in_other()
+
+    local file = props['FilePath']
+
+    Perform('close')
+
+    OpenOther(file)
+
+  end
+
+</pre>
+<p>
+Bookmarks are a very useful SciTE feature, but they do
+not force the line position to be in the middle of the
+screen.  Here's a replacement for 'Next Bookmark' 
+which forces the line to be in the middle.
+<p>
+<pre>
+
+  function next_bookmark()
+
+    Command 'IDM_BOOKMARK_NEXT'
+
+    local line = editor:LineFromPosition(editor.CurrentPos)
+
+    local top = editor.FirstVisibleLine
+
+    local middle = top + editor.LinesOnScreen/2
+
+    editor:LineScroll(0,line - middle)
+
+  end
+
+</pre>
+<p>
+This will find the supplied word in the other window
+and set a bookmark:
+<p>
+<pre>
+
+  function find_in_other(f)
+
+     PerformOther('find',f)
+
+     Command('IDM_BOOKMARK_TOGGLE','other')
+
+  end
+
+</pre>
+<p>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteOther" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteOther" >history</a><br>Last edited November 11, 2004 9:12 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteOther" >(diff)</a>
+</body>
+</html>

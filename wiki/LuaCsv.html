@@ -1,0 +1,132 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Csv</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaCsv&amp;body=1" title="List pages referring to LuaCsv">Lua Csv</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here's some resources on parsing CSV files in Lua.
+<p>
+<UL>
+<li> Programming in Lua - <a href="http://www.lua.org/pil/20.4.html">[1]</a> - has example code for parsing CSV files.
+<li> The Lpeg library - <a href="http://www.inf.puc-rio.br/~roberto/lpeg/#CSV">[2]</a> - also has example code for parsing CSV files.
+<li> <a href="/lists/lua-l/2009-08/msg00012.html">[LuaCSV]</a> is a C module for reading CSV
+<li> <a href="../wiki/CsvUtils.html" >CsvUtils</a> - some utility functions
+<li> The Lua Unofficial FAQ, has an entry "How to read CSV data?" <a href="http://batbytes.com/luafaq/#T2.6">[3]</a>
+</UL>
+<p>
+<H2>Parser in Lua</H2>
+<p>
+A simple parser for comma-separated-value (.csv) files:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> ParseCSVLine (line,sep) 
+
+	<span class="keyword">local</span> res = {}
+
+	<span class="keyword">local</span> pos = 1
+
+	sep = sep <span class="keyword">or</span> <span class="string">','</span>
+
+	<span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span> 
+
+		<span class="keyword">local</span> c = <span class="library">string.sub</span>(line,pos,pos)
+
+		<span class="keyword">if</span> (c == <span class="string">""</span>) <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+		<span class="keyword">if</span> (c == <span class="string">'"'</span>) <span class="keyword">then</span>
+
+			<span class="comment">-- quoted value (ignore separator within)</span>
+
+			<span class="keyword">local</span> txt = <span class="string">""</span>
+
+			<span class="keyword">repeat</span>
+
+				<span class="keyword">local</span> startp,endp = <span class="library">string.find</span>(line,<span class="string">'^%b""'</span>,pos)
+
+				txt = txt..<span class="library">string.sub</span>(line,startp+1,endp-1)
+
+				pos = endp + 1
+
+				c = <span class="library">string.sub</span>(line,pos,pos) 
+
+				<span class="keyword">if</span> (c == <span class="string">'"'</span>) <span class="keyword">then</span> txt = txt..<span class="string">'"'</span> <span class="keyword">end</span> 
+
+				<span class="comment">-- check first char AFTER quoted string, if it is another</span>
+
+				<span class="comment">-- quoted string without separator, then append it</span>
+
+				<span class="comment">-- this is the way to "escape" the quote char in a quote. example:</span>
+
+				<span class="comment">--   value1,"blub""blip""boing",value3  will result in blub"blip"boing  for the middle</span>
+
+			<span class="keyword">until</span> (c ~= <span class="string">'"'</span>)
+
+			<span class="library">table.insert</span>(res,txt)
+
+			<span class="library">assert</span>(c == sep <span class="keyword">or</span> c == <span class="string">""</span>)
+
+			pos = pos + 1
+
+		<span class="keyword">else</span>	
+
+			<span class="comment">-- no quotes used, just look for the first separator</span>
+
+			<span class="keyword">local</span> startp,endp = <span class="library">string.find</span>(line,sep,pos)
+
+			<span class="keyword">if</span> (startp) <span class="keyword">then</span> 
+
+				<span class="library">table.insert</span>(res,<span class="library">string.sub</span>(line,pos,startp-1))
+
+				pos = endp + 1
+
+			<span class="keyword">else</span>
+
+				<span class="comment">-- no separator found -&gt; use rest of string and terminate</span>
+
+				<span class="library">table.insert</span>(res,<span class="library">string.sub</span>(line,pos))
+
+				<span class="keyword">break</span>
+
+			<span class="keyword">end</span> 
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">return</span> res
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaCsv" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaCsv" >history</a><br>Last edited April 24, 2012 5:17 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaCsv" >(diff)</a>
+</body>
+</html>

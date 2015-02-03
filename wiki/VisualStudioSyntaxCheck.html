@@ -1,0 +1,245 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Visual Studio Syntax Check</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=VisualStudioSyntaxCheck&amp;body=1" title="List pages referring to VisualStudioSyntaxCheck">Visual Studio Syntax Check</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<hr><DL>
+<dt><dd><strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  It does not run as is under Lua 5.  A modern version can be based off of  <a href="../wiki/CompilingLuaScriptsInVisualStudio.html" >CompilingLuaScriptsInVisualStudio</a></strong>
+</DL>
+<p>
+<p>
+<hr>Below you can find my Script file that i (<a href="../wiki/PeterPrade.html" >PeterPrade</a>) use to do syntax checking of Lua files in MS Visual Studio 6.0.
+<p>
+name it <code>LuaCheck.lua</code> and put it your lua directory. Usage instructions are enclosed in the file:
+<hr><DL>
+<dt><dd><pre>
+
+-- uses the lua command line compiler to check the syntax of a lua file
+
+-- formats the output so as to MS DevStudio can understand the output
+
+-- and jump to the next error line
+
+--
+
+-- how to make it work?
+
+-- 
+
+-- just set up a new Tool (Tools/Customize/Tools) with the following options:
+
+-- Command           : lua.exe
+
+-- Arguments         : -f LuaCheck.lua "$(FilePath)"
+
+-- Initial directory : c:\lua (or wherever your lua.exe is located)
+
+-- Use Output Window : (checked)
+
+--
+
+-- After that, you can add a keyboard shortcut for this tool:
+
+-- (Tools/Customize/Tools) (select from Category: Tools, then from 
+
+-- Commands: UserToolX (where X is the number of the newly defined tool)
+
+-- then assign a new key to it...
+
+--
+
+-- Have Fun! 
+
+-- Peter Prade
+
+
+
+print("Lua Syntax Checking")
+
+print("--------------------")
+
+print()
+
+
+
+-- get argument - the file name
+
+if arg and arg[1] then
+
+  file = arg[1]
+
+  if strsub(file,-4,-1) ~= ".lua" then
+
+    print("warning: file has no .lua extension!")
+
+  end
+
+end
+
+
+
+-- define 3 tool functions out of my "standardlibrary":
+
+function readfile(name)
+
+  local f = openfile(name, "rt")
+
+  local s = read(f, "*a")
+
+  closefile(f)
+
+  return s
+
+end
+
+
+
+function tfind(t, s)
+
+  return foreachi(t, function(i, v) if v==%s then return i end end)
+
+end
+
+
+
+function tadd(t, v) 
+
+  if not tfind(t, v) then tinsert(t, v) end
+
+end
+
+
+
+-- reformat errors so that visual studio understands them:
+
+function outputerror(msg, last, line, file)
+
+  print(file .. "(" .. line .. "): error: " .. msg )
+
+  -- check if the error refers to another line:
+
+  gsub(msg, "%((.-) at line (.-)%)%;$", function(msg, line)
+
+    print(%file .. "(" .. line .. "): error: ... " .. msg ) 
+
+  end)
+
+  print(file .. "(" .. line .. "): error: " .. last)
+
+end
+
+
+
+-- format list of globals nicely:
+
+function printnice(t)
+
+  for i = 1, getn(t) do
+
+    write(t[i])
+
+    if i &lt; getn(t)-1 then 
+
+      write(", ")
+
+    elseif i &lt; getn(t) then 
+
+      write(" and ")
+
+    end
+
+    if mod(i,5)==0 then 
+
+      write("\n") 
+
+    end
+
+  end
+
+  if mod(getn(t),5)~=0 then 
+
+    write("\n") 
+
+  end
+
+end
+
+
+
+if file then -- check the specified file:
+
+  print("Calling lua compiler with "..file.." ...")
+
+  retval = execute("luac -p "..file.." 2&gt;LuaCheck.log")
+
+  _, errors = gsub(readfile("LuaCheck.log"), 
+
+    "luac%:(.-)\n  (last token read: `.-') at line (.-) in file `(.-)'",  
+
+    outputerror)
+
+  print(errors .. " compile error(s) found.")
+
+  if errors == 0 then
+
+    retval = execute("luac -l "..file.." &gt;LuaCheck.log")
+
+    s = readfile("LuaCheck.log")
+
+    names_set = {}
+
+    gsub(s, "%d+	%[%d+%]	SETGLOBAL  	%d+	; (.-)\n",  
+
+      function(name) tadd(names_set,name) end)
+
+    if getn(names_set)&gt;0 then
+
+      sort(names_set)
+
+      print(getn(names_set) .. " global variable(s) are created in the file: ")
+
+      printnice(names_set)
+
+    end
+
+  end
+
+else
+
+  print("error: no file to scan specified")
+
+end
+
+print() -- add empty line
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=VisualStudioSyntaxCheck" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=VisualStudioSyntaxCheck" >history</a><br>Last edited April 19, 2007 11:38 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=VisualStudioSyntaxCheck" >(diff)</a>
+</body>
+</html>

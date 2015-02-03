@@ -1,0 +1,704 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Data Dumper</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=DataDumper&amp;body=1" title="List pages referring to DataDumper">Data Dumper</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here is one of the multiple ways to implement the serialization of a table. <a href="../wiki/TableSerialization.html" >TableSerialization</a> lists many other solutions. This version is written for Lua 5.1 and is quite long, because it tries to be as generic as possible and to keep its output string human readable. The drawback is that it is not the fastest one, mainly because it returns a string and does not write to a temporarily file. Still, there is a "fast" mode with fewer features, when execution time (or memory) is important. The function is copyrighted on MIT license, so is is free to use even in a commercial product.
+<p>
+<code>DataDumper</code> consists of a single Lua function, which could easily be put in a separate module or integrated into a bigger one. The function has four parameters, but only the first one is mandatory. It always returns a string value, which is valid Lua code. Simply executing this chunk will import back to a variable the complete structure of the original variable. For simple structures, there is only one Lua instruction like a table constructor, but some more complex features will output a script with more instructions.
+<p>
+All the following language features are supported:
+<UL>
+<li> Simple Lua types: <em>nil</em>, <em>boolean</em>, <em>number</em>, <em>string</em>
+<li> Tables are dumped recursively
+<li> Table metatables are also dumped recursively
+<li> Simple Lua functions (no upvalue) are dumped with <code>loadstring</code>
+<li> Lua closures with upvalues are also supported, using the <code>debug</code> library!
+<li> Known C functions are output using their original name
+<li> Complex tables structures with internal references are supported
+</UL>
+<p>
+What is <strong>not</strong> supported since it seems to be impossible, are these types:
+<UL>
+<li> Both light and full userdata
+<li> Coroutines
+<li> Other C functions
+</UL>
+Here is the function declaration:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> DataDumper(value[, varname, fastmode, indent])
+
+</pre>
+
+</DL><UL>
+<li> <code>value</code> can be of any supported type
+<li> <code>varname</code>: optional variable name. Depending on its form, the output will look like:
+<UL>
+<li> <code>nil</code>: "<code>return</code> value"
+<li> identifier: "<code>varname =</code> value"
+<li> other: "<code>varname</code>".."value"
+</UL>
+<li> <code>fastmode</code> is a boolean value:
+<UL>
+<li> <code>true</code>: optimizes for speed. Metatables, closures, C functions and references are not supported. Returns a code chunk without any space or new line! 
+<li> <code>false</code>: supports all advanced features and favors readable code with good indentation.
+</UL>
+<li> <code>indent</code>: the number of additional indentation level. Default is 0.
+</UL>
+<p>
+<H3>Examples</H3>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Define a shortcut function for testing</span>
+
+<span class="keyword">function</span> dump(...)
+
+  <span class="library">print</span>(DataDumper(...), <span class="string">"\n---"</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Simple types:</span>
+
+dump(8)         <span class="comment">--&gt; return 8</span>
+
+dump(<span class="keyword">true</span>)      <span class="comment">--&gt; return true</span>
+
+dump()          <span class="comment">--&gt; return nil</span>
+
+dump(<span class="string">'Hello'</span>)   <span class="comment">--&gt; return "Hello"</span>
+
+
+
+<span class="comment">-- Functions:</span>
+
+f1 = <span class="library">print</span>
+
+<span class="keyword">function</span> f2() <span class="keyword">return</span> <span class="string">"Hello"</span> <span class="keyword">end</span>
+
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> val = 9
+
+  <span class="keyword">function</span> f3() <span class="keyword">return</span> val <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+dump(f1)        <span class="comment">--&gt; return print</span>
+
+dump(f2)        <span class="comment">--&gt; return loadstring("?LuaQ\000...</span>
+
+dump(f3)        <span class="comment">--[[ the following 16 lines script:
+
+local closures = {}
+
+local function closure(t)
+
+  closures[#closures+1] = t
+
+  t[1] = assert(loadstring(t[1]))
+
+  return t[1]
+
+end
+
+local t = closure {
+
+  "?LuaQ\000...",
+
+  9
+
+}
+
+for _,t in pairs(closures) do
+
+  for i = 2,#t do
+
+    debug.setupvalue(t[1], i-1, t[i])
+
+  end
+
+end]]</span>
+
+
+
+<span class="comment">-- Tables:</span>
+
+dump({})        <span class="comment">--&gt; return {  }</span>
+
+dump({1,2,3})   <span class="comment">--&gt; return { 1, 2, 3 }</span>
+
+dump({a=9,b=2}) <span class="comment">--&gt; return { a=9, b=2 }</span>
+
+t1 = <span class="library">setmetatable</span>({1},{2})
+
+t2 = {}; t2.next = t2
+
+t3 = {[<span class="keyword">false</span>] = <span class="keyword">true</span>, <span class="string">'Hello'</span>, [<span class="string">"key1"</span>] = 10, [<span class="string">"function"</span>] = <span class="string">"keyword"</span>, {1,2}}
+
+<span class="library">setmetatable</span>(t3, {__index = t2})
+
+t3[3] = t2
+
+dump(t1)        <span class="comment">--&gt; return setmetatable({ 1 },{ 2 })</span>
+
+dump(t2)        <span class="comment">--[[ the following 3 lines script:
+
+local t = { next=nil }
+
+t.next = t
+
+return t
+
+]]</span>
+
+dump(t3)        <span class="comment">--[[ the following 14 lines script:
+
+local t = setmetatable(
+
+  {
+
+    [false]=true,
+
+    "Hello",
+
+    { 1, 2 },
+
+    { next=nil },
+
+    ["function"] = "keyword",
+
+    key1=10
+
+  },
+
+  { __index={ next=nil } }
+
+)
+
+getmetatable(t).__index.next = getmetatable(t).__index
+
+t[3].next = t[3]
+
+return t
+
+]]</span>
+
+
+
+<span class="comment">-- Parameters</span>
+
+dump(t1, <span class="string">'a'</span>)   <span class="comment">--&gt; a = setmetatable({ 1 },{ 2 })</span>
+
+dump({}, <span class="string">''</span>)    <span class="comment">--&gt; {  }</span>
+
+dump({ { {} } },a,<span class="keyword">true</span>) <span class="comment">--&gt; return {{{},},}                      </span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+<p>
+<H3>Main code</H3>
+<p>
+<a href="/files/wiki_insecure/dumper.lua">Files:wiki_insecure/dumper.lua</a>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--[[ DataDumper.lua
+
+Copyright (c) 2007 Olivetti-Engineering SA
+
+
+
+Permission is hereby granted, free of charge, to any person
+
+obtaining a copy of this software and associated documentation
+
+files (the "Software"), to deal in the Software without
+
+restriction, including without limitation the rights to use,
+
+copy, modify, merge, publish, distribute, sublicense, and/or sell
+
+copies of the Software, and to permit persons to whom the
+
+Software is furnished to do so, subject to the following
+
+conditions:
+
+
+
+The above copyright notice and this permission notice shall be
+
+included in all copies or substantial portions of the Software.
+
+
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+
+OTHER DEALINGS IN THE SOFTWARE.
+
+]]</span>
+
+
+
+<span class="keyword">local</span> dumplua_closure = <span class="string">[[
+
+local closures = {}
+
+local function closure(t) 
+
+  closures[#closures+1] = t
+
+  t[1] = assert(loadstring(t[1]))
+
+  return t[1]
+
+end
+
+
+
+for _,t in pairs(closures) do
+
+  for i = 2,#t do 
+
+    debug.setupvalue(t[1], i-1, t[i]) 
+
+  end 
+
+end
+
+]]</span>
+
+
+
+<span class="keyword">local</span> lua_reserved_keywords = {
+
+  <span class="string">'and'</span>, <span class="string">'break'</span>, <span class="string">'do'</span>, <span class="string">'else'</span>, <span class="string">'elseif'</span>, <span class="string">'end'</span>, <span class="string">'false'</span>, <span class="string">'for'</span>, 
+
+  <span class="string">'function'</span>, <span class="string">'if'</span>, <span class="string">'in'</span>, <span class="string">'local'</span>, <span class="string">'nil'</span>, <span class="string">'not'</span>, <span class="string">'or'</span>, <span class="string">'repeat'</span>, 
+
+  <span class="string">'return'</span>, <span class="string">'then'</span>, <span class="string">'true'</span>, <span class="string">'until'</span>, <span class="string">'while'</span> }
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> keys(t)
+
+  <span class="keyword">local</span> res = {}
+
+  <span class="keyword">local</span> oktypes = { stringstring = <span class="keyword">true</span>, numbernumber = <span class="keyword">true</span> }
+
+  <span class="keyword">local</span> <span class="keyword">function</span> cmpfct(a,b)
+
+    <span class="keyword">if</span> oktypes[<span class="library">type</span>(a)..<span class="library">type</span>(b)] <span class="keyword">then</span>
+
+      <span class="keyword">return</span> a &lt; b
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">return</span> <span class="library">type</span>(a) &lt; <span class="library">type</span>(b)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">for</span> k <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+    res[#res+1] = k
+
+  <span class="keyword">end</span>
+
+  <span class="library">table.sort</span>(res, cmpfct)
+
+  <span class="keyword">return</span> res
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> c_functions = {}
+
+<span class="keyword">for</span> _,lib <span class="keyword">in</span> <span class="library">pairs</span>{<span class="string">'_G'</span>, <span class="string">'string'</span>, <span class="string">'table'</span>, <span class="string">'math'</span>, 
+
+    <span class="string">'io'</span>, <span class="string">'os'</span>, <span class="string">'coroutine'</span>, <span class="string">'package'</span>, <span class="string">'debug'</span>} <span class="keyword">do</span>
+
+  <span class="keyword">local</span> t = <span class="library">_G</span>[lib] <span class="keyword">or</span> {}
+
+  lib = lib .. <span class="string">"."</span>
+
+  <span class="keyword">if</span> lib == <span class="string">"_G."</span> <span class="keyword">then</span> lib = <span class="string">""</span> <span class="keyword">end</span>
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(v) == <span class="string">'function'</span> <span class="keyword">and</span> <span class="keyword">not</span> <span class="library">pcall</span>(<span class="library">string.dump</span>, v) <span class="keyword">then</span>
+
+      c_functions[v] = lib..k
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> DataDumper(value, varname, fastmode, ident)
+
+  <span class="keyword">local</span> defined, dumplua = {}
+
+  <span class="comment">-- Local variables for speed optimization</span>
+
+  <span class="keyword">local</span> string_format, <span class="library">type</span>, string_dump, string_rep = 
+
+        <span class="library">string.format</span>, <span class="library">type</span>, <span class="library">string.dump</span>, <span class="library">string.rep</span>
+
+  <span class="keyword">local</span> <span class="library">tostring</span>, <span class="library">pairs</span>, table_concat = 
+
+        <span class="library">tostring</span>, <span class="library">pairs</span>, <span class="library">table.concat</span>
+
+  <span class="keyword">local</span> keycache, strvalcache, out, closure_cnt = {}, {}, {}, 0
+
+  <span class="library">setmetatable</span>(strvalcache, {__index = <span class="keyword">function</span>(t,value)
+
+    <span class="keyword">local</span> res = string_format(<span class="string">'%q'</span>, value)
+
+    t[value] = res
+
+    <span class="keyword">return</span> res
+
+  <span class="keyword">end</span>})
+
+  <span class="keyword">local</span> fcts = {
+
+    <span class="library">string</span> = <span class="keyword">function</span>(value) <span class="keyword">return</span> strvalcache[value] <span class="keyword">end</span>,
+
+    number = <span class="keyword">function</span>(value) <span class="keyword">return</span> value <span class="keyword">end</span>,
+
+    boolean = <span class="keyword">function</span>(value) <span class="keyword">return</span> <span class="library">tostring</span>(value) <span class="keyword">end</span>,
+
+    [<span class="string">'nil'</span>] = <span class="keyword">function</span>(value) <span class="keyword">return</span> <span class="string">'nil'</span> <span class="keyword">end</span>,
+
+    [<span class="string">'function'</span>] = <span class="keyword">function</span>(value) 
+
+      <span class="keyword">return</span> string_format(<span class="string">"loadstring(%q)"</span>, string_dump(value)) 
+
+    <span class="keyword">end</span>,
+
+    userdata = <span class="keyword">function</span>() <span class="library">error</span>(<span class="string">"Cannot dump userdata"</span>) <span class="keyword">end</span>,
+
+    thread = <span class="keyword">function</span>() <span class="library">error</span>(<span class="string">"Cannot dump threads"</span>) <span class="keyword">end</span>,
+
+  }
+
+  <span class="keyword">local</span> <span class="keyword">function</span> test_defined(value, path)
+
+    <span class="keyword">if</span> defined[value] <span class="keyword">then</span>
+
+      <span class="keyword">if</span> path:match(<span class="string">"^getmetatable.*%)$"</span>) <span class="keyword">then</span>
+
+        out[#out+1] = string_format(<span class="string">"s%s, %s)\n"</span>, path:sub(2,-2), defined[value])
+
+      <span class="keyword">else</span>
+
+        out[#out+1] = path .. <span class="string">" = "</span> .. defined[value] .. <span class="string">"\n"</span>
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> <span class="keyword">true</span>
+
+    <span class="keyword">end</span>
+
+    defined[value] = path
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> make_key(t, key)
+
+    <span class="keyword">local</span> s
+
+    <span class="keyword">if</span> <span class="library">type</span>(key) == <span class="string">'string'</span> <span class="keyword">and</span> key:match(<span class="string">'^[_%a][_%w]*$'</span>) <span class="keyword">then</span>
+
+      s = key .. <span class="string">"="</span>
+
+    <span class="keyword">else</span>
+
+      s = <span class="string">"["</span> .. dumplua(key, 0) .. <span class="string">"]="</span>
+
+    <span class="keyword">end</span>
+
+    t[key] = s
+
+    <span class="keyword">return</span> s
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">for</span> _,k <span class="keyword">in</span> <span class="library">ipairs</span>(lua_reserved_keywords) <span class="keyword">do</span>
+
+    keycache[k] = <span class="string">'["'</span>..k..<span class="string">'"] = '</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> fastmode <span class="keyword">then</span> 
+
+    fcts.table = <span class="keyword">function</span> (value)
+
+      <span class="comment">-- Table value</span>
+
+      <span class="keyword">local</span> numidx = 1
+
+      out[#out+1] = <span class="string">"{"</span>
+
+      <span class="keyword">for</span> key,val <span class="keyword">in</span> <span class="library">pairs</span>(value) <span class="keyword">do</span>
+
+        <span class="keyword">if</span> key == numidx <span class="keyword">then</span>
+
+          numidx = numidx + 1
+
+        <span class="keyword">else</span>
+
+          out[#out+1] = keycache[key]
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">local</span> str = dumplua(val)
+
+        out[#out+1] = str..<span class="string">","</span>
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> <span class="library">string.sub</span>(out[#out], -1) == <span class="string">","</span> <span class="keyword">then</span>
+
+        out[#out] = <span class="library">string.sub</span>(out[#out], 1, -2);
+
+      <span class="keyword">end</span>
+
+      out[#out+1] = <span class="string">"}"</span>
+
+      <span class="keyword">return</span> <span class="string">""</span> 
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">else</span> 
+
+    fcts.table = <span class="keyword">function</span> (value, ident, path)
+
+      <span class="keyword">if</span> test_defined(value, path) <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">"nil"</span> <span class="keyword">end</span>
+
+      <span class="comment">-- Table value</span>
+
+      <span class="keyword">local</span> sep, str, numidx, totallen = <span class="string">" "</span>, {}, 1, 0
+
+      <span class="keyword">local</span> meta, metastr = (<span class="library">debug</span> <span class="keyword">or</span> <span class="library">getfenv</span>()).getmetatable(value)
+
+      <span class="keyword">if</span> meta <span class="keyword">then</span>
+
+        ident = ident + 1
+
+        metastr = dumplua(meta, ident, <span class="string">"getmetatable("</span>..path..<span class="string">")"</span>)
+
+        totallen = totallen + #metastr + 16
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">for</span> _,key <span class="keyword">in</span> <span class="library">pairs</span>(keys(value)) <span class="keyword">do</span>
+
+        <span class="keyword">local</span> val = value[key]
+
+        <span class="keyword">local</span> s = <span class="string">""</span>
+
+        <span class="keyword">local</span> subpath = path
+
+        <span class="keyword">if</span> key == numidx <span class="keyword">then</span>
+
+          subpath = subpath .. <span class="string">"["</span> .. numidx .. <span class="string">"]"</span>
+
+          numidx = numidx + 1
+
+        <span class="keyword">else</span>
+
+          s = keycache[key]
+
+          <span class="keyword">if</span> <span class="keyword">not</span> s:match <span class="string">"^%["</span> <span class="keyword">then</span> subpath = subpath .. <span class="string">"."</span> <span class="keyword">end</span>
+
+          subpath = subpath .. s:gsub(<span class="string">"%s*=%s*$"</span>,<span class="string">""</span>)
+
+        <span class="keyword">end</span>
+
+        s = s .. dumplua(val, ident+1, subpath)
+
+        str[#str+1] = s
+
+        totallen = totallen + #s + 2
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">if</span> totallen &gt; 80 <span class="keyword">then</span>
+
+        sep = <span class="string">"\n"</span> .. string_rep(<span class="string">"  "</span>, ident+1)
+
+      <span class="keyword">end</span>
+
+      str = <span class="string">"{"</span>..sep..table_concat(str, <span class="string">","</span>..sep)..<span class="string">" "</span>..sep:sub(1,-3)..<span class="string">"}"</span> 
+
+      <span class="keyword">if</span> meta <span class="keyword">then</span>
+
+        sep = sep:sub(1,-3)
+
+        <span class="keyword">return</span> <span class="string">"setmetatable("</span>..sep..str..<span class="string">","</span>..sep..metastr..sep:sub(1,-3)..<span class="string">")"</span>
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> str
+
+    <span class="keyword">end</span>
+
+    fcts[<span class="string">'function'</span>] = <span class="keyword">function</span> (value, ident, path)
+
+      <span class="keyword">if</span> test_defined(value, path) <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">"nil"</span> <span class="keyword">end</span>
+
+      <span class="keyword">if</span> c_functions[value] <span class="keyword">then</span>
+
+        <span class="keyword">return</span> c_functions[value]
+
+      <span class="keyword">elseif</span> <span class="library">debug</span> == <span class="keyword">nil</span> <span class="keyword">or</span> <span class="library">debug.getupvalue</span>(value, 1) == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+        <span class="keyword">return</span> string_format(<span class="string">"loadstring(%q)"</span>, string_dump(value))
+
+      <span class="keyword">end</span>
+
+      closure_cnt = closure_cnt + 1
+
+      <span class="keyword">local</span> res = {<span class="library">string.dump</span>(value)}
+
+      <span class="keyword">for</span> i = 1,<span class="library">math.huge</span> <span class="keyword">do</span>
+
+        <span class="keyword">local</span> name, v = <span class="library">debug.getupvalue</span>(value,i)
+
+        <span class="keyword">if</span> name == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+        res[i+1] = v
+
+      <span class="keyword">end</span>
+
+      <span class="keyword">return</span> <span class="string">"closure "</span> .. dumplua(res, ident, <span class="string">"closures["</span>..closure_cnt..<span class="string">"]"</span>)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">function</span> dumplua(value, ident, path)
+
+    <span class="keyword">return</span> fcts[<span class="library">type</span>(value)](value, ident, path)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> varname == <span class="keyword">nil</span> <span class="keyword">then</span>
+
+    varname = <span class="string">"return "</span>
+
+  <span class="keyword">elseif</span> varname:match(<span class="string">"^[%a_][%w_]*$"</span>) <span class="keyword">then</span>
+
+    varname = varname .. <span class="string">" = "</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> fastmode <span class="keyword">then</span>
+
+    <span class="library">setmetatable</span>(keycache, {__index = make_key })
+
+    out[1] = varname
+
+    <span class="library">table.insert</span>(out,dumplua(value, 0))
+
+    <span class="keyword">return</span> <span class="library">table.concat</span>(out)
+
+  <span class="keyword">else</span>
+
+    <span class="library">setmetatable</span>(keycache, {__index = make_key })
+
+    <span class="keyword">local</span> items = {}
+
+    <span class="keyword">for</span> i=1,10 <span class="keyword">do</span> items[i] = <span class="string">''</span> <span class="keyword">end</span>
+
+    items[3] = dumplua(value, ident <span class="keyword">or</span> 0, <span class="string">"t"</span>)
+
+    <span class="keyword">if</span> closure_cnt &gt; 0 <span class="keyword">then</span>
+
+      items[1], items[6] = dumplua_closure:match(<span class="string">"(.*\n)\n(.*)"</span>)
+
+      out[#out+1] = <span class="string">""</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> #out &gt; 0 <span class="keyword">then</span>
+
+      items[2], items[4] = <span class="string">"local t = "</span>, <span class="string">"\n"</span>
+
+      items[5] = <span class="library">table.concat</span>(out)
+
+      items[7] = varname .. <span class="string">"t"</span>
+
+    <span class="keyword">else</span>
+
+      items[2] = varname
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="library">table.concat</span>(items)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/PatrickRapin.html" >PatrickRapin</a>
+<hr>Comment on using this: If you use this with large SWIG modules, it is PAINFULLY slow -- more than 1/2 second to load this module due to the huge number of c function calls. You can extract just the 'fastmode' and get most of the functionality without the huge startup cost.
+--grb
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DataDumper" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=DataDumper" >history</a><br>Last edited August 4, 2012 10:32 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=DataDumper" >(diff)</a>
+</body>
+</html>

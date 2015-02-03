@@ -1,0 +1,382 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Reference Manual Comments</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaReferenceManualComments&amp;body=1" title="List pages referring to LuaReferenceManualComments">Lua Reference Manual Comments</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page contains comments and annotations on the content of the Lua Reference Manual <a href="http://www.lua.org/manual/5.1">[1]</a> (version 5.1 unless otherwise stated).  Content can include comments, usage examples, and links that clarify the manual content, including more advanced or subtle points on specific functions in the API.  The order of content on this page should generally follow the order of content in the manual.  See also the official Lua 5.1. Reference Manual Errata <a href="http://www.lua.org/manual/5.1/errata.html">[2]</a>.
+<p>
+There are some similar pages in the <a href="../wiki/LuaTutorial.html" >LuaTutorial</a>, but this page is not intended as a tutorial, and some content in those similar pages are not necessarily organized in tutorial format and might be more appropriate here.  This page is similar in nature and purpose to the user comments in the the MySQL reference <a href="http://dev.mysql.com/doc/refman/5.1/en/select.html">[3]</a>.
+<p>
+<H2>2 - The Language</H2>
+<p>
+<H3>2.4.5 - For Statement</H3>
+<p>
+The apparent list of values in a numeric <code>for</code> statement is not actually a list, and the last value gets truncated.  So, you can't say <code>for i = f(x) do ... end</code> where <code>f(x)</code> returns <code>2, 4, 1</code>.  This is unlike the non-numeric for, where it doesn't get truncated.  (Noted by <a href="../wiki/RiciLake.html" >RiciLake</a>)
+<p>
+<H3>2.8 - Metatables</H3>
+<p>
+Some metamethods are not listed here.  These include <code>__gc</code>, <code>__mode</code>, and <code>__metatable</code>.
+<p>
+Note that <code>__tostring</code> is called only by <code>tostring</code> and not during automatic conversion to string.  <code>__gc</code> is called only on full userdatas (which is one reason RAII on objects implemented in Lua won't work).  (There's a useful chart on p. 268 of <em>Beginning Lua Programming</em> showing when certain metamethods are applicable.)
+<p>
+<H2>3 - The Application Program Interface</H2>
+<p>
+<H3>lua_getfenv</H3>
+<p>
+The "index" refers to the index on the stack, not the stack level (as is the case with <code>getfenv</code>).  At least two users have noted this as unclear in the reference manual.  You can obtain the function at the given stack level using <code>lua_getinfo</code> with <code>"f"</code>.
+<p>
+<H3>luaL_dostring</H3>
+<p>
+By implication...On error, pushes error onto stack and returns error code (LUA_ERRSYNTAX or LUA_ERRMEM).  On success, returns 0 and pushes function return values onto stack.
+<p>
+If you don't want the return values to accumulate on the stack, use this:
+<p>
+<DL>
+<dt><dd><pre>
+
+(luaL_loadstring(L, str) || lua_pcall(L, 0, 0, 0))
+
+</pre>
+</DL>
+<p>
+<H3>luaL_loadfile</H3>
+<p>
+By implication...On error, pushes error onto stack and returns error code (LUA_ERRSYNTAX, LUA_ERRMEM, or LUA_ERRFILE). On success, returns 0 and pushes function return values onto stack.
+<p>
+If you don't want the return values to accumulate on the stack, use this:
+<p>
+<DL>
+<dt><dd><pre>
+
+(luaL_loadfile(L, filename) || lua_pcall(L, 0, 0, 0))
+
+</pre>
+</DL>
+<p>
+<H3>luaL_register</H3>
+<p>
+It's undocumented that this function does call metamethods on inserting into table.
+<p>
+<H2>5 - Standard Libraries</H2>
+<p>
+After "Currently, Lua has the following standard libraries", it should list "coroutine manipulation."
+<p>
+<H2>5.1 - Basic Functions</H2>
+<p>
+<H3>ipairs</H3>
+<p>
+See <a href="../wiki/GeneralizedPairsAndIpairs.html" >GeneralizedPairsAndIpairs</a> for a reimplementation that invokes metamethods.
+<p>
+<H3>next</H3>
+<p>
+See <a href="../wiki/GeneralizedPairsAndIpairs.html" >GeneralizedPairsAndIpairs</a> for a reimplementation that invokes metamethods.
+<p>
+<H3>pairs</H3>
+<p>
+See <a href="../wiki/GeneralizedPairsAndIpairs.html" >GeneralizedPairsAndIpairs</a> for a reimplementation that invokes metamethods.
+<p>
+<H3>select</H3>
+<p>
+Though not stated, a negative index passed to <code>select</code> indicates an offset relative to the end of <code>...</code>.  An out-of-range index raises an error.  This is clearly an intentional behavior as seen in <code>luaB_select</code>.  It is demonstrated in the below test suite:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> test(...) <span class="keyword">return</span> <span class="library">select</span>(-1, ...) <span class="keyword">end</span>
+
+<span class="keyword">function</span> test2(...) <span class="keyword">return</span> <span class="library">select</span>(-2, ...) <span class="keyword">end</span>
+
+
+
+<span class="library">assert</span>(<span class="keyword">not</span> <span class="library">pcall</span>(<span class="keyword">function</span>() <span class="library">assert</span>(test() == <span class="keyword">nil</span>) <span class="keyword">end</span>))
+
+<span class="library">assert</span>(test(1) == 1)
+
+<span class="library">assert</span>(test(1,2) == 2)
+
+<span class="library">assert</span>(test(1,2,3) == 3)
+
+
+
+<span class="keyword">local</span> a,b,c = test2(1,2)
+
+<span class="library">assert</span>(a == 1 <span class="keyword">and</span> b == 2 <span class="keyword">and</span> c == <span class="keyword">nil</span>)
+
+<span class="keyword">local</span> a,b,c = test2(1,2,3)
+
+<span class="library">assert</span>(a == 2 <span class="keyword">and</span> b == 3 <span class="keyword">and</span> c == <span class="keyword">nil</span>)
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H3>xpcall</H3>
+<p>
+Why does <code>xpcall</code> not accept function arguments as does <code>pcall</code>?  Below code was suggested by <a href="../wiki/RiciLake.html" >RiciLake</a>.
+<p>
+<DL>
+<dt><dd><pre>
+
+/** better_xpcall(errfunc, func, ...) */
+
+static int l_better_xpcall (lua_State *L) {
+
+  luaL_checktype(L, 1, LUA_TFUNCTION);
+
+  luaL_checkany(L, 2);
+
+  lua_pushboolean(L, 0 == lua_pcall(L, lua_gettop(L)-2, LUA_MULTRET, 1));
+
+  lua_replace(L, 1);
+
+  return lua_gettop(L);
+
+}
+
+</pre>
+</DL>
+<p>
+Note that errfunc and func arguments are switched compared to the standard xpcall. Below code by Sergey Rozhenko is compatible with the standard xpcall.
+<p>
+<DL>
+<dt><dd><pre>
+
+static int luaMy_xpcall (lua_State *L) {
+
+  luaL_checktype(L, 2, LUA_TFUNCTION);
+
+
+
+  // switch function &amp; error function
+
+  lua_pushvalue(L, 1);
+
+  lua_pushvalue(L, 2);
+
+  lua_replace(L, 1);
+
+  lua_replace(L, 2);
+
+
+
+  // call
+
+  lua_pushboolean(L, 0 == lua_pcall(L, lua_gettop(L) - 2, LUA_MULTRET, 1));
+
+  lua_replace(L, 1);
+
+  return lua_gettop(L);
+
+}
+
+</pre>
+</DL>
+<p>
+<H2>5.2 - Coroutine Manipulation</H2>
+<p>
+See also "Chapter 9: Handling Events Naturally with Coroutines" and "Chapter 11: Exploring Lua's Libraries" in <em>Beginning Lua Programming</em>, "Chapter 9: Coroutines" in <em>Programming in Lua, Second Edition</em> <a href="http://www.inf.puc-rio.br/~roberto/pil2/">[4]</a>, or <a href="../wiki/CoroutinesTutorial.html" >CoroutinesTutorial</a>.
+<p>
+<H2>5.3 - Modules</H2>
+<p>
+See also "Chapter 7: Using Modules" and "Chapter 11: Exploring Lua's Libraries" in <em>Beginning Lua Programming</em>, "Chapter 15: Modules and Packages" in <em>Programming in Lua, Second Edition</em> <a href="http://www.inf.puc-rio.br/~roberto/pil2/">[4]</a>, or <a href="../wiki/ModulesTutorial.html" >ModulesTutorial</a>.
+<p>
+<H2>5.4 - String Manipulation</H2>
+<p>
+The <code>g</code> in <code>gmatch</code> and <code>gsub</code> apparently stands for "global", meaning all matches are processed, not just the first one (Beginning Lua Programming, p.186).  It's possibly inspired by Perl's <code>/g</code> "match globally" modifier <a href="http://www.perl.com/doc/manual/html/pod/perlop.html#Regexp_Quote_Like_Operators">[5]</a>.
+<p>
+<em>The name <code>gsub</code>  was taken from AWK, way back in Lua 2.5. --lhf</em>
+<p>
+See also "Chapter 5: Using Strings" and "Chapter 11: Exploring Lua's Libraries" in <em>Beginning Lua Programming</em>, "Chapter 20: The String Library" in <em>Programming in Lua, Second Edition</em> <a href="http://www.inf.puc-rio.br/~roberto/pil2/">[4]</a>, or <a href="../wiki/LuaTypesTutorial.html" >LuaTypesTutorial</a> + <a href="../wiki/StringsTutorial.html" >StringsTutorial</a> + <a href="../wiki/StringLibraryTutorial.html" >StringLibraryTutorial</a>.
+<p>
+<H3>string.dump</H3>
+<p>
+<em>Beginning Lua Programming</em> (p.302) notes that an undocumented (subject to change) behavior of <code>string.dump</code>: "a function with upvalues may be dumped, but in the dumped version, all the upvalues will be private to the function (even if the original shared them with another function) and they'll be <code>nil</code> until assigned to from within the function. (In Lua 5.0, <code>string.dump</code> triggered an error if given a function with upvalues.)"
+<p>
+<H2>5.5 - Table Manipulation</H2>
+<p>
+See also "Chapter 4: Working with Tables" and "Chapter 11: Exploring Lua's Libraries" in <em>Beginning Lua Programming</em>, "Chapter 19: The Table Library" in <em>Programming in Lua, Second Edition</em> <a href="http://www.inf.puc-rio.br/~roberto/pil2/">[4]</a>, or <a href="../wiki/TableLibraryTutorial.html" >TableLibraryTutorial</a>.
+<p>
+<H2>5.6 - Mathematical Functions</H2>
+<p>
+See also "Chapter 11: Exploring Lua's Libraries" in <em>Beginning Lua Programming</em>, "Chapter 18: The Mathematical Library" in <em>Programming in Lua, Second Edition</em> <a href="http://www.inf.puc-rio.br/~roberto/pil2/">[4]</a>, or <a href="../wiki/MathLibraryTutorial.html" >MathLibraryTutorial</a>.
+<p>
+<H3>math.atan2</H3>
+<p>
+<a href="http://www.opengroup.org/onlinepubs/009695399/functions/atan2.html">[6]</a> <a href="http://en.wikipedia.org/wiki/Atan2.html">[7]</a> 
+<p>
+<H2>5.7 - Input and Output Facilities</H2>
+<p>
+See also "Chapter 5: Using Strings" and "Chapter 11: Exploring Lua's Libraries" in <em>Beginning Lua Programming</em> or "Chapter 21: The I/O Library" in <em>Programming in Lua, Second Edition</em> <a href="http://www.inf.puc-rio.br/~roberto/pil2/">[4]</a>.
+<p>
+<H3>file:close</H3>
+<p>
+See also the corresponding C <code>fclose</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/functions/fclose.html">[8]</a>.
+<p>
+<H3>file:flush</H3>
+<p>
+See also the corresponding C <code>fflush</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/functions/fflush.html">[9]</a>.
+<p>
+<H3>file:read</H3>
+<p>
+.
+<p>
+<H3>file:seek</H3>
+<p>
+See also the corresponding C <code>fseek</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/functions/fseek.html">[10]</a>.
+<p>
+<H3>file:setvbuf</H3>
+<p>
+See also the corresponding C <code>setvfbuf</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/functions/setvbuf.html">[11]</a>.
+<p>
+<H3>file:write</H3>
+<p>
+.
+<p>
+<p>
+<H3>io.open</H3>
+<p>
+See also the corresponding C <code>fopen</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/functions/fopen.html">[12]</a>.  That helps on modes.
+<p>
+<H3>io.read</H3>
+<p>
+The text could more precisely say "Equivalent to io.input():read(...)" (instead of "io.input():read" -- see also io.write).
+<p>
+<H3>io.write</H3>
+<p>
+The text could more precisely say "Equivalent to io.input():write(...)" (instead of "io.input():write" -- see also io.read).
+<p>
+<H2>5.8 - Operating System Facilities</H2>
+<p>
+See also "Chapter 11: Exploring Lua's Libraries" and "Chapter 11: Exploring Lua's Libraries" in <em>Beginning Lua Programming</em>, "Chapter 22: The Operating System Library" in <em>Programming in Lua, Second Edition</em> <a href="http://www.inf.puc-rio.br/~roberto/pil2/">[4]</a>, and the <a href="../wiki/OsLibraryTutorial.html" >OsLibraryTutorial</a>.
+<p>
+<H3>os.clock</H3>
+<p>
+See also the corresponding C <code>clock</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/functions/clock.html">[13]</a>.
+<p>
+<H3>os.date</H3>
+<p>
+See also the corresponding C <code>date</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/utilities/date.html">[14]</a>.
+<p>
+For a portable <code>os.date("%z")</code> replacement, see <a href="../wiki/TimeZone.html" >TimeZone</a>.
+<p>
+<H3>os.difftime</H3>
+<p>
+See also the corresponding C <code>difftime</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/functions/difftime.html">[15]</a>.
+<p>
+<H3>os.execute</H3>
+<p>
+See also the corresponding C <code>system</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/functions/system.html">[16]</a>
+<p>
+In Windows, you can run a non-blocking process via <code>os.execute</code> by prefixing the command with "start ".  On UNIX-like operating systems, you can postfix it with "&amp;".  Both methods of course are non-portable.  Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">os.execute</span>(<span class="string">"start notepad"</span>)  <span class="comment">-- Windows</span>
+
+<span class="library">os.execute</span>(<span class="string">"emacs &amp;"</span>)  <span class="comment">-- UNIX</span>
+
+</pre>
+
+</DL>
+<p>
+<H3>os.exit</H3>
+<p>
+See also the corresponding C <code>exit</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/utilities/exit.html">[17]</a>.
+<p>
+<H3>os.getenv</H3>
+<p>
+See also the corresponding C <code>getenv</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/functions/getenv.html">[18]</a>.
+<p>
+The Lua standard library does not provide access to the C <code>setenv</code> function defined by POSIX, because it isn't defined in ASCI C.
+<p>
+<H3>os.remove</H3>
+<p>
+See also the corresponding C <code>remove</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/functions/remove.html">[19]</a>.
+<p>
+<H3>os.rename</H3>
+<p>
+See also the corresponding C <code>rename</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/functions/rename.html">[20]</a>.
+<p>
+<H3>os.setlocale</H3>
+<p>
+See also the corresponding C <code>setlocale</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/functions/setlocale.html">[21]</a> and Wikipedia:Locale <a href="http://en.wikipedia.org/wiki/Locale.html">[22]</a>.
+<p>
+Various functions and operations are affected by the current locale. These include: <code>os.date</code>, <code>string.lower</code>, <code>string.upper</code>, string comparison, and pattern matching.
+<p>
+<H3>os.time</H3>
+<p>
+See also the corresponding C <code>time</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/functions/time.html">[23]</a>.
+<p>
+<H3>os.tmpname</H3>
+<p>
+See also the corresponding C <code>tmpnam</code> function <a href="http://www.opengroup.org/onlinepubs/009695399/functions/tmpnam.html">[24]</a>.
+<p>
+<H2>5.9 - The Debug Library</H2>
+<p>
+See also "Chapter 11: Exploring Lua's Libraries" in <em>Beginning Lua Programming</em> or
+"Chapter 23: The Debug Library" in <em>Programming in Lua, Second Edition</em><a href="http://www.inf.puc-rio.br/~roberto/pil2/">[4]</a>.
+<p>
+<H3>debug.getfenv</H3>
+<p>
+Note: the <code>getfenv</code> function is not identical to <code>debug.getfenv</code>.
+<p>
+<H3>debug.getlocal</H3>
+<p>
+Related notes: <a href="/lists/lua-l/2007-01/msg00214.html">LuaList:2007-01/msg00214.html</a>.
+<p>
+Examples: <a href="../wiki/StringInterpolation.html" >StringInterpolation</a>.
+<p>
+<H3>debug.getmetatable</H3>
+<p>
+This function is like <code>getmetatable</code> except it ignores the <code>__metatable</code> metafunction when retrieving the metatable.  This function might alternately be called <code>rawgetmetatable</code>.  Since some objects may have the <code>__metatable</code> metafunction set for security (to prevent the client gaining access to the metatable) you might want to prevent access to <code>debug.getmetatable</code>.
+<p>
+<H3>debug.setmetatable</H3>
+<p>
+This function is like <code>setmetatable</code> except it can work on objects other than tables.  You can even use it on <code>nil</code>.
+<p>
+<em>Undocumented note:</em> The function returns <code>true</code> on success or <code>false</code> on failure, though currently is seems to always return true. (Caution: Undocumented behavior is subject to change in the future.)
+<p>
+<H2>7 - Incompatibilities with the Previous Version</H2>
+<p>
+See also <a href="../wiki/MigratingToFiveOne.html" >MigratingToFiveOne</a>, <a href="../wiki/LuaFiveFeatures.html" >LuaFiveFeatures</a>, and <a href="../wiki/LuaFiveAlphaToBeta.html" >LuaFiveAlphaToBeta</a>.
+<p>
+<H2>8 - The Complete Syntax of Lua</H2>
+<p>
+See also <a href="../wiki/LuaGrammar.html" >LuaGrammar</a>.
+<p>
+<H2>Additional Author Notes and User Comments</H2>
+<p>
+I think the "3. The Application Program Interface" chapter would be better placed near the end so that people who only use Lua via the Lua language rather than C (which would include most users) would not need to bother as much with it.  This is a more advanced topic.  --<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<strong>Alternative Browser for the 5.1 Manual</strong>: I dislike the way the Lua manual is all in one page, and made a little browser / searcher for myself which I use all the time and would like to share with others: <a href="http://pgl.yoyo.org/luai/i/">[Luai]</a> --<a href="../wiki/McFin.html" >McFin</a>
+<p>
+The above page was reviewed against the 5.1.3 reference manual. --<a href="../wiki/DavidManura.html" >DavidManura</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaReferenceManualComments" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaReferenceManualComments" >history</a><br>Last edited November 5, 2010 8:04 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaReferenceManualComments" >(diff)</a>
+</body>
+</html>

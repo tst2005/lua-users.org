@@ -1,0 +1,340 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Simpler For Iterator</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SimplerForIterator&amp;body=1" title="List pages referring to SimplerForIterator">Simpler For Iterator</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Possibly the current model of iterator "for" loops may be simplified. Here is both a <em>trial</em> to explain the present model and an introduction to a simpler alternative -- maybe. It seems  the complication is due to:
+<UL>
+<li> the difference between collection iterator and generator iterator,
+<li> the mixing of interfaces to proper iterator and to iterator <em>function</em>.
+</UL>
+<p>
+<p>
+The current syntax reads:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> A, data <span class="keyword">in</span> iterator_func, X, Y <span class="keyword">do</span> block <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Data is the actual data returned by the function and later used in the block. A, X, &amp; Y are left to further explaination below. Here is a possible implementation of both a collection iterator and a generator iterator, based on the tutorial example (tried to be very explicit, and started at 1 for a change):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- collection iterator --</span>
+
+numbers = {1,3,5,7,9,11,13}
+
+<span class="keyword">function</span> coll_squares(coll)
+
+    <span class="keyword">local</span> <span class="keyword">function</span> next_square(coll, index)
+
+        <span class="keyword">if</span> index &gt; #coll <span class="keyword">then</span>
+
+            <span class="keyword">return</span> <span class="keyword">nil</span>
+
+        <span class="keyword">end</span>
+
+        n = coll[index]
+
+        <span class="keyword">return</span> index+1, n*n
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> next_square, coll, 1
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> i, square <span class="keyword">in</span> coll_squares(numbers) <span class="keyword">do</span> <span class="library">print</span> (square) <span class="keyword">end</span>     <span class="comment">--&gt; OK</span>
+
+
+
+<span class="comment">-- generator iterator --</span>
+
+<span class="keyword">function</span> gen_squares(limit)
+
+    <span class="keyword">local</span> <span class="keyword">function</span> next_square(limit, number)
+
+        <span class="keyword">if</span> number &gt; limit <span class="keyword">then</span>
+
+            <span class="keyword">return</span> <span class="keyword">nil</span>
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> number+1, number*number
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> next_square, limit, 1
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> n, square <span class="keyword">in</span> gen_squares(7) <span class="keyword">do</span> <span class="library">print</span> (square) <span class="keyword">end</span>     <span class="comment">--&gt; OK</span>
+
+</pre>
+
+</DL>
+<p>
+So, what are A, X, &amp; Y?
+In case of a collection:
+<UL>
+<li> A is the last index, received from and passed back to the func
+<li> X is the collection
+<li> Y is the start index, passed to the func at first call
+</UL>
+In case of a generator:
+<UL>
+<li> A is the last 'term' (the thing on which the generator <em>function</em> operates),
+<li> X is the limit
+<li> Y is the start term
+</UL>
+<p>
+It is difficult to find a common ground in order to explain and <em>name</em> A, X &amp; Y meaningfully. X is called 's' in the reference manual, and 'state' in the tutorial. In the reference manual, A is called var1, while Y is called var. Here is a trial to make sense out of that:
+<UL>
+<li> A is used to tell where we are in the sequence of iterations. May it be called "mark" (like in "landmark")?
+<li> X defines the set of terms to be operated on. May it be called "range"?
+<li> Y detemines the start term -- the first or the "zeroth" (depending on how the iterator function is written). Let's call it "start".
+</UL>
+[If anyone finds better names...]
+In addition to their use in yielding next data, the mark and the range are also used together to know when to stop iterating.
+It is not trivial to guess what the iterator and the iterator func are supposed to return, as well what the func implicitely receives from lua, and the proper order of all these values. 
+<p>
+The code above may be rewritten as follows:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- collection iterator --</span>
+
+<span class="keyword">function</span> coll_squares(coll)
+
+    <span class="keyword">local</span> index = 1
+
+    <span class="keyword">local</span> coll = coll       <span class="comment">-- just to make things clear</span>
+
+    <span class="keyword">local</span> <span class="keyword">function</span> next_square()
+
+        <span class="keyword">if</span> index &gt; #coll <span class="keyword">then</span>
+
+            <span class="keyword">return</span> <span class="keyword">nil</span>
+
+        <span class="keyword">end</span>
+
+        n = coll[index]
+
+        index = index+1
+
+        <span class="keyword">return</span> n*n
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> next_square
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> square <span class="keyword">in</span> coll_squares(numbers) <span class="keyword">do</span> <span class="library">print</span> (square) <span class="keyword">end</span>     <span class="comment">-- OK</span>
+
+
+
+<span class="comment">-- generator iterator --</span>
+
+<span class="keyword">function</span> gen_squares(limit)
+
+    <span class="keyword">local</span> number = 1
+
+    <span class="keyword">local</span> limit = limit     <span class="comment">-- ditto</span>
+
+    <span class="keyword">local</span> <span class="keyword">function</span> next_square()
+
+        <span class="keyword">if</span> number &gt; limit <span class="keyword">then</span>
+
+            <span class="keyword">return</span> <span class="keyword">nil</span>
+
+        <span class="keyword">end</span>
+
+        n = number
+
+        number = number+1
+
+        <span class="keyword">return</span> n*n
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> next_square
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> square <span class="keyword">in</span> gen_squares(7) <span class="keyword">do</span> <span class="library">print</span> (square) <span class="keyword">end</span>     <span class="comment">-- OK</span>
+
+</pre>
+
+</DL>
+<p>
+There are little differences which are all simplifications, except for the last one:
+<UL>
+<li> The iterator only returns the iterator func.
+<li> The func takes no parameter.
+<li> The func only returns the actual data.
+<li> A, X, Y are not used at all.
+<li> The startup "mark" is set by the iterator.
+</UL>
+The last point makes the mark (index or number) a local var in the iterator which is reachable to the nested func _closure_ as an upvalue (right?). The "range" can only be a local var in the iterator, so there is no need to pass it explicitely as an argument to the function. <em>(please correct if anything is wrong here, including terminology)</em>
+<p>
+We can imagine more complex cases, eg specifying the generator interval. Additional data becomes iterator parameters:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- generator iterator --</span>
+
+<span class="keyword">function</span> gen_squares(start, stop, step)
+
+    <span class="keyword">local</span> number = start
+
+    <span class="keyword">local</span> <span class="keyword">function</span> next_square()
+
+        <span class="keyword">if</span> number &gt; stop <span class="keyword">then</span>
+
+            <span class="keyword">return</span> <span class="keyword">nil</span>
+
+        <span class="keyword">end</span>
+
+        n = number
+
+        number = number+step
+
+        <span class="keyword">return</span> n*n
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> next_square
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> square <span class="keyword">in</span> gen_squares(3,9,2) <span class="keyword">do</span> <span class="library">print</span> (square) <span class="keyword">end</span>     <span class="comment">--&gt; OK</span>
+
+</pre>
+ 
+</DL>
+<p>
+Idem, if we complexify a collection iterator (here rather artificially):
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- collection iterator --</span>
+
+<span class="library">require</span> <span class="string">"math"</span>
+
+numbers = {1,3,5,7,9,11,13,15,17}
+
+<span class="keyword">function</span> coll_squares(coll, modulo)
+
+    <span class="keyword">local</span> index = 1
+
+    <span class="keyword">local</span> <span class="keyword">function</span> number_filter()
+
+        <span class="comment">-- return next number in coll multiple of modulo, else nil</span>
+
+        <span class="keyword">while</span> (index &lt; #coll) <span class="keyword">do</span>
+
+            number = coll[index]
+
+            <span class="keyword">if</span> <span class="library">math.fmod</span>(number, modulo) == 0 <span class="keyword">then</span>
+
+                <span class="keyword">return</span> number
+
+            <span class="keyword">end</span>
+
+            index = index+1
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> <span class="keyword">nil</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">local</span> <span class="keyword">function</span> next_square()
+
+        <span class="comment">-- yield squares of multiples of modulo in coll</span>
+
+        n = number_filter()
+
+        <span class="keyword">if</span> <span class="keyword">not</span> n <span class="keyword">then</span>
+
+            <span class="keyword">return</span> <span class="keyword">nil</span>
+
+        <span class="keyword">end</span>
+
+        index = index+1
+
+        <span class="keyword">return</span> n*n
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> next_square
+
+<span class="keyword">end</span>
+
+<span class="keyword">for</span> square <span class="keyword">in</span> coll_squares(numbers, 3) <span class="keyword">do</span> <span class="library">print</span> (square) <span class="keyword">end</span>     <span class="comment">--&gt; OK</span>
+
+</pre>
+ 
+</DL>
+<p>
+In all cases, it seems A, X &amp; Y are not needed. This way of implementing iterators makes a good use of lua basic features: funcs as values, nested funcs, closures/upvalues.
+So, a question is: can we simplify the interface between "for" syntax, iterator, and iterator func by getting rid of A, X &amp; Y? If yes, a new syntax could be:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> data <span class="keyword">in</span> iterator_func <span class="keyword">do</span> block <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+While the present one is:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> A, data <span class="keyword">in</span> iterator_func, X, Y <span class="keyword">do</span> block <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+As a consequence, the variety of iterators would not be globally caught by the syntax itself, in a rather complicated manner, but let to the user implementation instead. It would sertainly be easier to learn &amp; explain both the syntax and the proper way to write an iterator for a given task.
+<p>
+The reference manual states:
+<DL>
+<dt><dd>&lt;&lt; <em>f, s, and var are invisible variables. The names are here for explanatory purposes only.</em> &gt;&gt;
+</DL>
+In the present proposal, they are inexistent. The necessary data is passed as parameters to the iterator, as is done now: collection, bounds or whatever.
+<p>
+(first page formulation by <a href="../wiki/DeniSpir.html" >DeniSpir</a>)
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SimplerForIterator" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SimplerForIterator" >history</a><br>Last edited November 13, 2009 2:41 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SimplerForIterator" >(diff)</a>
+</body>
+</html>

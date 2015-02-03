@@ -1,0 +1,388 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Function Call Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FunctionCallTutorial&amp;body=1" title="List pages referring to FunctionCallTutorial">Function Call Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This tutorial follows on from the <a href="../wiki/FunctionsTutorial.html" >FunctionsTutorial</a>.
+<p>
+<H2>Passing arguments</H2>
+<p>
+Since Lua is dynamically typed and has no need for function type declaration, checking the number and type of arguments required for a function seems somewhat redundant. Lua deals gracefully with mismatched numbers of calling and formal function arguments. Formal function arguments receive a default value of <code>nil</code> if they are not filled. Where too many arguments are passed they are simply ignored. No type is specified for each argument as they are dynamically typed. i.e. we only need to know the type of an object when we use it, not when we reference it. We'll use the following function as an example:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">function</span> foo(a,b,c) <span class="library">print</span>(a,b,c) <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+Here's what happens when we call it with no arguments:
+<DL>
+<dt><dd><pre class="code">
+&gt; foo()
+
+<span class="keyword">nil</span>     <span class="keyword">nil</span>     <span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+Notice that each of the arguments defaulted to the value <code>nil</code>, or no value, and we don't get an error. Here's what happens when we pass too many arguments:
+<DL>
+<dt><dd><pre class="code">
+&gt; foo(1,2,3,4)
+
+1       2       3
+
+</pre>
+
+</DL>
+Again, no error and the last argument is ignored. Because Lua is dynamically typed we can pass any argument type. e.g. we can pass strings in as well as numbers or references.
+<DL>
+<dt><dd><pre class="code">
+&gt; foo(<span class="string">"hello"</span>)
+
+hello   <span class="keyword">nil</span>     <span class="keyword">nil</span>
+
+&gt; foo(<span class="string">"pi"</span>, 3.1415, { comment=<span class="string">"this is a table"</span> })
+
+pi	3.1415	<span class="library">table</span>: 0x21d49b0
+
+</pre>
+
+</DL>
+<p>
+<H2>Variable arguments</H2>
+<p>
+It is often useful to have variable numbers of arguments to a function. e.g. the <code>printf(format,...)</code> function in C. One way Lua does this is by placing the variable argument list into an array table called <code>arg</code>, usable by the function. e.g.,
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">function</span> foo(...) <span class="library">print</span>(arg) <span class="keyword">end</span>
+
+&gt; foo(<span class="string">"abc"</span>,3,77)
+
+<span class="library">table</span>: 0x21d56a0
+
+</pre>
+
+</DL>
+<p>
+Note: In 5.2 <code>arg</code> is deprecated and three periods (<code>...</code>) can be used instead with similar effect.
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">function</span> foo(...) <span class="library">print</span>(...) <span class="keyword">end</span>
+
+
+
+(In some cases, the argument list array must be referenced by placing the three periods within a set of curly braces.)
+
+
+
+&gt; <span class="keyword">function</span> foo(...) <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>({...}) <span class="keyword">do</span> <span class="library">print</span>(k,v) <span class="keyword">end</span> <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+In this example we can only see that this is a table. We could use <code>table.foreach(table,function)</code> to print out the values of the variable argument table, but using <code>pairs()</code> is better, since <code>table.foreach()</code> is deprecated in Lua 5.1.
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">function</span> foo(...) <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(arg) <span class="keyword">do</span> <span class="library">print</span>(k,v) <span class="keyword">end</span> <span class="keyword">end</span>
+
+&gt; foo()
+
+n       0
+
+</pre>
+
+</DL>
+<p>
+From looking at an empty variable argument list it is easy to see that an extra table pair is added to provide the number of elements in the table, <code>arg.n</code>. In this case the number of arguments is zero. Let's try passing variable numbers of arguments:
+<DL>
+<dt><dd><pre class="code">
+&gt; foo(1,2,3)
+
+1       1
+
+2       2
+
+3       3
+
+n       3
+
+&gt; foo(<span class="string">"apple"</span>,2,<span class="string">"banana"</span>,99,3.1415927,foo)
+
+1	apple
+
+2	2
+
+3	banana
+
+4	99
+
+5	3.1415927
+
+6	<span class="keyword">function</span>: 0x9ecd20
+
+n	6
+
+</pre>
+
+</DL>
+<p>
+Another way is to use <code>...</code> as a placeholder:
+<p>
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">function</span> foo(...) <span class="library">print</span>(<span class="string">'x'</span>, <span class="library">select</span>(2, ...), <span class="string">'y'</span>, ...) <span class="keyword">end</span>
+
+&gt; foo(<span class="string">"apple"</span>, <span class="string">"banana"</span>, <span class="string">"orange"</span>)
+
+x	banana	y	apple	banana	orange
+
+</pre>
+
+</DL>
+<p>
+The <code>...</code> has an additional advantage in that it avoids the small performance penalty in constructing the <code>arg</code> table.
+<p>
+<H3>unpack</H3>
+<p>
+A useful function for variable arguments is <code>unpack()</code>. This takes a table and returns a list of variables, e.g.:
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">unpack</span>({1,2,3})
+
+1       2       3
+
+</pre>
+
+</DL>
+<p>
+This can be used with variable argument lists as follows:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">function</span> listargs(...)
+
+&gt;&gt;  <span class="keyword">return</span> <span class="library">unpack</span>(arg)
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt; = listargs({1,2,3})
+
+1       2       3
+
+&gt; = listargs({<span class="string">"hello"</span>, {1,2,3}, <span class="keyword">function</span> (x) <span class="keyword">return</span> x*x <span class="keyword">end</span>})
+
+hello	<span class="library">table</span>: 0x9efed0	<span class="keyword">function</span>: 0x9eec40
+
+</pre>
+
+</DL>
+<p>
+It can also be used to pass a variable number of arguments to a function as follow:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">function</span> countargs(...)
+
+&gt;&gt;  <span class="keyword">return</span> #arg
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt; = countargs(1,2,3)
+
+3
+
+&gt; = countargs(<span class="library">unpack</span>{1,2,3})
+
+3
+
+</pre>
+
+</DL>
+<p>
+To understand how unpack works, look at this slow pseudo implementation:
+<DL>
+<dt><dd><pre class="code">
+&gt;    <span class="keyword">function</span> <span class="library">unpack</span> (t, i)
+
+&gt;&gt;      i = i <span class="keyword">or</span> 1
+
+&gt;&gt;      <span class="keyword">if</span> t[i] ~= <span class="keyword">nil</span> <span class="keyword">then</span>
+
+&gt;&gt;&gt;        <span class="keyword">return</span> t[i], <span class="library">unpack</span>(t, i + 1)
+
+&gt;&gt;      <span class="keyword">end</span>
+
+&gt;    <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Taken from the lua reference manual: <a href="http://www.lua.org/pil/5.1.html">[chapter 5.1 - Multiple Results]</a>.
+<p>
+<H2>Multiple return values</H2>
+<p>
+Lua can return more than one value from a function. This is done by returning a comma separated list of values:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">function</span> foo(angle)
+
+&gt;&gt;  <span class="keyword">return</span> <span class="library">math.cos</span>(angle), <span class="library">math.sin</span>(angle)
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt;
+
+&gt; <span class="library">print</span>( foo(1) )     <span class="comment">-- returns 2 values...</span>
+
+0.54030230586814        0.8414709848079
+
+&gt;
+
+&gt; c,s = foo(3.142/3)  <span class="comment">-- assign the values to variables</span>
+
+&gt; = <span class="library">math.atan</span>(s/c)
+
+1.0473333333333
+
+&gt; = c,s
+
+0.49988240461137        0.86609328686923
+
+&gt;
+
+&gt; <span class="keyword">function</span> many(x)
+
+&gt;&gt;  <span class="keyword">return</span> x, x*x, x*x*x, x*x*x*x, x*x*x*x*x
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt; = many(5)
+
+5       25      125     625     3125
+
+&gt; = many(0.9)
+
+0.9     0.81    0.729   0.6561  0.59049
+
+</pre>
+
+</DL>
+<p>
+The above function could have a variable number of return values if we construct a table, containing the values, and use <code>unpack</code>. E.g.,
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">function</span> many2(x,times)
+
+&gt;&gt;  <span class="keyword">local</span> t = {}
+
+&gt;&gt;  <span class="keyword">for</span> i=1,times <span class="keyword">do</span> t[i] = x^i <span class="keyword">end</span>
+
+&gt;&gt;  <span class="keyword">return</span> <span class="library">unpack</span>(t)
+
+&gt;&gt; <span class="keyword">end</span>
+
+&gt; = many2(5,10)
+
+5       25      125     625     3125    15625   78125   390625  1953125 9765625
+
+&gt; = many2(0.5,7)
+
+0.5     0.25    0.125   0.0625  0.03125 0.015625        0.0078125
+
+</pre>
+
+</DL>
+<p>
+<H3>Values as a table</H3>
+<p>
+We can also return the values in a table. To do this we add curly brackets around the function call, which will construct a table, i.e.:
+<p>
+<DL>
+<dt><dd>{ <em>function_name</em> ( <em>args</em> ) }
+</DL>
+<p>
+Here is an example using the previous function example:
+<DL>
+<dt><dd><pre class="code">
+&gt; = { foo(1.5) }
+
+<span class="library">table</span>: 0x204e100
+
+&gt; t = { foo(1.5) }
+
+&gt; <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span> <span class="library">print</span>(k,v) <span class="keyword">end</span>
+
+1       0.070737201667703
+
+2       0.99749498660405
+
+</pre>
+
+</DL>
+<p>
+<H3>Single Value</H3>
+<p>
+If a function returns multiple values, but we only want the first value, we put a parenthesis around the function call, i.e.
+<p>
+<DL>
+<dt><dd>( <em>function_name</em> ( <em>args</em> ) )
+<dt><dd>
+
+</DL>
+Here is an example:
+<DL>
+<dt><dd><pre class="code">
+&gt; = (foo(1.5))
+
+0.070737201667703
+
+&gt; = foo(1.5)
+
+0.070737201667703       0.99749498660405
+
+</pre>
+
+</DL>
+<p>
+The same could be achieved by returning a table and taking the first element but the above syntax is more efficient. E.g.,
+<DL>
+<dt><dd><pre class="code">
+&gt; = ({foo(1.5)}) [1]
+
+0.070737201667703
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FunctionCallTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FunctionCallTutorial" >history</a><br>Last edited April 5, 2013 12:40 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FunctionCallTutorial" >(diff)</a>
+</body>
+</html>

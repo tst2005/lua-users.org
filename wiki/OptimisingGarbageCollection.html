@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Optimising Garbage Collection</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=OptimisingGarbageCollection&amp;body=1" title="List pages referring to OptimisingGarbageCollection">Optimising Garbage Collection</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Introduction</H2>
+Garbage collection of your system can cause performance problems if a large number of objects have been generated. This page discusses the issues involved and ideas for avoiding the problem.
+<p>
+<H2>Minimising objects created</H2>
+<em>Question:</em> Basically I want to minimise the amount of temporary memory being allocated, so that I can reduce the frequency GC is called (and maybe reduce the hit of each GC?). Can anyone give some hints on this topic? For instance, if I have local variables declared inside function A, will the local variables allocate memory each time A is called?
+<p>
+<em>(ET)</em> No.  Local variables are kept on a stack and will not affect the GC. These constructs will create a new garbage collected object:
+<p>
+<UL>
+<li> <strong><code>a..b</code></strong> (example only; any string generating construct i.e. <code>strsub()</code> [*1] or <code>lua_pushstring()</code>.)
+</UL><DL>
+<dt><dd>Each <em>new</em> string creates a new object.  Lua has unique strings, that means that each possible string exists only once within Lua.  If a new string occurs Lua first checks if it already exists within the string pool.  If it does, a reference to that older string is used. If it does not exist, a new string object is created and put into the string pool.  The GC checks the string pool for unused strings and frees them.  So creating a lot of unique strings will trash the GC. I.e. this is bad GC-wise:
+<DL>
+<dt><dd><pre>
+
+for i=1,100 do  x="foo"..tostring(i)  end  -- 100 new strings
+
+</pre>
+</DL>
+<dt><dd><em>Note:</em> Code segments hold references to strings constants (a la "foo" above). So the string will exist in the string pool as long as the function exists; it does <em>not</em> have to be created each time the function is executed.
+</DL>
+<p>
+<UL>
+<li> <strong><code> { ... } </code></strong>
+</UL><DL>
+<dt><dd>Each time a table constructor is executed a new table is created. Try to reuse tables if possible.  You could even go as far as creating and using newtable/freetable functions that manage a pool of unused tables.  That way you get old style memory management for tables but you'll also get the old problems too ;-)
+</DL>
+<p>
+<UL>
+<li> <strong><code>function() ... end</code></strong>
+</UL><DL>
+<dt><dd>Executing a function statement creates a closure (note: not calling the function but executing the function statement!).  Normally no big impact on the GC but if you have function statements within a loop you may create a lot of garbage.  I.e.:
+<DL>
+<dt><dd><pre>
+
+for i=1,100 do  foo(function() end)  end  -- bad for GC
+
+</pre>
+</DL>
+<dt><dd>creates 100 function closures.
+</DL>
+<p>
+<UL>
+<li> <strong><code>function(foo, ...) end</code></strong>
+</UL><DL>
+<dt><dd>Vararg functions create a table for the ellipsis (stored in '<code>arg</code>') each time the function is <em>called</em>. (Note: No longer true as of Lua 5.2, or if using LuaJIT.)
+</DL>
+<p>
+<UL>
+<li> <strong>userdata objects</strong>
+</UL><DL>
+<dt><dd>In Lua 4.0 (and 3.x) userdata objects are handled similar to strings. They are equal if the pointer value and the tag are equal. What about Lua5?
+</DL>
+<p>
+<UL>
+<li> <strong><code>dofile</code>/<code>dostring</code></strong>
+</UL><DL>
+<dt><dd>Well, these load/compile new code and will create strings and (GCed) code segments.
+</DL>
+<p>
+<H2>Freeing local variables</H2>
+<p>
+<em>Question (continuation of above):</em> So any local string or table will be freed when you exit a function? 
+<p>
+Variables are a place to store objects (In fact, except for numbers it only holds pointers to the objects).  Whether the stored object is a number or a table or anything else doesn't bother the variable. And local variables are not garbage collected objects themselves.  So you may use them without creating intermediate objects.  I think, that
+was what the original poster meant.
+<p>
+<DL>
+<dt><dd><em>"So you may use them without creating intermediate objects." Does this need clarification? The variable itself doesnt create a GC object but its value could. You can use local variables which reference other existing objects without creating objects that need to be collected. But, you can't create new objects which are locals without creating an object that needs to be collected later.</em>
+</DL>
+<p>
+About the objects stored within local variables: at the moment the local variable is no longer active the GC <em>may</em> collect the object that was stored there.  The actual freeing of the object has nothing to do with function scopes or variable live times.  The GC runs at certain times and frees all objects that are no longer accessible by any L
+<p>
+[*1] <code>strsub</code> exists in Lua 4, not Lua 5.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=OptimisingGarbageCollection" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=OptimisingGarbageCollection" >history</a><br>Last edited April 18, 2014 6:12 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=OptimisingGarbageCollection" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Source</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaSource&amp;body=1" title="List pages referring to LuaSource">Lua Source</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The section of the wiki allows anyone to document, explain, post questions, or make comments on the Lua source code. You may link to <a href="http://www.lua.org/source/5.1/">[1]</a> or paste the code in question.  <strong>Note: Please indicate which version of the source (e.g. 5.1.1) you are discussing so there will be no confusion upon future releases of Lua.</strong> Preferably, discussions should be on or updated to the latest release of Lua.
+<p>
+<H2>Comments on Source</H2>
+<p>
+<H3>Overview</H3>
+<p>
+<UL>
+<li> The Lua papers<a href="http://www.lua.org/docs.html">[2]</a> and <a href="http://pgl.yoyo.org/lua/docs/luaarchitecture.doc">[The Lua Architecture]</a> document various aspects of the Lua implementation.
+<li> The Lua VM instructions are documented in <a href="http://luaforge.net/docman/index.php?group_id=83&amp;selected_doc_group_id=102">[A No-Frills Introduction to Lua 5.1 VM Instructions]</a>.
+<li> The <a href="http://luaforge.net/projects/yueliang/">[Yueliang]</a> project (a port of the Lua VM C code to Lua) has fairly heavily documented source code and can be used to help understand the corresponding C source code.
+<li> <a href="../wiki/LuaAnnotate.html" >LuaAnnotate</a> - C code comments externally stored but displayed inline (intended for annotating Lua sources)
+<li> <a href="http://stevedonovan.github.com/lua-5.1.4/">[stevedonovan.github.com/lua-5.1.4]</a> browsable Lua source code with <a href="../wiki/LuaAnnotate.html" >LuaAnnotate</a> annotations
+<li> <a href="http://www.lua.org/source/">[www.lua.org/source/]</a> - browsable Lua source code, on lua.org
+</UL>
+<p>
+<H3>Module Structure</H3>
+<p>
+The modules in the Lua source are outlined below.
+<p>
+These modules implement utility functionality:
+<p>
+<UL>
+<li> <strong>ldebug.c</strong> - debug interface. Includes functions for accessing debug hooks (lua_sethook, lua_gethook, lua_gethookcount), accessing run-time stack info (lua_getstack / lua_getlocal / lua_setlocal), checking bytecode (luaG_checkopenop / luaG_checkcode), and raising errors (luaG_typeerror / luaG_concaterror / luaG_aritherror  / luaG_ordererror / luaG_errormsg / luaG_runerror)
+</UL>
+<p>
+<UL>
+<li> <strong>lzio.c</strong> - a generic buffered input stream interface.  
+</UL>
+<p>
+<UL>
+<li> <strong>lmem.c</strong> - interface to the memory manager.  This implements luaM_realloc / luaM_growaux_, which wrap the memory allocation functions.
+</UL>
+<p>
+<UL>
+<li> <strong>lgc.c</strong> - incremental garbage collector (memory management)
+</UL>
+<p>
+These modules implement basic data types:
+<p>
+<UL>
+<li> <strong>lstate.c</strong> - global state.  Includes functions for opening and closing Lua states (lua_newstate/lua_close) and threads (luaE_newthread / luaE_freethread).
+</UL>
+<p>
+<UL>
+<li> <strong>lobject.c</strong> - some generic functions over Lua objects.  Includes datatype &lt;-&gt; string conversions, raw equality test (luaO_rawequalObj), and log base 2 (luaO_log2)
+</UL>
+<p>
+<UL>
+<li> <strong>lstring.c</strong> - string table (keeps all strings handled by Lua)
+</UL>
+<p>
+<UL>
+<li> <strong>lfunc.c</strong> - auxiliary functions to manipulate prototypes and closures
+</UL>
+<p>
+<UL>
+<li> <strong>ltable.c</strong> - Lua tables (hash)
+</UL>
+<p>
+These modules deal with parsing and code generation:
+<p>
+<UL>
+<li> <strong>lcode.c</strong> - code generator for Lua.  Used by lparser.c
+</UL>
+<p>
+<UL>
+<li> <strong>llex.c</strong> - lexical analyzer.  Used by lparser.c.
+</UL>
+<p>
+<UL>
+<li> <strong>lparser.c</strong> - Lua parser.
+</UL>
+<p>
+<UL>
+<li> <strong>lundump.c</strong> - load precompiled Lua chunks.  Implements luaU_undump, which loads a precompiled chunk.  Also provides luaU_header (internally used by luaU_undump) for parsing a function header.
+</UL>
+<p>
+<UL>
+<li> <strong>ldump.c</strong> - save precompiled Lua chunks.  Implements luaU_dump, which dumps a function object as a precompiled chunk string.
+</UL>
+<p>
+These modules deal with execution of Lua bytecodes:
+<p>
+<UL>
+<li> <strong>lopcodes.c</strong> - opcodes for Lua virtual machine.  Defines names and information on all opcodes (via tables luaP_opnames and luaP_opmodes).
+</UL>
+<p>
+<UL>
+<li> <strong>lvm.c</strong> - Lua virtual machine.  Executes bytecodes (luaV_execute).  Also exposes a few functions used by lapi.c (e.g. luaV_concat).
+</UL>
+<p>
+<UL>
+<li> <strong>ldo.c</strong> - stack and Call structure of Lua.  Handles function calling (luaD_call / luaD_pcall), growing the stack, coroutine handling, ...
+</UL>
+<p>
+<UL>
+<li> <strong>ltm.c</strong> - tag methods.  Implements accessing metamethods from objects.
+</UL>
+<p>
+These modules implement the standard libraries:
+<p>
+<UL>
+<li> <strong>lbaselib.c</strong> - (base functions)
+</UL>
+<p>
+<UL>
+<li> <strong>lstrlib.c</strong> - string
+</UL>
+<p>
+<UL>
+<li> <strong>ltablib.c</strong> - table
+</UL>
+<p>
+<UL>
+<li> <strong>lmathlib.c</strong> - math
+</UL>
+<p>
+<UL>
+<li> <strong>loslib.c</strong> - os
+</UL>
+<p>
+<UL>
+<li> <strong>liolib.c</strong> - io
+</UL>
+<p>
+<UL>
+<li> <strong>loadlib.c</strong> - package
+</UL>
+<p>
+<UL>
+<li> <strong>ldblib.c</strong> - debug
+</UL>
+<p>
+These modules define the C API:
+<p>
+<UL>
+<li> <strong>lapi.c</strong> - Lua API.  Implements the bulk of the Lua C API (lua_* functions).
+</UL>
+<p>
+<UL>
+<li> <strong>lauxlib.c</strong> - defines the luaL_* functions
+</UL>
+<p>
+<UL>
+<li> <strong>linit.c</strong> - implements luaL_openlibs for loading the above modules from C
+</UL>
+<p>
+These modules implement the lua and luac programs:
+<p>
+<UL>
+<li> <strong>lua.c</strong> - Lua stand-alone interpreter
+</UL>
+<p>
+<UL>
+<li> <strong>print.c</strong> - defines "PrintFunction<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PrintFunction" >?</a>" function that prints bytecodes in a function (used by luac.c "-l" option)
+</UL>
+<p>
+<UL>
+<li> <strong>luac.c</strong> - Lua compiler (saves bytecodes to files; also list bytecodes)
+</UL>
+<p>
+(5.1.3)
+<p>
+<H3>Code Conventions</H3>
+<p>
+The prefix of a external symbol indicates the module it comes from:
+<p>
+<DL>
+<dt><dd><pre>
+
+luaA_ - lapi.c
+
+luaB_ - lbaselib.c
+
+luaC_ - lgc.c
+
+luaD_ - ldo.c
+
+luaE_ - lstate.c
+
+luaF_ - lfunc.c
+
+luaG_ - ldebug.c
+
+luaH_ - ltable.c
+
+luaI_ - lauxlib.c
+
+luaK_ - lcode.c
+
+luaL_ - lauxlib.c/h, linit.c (public functions)
+
+luaM_ - lmem.c
+
+luaO_ - lobject.c
+
+luaP_ - lopcodes.c
+
+luaS_ - lstring.c
+
+luaT_ - ltm.c
+
+luaU_ - lundump.c
+
+luaV_ - lvm.c
+
+luaX_ - llex.c
+
+luaY_ - lparser.c
+
+luaZ_ - lzio.c
+
+lua_  - lapi.c/h + luaconf.h, debug.c
+
+luai_ - luaconf.h
+
+luaopen_ - luaconf.h + libraries (lbaselib.c, ldblib.c, liolib.c, lmathlib.c,
+
+                                  loadlib.c, loslib.c, lstrlib.c, ltablib.c)
+
+</pre>
+</DL>
+(5.1.3)
+<p>
+<H3>src/Makefile</H3>
+<p>
+In src/Makefile (5.1.1), the mingw target is unusual in that it only builds lua (not luac).  A mingw-cygwin target could be added too.  See mingw notes in <a href="../wiki/BuildingLua.html" >BuildingLua</a> for resolution.
+<p>
+In src/luaconf.h (5.1.1), <code>LUA_PATH_DEFAULT</code> refers to both <code>LUA_LDIR</code> and <code>LUA_CDIR</code>, but <code>LUA_CPATH_DEFAULT</code> refers only to the <code>LUA_CDIR</code> of these.  <a href="../wiki/RiciLake.html" >RiciLake</a> suggested this might be a security decision, where C modules require more trust than Lua modules.
+<p>
+<H3>src/luaconf.h</H3>
+<p>
+In src/luaconf.h (5.1.1), there is a <code>LUA_CDIR"loadall.dll"</code>, which is discussed in <a href="http://lua-users.org/lists/lua-l/2005-11/msg00113.html">[3]</a> <a href="http://www.lua.org/manual/5.1/manual.html#pdf-require">[4]</a>.
+<p>
+<H3>src/lgc.h and lgc.c (garbage collector)</H3>
+<p>
+See <a href="../wiki/GarbageCollection.html" >GarbageCollection</a> and the description in <a href="../wiki/EmergencyGarbageCollector.html" >EmergencyGarbageCollector</a>.
+<p>
+<H3>sec/ltable.h and ltable.c (tables)</H3>
+<p>
+See <a href="../wiki/LuaSourceTable.html" >LuaSourceTable</a>
+<p>
+<H3>src/lmathlib.c</H3>
+<p>
+This is described some in <a href="../wiki/BindingCodeToLua.html" >BindingCodeToLua</a>.
+<p>
+Note: the line "#define lmathlib_c" (and similar lines in the other libraries) exist only for conditionals in luaconf.h (noted by lhf).
+<p>
+<H2>Comments on this Page</H2>
+<p>
+Notes on the purpose of this page: Some users have said the Lua source code should be better documented and particularly, as done here, to allow anyone to assist in that.  This is also related to a suggestion for a more wiki-like approach to commenting on each function in the Lua API as done on the below sites.  This would probably involve a new section of the wiki, possibly named LuaDoc<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaDoc" >?</a>, DocLua<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DocLua" >?</a>, or individual pages like DocLuaTostring<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DocLuaTostring" >?</a> if there's enough content.
+<p>
+<UL>
+<li> <a href="http://rpgstats.com/wiki/index.php?title=LlGetBoundingBox">http://rpgstats.com/wiki/index.php?title=LlGetBoundingBox</a>
+<li> <a href="http://dev.mysql.com/doc/refman/4.1/en/insert.html">http://dev.mysql.com/doc/refman/4.1/en/insert.html</a>
+</UL>
+<p>
+<p>
+<em>I strongly disagree that a wiki is the right medium to do this for several reasons, the main one being that it won't scale well.  I suggest checking in a pristine copy of the Lua upstream source to a source control repository, and allowing people to check in comments directly onto the source code (e.g. you can put a comment on a specific function, struct member, etc.).  This way there is some hope of carrying the comments (by merging) to future Lua releases.  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a></em>
+<p>
+<p>
+<DL>
+<dt><dd>-- This was following some discussion with Rici, Lhf, and Steinwookie.  I think the understanding is that this documentation would not necessarily be the usual "doxygen"-like format on a function/parameter/line level and cluttering every function.  Rather, Lhf suggested this documentation could be more in a literate programming format.  This is not entirely unusual.  For example, there are books explaining the linux kernel sources, and in Lua there are things like the No-frills Intro to Lua 5.1 VM.  There was also a feeling that the chance this documentation, or anything, would get into the core is fairly low, or at least there is no current commitment to that.--<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+<DL>
+<dt><dd>None of the arguments seem related to wiki being the wrong medium for this.   What will happen with Lua 6, 7, 8, etc. when the set of files and their content changes?  --John
+</DL>
+<p>
+<DL>
+<dt><dd>-- Much of the same concerns apply to <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a>.  The wiki can be more convenient/open.  The Lua source is strongly controlled and a slowly moving target (e.g. very few patches against a small Lua core).  Questions on the source can be posted here as well.  Keeping the wiki content in sync with different Lua versions affects most pages on the wiki--and that has been a problem, but the solution is a simple convention of wiki content noting which version of Lua it applies to.   --<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2008-03/msg00015.html">LuaList:2008-03/msg00015.html</a> - "People have been asking for more comments in the source code."
+<li> <a href="../wiki/ModifyingLua.html" >ModifyingLua</a> - describes steps to custom patch Lua for __setindex
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaSource" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaSource" >history</a><br>Last edited January 2, 2011 3:00 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaSource" >(diff)</a>
+</body>
+</html>

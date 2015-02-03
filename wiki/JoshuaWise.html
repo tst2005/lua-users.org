@@ -1,0 +1,137 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Joshua Wise</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=JoshuaWise&amp;body=1" title="List pages referring to JoshuaWise">Joshua Wise</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Hi. I'm Joshua Wise. I do some level of work with Lua. Most recently, I've been working on support in naim (the ncurses AIM/IRC client -- <a href="http://naim.n.ml.org/">http://naim.n.ml.org/</a> ) for Lua -- check out the NaimLua<a href="/cgi-bin/wiki.pl?action=edit&amp;id=NaimLua" >?</a> page (which may or may not exist).
+<p>
+I've also been doing some other random stuff lately. <a href="../wiki/RiciLake.html" >RiciLake</a> suggested that I start documenting stuff, so as I find interesting things that I've done, I'll post them here. Like him, I can be found on the IRC channel, which is available at <a href="irc://irc.freenode.net/#lua">irc://irc.freenode.net/#lua</a> -- my username is usually joshua_. If you're looking for me elsewhere on the web, try <a href="http://joshuawise.com/">http://joshuawise.com/</a> .
+<p>
+<H3>Code</H3>
+<UL>
+<li> I've been working on some database bindings for Lua recently, including what I'm calling LuaOnLails<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaOnLails" >?</a>. Grab the latest from <a href="http://nyus.joshuawise.com/lails.lua">http://nyus.joshuawise.com/lails.lua</a> . This requires <a href="../wiki/RiciLake.html" >RiciLake</a>'s <a href="../wiki/GeneralizedPairsAndIpairs.html" >GeneralizedPairsAndIpairs</a>. (Lua 5.1)
+<UL>
+<li> Have a test driver: <a href="http://nyus.joshuawise.com/lails-testdriver.lua">http://nyus.joshuawise.com/lails-testdriver.lua</a>
+<li> Here's a quick way to show it off. This code snippet migrates data from a Lua-based datastore to a SQLite datastore. The data was originally stored in a Lua file called "objects.lua", which contained a table called "objects" that mapped from hashes to descriptions. Really, it's a lot less complex than it sounds, especially when you do it with Lails. <pre class="code">
+<span class="library">require</span><span class="string">"lails"</span>
+
+<span class="library">require</span><span class="string">"luasql.sqlite"</span>
+
+env = luasql.sqlite()
+
+conn = env:connect(<span class="string">"/home/joshua/mirror-objects.sqlite"</span>)
+
+
+
+db = lails.db:new(conn){
+
+        tables = {
+
+                objects = {
+
+                        primkey = <span class="string">"hash"</span>
+
+                }
+
+        }
+
+}
+
+test = db.objects
+
+
+
+<span class="library">dofile</span>(<span class="string">"objects.lua"</span>)
+
+conn:execute(<span class="string">"BEGIN TRANSACTION;"</span>)
+
+<span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(objects) <span class="keyword">do</span>
+
+        test[k] = {
+
+                moddate = v.moddate,
+
+                mimetype = v.mimetype,
+
+                mirrored = v.mirrored,
+
+                length = v.length,
+
+                lastaccessed = v.lastaccessed,
+
+                url = v.url
+
+        }
+
+<span class="keyword">end</span>
+
+conn:execute(<span class="string">"COMMIT;"</span>)
+
+</pre>
+ I whipped this up in about 25 minutes this afternoon. The neat bit about this is that when I convert the user of the datastore over, I won't really have to change much -- the only difference will be that I won't have to load and store the datastore, I can just act directly on the database. More on how Lails actually works later.
+<li> Syntax has changed recently as I introduced relational stuff to Lails -- mostly in how you initialize the database. Take a look at <a href="http://nyus.joshuawise.com/reltest.lp-txt">http://nyus.joshuawise.com/reltest.lp-txt</a> for the new way to initialize a database, and a look at playing with relations. Other examples updated 2006-02-04 later in the day (and syntax changed a bit too). That database was created with the commands: <pre>
+
+ sqlite&gt; INSERT INTO users (id, username) VALUES (1, "joshua");
+
+ sqlite&gt; INSERT INTO users (id, username) VALUES (2, "someone");
+
+ sqlite&gt; INSERT INTO acls (id, resource, user) VALUES (1, "/", 1);
+
+ sqlite&gt; INSERT INTO acls (id, resource, user) VALUES (2, "/home/someone", 2);
+
+ sqlite&gt; INSERT INTO acls (id, resource, user) VALUES (3, "/tmp", 2);</pre> Slick, huh? Did this 2007-02-04 (early in the morning; if you saw it mid day 2007-02-04, you're already out of date)
+</UL>
+<li> I wrote a polyglot.        <pre class="code">
+#define <span class="keyword">function</span> main() { int i = 0;
+
+<span class="keyword">function</span> <span class="comment">--i; printf("Hello, world!\n"); } /*</span>
+
+x() <span class="library">print</span>(<span class="string">"Hello, world!"</span>) <span class="keyword">end</span> x() <span class="comment">-- */</span>
+
+</pre>
+
+<li> Other undocumented stuff:
+<UL>
+<li> I got LuaSQL and CGILua running with FastCGI on Apache2.2 and Lua5.1. I should write up how I did that.
+<li> I wrote a live mirror script in Lua. Add a little bit of mod_rewrite magic, and it's fairly functional. Think Apache mod_cache, except written in Lua because I suffered from a little bit of NIH syndrome, because I didn't know about it, and because I wanted to do it in Lua to play with CGILua. <a href="http://nyus.joshuawise.com/live-mirror.lcgi-txt">http://nyus.joshuawise.com/live-mirror.lcgi-txt</a>
+</UL>
+<li> Various naim hacks
+<UL>
+<li> METAR downloader and translator that responds to requests from an IRC channel.
+<li> "Latest xkcd" IRC bot.
+<li> Utility bot with !epithet, !lart, etc support.
+<li> Protocol driver support for naim; oscar.pd.
+</UL>
+<li> Wrote the hooks setup on <a href="../wiki/LuaDesignPatterns.html" >LuaDesignPatterns</a>. This was part of my "Joshua's Lua Hack of the Day" series, and was originally written on 2007-02-01.
+</UL>
+<p>
+<H3>Chat and Messages</H3>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=JoshuaWise" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=JoshuaWise" >history</a><br>Last edited February 6, 2007 6:12 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=JoshuaWise" >(diff)</a>
+</body>
+</html>

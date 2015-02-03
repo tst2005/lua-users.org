@@ -1,0 +1,246 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: New For</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=NewFor&amp;body=1" title="List pages referring to NewFor">New For</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<strong>Abstract:</strong> This is a discussion of the extended iterator-style '<code>for</code>' statement syntax that was introduced in Lua 5.0.  This page is somewhat historical (and is no longer new).  The reference manual<a href="http://www.lua.org/manual/5.1/manual.html#2.4.5">[1]</a> has a more complete description of this.
+<p>
+<H3>Introduction</H3>
+<p>
+I (<a href="../wiki/PhilippeLhoste.html" >PhilippeLhoste</a>) played a bit with the new 'for' syntax in Lua 5.0 (work0 in case the syntax/behavior change).
+<p>
+I started with the 2002/06/06 mail from Roberto, giving pseudo-code. Since I prefer long variable names, I rewrote it a bit for better (mine!) comprehension.
+Let me quote it here, as a reminder:
+<p>
+Pseudo code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> var1, ..., varn <span class="keyword">in</span> expList <span class="keyword">do</span>
+
+  block
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+is equivalent to the following<a href="http://www.lua.org/manual/5.1/manual.html#2.4.5">[1]</a><a href="http://www.lua.org/manual/5.0/manual.html#2.4.5">[2]</a> (Lua 5.1)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> _func, _state, var = &lt;explist&gt;
+
+  <span class="keyword">while</span> 1 <span class="keyword">do</span>
+
+    <span class="keyword">local</span> var1, ..., varn = _func(_state, var1)
+
+    var = var1
+
+    <span class="keyword">if</span> var == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    &lt;block&gt;
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<code>explist</code> is two or three expressions: a function (<code>_func</code>), a state (for persistence of data) and an initial value. It can be a function returning these values.
+<p>
+<code>_func</code>, returned by <code>explist</code>, must return <code>n</code> values, the first one being <code>nil</code> when process is exhausted.
+<p>
+I tried with the following code (also provided by Roberto):
+<p>
+<DL>
+<dt><dd><pre class="code">
+t = { <span class="string">"a"</span>, <span class="string">"b"</span>, <span class="string">"c"</span> }
+
+<span class="keyword">for</span> i, k <span class="keyword">in</span> nexti(t) <span class="keyword">do</span> <span class="library">print</span>(i, k) <span class="keyword">end</span>
+
+<span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">next</span>, t <span class="keyword">do</span> <span class="library">print</span>(k, v) <span class="keyword">end</span>
+
+<span class="keyword">for</span> k, v <span class="keyword">in</span> t <span class="keyword">do</span> <span class="library">print</span>(k, v) <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The results are identical.
+<p>
+In the first line, '<code>nexti</code>' returns the function iterator and the table given as parameter.
+<p>
+In the second line, '<code>next</code>' is the function (<code>_func</code>) and '<code>t</code>' is the state (<code>_state</code>).
+<p>
+The third line is syntactic sugar for the above lines, to ensure backward compatibility.
+<p>
+<H3>Application: reading the lines of a file</H3>
+<p>
+The code snippet given by Roberto to read the lines of a file helped me understanding the pseudo-code above (I am a bit slow...).
+<p>
+It was:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> lines(filename)
+
+  <span class="keyword">local</span> f = <span class="library">assert</span>(<span class="library">io.open</span>(filename, <span class="string">"r"</span>))
+
+  <span class="keyword">return</span> <span class="keyword">function</span> ()
+
+    <span class="keyword">return</span> f:read() <span class="keyword">or</span> (<span class="library">assert</span>(f:close()) <span class="keyword">and</span> <span class="keyword">nil</span>)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">for</span> line <span class="keyword">in</span> lines(file) <span class="keyword">do</span>
+
+  <span class="library">print</span>(line) <span class="comment">-- Or process line, etc.</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+For those wondering about the anonymous function return value:
+<p>
+<DL>
+<dt><dd>- If <code>f:read()</code> reads a line, the part after the 'or' isn't evaluated.
+</DL>
+<p>
+<DL>
+<dt><dd>- Else (end of line) <code>f:read()</code> is <code>nil</code> and we return the second part:
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd>If assert is OK, it returns its expression.
+</DL>
+</DL>
+<p>
+<DL>
+<DL>
+<dt><dd>In any case, the "<code>and nil</code>" forces this part to nil, so the loop ends.
+</DL>
+</DL>
+<p>
+<H3>Playing with the 'for' syntax</H3>
+<p>
+I started to rewrite it like:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> lines(filename)
+
+  <span class="keyword">local</span> f = <span class="library">assert</span>(<span class="library">io.open</span>(filename, <span class="string">"r"</span>))
+
+  <span class="keyword">local</span> i = 0
+
+  <span class="keyword">return</span> <span class="keyword">function</span> ()
+
+    i = i + 1
+
+    <span class="keyword">return</span> f:read() <span class="keyword">or</span> (<span class="library">assert</span>(f:close()) <span class="keyword">and</span> <span class="keyword">nil</span>), i
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> line, number
+
+<span class="keyword">for</span> line, number <span class="keyword">in</span> lines(file) <span class="keyword">do</span>
+
+  <span class="library">print</span>(<span class="string">"("</span> .. number .. <span class="string">") "</span> .. line)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+We already have a state persistence... I suppose this is the magic of 5.0's closures, the '<code>i</code>' in the anonymous function pointing to the local variable in lines().
+<p>
+I made a final version, using state and initial value as per the pseudo-code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> lines(filename)
+
+  <span class="keyword">local</span> f = <span class="library">assert</span>(<span class="library">io.open</span>(filename, <span class="string">"r"</span>))
+
+  <span class="keyword">local</span> state = {}
+
+  state.persistentValue = <span class="string">" "</span>
+
+  state.counter = 0
+
+  <span class="keyword">return</span> <span class="keyword">function</span> (_state, _previousValue)
+
+    _state.persistentValue = <span class="string">"."</span> .. _state.persistentValue
+
+    _state.counter = _state.counter + 1
+
+    <span class="library">print</span>(_state.persistentValue .. _previousValue)
+
+    <span class="keyword">return</span> f:read() <span class="keyword">or</span> (<span class="library">assert</span>(f:close()) <span class="keyword">and</span> <span class="keyword">nil</span>), _state.counter
+
+  <span class="keyword">end</span>, state, <span class="string">"First value"</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+But I am no longer sure of the advantage of this state over the previous version...
+Well, it looks more like OO, and I am probably missing some side effect.
+<p>
+<a href="../wiki/RobertoIerusalimschy.html" >RobertoIerusalimschy</a> answered: This is a matter of taste. The big advantage of using the state is when you don't need to create any new "object" (table, closure, etc.) to run the for. The `<code>nexti</code>' is an example. In "heavier" loops, the cost of an extra object is negligible. E.g., in the file example, you already have to open the file, create a file handler, create several strings (the lines), etc. etc. An extra closure (or table) makes little difference to the total bill.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2002-06/msg00326.html">LuaList:2002-06/msg00326.html</a>
+<li> <a href="/lists/lua-l/2002-06/msg00343.html">LuaList:2002-06/msg00343.html</a> - nexti
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=NewFor" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=NewFor" >history</a><br>Last edited March 29, 2008 8:58 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=NewFor" >(diff)</a>
+</body>
+</html>

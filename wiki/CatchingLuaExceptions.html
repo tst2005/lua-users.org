@@ -1,0 +1,190 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Catching Lua Exceptions</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CatchingLuaExceptions&amp;body=1" title="List pages referring to CatchingLuaExceptions">Catching Lua Exceptions</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<strong>By:</strong> <a href="../wiki/KevinBaca.html" >KevinBaca</a>
+<p>
+<strong>Lua Version:</strong> 5.0 (<a href="../wiki/VersionNotice.html" >VersionNotice</a>)
+<p>
+This article presents a set of patches that facilitate lua exception handling in C and C++.
+<p>
+<H2>Introduction</H2>
+<p>
+An exception generated in a Lua script has two possible outcomes:
+<p>
+<DL>
+<dt><dd>1.  It propagates to the top of the call chain.  The Lua runtime panics and typically exits the program.
+</DL>
+<p>
+<DL>
+<dt><dd>2.  It stops at a point in the call chain where a protected call has been made.  The function making the protected call can then handle the exception.
+</DL>
+<p>
+Lua's C API provides the function lua_pcall() for making protected calls <a href="http://www.lua.org/manual/5.0/manual.html#3.15">[1]</a>.
+<p>
+<H2>Lua's Implementation</H2>
+<p>
+When a program "throws" an exception it is making a "non-local jump".  It is jumping to a point in the code that may not be in the same block, the same function, or even the same module.  The Lua manual calls the destination of these non-local jumps "Recover Points".
+<p>
+Because the Lua runtime is written in C it cannot use C++ exceptions, so Lua implements this behavior using the C functions <code>setjmp()</code> and <code>longjmp()</code> <a href="http://www.lua.org/manual/5.0/manual.html#3.19">[2]</a>.
+<p>
+Note: As of Lua 5.1, when compiled as C++, Lua uses native C++ exceptions instead of <code>setjmp()</code> and <code>longjmp()</code>.
+<p>
+<H2>Problems with <code>setjmp()/longjmp()</code></H2>
+<p>
+The <code>setjmp()/longjmp()</code> idiom is very efficient and easy to use.  It is used in many C libraries to provide exception handling support.  It is not, however, without its problems.
+<p>
+<code>setjmp()</code> stores the current state of the CPU's execution environment (registers, stack pointers, etc) to a buffer.  Calling <code>longjmp()</code> with that buffer restores the saved execution environment.  Essentially, <code>longjmp()</code> "time travels" back to the <code>setjmp()</code> call.  The program continues execution from that point with its execution environment appearing as if it hasn't changed.
+<p>
+<DL>
+<dt><dd><pre>
+
+jmp_buf jb;
+
+
+
+char* mystr = "Original Value";
+
+
+
+/* start */
+
+int i_except = setjmp( jb );
+
+
+
+if( 0 == i_except ) /* try */
+
+{
+
+    mystr = "New Value";
+
+
+
+    /* Throw an exception.
+
+       Jumps back to "start", and setjmp() returns 33
+
+     */
+
+    longjmp( jb, 33 );
+
+}
+
+else /* catch */
+
+{
+
+    /* Handle the exception */
+
+}
+
+
+
+print( mystr );
+
+
+
+</pre>
+</DL>
+<p>
+Many compilers will optimize references to local variables by caching their values in registers.  This is fine when code execution is sequential.  If the compiler runs out of registers it can store the value to memory and load it later.  A call to <code>longjmp()</code>, however, <em>restores</em> the state of registers saved by <code>setjmp()</code>.  If the compiler has cached a variable's value in a register and its value changes after <code>setjmp()</code> but before <code>longjmp()</code>, its new value will be lost when <code>longjmp()</code> restores its old value.
+<p>
+In the example above the variable <code>mystr</code> is susceptible to this problem.  Depending on how the compiler has optimized the code, when <code>print()</code> is called <code>mayvar</code> may contain "New Value", or it may contain "Original Value".
+<p>
+-- <em>Actually, the context of the setjmp invocation in the example above is non-conforming and the resulting behaviour is undefined.  The example below is OK in this respect.</em> -- Wim Couwenberg
+<p>
+This problem can be mitigated with careful programming.  The solutions are:
+<p>
+<DL>
+<dt><dd>1.  Don't change local variables between calls to <code>setjmp()/longjmp()</code>.
+</DL>
+<p>
+<DL>
+<dt><dd>2.  Variables declared outside the <code>setjmp()/longjmp()</code> block should be declared <code>volatile</code>.
+</DL>
+<p>
+In the example above, declaring <code>mystr</code> as <code>volatile</code> will prevent the compiler from caching its value to a register:
+<p>
+<DL>
+<dt><dd><pre>
+
+char* volatile mystr;
+
+</pre>
+</DL>
+<p>
+Declare a volatile <code>int</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+volatile int myint;
+
+</pre>
+</DL>
+<p>
+Note that function arguments must be included in the set of <code>volatile</code> variables:
+<p>
+<DL>
+<dt><dd><pre>
+
+int func( int* volatile pInt ) /* pointer declared volatile */
+
+{
+
+    jmp_buf jb;
+
+
+
+    if( 0 == setjmp( jb ) )
+
+    {
+
+        pInt++;
+
+        longjmp( jb, 97 );
+
+    }
+
+    else
+
+    {
+
+    }
+
+}
+
+</pre>
+</DL>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CatchingLuaExceptions" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CatchingLuaExceptions" >history</a><br>Last edited July 3, 2009 8:00 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CatchingLuaExceptions" >(diff)</a>
+</body>
+</html>

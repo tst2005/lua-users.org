@@ -1,0 +1,389 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Power Patches Archive</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaPowerPatchesArchive&amp;body=1" title="List pages referring to LuaPowerPatchesArchive">Lua Power Patches Archive</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page contains <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a> for old versions of Lua.
+<p>
+<H2>Lua 5.0</H2>
+<p>
+<H3>Bitwise operators and hexadecimal support</H3>
+<p>
+This patch adds the following features to Lua 5.0:
+<p>
+<UL>
+<li> Hexadecimal support for 0xXXX in numeric literals.
+<li> Hexadecimal support for '\xXX' characters within strings.
+<li> Infix bitwise operators for AND (&amp;), OR (|) and XOR (#).
+<li> Unary bitwise negation using # alone.
+</UL>
+<p>
+NOTE: This patch adds opcodes to the Lua virtual machine. The two major consequences of this are that (1) the result cannot be called 'Lua', and (2) compiled code will not run on interpreters that do not include this patch.
+<p>
+After applying the patch, try running the following:
+<DL>
+<dt><dd><pre>
+
+&gt; hex=function(n) print("0x"..string.format("%X",n)) end
+
+&gt; hex(0x54&amp;0x55)
+
+0x54
+
+&gt; hex(0x54|0x66)
+
+0x76
+
+&gt; hex(0x54#0x66)
+
+0x32
+
+&gt; hex(#0x45)    
+
+0xFFFFFFBA
+
+&gt; print("Hel\x6c\x6f world\x21")
+
+Hello world!
+
+&gt; 
+
+</pre>
+</DL>
+<p>
+BUG-REPORT/NOTE: This patch uses the C function strtol(), which on most systems has a maximum input value of 0x7FFFFFFF, so the command hex(0x97F2DA31) will output 0x7FFFFFFF.  [ This is easy enough to fix on machines that support 64-bit integers (i.e. long long) by using strtoll() (Posix) or __strtoi64() (Win32) ].
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> No (opcodes added)
+<li><strong>Lines changed/added/deleted:</strong> ~150
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> <a href="../wiki/DougRogers.html" >DougRogers</a>
+<li><strong>Last update:</strong> 2004-Jun-24
+<li> <a href="/files/wiki_insecure/power_patches/5.0/bitwise-ops-hex.patch">[download (for Lua 5.0.X)]</a>
+</UL>
+<p>
+<p>
+<H3>Improved Coroutines</H3>
+<p>
+This patch removes the restrictions on yielding coroutines from within metamethods or C functions to largest degree possible without introducing operating system-dependence or reliance on OS facilities such as threading libraries or C stack allocations.  See <a href="../wiki/ImprovedCoroutinesPatch.html" >ImprovedCoroutinesPatch</a>.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes except for one modified error message
+<li><strong>Lines changed/added/deleted:</strong> ?
+<li><strong>Lua authors' position:</strong> ?
+<li><strong>Author:</strong> EricJacobs<a href="/cgi-bin/wiki.pl?action=edit&amp;id=EricJacobs" >?</a>
+<li><strong>Last update:</strong> 2004-Dec-04
+<li> <a href="/files/wiki_insecure/power_patches/5.0/ejcoro.patch">[download (for Lua 5.0.2)]</a>
+</UL>
+<p>
+<p>
+<H3>__usedindex metatable patch</H3>
+<code>__newindex</code> catches creation/assignment to new table indexes, but not to pre-existing ones. What if the old value had a back-reference to its parent? (<code>__gc</code> is not enough.) What if the changed value should be mirrored in a C data structure?
+<p>
+<code>__usedindex</code> will act the same as <code>__newindex</code>, except that <code>table[key]</code> will exist.
+<p>
+Example:
+<DL>
+<dt><dd><pre>function used(t,k,v)
+
+   local o
+
+   o = rawget(t,k)
+
+   print("__usedindex",t,k,v,o)
+
+   rawset(t,k,v)
+
+end
+
+function new(t,k,v)
+
+   print("__newindex",t,k,v)
+
+   rawset(t,k,v)
+
+end
+
+</pre>
+</DL><UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 6/16/0
+<li><strong>Lua authors' position:</strong> -
+<li><strong>Author:</strong> Christopher.Dunn@Motorola.com
+<li><strong>Last update:</strong> 2004-Feb-29
+<li> <a href="/files/wiki_insecure/power_patches/5.0/usedindex.patch">[download (for Lua 5.0)]</a>
+</UL>
+<p>
+<H3>Make superfluous 'do' and 'then' tokens optional</H3>
+<p>
+Lua requires 'then' following an <code>if</code> statement, and 'do' following <code>while</code> and <code>for</code> statements. This patch makes them optional. 
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 3/0/0
+<li><strong>Lua authors' position:</strong> unknown (<a href="../wiki/MakeSuperfluousTokensOptional.html" >MakeSuperfluousTokensOptional</a>)
+<li><strong>Author:</strong> <a href="../wiki/EricTetz.html" >EricTetz</a>
+<li><strong>Last update:</strong> 2003-Aug-30
+<li> <a href="/files/wiki_insecure/power_patches/5.0/superfluous-token.patch">[download (for Lua 5.0)]</a>
+</UL>
+<p>
+<H2>Lua 4.x</H2>
+<p>
+<H3>Unix/Win32 Makefiles</H3>
+Changes the lua-4.1-work4 Makefiles so that it's easy to build the Lua libraries and executables under Win32 with MSVC, using GNU Make, by editing lua/config.  Does not hurt Unix compatibility.  The main difficulty is that Windows uses different file extensions and a few slightly different archiver/linker/compiler options.  By using macros to stand for the file extensions, the config file can configure for either Unix or Win32, without having to edit the actual Makefiles.
+<p>
+<UL>
+<li><strong>Lua version:</strong> lua-4.1-work4
+<li><strong>Backwards compatible:</strong> yes, this patch leaves all the existing Lua config defaults and should build under Unix the same as the standard distribution.
+<li><strong>Lines chagned/added/deleted:</strong> ?
+<li><strong>Lua authors' position:</strong> unknown
+<li><strong>Author:</strong> <a href="../wiki/ThatcherUlrich.html" >ThatcherUlrich</a>
+<li><strong>Last update:</strong> 2002-Feb-18 (initial revision)
+<li><strong>Todo:</strong> More testing, and implement building of DLL's under Windows.
+<li><a href="/files/wiki_insecure/power_patches/4.1/lua41makefile.patch">[download]</a>
+</UL>
+<p>
+<H3>Block Comments</H3>
+Adds block comments to Lua: <code>--[[...]]</code>.  Uses the long string parser (<code>[[...]]</code>) so block comments may be nested.  Recommended usage:
+<DL>
+<dt><dd><pre>
+
+--[[---------
+
+Comment...
+
+--]]---------</pre>
+</DL>
+That has the nice property that a block comment may be <em>disabled</em> by inserting a single space just before the first <code>[</code> (or by adding a single <code>-</code> before <code>--[[</code>).
+<UL>
+<li><strong>Backwards compatible:</strong> no, but unlikely to break existing programs.
+<li><strong>Lines changed/added/deleted:</strong> 4/10/0
+<li><strong>Lua authors' position:</strong>  Considering this for Lua 4.1.
+<li><strong>Author:</strong> Edgar Toernig
+<li><strong>Last update:</strong> 2001-Dec-14
+<li><a href="/files/wiki_insecure/power_patches/4.0/block-comment.patch">[4.0 version]</a> <a href="/files/wiki_insecure/power_patches/4.1/block-comment.patch">[4.1 version]</a>
+</UL>
+<p>
+<H3>Lua autoconf patch</H3>
+Autoconfiscates the Lua distribution (4.1work4).
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> unknown
+<li><strong>Lua authors' position:</strong> - unlikely to be added to the distribution
+<li><strong>Author:</strong> unknown
+<li><strong>Last update:</strong> unknown
+<li> <a href="http://www.atai.org/lua/lua_autoconf_patch.gz">[1]</a>
+</UL>
+<p>
+<H3>Lua setconstant patch</H3>
+Add a Lua function setconstant( table ), It will mark a table of strings or numbers as constant, so that the content of this table will never be garbage collected. Note that the table can be nested, and anything other than number and string will not be suited to this function.
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 0/80/23
+<li><strong>Lua authors' position:</strong> -
+<li><strong>Author:</strong> <a href="../wiki/PaulLiu.html" >PaulLiu</a>
+<li><strong>Last update:</strong> 2002-Jun-11
+<li> <a href="/files/wiki_insecure/power_patches/4.0/lua-const.patch">[download (for Lua 4.0)]</a>
+</UL>
+<p>
+<H3>yield()</H3>
+Changes the Lua VM so that calls from Lua to Lua functions are "stackless"; i.e. no execution state is stored on the C stack.  Adds a <code>yield()</code> function to the Lua base library, which can be used to implement latent functions/cooperative multitasking.  When a script calls <code>yield()</code>, the function call to <code>lua_dostring/lua_dofile/lua_dobuffer</code> from the host program returns with the code <code>LUA_YIELD</code>.  The script's execution state is preserved in the <code>lua_State</code> structure, and a new API function, <code>lua_resume(L)</code>, can be used to continue the script's execution at some later time.
+<p>
+As a side benefit, this patch makes Lua's tailcalls (ones that use the <code>OP_TAILCALL</code> opcode) properly non-recursive.
+<UL>
+<li><strong>Backwards compatible:</strong> yes, provided there are no name collisions with "yield()".
+<li><strong>Lines changed/added/deleted:</strong> ~400
+<li><strong>Lua authors' position:</strong>  An improved implementation is available in Lua 5.0.
+<li><strong>Author:</strong> Thatcher Ulrich
+<li><strong>Last update:</strong> 2002-Jan-16 (fixed some bugs -<a href="../wiki/ThatcherUlrich.html" >ThatcherUlrich</a>)
+<li><strong>Todo:</strong> There are still some bugs surrounding error handling.  For example, from an interactive lua session, if you <code>'dofile("program.lua")'</code>, and <code>program.lua</code> does a <code>yield()</code>, Lua can crash.  If possible, I recommend using the supported implementation in 5.0 instead.
+<li><a href="/files/wiki_insecure/power_patches/4.0/yield.patch">[download]</a>
+</UL>
+(was "sleep patch"; "yield" was deemed a better name for this functionality, so I changed the name. -<a href="../wiki/ThatcherUlrich.html" >ThatcherUlrich</a>)
+<p>
+<H3>Enhanced table constructors</H3>
+The record part of table constructors (<code>field=value</code>) is modified so that function statements are allowed and the comma is optional now.  So this becomes valid:
+<DL>
+<dt><dd><pre>
+
+x = { 
+
+  function foo() end
+
+  function bar() end
+
+  c=1
+
+  d=2
+
+} </pre>
+</DL>
+and is the same as:
+<DL>
+<dt><dd><pre>
+
+x = { 
+
+  foo=function() end,
+
+  bar=function() end,
+
+  c=1,
+
+  d=2,
+
+} </pre>
+</DL>
+<p>
+The comma is still required in front of <code>[val]=val</code> records and in list initializers <code>({ expr, expr })</code>.
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 4/8/0
+<li><strong>Lua authors' position:</strong> Don't know
+<li><strong>Author:</strong> Edgar Toernig
+<li><strong>Last update:</strong> 2001-Dec-16
+<li><a href="/files/wiki_insecure/power_patches/4.0/constructors.patch">[4.0 version]</a>
+</UL>
+<p>
+<p>
+<H3>Local functions</H3>
+New syntactic sugar for the local-statement:
+<DL>
+<dt><dd><pre>
+
+local foo(...) ... end</pre>
+</DL>
+is the same as
+<DL>
+<dt><dd><pre>
+
+local foo foo=function(...) ... end</pre>
+</DL>
+Note that <code>foo</code> is visible within the function.  In Lua 4.0 that doesn't help a lot (in fact, an error is raised when <code>%foo</code> is accessed).
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 2/6/0
+<li><strong>Lua authors' position:</strong> Don't know
+<li><strong>Author:</strong> Edgar Toernig
+<li><strong>Last update:</strong> 2001-Dec-16
+<li><a href="/files/wiki_insecure/power_patches/4.0/local-funcs.patch">[4.0 version]</a>
+</UL>
+<p>
+<DL>
+<dt><dd><em>I'm not used to Lua 4.1's code generator so that (more useful) version of this patch has to wait a little bit.</em>
+</DL>
+<p>
+<p>
+<H3>lua_getcclosure()</H3>
+Adds missing function to the API that retrieves closure values of a C function.
+(See lua-l message "pushcclosure / tocfunction issue" by John Belmonte, 2000-Oct-7.)
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 0/19/0
+<li><strong>Lua authors' position:</strong>  Considering this for Lua 4.1.  (See lua-l message "Re: pushcclosure / tocfunction issue" by Roberto Ierusalimschy, 2000-Oct-11.)
+<li><strong>Author:</strong> John Belmonte
+<li><strong>Last update:</strong> 2001-Feb-3
+<li> <a href="/files/wiki_insecure/power_patches/4.0/getcclosure.patch">[download]</a>
+</UL>
+<p>
+<p>
+<H3>Nested Function Names</H3>
+Changes parser to allow definition function names to be nested in more than one level of tables.  (See lua-l message "Re: Son of Lua - Sol" by John Belmonte, 2001-Feb-2.)
+<p>
+The syntax becomes: <code>NAME {'.' NAME} [':' NAME]</code>
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 2/0/0
+<li><strong>Lua authors' position:</strong>  Will be included in Lua 4.1.  (See lua-l message "Re: index tag method" by Roberto Ierusalimschy, 2001-Feb-19.)
+<li><strong>Author:</strong> John Belmonte
+<li><strong>Last update:</strong> 2001-Feb-3
+<li> <a href="/files/wiki_insecure/power_patches/4.0/funcname.patch">[download]</a>
+</UL>
+<p>
+<p>
+<H3>Weak References</H3>
+Adds weak references to Lua.  See <a href="http://www.lua.org/notes/ltn006.html">http://www.lua.org/notes/ltn006.html</a>.
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 0/77/0
+<li><strong>Lua authors' position:</strong> Will add weak tables to Lua 4.1.  (See lua-l message "Re: Coroutine support in 4.1 / IPC mechanisms" by Luiz Henrique de Figueiredo, 2001-Apr-20.)
+<li><strong>Author:</strong> John Belmonte
+<li><strong>Last update:</strong> 2001-Feb-28
+<li> <a href="/files/wiki_insecure/power_patches/4.0/weakrefs.patch">[download]</a>
+</UL>
+<p>
+<p>
+<H3>List Iteration For Construct</H3>
+Adds another form of the <code>for</code> construct that iterates lists.  Semantically equivalent to the standard library function <code>foreachi</code> (See lua-l message "list iteration for statement" by John Belmonte, 2001-Apr-26.)
+<p>
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 5/88/0
+<li><strong>Lua authors' position:</strong> -
+<li><strong>Author:</strong> John Belmonte
+<li><strong>Last update:</strong> 2001-Jun-9
+<li> <a href="/files/wiki_insecure/power_patches/4.0/listfor.patch">[download]</a>
+</UL>
+<p>
+<H3>lua_dolines patch</H3>
+Patch to Lua-4.0.1. 
+Add 
+<p>
+lua_dolines(lua_State *L, char *fname, FILE *f, int *lineno)
+<p>
+to the Lua API which executes Lua code from an already
+open file until '$' is encountered.
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 79
+<li><strong>Lua authors' position:</strong> will be obsoleted by lua_load in 5.0 (See lua-l message " Re: [ANNOUNCE] lua_dolines-1.1.patch" by Luiz Henrique de Figueiredo ,  2002-Jul-29)
+<li><strong>Author:</strong> <a href="../wiki/JuergenFuhrmann.html" >JuergenFuhrmann</a>)
+<li><strong>Last update:</strong> 2002-Jul-29             
+<li><a href="/files/wiki_insecure/power_patches/4.0/lua_dolines-1.1.patch">[Download]</a><a href="/files/wiki_insecure/users/JuergenFuhrmann/lua_dolines.README">[README]</a>
+</UL>
+<p>
+<H3>lua_gc_long patch</H3>
+Patch to Lua-4.0.1. 
+<p>
+This patch changes the way  scaled integers are compared to longs.  It
+actually  is  a  bug fix,  as  otherwise,  on  typical 64  bit  boxes,
+lua_setgcthreshold(L,0) does not work.
+<UL>
+<li><strong>Backwards compatible:</strong> yes
+<li><strong>Lines changed/added/deleted:</strong> 2
+<li><strong>Lua authors' position:</strong> already known, fixed in 5.0b (See lua-l message "Re: gc confusion: now resolved" by Roberto Ierusalimschy ,  2003-Feb-20)
+<li><strong>Author:</strong> <a href="../wiki/JuergenFuhrmann.html" >JuergenFuhrmann</a>)
+<li><strong>Last update:</strong> 2003-Feb-21             
+<li><a href="/files/wiki_insecure/power_patches/4.0/lua_gc_long.patch">[Download]</a><a href="/files/wiki_insecure/users/JuergenFuhrmann/lua_gc_long.README">[README]</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaPowerPatchesArchive" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaPowerPatchesArchive" >history</a><br>Last edited January 4, 2012 1:36 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaPowerPatchesArchive" >(diff)</a>
+</body>
+</html>

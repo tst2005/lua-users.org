@@ -1,0 +1,258 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Cnumber Patch</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CnumberPatch&amp;body=1" title="List pages referring to CnumberPatch">Cnumber Patch</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Introduction</H3>
+<p>
+The CNUMBER patch (available at <a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a>) provides a more efficient mechanism for accessing numeric C variables from Lua.  For example, consider the following C variable:
+<pre>
+
+  double foo = 10.0;
+
+</pre>
+which you might want to access in Lua as a regular variable:
+<pre>
+
+  foo = foo + 1
+
+</pre>
+In Lua 5.1, the primary approach to use here is to attach your own metatable to the global environment table and then attach "__index" and "__newindex" functions to that metatable.  These two functions handle the getting and setting events to the "foo" variable, and they must be implemented in C because that is where the data is stored.  This works reasonably well, but if you're super-concerned about efficiency (as I am), this process is a bit inefficient.  First, it uses global variables, which are less efficient than local variables because global variable names are resolved at run-time via a lookup into the environment table, unlike local variables whose locations are computed at compile-time.  In Lua, table lookup is reasonably efficient even for string keys (such as variable names) since strings are "internalized" and have precomputed hashes, but it's still a penalty.  Also, this requires Lua meta-method calls, which is a further penalty.  An additional concern, more of aesthetics, is that it may seem somewhat contorted the need to modify the behavior of the entire environment in order to change the behavior of a single variable.  Note that such variables cannot exist outside of their environment because the behavior is attached to the environment rather than to the value itself.
+<p>
+Another method is to expose getter and setter accessor functions (or methods) from C and have the Lua code directly call those functions:
+<pre>
+
+  set_foo(get_foo() + 1)
+
+</pre>
+This is ugly and it's not particularly efficient either.  For example, the "set_foo" and "get_foo" are both global variables that must be resolved at run-time, and both involve Lua function calls.  A similar approach is given in <a href="http://www.lua.org/pil/16.5.html">[PIL]</a>.  One positive point is that the behavior is attached to the value itself, so no change is need to the environment.
+<p>
+Another proposed approach might be to implement numeric C variables as heavy userdata and attach a metatable with appropriate events so that they behave like normal values.  However, that doesn't provide an efficient or syntactically clean solution either.  You can change the behavior of values with metatable events, but you can't make them behave exactly like normal values.  For example, there is no "assignment" metatable event that would allow such values to act as lvalues (unlike in C++).
+<p>
+<p>
+<p>
+<p>
+<p>
+This patch addresses these concerns by providing what is called a "CNUMBER."  A CNUMBER is a variable exposed in Lua that is implemented in C.  It is in some ways analogous to a Lua CFUNCTION, which is a function exposed in Lua and implemented in C.  Access to CNUMBERs is almost as fast as access to Lua local variables, which is not surprising since CNUMBERs are handled in a similar way to locals (ignoring closures and scope).
+<p>
+<H3>Usage</H3>
+<p>
+To register CNUMBERs with Lua, you must define three functions as follows:
+<pre>
+
+double foo = 0.0;
+
+double foo2 = 0.0;
+
+double foo3 = 0.0;
+
+
+
+    int
+
+iscnumber(lua_State * L, const char * varname, int * id) {
+
+    if(strcmp(varname, "foo") == 0) {
+
+        *id = 1; return 1; /* yes */
+
+    }
+
+    else if(strcmp(varname, "foo2") == 0) {
+
+        *id = 2; return 1; /* yes */
+
+    }
+
+    else if(strcmp(varname, "foo3") == 0) {
+
+        *id = 3; return 1; /* yes */
+
+    }
+
+    else {
+
+        return 0; /* no */
+
+    }
+
+}
+
+
+
+    double
+
+getcnumber(lua_State *L, int id) {
+
+    switch(id) {
+
+        case 1: { return foo; }
+
+        case 2: { return foo2; }
+
+        case 3: { return foo3; }
+
+        default: assert(0);
+
+    }
+
+    return 0;  /* should not occur */
+
+}
+
+
+
+    void
+
+setcnumber(lua_State *L, int id, double value) {
+
+    switch(id) {
+
+        case 1: { foo  = value;  break; }
+
+        case 2: { foo2 = value;  break; }
+
+        case 3: { foo3 = value;  break; }
+
+        default: assert(0);
+
+    }
+
+}
+
+</pre>
+The first function, iscnumber, is called by the Lua parser.  It allows Lua to determine if a given identifier should be interpreted as a CNUMBER.  If the function identifies the name as a CNUMBER, the function assigns the identifier an ID for later use.  The ID is an 18-bit unsigned number (this size is limited by the opcodes of Lua 5.1) whose meaning is known only to the C code.  When Lua identifies CNUMBERs, it generates new special GETCNUMBER and SETCNUMBER opcodes and stores that ID with it.  Note that each CNUMBER is resolved once (at compile time), so its access is more efficient at run-time.
+<p>
+The functions getcnumber and setcnumber are called at run-time upon processing the two opcodes to respectively get or set the variable.  Each function is passed the ID mentioned before.  The functions can use a simple lookup on that ID as above, or it could be something more complex (e.g. index into arrays).  It is not necessary that an double variable actually exist in the C code.
+<p>
+These three functions must be registered before parsing as follows:
+<pre>
+
+  lua_setcnumberhandler(L, iscnumber, getcnumber, setcnumber);
+
+</pre>
+<p>
+You can unregister them by setting them all to NULL.
+<p>
+<H3>Benchmarking</H3>
+<p>
+Benchmarking is provided on 10 iteratons of this simple example:
+<pre>
+
+  for n=1,10000000 do
+
+    foo = foo + 1
+
+  end
+
+</pre>
+The results compare CNUMBER with a variety of approaches on two systems:
+<pre>
+
+  Linux 2.4.20 (virtualized) / GCC / Intel(R) Xeon(TM) 3 GHz
+
+  == Run Times (sec)
+
+  LOOP           : 8.100000
+
+  CNUMBER        : 23.490000 *
+
+  LOCAL          : 15.200000
+
+  GLOBAL         : 37.150000
+
+  METATABLELOCAL : 99.980000
+
+  METATABLETABLE : 198.790000
+
+  CFUNCTION      : 72.010000
+
+
+
+  WinXP / GCC Ming / Intel(R) P4 3 GHz
+
+  == Run Times (sec)
+
+  LOOP           : 3.361000
+
+  CNUMBER        : 13.702000 *
+
+  LOCAL          : 8.579000
+
+  GLOBAL         : 25.640000
+
+  METATABLELOCAL : 72.858000
+
+  METATABLETABLE : 150.266000
+
+  CFUNCTION      : 52.672000
+
+</pre>
+Description of each approach:
+<p>
+<UL>
+<li> LOOP - time just to do the loop
+<li> CNUMBER - foo is a CNUMBER
+<li> LOCAL - foo is a local Lua variable
+<li> GLOBAL - foo is a global Lua variable
+<li> METATABLELOCAL - foo is local Lua variable accessed through a metatable
+<li> METATABLETABLE - foo is found in a lookup table accessed through a metatable
+<li> CFUNCION - foo is accessed through CFUNCTIONs (get_foo and set_foo).
+</UL>
+<p>
+As shown, CNUMBERs are almost as fast as Lua locals and faster than Lua globals.  They are much faster than the METATABLETABLE and CFUNCTION methods, which otherwise would be required to expose C variables from Lua.  METATABLELOCAL is a simpler version of METATABLETABLE (omitting the second table lookup) but not really useful and only provided for comparison.  This benchmark program is included in the patch (cnumber.c).
+<p>
+In a certain "real-life" application, CFUNCTION reduced run-time by about 40%.
+<p>
+<H3>Design Notes</H3>
+<p>
+The CNUMBER implementation has some important properties:
+<p>
+<UL>
+<li> The interface is fairly generic.  It uses get/set functions rather than pointing to an actual C double variable.  It's not necessary that an actual C double variable exist.  Custom code can be attached to the get/set actions too.
+<li> The semantics of CNUMBER IDs is known only to the C program (not to Lua).   This also provides flexibility.  The maximum number of IDs is 2^18.
+<li> CNUMBERs can be thought of as locals at the top-most level.  CNUMBERS override globals, but they are overridden by locals.  Since CNUMBERs are always top-level, they never go out of scope, so no special handling is required to deal with closures (as is true of locals).
+<li> Though CNUMBERs are top-level (global) in scope, it could be possible to lexically limit this scope (like locals) by having getisnumber return 0 in certain stages of the lexing.  One way to do this might include having a LexState<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LexState" >?</a> pointer passed to iscnumber.  However, if CNUMBERs are allowed to go out of scope, they will not be copied by closures (as occurs with locals) unless this patch were somewhow extended.  It's not certain that that capability is of much utility though.
+<li> CNUMBERs (like locals) are resolved at compile time and (unlike globals) are not stored in a Lua table at run-time.  This provides efficiency but also reduced flexibility.
+<li> The C implementation of a CNUMBER is bound to a name, not to a value, in Lua.  So, if you do "x = foo", x is assigned the value of foo, but x does not become a CNUMBER itself.  This is unlike CFUNCTIONS, which are bound to values.
+<li> The full list of available CNUMBERS is not known to Lua.  Lua just calls the iscnumber function for each identifier it wishes to test.  This may be more flexible (e.g. if you have a large number variables), but a possible disadvantage is that Lua cannot really enumerate them (e.g. reflection) at compile-time nor at run-time, if there is even a need for that.
+<li> Two additional opcodes are added to the Lua VM: GETCNUMBER and SETCNUMBER.  These are very similar in nature to the GETLOCAL and SETLOCAL opcodes.
+</UL>
+<p>
+Possible extensions of this patch include these:
+<p>
+<UL>
+<li> Support for additional basic data types other that numbers (e.g. CBOOLEAN, CSTRING, and CFUNCTION).  (I'm not sure about nil, userdata, thread, and table though, but that seems ok too.)  An extended form of this patch might be renamed more generally CVARIABLE or CLOCAL.
+<li> Testing on LuaJIT.
+</UL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CnumberPatch" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CnumberPatch" >history</a><br>Last edited February 20, 2006 11:02 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CnumberPatch" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,705 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Tic Tac Toe</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteTicTacToe&amp;body=1" title="List pages referring to SciteTicTacToe">Scite Tic Tac Toe</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+An improved tic tac toe game. This script acts like a self-contained Lua "application" in SciTE; it opens a new buffer to play the game and does not affect other buffers. It hooks to handlers in a well-behaved manner, and is compatible with <code>extman</code> (<a href="../wiki/SciteExtMan.html" >SciteExtMan</a>). Finally, it demonstrates a simple application that interacts by having the user double-click on "buttons" or press certain keys. The buffer window is marked read-only so that display refreshes can be better controlled. Coded and tested on SciTE 1.71. Now obsolete old version can be found <a href="http://www.geocities.ws/keinhong/scite/SciTE_TicTacToe.lua.txt">[here]</a>.
+<p>
+<em>Note:</em> If you use proportional fonts, grab <a href="../wiki/SciteMakeMonospace.html" >SciteMakeMonospace</a> and then add <code>MakeMonospace()</code> at the end of the initialization function, <code>TicTacToe()</code>.
+<p>
+<hr>Sample output:
+<p>
+<pre>
+
+SciTE Tic Tac Toe
+
+-----------------
+
+Status: No more moves to make, draw
+
+
+
++---+---+---+
+
+| O | O | X | SciTE: O
+
++---+---+---+ Human: X
+
+| X | X | O |
+
++---+---+---+
+
+| O | X | X |
+
++---+---+---+
+
+
+
++----------+----------+
+
+| New Game | Autoplay |
+
++----------+----------+
+
+
+
+For best results, please use a monospace font (press Ctrl+F11 for
+
+monospace font mode.) Double-click boxes to play, or press keys
+
+1 through 9 to make a move. Key positions correspond to the usual
+
+keypad arrangement. For a new game, you can press the N key or
+
+double-click the "NewGame" box. To autoplay, you can press [Space]
+
+or double-click the "Autoplay" box.
+
+</pre>
+<p>
+<hr><pre class="code">
+<span class="comment">-----------------------------------------------------------------------</span>
+
+<span class="comment">-- Tic Tac Toe for SciTE Version 2.2</span>
+
+<span class="comment">-- Kein-Hong Man &lt;khman@users.sf.net&gt; 20060905</span>
+
+<span class="comment">-- This program is hereby placed into PUBLIC DOMAIN</span>
+
+<span class="comment">-----------------------------------------------------------------------</span>
+
+<span class="comment">-- This script can be installed to a shortcut using properties:</span>
+
+<span class="comment">--     command.name.8.*=Tic Tac Toe</span>
+
+<span class="comment">--     command.subsystem.8.*=3</span>
+
+<span class="comment">--     command.8.*=TicTacToe</span>
+
+<span class="comment">--     command.save.before.8.*=2</span>
+
+<span class="comment">-- If you use extman, you can do it in Lua like this:</span>
+
+<span class="comment">--     scite_Command('Tic Tac Toe|TicTacToe|Ctrl+8')</span>
+
+<span class="comment">-----------------------------------------------------------------------</span>
+
+<span class="comment">-- * This is a demonstration of a (hopefully) well-behaved Lua-based</span>
+
+<span class="comment">--   "application" in SciTE that hooks to handlers, is compatible</span>
+
+<span class="comment">--   with extman, and uses mouse doubleclicks as the user interface.</span>
+
+<span class="comment">-- * TicTacToe is the main function. It opens a new buffer and the</span>
+
+<span class="comment">--   game is played by double-clicking on boxed areas, or by pressing</span>
+
+<span class="comment">--   the number keys 1 through 9.</span>
+
+<span class="comment">-- * Note that the computer player and the player human are fixed</span>
+
+<span class="comment">--   at 'O' and 'X', respectively.</span>
+
+<span class="comment">-- * If you play using digit keys, do not change buffer from read-only.</span>
+
+<span class="comment">-----------------------------------------------------------------------</span>
+
+
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- constants and primitives</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="keyword">local</span> <span class="library">string</span> = <span class="library">string</span>
+
+<span class="keyword">local</span> O, X = 1, 10
+
+<span class="keyword">local</span> STR = {                           <span class="comment">-- various strings</span>
+
+  Sig = <span class="string">"SciTE_TicTacToe2"</span>,
+
+  Prompt = <span class="string">"&gt;SciTE_TicTacToe2: "</span>,
+
+  Horiz = <span class="string">"+---+---+---+"</span>,
+
+  HorizRegex = <span class="string">"^%+%-%-%-%+%-%-%-%+%-%-%-%+"</span>,
+
+  TrioRegex = <span class="string">"^|%s*(%w*)%s*|%s*(%w*)%s*|%s*(%w*)%s*|"</span>,
+
+  BoardPat = <span class="string">"12121"</span>,
+
+  ToolBar = <span class="string">[[
+
++----------+----------+
+
+| New Game | Autoplay |
+
++----------+----------+
+
+]]</span>,
+
+}
+
+<span class="keyword">local</span> MSG = {                           <span class="comment">-- game messages</span>
+
+  Title = <span class="string">"SciTE Tic Tac Toe"</span>,
+
+  Conflict = <span class="string">"There is an OnDoubleClick conflict, please use extman"</span>,
+
+  BadBoard = <span class="string">"Board not recognized, computer cannot continue"</span>,
+
+  BadPieces = <span class="string">"Something strange on the board, cannot continue"</span>,
+
+  IllegalMove = <span class="string">"Illegal move"</span>,
+
+  Borked = <span class="string">"Evaluator borked"</span>,
+
+  Key1 = <span class="string">"SciTE: O"</span>,
+
+  Key2 = <span class="string">"Human: X"</span>,
+
+  Start1 = <span class="string">"Human starts"</span>,
+
+  Start2 = <span class="string">"Computer starts"</span>,
+
+  AlreadyEnd = <span class="string">"Game has already ended"</span>,
+
+  NoMoves = <span class="string">"No more moves to make, draw"</span>,
+
+  HumanWin = <span class="string">"Human wins this round"</span>,
+
+  ComputerWin = <span class="string">"Computer wins this round"</span>,
+
+  Help = <span class="string">[[
+
+For best results, please use a monospace font (press Ctrl+F11 for
+
+monospace font mode.) Double-click boxes to play, or press keys
+
+1 through 9 to make a move. Key positions correspond to the usual
+
+keypad arrangement. For a new game, you can press the N key or
+
+double-click the "NewGame" box. To autoplay, you can press [Space]
+
+or double-click the "Autoplay" box.
+
+]]</span>
+
+}
+
+<span class="keyword">local</span> BUT = {                           <span class="comment">-- fixed button set</span>
+
+  [5] = {{2,4,<span class="string">"7"</span>},{6,8,<span class="string">"8"</span>},{10,12,<span class="string">"9"</span>},},
+
+  [7] = {{2,4,<span class="string">"4"</span>},{6,8,<span class="string">"5"</span>},{10,12,<span class="string">"6"</span>},},
+
+  [9] = {{2,4,<span class="string">"1"</span>},{6,8,<span class="string">"2"</span>},{10,12,<span class="string">"3"</span>},},
+
+  [13] = {{2,11,<span class="string">"NewGame"</span>},{13,22,<span class="string">"Autoplay"</span>},},
+
+}
+
+<span class="keyword">local</span> <span class="keyword">function</span> Error(msg) _ALERT(STR.Prompt..msg) <span class="keyword">end</span>       <span class="comment">-- error msg</span>
+
+
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- simple check for extman, partially emulate if okay to do so</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="keyword">if</span> (OnDoubleClick <span class="keyword">or</span> OnChar) <span class="keyword">and</span> <span class="keyword">not</span> scite_Command <span class="keyword">then</span>
+
+  Error(MSG.Conflict)
+
+<span class="keyword">else</span>
+
+  <span class="comment">-- simple way to add a handler only, can't remove like extman does</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> scite_OnDoubleClick <span class="keyword">then</span>
+
+    <span class="keyword">local</span> _OnDC
+
+    scite_OnDoubleClick = <span class="keyword">function</span>(f) _OnDC = f <span class="keyword">end</span>
+
+    OnDoubleClick = <span class="keyword">function</span>(c) <span class="keyword">if</span> _OnDC <span class="keyword">then</span> <span class="keyword">return</span> _OnDC(c) <span class="keyword">end</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> scite_OnChar <span class="keyword">then</span>
+
+    <span class="keyword">local</span> _OnCh
+
+    scite_OnChar = <span class="keyword">function</span>(f) _OnCh = f <span class="keyword">end</span>
+
+    OnChar = <span class="keyword">function</span>(c) <span class="keyword">if</span> _OnCh <span class="keyword">then</span> <span class="keyword">return</span> _OnCh(c) <span class="keyword">end</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- tic tac toe functions (implicitly uses O as computer, X as human)</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> CheckForWin(t, player)   <span class="comment">-- see who wins</span>
+
+  <span class="keyword">local</span> wins = player * 3
+
+  <span class="keyword">if</span> t[1]+t[5]+t[9] == wins <span class="keyword">or</span>
+
+     t[3]+t[5]+t[7] == wins <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+  <span class="keyword">for</span> i = 1,3 <span class="keyword">do</span>
+
+    <span class="keyword">local</span> j = i * 3
+
+    <span class="keyword">if</span> t[i]+t[i+3]+t[i+6] == wins <span class="keyword">or</span>
+
+       t[j-2]+t[j-1]+t[j] == wins <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">false</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> AnyWin(t)                <span class="comment">-- see if somebody won</span>
+
+  <span class="keyword">return</span> CheckForWin(t, X) <span class="keyword">or</span> CheckForWin(t, O)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> MoveCount(t)             <span class="comment">-- counts the number of moves</span>
+
+  <span class="keyword">local</span> n = 0
+
+  <span class="keyword">for</span> i = 1, 9 <span class="keyword">do</span> <span class="keyword">if</span> t[i] == O <span class="keyword">or</span> t[i] == X <span class="keyword">then</span> n = n + 1 <span class="keyword">end</span> <span class="keyword">end</span>
+
+  <span class="keyword">return</span> n
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- not-bad movement evaluator (minimax can be easily made perfect)</span>
+
+<span class="comment">-- (1) picks the obvious</span>
+
+<span class="comment">-- (2) blocks the obvious</span>
+
+<span class="comment">-- (3) otherwise pick randomly</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> MoveSimple(t, player)
+
+  <span class="keyword">local</span> mv, opponent
+
+  <span class="keyword">if</span> player == X <span class="keyword">then</span> opponent = O <span class="keyword">else</span> opponent = X <span class="keyword">end</span>
+
+  <span class="keyword">for</span> i = 1, 9 <span class="keyword">do</span> <span class="comment">-- (1)</span>
+
+    <span class="keyword">if</span> t[i] == 0 <span class="keyword">then</span>
+
+      t[i] = player
+
+      <span class="keyword">if</span> CheckForWin(t, player) <span class="keyword">then</span> t[i] = player <span class="keyword">return</span> <span class="keyword">end</span>
+
+      t[i] = 0
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">for</span> i = 1, 9 <span class="keyword">do</span> <span class="comment">-- (2)</span>
+
+    <span class="keyword">if</span> t[i] == 0 <span class="keyword">then</span>
+
+      t[i] = opponent
+
+      <span class="keyword">if</span> CheckForWin(t, opponent) <span class="keyword">then</span> t[i] = player <span class="keyword">return</span> <span class="keyword">end</span>
+
+      t[i] = 0
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> MoveCount(t) == 9 <span class="keyword">then</span> Error(MSG.Borked) <span class="keyword">return</span> <span class="keyword">end</span>
+
+  <span class="keyword">repeat</span> mv = <span class="library">math.random</span>(1, 9) <span class="keyword">until</span> t[mv] == 0 <span class="comment">-- (3)</span>
+
+  t[mv] = player
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> Evaluate = MoveSimple             <span class="comment">-- select evaluator</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> ComputerStart(t)         <span class="comment">-- computer may start</span>
+
+  <span class="keyword">if</span> <span class="library">math.random</span>(1, 10) &gt; 5 <span class="keyword">then</span>
+
+    t[<span class="library">math.random</span>(1, 9)] = O
+
+    <span class="keyword">return</span> MSG.Start2
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> MSG.Start1
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- redraws the screen (complete redraw for simplicity)</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> DrawBoard(t)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> t <span class="keyword">then</span> t = {} <span class="keyword">end</span>
+
+  <span class="keyword">local</span> p = <span class="keyword">function</span>(i)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> t[i] <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">"   "</span>
+
+    <span class="keyword">elseif</span> t[i] == O <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">" O "</span>
+
+    <span class="keyword">elseif</span> t[i] == X <span class="keyword">then</span> <span class="keyword">return</span> <span class="string">" X "</span>
+
+    <span class="keyword">else</span> <span class="keyword">return</span> <span class="string">"   "</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  editor:AddText(
+
+    STR.Horiz..<span class="string">"\n"</span>..
+
+    <span class="string">"|"</span>..p(7)..<span class="string">"|"</span>..p(8)..<span class="string">"|"</span>..p(9)..<span class="string">"| "</span>..MSG.Key1..<span class="string">"\n"</span>..
+
+    STR.Horiz..<span class="string">" "</span>..MSG.Key2..<span class="string">"\n"</span>..
+
+    <span class="string">"|"</span>..p(4)..<span class="string">"|"</span>..p(5)..<span class="string">"|"</span>..p(6)..<span class="string">"|\n"</span>..
+
+    STR.Horiz..<span class="string">"\n"</span>..
+
+    <span class="string">"|"</span>..p(1)..<span class="string">"|"</span>..p(2)..<span class="string">"|"</span>..p(3)..<span class="string">"|\n"</span>..
+
+    STR.Horiz..<span class="string">"\n"</span>
+
+  )
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> Refresh(t, msg)
+
+  <span class="keyword">local</span> <span class="keyword">function</span> Underline(s) <span class="keyword">return</span> <span class="library">string.rep</span>(<span class="string">"-"</span>, <span class="library">string.len</span>(s)) <span class="keyword">end</span>
+
+  msg = msg <span class="keyword">or</span> <span class="string">""</span>
+
+  editor.ReadOnly = <span class="keyword">false</span>
+
+  editor:ClearAll()
+
+  editor:AddText(MSG.Title..<span class="string">"\n"</span>..Underline(MSG.Title)..<span class="string">"\n"</span>)
+
+  editor:AddText(<span class="string">"Status: "</span>..msg..<span class="string">"\n\n"</span>)
+
+  DrawBoard(t)
+
+  editor:AddText(<span class="string">"\n"</span>..STR.ToolBar..<span class="string">"\n"</span>..MSG.Help)
+
+  editor.ReadOnly = <span class="keyword">true</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- main routine, processes double-clicks</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> TicTacClick(ch)
+
+  <span class="keyword">local</span> BEG = 4                         <span class="comment">-- first line of board</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> buffer[STR.Sig] <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span><span class="comment">-- verify buffer signature</span>
+
+  <span class="comment">--------------------------------------------------------------------</span>
+
+  <span class="comment">-- check appearance of board</span>
+
+  <span class="comment">--------------------------------------------------------------------</span>
+
+  <span class="keyword">local</span> tln = editor:GetLine(0) <span class="keyword">or</span> <span class="string">""</span>   <span class="comment">-- verify title signature</span>
+
+  <span class="keyword">if</span> <span class="library">string.sub</span>(tln, 1, <span class="library">string.len</span>(MSG.Title)) ~= MSG.Title <span class="keyword">then</span>
+
+    Error(MSG.BadBoard) <span class="keyword">return</span> <span class="keyword">true</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> LineType = <span class="keyword">function</span>(ln)         <span class="comment">-- classify TTT line</span>
+
+    <span class="keyword">local</span> text = editor:GetLine(ln)
+
+    <span class="keyword">if</span> text == <span class="keyword">nil</span> <span class="keyword">then</span> <span class="keyword">return</span> 0
+
+    <span class="keyword">elseif</span> <span class="library">string.find</span>(text, STR.HorizRegex) <span class="keyword">then</span> <span class="keyword">return</span> 1
+
+    <span class="keyword">elseif</span> <span class="library">string.find</span>(text, STR.TrioRegex) <span class="keyword">then</span> <span class="keyword">return</span> 2
+
+    <span class="keyword">else</span> <span class="keyword">return</span> 0 <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> id = <span class="string">""</span>                         <span class="comment">-- verify board pattern</span>
+
+  <span class="keyword">for</span> i = BEG, BEG+4 <span class="keyword">do</span> id = id..<span class="library">tostring</span>(LineType(i)) <span class="keyword">end</span>
+
+  <span class="keyword">if</span> id ~= STR.BoardPat <span class="keyword">then</span> Error(MSG.BadBoard) <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+  <span class="comment">--------------------------------------------------------------------</span>
+
+  <span class="comment">-- extract board information</span>
+
+  <span class="comment">--------------------------------------------------------------------</span>
+
+  <span class="keyword">local</span> IsXOrO = <span class="keyword">function</span>(c)            <span class="comment">-- classify pieces</span>
+
+    <span class="keyword">if</span> c == <span class="keyword">nil</span> <span class="keyword">or</span> c == <span class="string">""</span> <span class="keyword">then</span> <span class="keyword">return</span> 0
+
+    <span class="keyword">elseif</span> <span class="library">string.upper</span>(c) == <span class="string">"O"</span> <span class="keyword">then</span> <span class="keyword">return</span> O
+
+    <span class="keyword">elseif</span> <span class="library">string.upper</span>(c) == <span class="string">"X"</span> <span class="keyword">then</span> <span class="keyword">return</span> X
+
+    <span class="keyword">else</span> <span class="keyword">return</span> -1
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> GetData = <span class="keyword">function</span>(ln)          <span class="comment">-- extract data from a line</span>
+
+    <span class="keyword">local</span> text = editor:GetLine(ln)
+
+    <span class="keyword">local</span> _, _, c1, c2, c3 = <span class="library">string.find</span>(text, STR.TrioRegex)
+
+    <span class="keyword">return</span> IsXOrO(c1), IsXOrO(c2), IsXOrO(c3)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> t = {}                          <span class="comment">-- convert pieces to data</span>
+
+  t[7], t[8], t[9] = GetData(BEG+1)
+
+  t[4], t[5], t[6] = GetData(BEG+3)
+
+  t[1], t[2], t[3] = GetData(BEG+5)
+
+  <span class="keyword">local</span> delta = 0
+
+  <span class="keyword">for</span> i = 1,9 <span class="keyword">do</span>                        <span class="comment">-- verify board contents</span>
+
+    <span class="keyword">if</span> t[i] == -1 <span class="keyword">then</span> Error(MSG.BadPieces) <span class="keyword">return</span> <span class="keyword">true</span>
+
+    <span class="keyword">elseif</span> t[i] == O <span class="keyword">then</span> delta = delta - 1
+
+    <span class="keyword">elseif</span> t[i] == X <span class="keyword">then</span> delta = delta + 1
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="library">math.abs</span>(delta) &gt; 1 <span class="keyword">then</span> Error(MSG.BadPieces) <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+  <span class="comment">--------------------------------------------------------------------</span>
+
+  <span class="comment">-- decode user-clicked position or keypresses</span>
+
+  <span class="comment">--------------------------------------------------------------------</span>
+
+  <span class="keyword">if</span> ch == <span class="string">"click"</span> <span class="keyword">then</span>                 <span class="comment">-- mouse double-click event</span>
+
+    <span class="keyword">local</span> pos = editor.CurrentPos
+
+    <span class="keyword">local</span> ln = editor:LineFromPosition(pos)
+
+    <span class="keyword">local</span> col = editor.Column[pos]
+
+    <span class="keyword">local</span> bln = editor:GetLine(ln) <span class="keyword">or</span> <span class="string">""</span>
+
+    tln, id = BUT[ln], <span class="keyword">nil</span>              <span class="comment">-- check for button click</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> tln <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+    <span class="keyword">for</span> i,b <span class="keyword">in</span> <span class="library">ipairs</span>(tln) <span class="keyword">do</span>
+
+      <span class="keyword">if</span> col &gt;= b[1] <span class="keyword">and</span> col &lt;= b[2] <span class="keyword">then</span> id = b[3] <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> id <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>      <span class="comment">-- nothing happen if no button</span>
+
+  <span class="keyword">else</span>                                  <span class="comment">-- keypress event</span>
+
+    id = <span class="library">string.find</span>(<span class="string">"123456789 nN"</span>, ch, 1, 1)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> id <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+    <span class="keyword">if</span> id == 10 <span class="keyword">then</span> id = <span class="string">"Autoplay"</span>
+
+    <span class="keyword">elseif</span> id &gt;= 11 <span class="keyword">then</span> id = <span class="string">"NewGame"</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="comment">--------------------------------------------------------------------</span>
+
+  <span class="comment">-- interactive game logic, takes id and t as state inputs</span>
+
+  <span class="comment">--------------------------------------------------------------------</span>
+
+  <span class="keyword">local</span> msg
+
+  <span class="keyword">if</span> id == <span class="string">"NewGame"</span> <span class="keyword">then</span>                               <span class="comment">-- new game</span>
+
+    t = {}
+
+    msg = ComputerStart(t)
+
+  <span class="keyword">elseif</span> AnyWin(t) <span class="keyword">then</span> msg = MSG.AlreadyEnd            <span class="comment">-- already won</span>
+
+  <span class="keyword">elseif</span> MoveCount(t) == 9 <span class="keyword">then</span> msg = MSG.NoMoves       <span class="comment">-- draw</span>
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">if</span> id == <span class="string">"Autoplay"</span> <span class="keyword">then</span>                            <span class="comment">-- auto play</span>
+
+      Evaluate(t, X)
+
+    <span class="keyword">else</span>                                                <span class="comment">-- human play</span>
+
+      id = id+0
+
+      <span class="keyword">if</span> t[id] ~= 0 <span class="keyword">then</span> Refresh(t, MSG.IllegalMove) <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+      t[id] = X
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> CheckForWin(t, X) <span class="keyword">then</span> msg = MSG.HumanWin        <span class="comment">-- human moves</span>
+
+    <span class="keyword">elseif</span> MoveCount(t) == 9 <span class="keyword">then</span> msg = MSG.NoMoves
+
+    <span class="keyword">else</span>
+
+      Evaluate(t, O)                                    <span class="comment">-- computer moves</span>
+
+      <span class="keyword">if</span> CheckForWin(t, O) <span class="keyword">then</span> msg = MSG.ComputerWin
+
+      <span class="keyword">elseif</span> MoveCount(t) == 9 <span class="keyword">then</span> msg = MSG.NoMoves
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  Refresh(t, msg)                                       <span class="comment">-- redraw screen</span>
+
+  <span class="keyword">return</span> <span class="keyword">true</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- handle incoming events</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> HandleClick() <span class="keyword">return</span> TicTacClick(<span class="string">"click"</span>) <span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> HandleChar(c) <span class="keyword">return</span> TicTacClick(c) <span class="keyword">end</span>
+
+
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- game initialization (opens a new file and set up handlers)</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="keyword">function</span> TicTacToe()
+
+  scite_OnDoubleClick(HandleClick)
+
+  scite_OnChar(HandleChar)
+
+  scite.Open(<span class="string">""</span>)
+
+  buffer[STR.Sig] = <span class="keyword">true</span>;
+
+  <span class="keyword">local</span> t = {}
+
+  Refresh(t, ComputerStart(t))
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- end of script</span>
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteTicTacToe" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteTicTacToe" >history</a><br>Last edited November 15, 2012 6:50 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteTicTacToe" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,308 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Error Handling Between Lua And Cplusplus</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ErrorHandlingBetweenLuaAndCplusplus&amp;body=1" title="List pages referring to ErrorHandlingBetweenLuaAndCplusplus">Error Handling Between Lua And Cplusplus</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page explains some approaches and issues relating to handling errors across the C++/Lua boundary.
+<p>
+[ Note: this page is somewhat of a work in progress.  Additional comments are welcome. ]
+<p>
+<H3>Linking</H3>
+<p>
+If you compile Lua in C, you must surround your <code>#include &lt;lua.h&gt;</code> in an <code>extern "C"</code>, or use the <code>#include &lt;lua.hpp&gt;</code> equivalent, else you will get linker errors.
+<p>
+<DL>
+<dt><dd><pre>
+
+// alternately do #include &lt;lua.hpp&gt;
+
+extern "C" {
+
+#include &lt;lua.h&gt;
+
+}
+
+</pre>
+</DL>
+<p>
+<H3>Compiling Lua with longjmp or exceptions</H3>
+<p>
+Lua itself is normally compiled under C but may alternately be compiled under C++.  If compiled in C, Lua uses <a href="http://www.opengroup.org/onlinepubs/000095399/functions/longjmp.html">[longjmp]</a>'s to implement error handling (<code>lua_error</code>).  If compiled in C++, Lua by default uses C++ exceptions.  See the declaration of <code>LUAI_THROW</code> in <code>luaconf.h</code>.  See also <a href="/lists/lua-l/2007-10/msg00473.html">LuaList:2007-10/msg00473.html</a> .
+<p>
+<H3>Combining C++ Code using Exceptions with Lua using longjumps</H3>
+<p>
+There is a mismatch between C++ exception handling that properly unwinds the stack and call destructors v.s Lua <code>longjmp</code>s that merely toss the stack, so more care is needed if Lua is compiled in C to ensure all necessary C++ destructors are called, preventing memory or resource leaks.
+<p>
+When C++ calls Lua as an extension language, the Lua operations often (but not always) need to be wrapped in a <code>pcall</code> to a <code>lua_CFunction</code>.  For example, see <a href="http://www.lua.org/pil/25.2.html">[PIL 25.2]</a> or PIL2 25.3.  (Details on these conditions are given later below by Rici.)  It's often the case that this <code>lua_CFunction</code> is used by only one caller.  Therefore, it can be useful to make the lua_CFunction local to the calling function (like a closure).  In C++, the lua_CFunction can be defined inside a struct like this:
+<p>
+<DL>
+<dt><dd><pre>
+
+int operate(lua_State * L, std::string &amp; s, int x, int y) {
+
+    std::string msg = "Calling " + s + "\n";  // can raise exception; must be destroyed
+
+    cout &lt;&lt; msg;
+
+    // caution: this code by raise exceptions but not longjump.
+
+    struct C {
+
+        static int call(lua_State * L) {
+
+            // caution: this code may longjump but not raise exceptions.
+
+
+
+            C * p = static_cast&lt;C*&gt;(lua_touserdata(L, 1));
+
+            assert(lua_checkstack(L, 4));
+
+            lua_getglobal("add"); // can longjump
+
+            assert(lua_isfunction(L, -1));
+
+            lua_pushstring(L, s); // can longjump
+
+            lua_pushnumber(L, p-&gt;x);
+
+            lua_pushnumber(L, p-&gt;y);
+
+            lua_call(L, 3, 1);    // can longjump
+
+            p-&gt;z = lua_tonumber(L, -1); assert(lua_isnumber(L, -1));
+
+            return 0;
+
+        }
+
+        const char * s; int x; int y; int z;
+
+    } p = {s.c_str(), x, y, 0};
+
+    int res = lua_cpcall(L, C::call, &amp;p); // never longjumps
+
+    if (res != 0) {
+
+        handle_error(L);  // do something with the error; can raise exception
+
+        //note: we let handle_error do lua_pop(L, 1);
+
+    }
+
+    return p.z;
+
+}
+
+</pre>
+</DL>
+<p>
+Now, error handling is a bit tricky at first glance.  The <code>lua_getglobal</code>, <code>lua_pushstring</code>, and <code>lua_call</code> calls can generate a <code>lua_error()</code>, i.e. a <code>longjmp</code> if Lua is compiled in C.  The <code>lua_cpcall</code>, which is outside the protected call, is safe because it does not generate a <code>lua_error()</code> (unlike using a <code>lua_pushcfunction</code> followed by a <code>lua_pcall</code>, which could <code>lua_error</code> on memory allocation failure).  Unlike C++ exception handling, the <code>longjmp</code> will skip any destructors of objects up the stack (often used for RAII in C++).
+<p>
+Another issue is if <code>lua_cpcall</code> returns a failure result, what do we do with it?  There is a possibility we could handle the error in-place, <code>lua_pop</code> it, and continue.  More often, the error needs to be dealt with at a more shallow point in the call chain.  Possibly a better solution is to keep the error message in the Lua stack, making sure to do a <code>lua_pop</code> if consumed in a catch block:
+<p>
+<DL>
+<dt><dd><pre>
+
+#include &lt;stdexcept&gt;
+
+#include &lt;boost/shared_ptr.hpp&gt;
+
+/**
+
+ * C++ exception class wrapper for Lua error.
+
+ * This can be used to convert the result of a lua_pcall or
+
+
+
+ * similar protected Lua C function into a C++ exception.
+
+ * These Lua C functions place the error on the Lua stack.
+
+ * The LuaError class maintains the error on the Lua stack until
+
+ * all copies of the exception are destroyed (after the exception is
+
+ * caught), at which time the Lua error object is popped from the
+
+ * Lua stack.
+
+ * We assume the Lua stack is identical at destruction as
+
+ * it was at construction.
+
+ */
+
+class LuaError : public std::exception
+
+{
+
+private:
+
+    lua_State * m_L;
+
+    // resource for error object on Lua stack (is to be popped
+
+    // when no longer used)
+
+    boost::shared_ptr&lt;lua_State&gt; m_lua_resource;
+
+    LuaError &amp; operator=(const LuaError &amp; other); // prevent
+
+public:
+
+    // Construct using top-most element on Lua stack as error.
+
+    LuaError(lua_State * L);
+
+    LuaError(const LuaError &amp; other);
+
+    ~LuaError();
+
+    virtual const char * what() const throw();
+
+};
+
+
+
+    static void
+
+LuaError_lua_resource_delete(lua_State * L)
+
+{
+
+    lua_pop(L, 1);
+
+}
+
+
+
+LuaError::LuaError(lua_State * L)
+
+    : m_L(L), m_lua_resource(L, LuaError_lua_resource_delete)
+
+{
+
+
+
+}
+
+
+
+LuaError::LuaError(const LuaError &amp; other)
+
+    : m_L(other.m_L), m_lua_resource(other.m_lua_resource)
+
+{
+
+
+
+}
+
+    const char *
+
+LuaError::what() const throw()
+
+{
+
+    const char * s = lua_tostring(m_L, -1);
+
+    if (s == NULL) s = "unrecognized Lua error";
+
+    return s;
+
+}
+
+LuaError::~LuaError()
+
+{
+
+}
+
+</pre>
+</DL>
+<p>
+Example usage:
+<p>
+<DL>
+<dt><dd><pre>
+
+for(int n=1; n &lt; 100; n++) {
+
+  try {
+
+    string s = "123123123123123123";  // note: may throw bad_alloc
+
+    // ...
+
+    int res = lua_cpcall(L, call, NULL);
+
+    if (res != 0) throw LuaError(L);
+
+  }
+
+  catch(exception &amp; e) {
+
+    cout &lt;&lt; e.what() &lt;&lt; endl;
+
+  }
+
+}
+
+</pre>
+</DL>
+<p>
+There is also the case if Lua calls a C function that call C++ code that calls Lua code.   In such case, the C++ code might pcall into Lua and convert any error message to a C++ exception, which propogates up to the C function.  The C function then needs to convert the C++ exception to a <code>lua_error()</code> which <code>longjmp</code>s to Lua.  This conversion to a C++ exception is only needed if the C++ code in the call chain allocated memory in the RAII fashion.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H3>Lua C API Functions that Raise Errors</H3>
+<p>
+<DL>
+<dt><dd><em>There are quite a number of API functions which will never throw a Lua error. API functions that throw errors are identified in the reference manual as of 5.1.3. First, none of the stack adjustment functions throw errors; this includes <code>lua_pop</code>, <code>lua_gettop</code>, <code>lua_settop</code>, <code>lua_pushvalue</code>, <code>lua_insert</code>, <code>lua_replace</code> and <code>lua_remove</code>. If you provide incorrect indexes to these functions, or you haven't called <code>lua_checkstack</code>, then you're either going to get garbage or a segfault, but not a Lua error.</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>None of the functions which push atomic data -- <code>lua_pushnumber</code>, <code>lua_pushnil</code>, <code>lua_pushboolean</code> and <code>lua_pushlightuserdata</code> ever throw an error. API functions which push complex objects (strings, tables, closures, threads, full userdata) may throw a memory error. None of the type enquiry functions -- <code>lua_is*</code>, <code>lua_type</code> and <code>lua_typename</code> -- will ever throw an error, and neither will the functions which set/get metatables and environments. <code>lua_rawget</code>, <code>lua_rawgeti</code> and <code>lua_rawequal</code> will also never throw an error. Aside from <code>lua_tostring</code>, none of the <code>lua_to*</code> functions will throw an error, and you can avoid the possibility of <code>lua_tostring</code> throwing an out of memory error by first checking that the object is a string, using <code>lua_type</code>. <code>lua_rawset</code> and <code>lua_rawseti</code> may throw an out of memory error. The functions which may throw arbitrary errors are the ones which may call metamethods; these include all of the non-raw <code>get</code> and <code>set</code> functions, as well as <code>lua_equal</code> and <code>lua_lt</code>.</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>If you are creating full userdata out of some object which might need to be freed, you should always create the userdata first, with its various slots cleared, and then attach the correct metatable with a <code>__gc</code> metamethod. Then you should create the object which may need to be freed and put it in the userdata. This will avoid resource leaks because the <code>__gc</code> method will eventually be called if an error is subsequently thrown. A good example of this is the standard <code>liolib.c</code> which uses this strategy to avoid leaking file descriptors. -- <a href="../wiki/RiciLake.html" >RiciLake</a></em>
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2005-08/msg00054.html">LuaList:2005-08/msg00054.html</a> - lua_error() and C++
+<li> <a href="/lists/lua-l/2006-10/msg00310.html">LuaList:2006-10/msg00310.html</a> - Lua error handling and C++
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ErrorHandlingBetweenLuaAndCplusplus" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ErrorHandlingBetweenLuaAndCplusplus" >history</a><br>Last edited October 19, 2008 3:18 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ErrorHandlingBetweenLuaAndCplusplus" >(diff)</a>
+</body>
+</html>

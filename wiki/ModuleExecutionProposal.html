@@ -1,0 +1,415 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Module Execution Proposal</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ModuleExecutionProposal&amp;body=1" title="List pages referring to ModuleExecutionProposal">Module Execution Proposal</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Abstract</H2>
+<p>
+This is a proposal for a new command-line switch (<code>-p</code>) that loads a function with the given package name via the searchers in <code>package.loaded</code> and then executes that function as a script, passing the command-line arguments to the function as arguments.
+<p>
+<DL>
+<dt><dd><pre>
+
+lua -p modname args
+
+</pre>
+</DL>
+<p>
+Example:
+<p>
+<DL>
+<dt><dd><pre>
+
+-- my/app.lua
+
+print("hello", io.read"*a", ...)
+
+local i=0; while arg[i] do print(i, arg[i]); i=i-1 end
+
+
+
+$ echo -n 123 | lua -p my.app 3 4 5
+
+hello   123     3       4       5
+
+0       my.app
+
+-1      -p
+
+-2      lua
+
+</pre>
+</DL>
+<p>
+<H2>Rationale</H2>
+<p>
+A typical use of this would be if you have a Lua script installed in the Lua path (e.g. LUA_PATH) rather than the system PATH, and you want to locate and execute that script.  The script may have a dual use as a module and a command-line utility.  Maybe this is a Lua-based profiler, debugger, code validator, or macro processor that operates on other Lua code.
+<p>
+<DL>
+<dt><dd><pre>
+
+lua -p yet.another.debugger mybuggyprogram.lua 3 4 5
+
+
+
+lua -p yet.another.preprocessor myprogram.m4 4 5 5
+
+</pre>
+</DL>
+<p>
+There is precedent here--for example, the "-m" switch in Python [1]:
+<p>
+<DL>
+<dt><dd><pre>
+
+-m mod : run library module as a script (terminates option list)
+
+</pre>
+</DL>
+<p>
+<H2>Alternative Methods</H2>
+<p>
+Current alternatives for solving this are not satisfactory.
+<p>
+First, you can install a script into the system <code>PATH</code>, but this is system-dependent, and it puts a separate file in a different place outside the Lua module repository.
+<p>
+One solution that sort-of achieves what we want is this:
+<p>
+<DL>
+<dt><dd><pre>
+
+echo -n 123 | lua -e 'require "my.app" (3 4 5)'
+
+</pre>
+</DL>
+<p>
+where my.app is modified to return a function that operates on the arguments provided.  The problem is that the command-line arguments are escaped inside the string.  There are a number of reason why we would want to avoid that if the application is to be used a regular command-line utility.  For example, we might want to define the my.app program with an alias in bash.  The proposed solution allows this simply:
+<p>
+<DL>
+<dt><dd><pre>
+
+alias myapp="lua -p my.app"
+
+echo -n 123 | myapp 3 4 5
+
+</pre>
+</DL>
+<p>
+We might attempt this:
+<p>
+<DL>
+<dt><dd><pre>
+
+echo -n 123 | lua -lmy.app 3 4 5
+
+</pre>
+</DL>
+<p>
+That fails with error since Lua interprets "3" as a file name.  We might work around that with this hack:
+<p>
+<DL>
+<dt><dd><pre>
+
+echo -n 123 | lua -lmy.app -e'os.exit(0)' 2 3 4
+
+</pre>
+</DL>
+<p>
+However, the arguments are not passed to the my.app module, neither via <code>...</code> or <code>arg</code>.  It's not passed via <code>...</code> because the "<code>-l</code>" switch uses <code>require</code>, which has its own definition of what <code>...</code> should contain, namely the package name.  Furthermore, when the Lua interpreter processes "-l" options, the <code>arg</code> table is not yet constructed.  Maybe it should be, but in any case we might want a more elegant solutions to the <code>arg</code> global variable.
+<p>
+Another possibility might be this:
+<p>
+<DL>
+<dt><dd><pre>
+
+echo -n 123 | lua -e 'require "my.app" (...)' 3 4 5
+
+</pre>
+</DL>
+<p>
+Again, my.app is modified to return a function that evaluates the arguments passed to it.  This has two problems though.  Again, Lua interprets "3" as a file name.  Even if we eliminate that problem, the Lua interpreter does not define <code>...</code> in <code>-e</code> statement  I think it should [4], and this is a separate proposal given at the end of this document.
+<p>
+Allowing <code>...</code> to be passed to an <code>-e</code> statement would be an improvement in Lua.  It's still idiosyncratic, and loading a script from the package search mechanism seems fundamental enough to have a dedicated option with convenient syntax.  Sure, the minimalist says that this is not strictly needed, but neither is having dedicated options for loading a module off the file system or from standard input (-) :
+<p>
+<DL>
+<dt><dd><pre>
+
+lua -e 'dofile("my/app.lua")'
+
+lua -e 'assert(loadfile())()' &lt; my/app.lua
+
+</pre>
+</DL>
+<p>
+One suggestion has been to extend <code>require</code> so that it would pass command-line arguments if loaded via <code>-l</code>.  However, the essence of <code>require(x)</code> is that you always get the same result for the same value of <code>x</code> (idempotent). If it doesn't memoize, its semantics are radically different. [3]
+<p>
+<H2>Alternative Syntax</H2>
+<p>
+Some other syntaxes have been proposed for the "-p" option:
+<p>
+<DL>
+<dt><dd><pre>
+
+lua -Lmy.app args     -- showing relationship to "-l" option
+
+lua +my.app args      -- related to "-" for standard input source
+
+lua @my.app args      -- proposed in [8]
+
+lua -m my.app args    -- Python style
+
+lua -a my.app args    -- load "application"
+
+lua -p my.app args    -- load from *p*ackage *p*ath.
+
+</pre>
+</DL>
+<p>
+"<code>-L</code>" was suggested due to the similarity with "<code>-l</code>", but this similarity may be misleading.  "<code>-l</code>" goes through <code>require</code>, but "<code>-L</code>" would not.  "<code>-L</code>" would also be the first upper-case switch.
+<p>
+The "<code>+</code>" syntax is otherwise very good, but it's possibly not POSIX complaint [2], and there is an ambiguity to be resolved in the odd case where a file name actually starts with "<code>+</code>".
+<p>
+<DL>
+<dt><dd><pre>
+
+lua ./+my.app args   -- workaround using current directory "."
+
+lua -- +my.app args  -- maybe treat as file name if followed by "--"?
+
+</pre>
+</DL>
+<p>
+The "<code>-m</code>" (as in Python) might be confused with loading a module (<code>-l</code>), which is <code>-m</code> in Perl, so <code>-m</code> doesn't seem convincing.  We are not loading a standard module but only using the package path (<code>-p</code>) search mechanism to load a function that may or may not be a full blown module.
+<p>
+An earlier proposal of this idea for Lua was in [7][8].  That proposed a new <code>LUA_RPATH</code> environment variable that would be searched independently of <code>LUA_PATH/LUA_CPATH</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+LUA_RPATH=?.lua
+
+lua @my.app &lt;parameters&gt;
+
+</pre>
+</DL>
+<p>
+There were some questions concerning the need a new environment variable separate from <code>LUA_PATH</code>.  Secondly, <code>LUA_RPATH</code> only locates Lua source files (like <code>LUA_PATH</code>) but does not consult other searcher functions (as occurs by going through <code>package.loaders</code>)--see "Related Proposal: New package.find Function" below.
+<p>
+<H2>A Patch</H2>
+<p>
+The following patch implements the above proposal for the <code>-p</code> switch.  It is possible to make this patch entirely in lua.c, but we see that the "<code>-p</code>" switch and the <code>require</code> function (from loadlib.c) share much common functionality, so it seems useful to factor out that common functionality into a new function <code>loadmodule</code>, and it could be useful to expose that function to Lua as well (as done here).  <code>loadmodule</code> is somewhat analogous to the other <code>load*</code> functions and has this behavior if written in Lua:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> loadmodule(name)
+
+  <span class="keyword">local</span> s = <span class="string">""</span>
+
+  <span class="keyword">for</span> i,loader <span class="keyword">in</span> <span class="library">ipairs</span>(<span class="library">package.loaders</span>) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> f = loader(name)
+
+    <span class="keyword">if</span> <span class="library">type</span>(f) == <span class="string">'function'</span> <span class="keyword">then</span> <span class="keyword">return</span> f <span class="keyword">end</span>
+
+    <span class="keyword">if</span> f <span class="keyword">then</span> s = s .. f <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">nil</span>, s
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Here is the patch against Lua 5.1.2:
+<p>
+<DL>
+<dt><dd><a href="/files/wiki_insecure/power_patches/5.1/module-exec.patch">Files:wiki_insecure/power_patches/5.1/module-exec.patch</a>
+</DL>
+<p>
+<H2>Related Proposal: Allow -e to Accept Command Arguments</H2>
+<p>
+A related proposal is for the '<code>-e</code>' switch to terminate command command-line options and accept command-line options through <code>...</code> and <code>arg</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua -e 'print(...)' 3 4 5
+
+3       4       5
+
+</pre>
+</DL>
+<p>
+For example, Perl and Python implement this behavior:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ perl -e 'print @ARGV' 3 4 5
+
+345
+
+python -c 'import sys; print(sys.argv)' 3 4 5
+
+['-c', '3', '4', '5']
+
+</pre>
+</DL>
+<p>
+Compare the Lua command-line form to the Python one:
+<p>
+<DL>
+<dt><dd><pre>
+
+usage: lua [options] [script [args]]
+
+
+
+usage: python [option] ... [-c cmd | -m mod | file | -] [arg] ...
+
+</pre>
+</DL>
+<p>
+The Python format makes clear that there are four different types of input sources, all treated <em>equally</em> and all able to accept the command-line arguments.  The Lua format might be rewritten as
+<p>
+<DL>
+<dt><dd><pre>
+
+lua [options] [(-e stat | -p mod | file | -) [arg]]
+
+</pre>
+</DL>
+<p>
+The only further change in Lua this involves is for <code>-e</code> to terminate command-line options and accept arguments, as suggested above.
+<p>
+Note that the above might imply that there can only be one <code>-e</code> switch.  Compare Lua behavior here to Perl and Python:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua    -e 'print' -e '"1"'    # invalid, each -e is treated
+
+                                #   as a separate function
+
+$ perl   -e 'print' -e '"1"'    # valid, all -e's are concatenated
+
+$ python -c 'print' -c '"1"'    # valid, but second -c is interpreted
+
+                                #   as command-line argument
+
+</pre>
+</DL>
+<p>
+<H2>Related Proposal: New package.find Function</H2>
+<p>
+The above suggests a new function <code>loadmodule</code> that loads a function given a package name.  Another potentially useful function would map a package name to a file system path [3]:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- func = package.find(path, name)</span>
+
+<span class="library">dofile</span>(<span class="library">package.find</span>(<span class="library">package.path</span>, <span class="string">"foo"</span>))
+
+</pre>
+
+</DL>
+<p>
+It's possible to implement this in pure Lua though--see <a href="../wiki/LuaModulesLoader.html" >LuaModulesLoader</a>.
+<p>
+This is only applicable though to modules that do map to paths on the file system (e.g. via <code>LUA_PATH</code> or <code>LUA_CPATH</code>).  One alternative for the <code>-p</code> switch proposal is to base it on <code>package.find</code> rather than <code>loadmodule</code> (which is essentially what Python did), but this limits the types of functions that can be loaded with this mechanism, possibly to only pure Lua files, and it is the rationale for Python's PEP 338 [1][9] which suggested doing away with this.
+<p>
+<H2>Related Proposal: Detecting Whether Function Loaded via Require</H2>
+<p>
+How does a module determine whether or not it is <code>require</code>'d rather than simply executed (e.g. via <code>loadmodule</code> or <code>dofile</code>)?
+<p>
+Ideally one would like to pass the information in as an argument (in <code>...</code>), but that's incompatible with current practice where <code>...</code> contains the command-line arguments if executed as a script or the module name if <code>require</code>d.  If a module is used in both ways, there's an ambiguity if the first command-line argument might happen to be a module name.  Try
+<p>
+<DL>
+<dt><dd><pre>
+
+lua my/app.lua math
+
+</pre>
+</DL>
+<p>
+Here <code>... == "math"</code>, so <code>package.loaded[...]</code> is set. It is the case that <code>package.loaded["my.app"]</code> is probably not set, but you'll need to hard-code the package name "my.app" in your file.
+<p>
+An alternative may be to make use of a global (e.g. <code>arg</code> or <code>package.loaded</code>) or as in Python.  We might even look up the stack as in <code>local is_required = debug.getinfo(2, "f").func == require</code>, but that not only has the disadvantage of using debug [4] but breaks if one replaces <code>require</code> with another function of equivalent functionality [3].
+<p>
+A reasonably simple solution that <em>works well</em> in practice (at least in 5.1) is to test for a sentinel loaded in package.loaded [5][3].  This does rely on undefined behavior and is not the cleanest.  Ideally, we would want to replace this with a language feature.
+<p>
+A proposed change to Lua is as follows.  One is a <code>package.loading</code> table analogous to the <code>package.loaded</code> table.  It will contain the package names of all modules that <code>require</code> is <em>currently</em> loading.  A Lua function can test <code>package.loading[...]</code> to determine whether it is being <code>require</code>d.  A related approach is a function <code>package.status(name) --&gt; loaded, loading, false</code>.  A potential problem with these methods is if you execute a module
+<p>
+<DL>
+<dt><dd><pre>
+
+lua my/app.lua a b c
+
+</pre>
+</DL>
+<p>
+where <code>a</code> just happens to be the name of a module that is <em>currently</em> loading (e.g. maybe in another coroutine).  That would be rare, but it might happen in some situations.
+<p>
+A rather simple solution to all this is to just use separate files for code that is required and code that is run [4].  However, it can be nice (e.g. in unittest) to have them in the same file--for one thing, it's sort of documentation [3].
+<p>
+<H2>Author Notes</H2>
+<p>
+This article somewhat follows the format of a Python PEP [6].
+<p>
+<H2>Document Metadata</H2>
+<p>
+Author: <a href="../wiki/DavidManura.html" >DavidManura</a>, based on discussions with <a href="../wiki/RiciLake.html" >RiciLake</a>, doub, and others.
+<p>
+Created: 2007-09
+<p>
+Lua 5.1.
+<p>
+<H2>Comments</H2>
+<p>
+(none)
+<p>
+<H2>References</H2>
+<p>
+<UL>
+<li> [1] <a href="http://www.python.org/dev/peps/pep-0338/">http://www.python.org/dev/peps/pep-0338/</a>
+<li> [2] <a href="http://www.penguin-soft.com/penguin/developer/j2setutorial/essential/attributes/_posix.html">http://www.penguin-soft.com/penguin/developer/j2setutorial/essential/attributes/_posix.html</a>
+<li> [3] <a href="../wiki/RiciLake.html" >RiciLake</a>
+<li> [4] <a href="../wiki/DavidManura.html" >DavidManura</a>
+<li> [5] <a href="/lists/lua-l/2007-02/msg00125.html">LuaList:2007-02/msg00125.html</a> 
+<li> [6] <a href="http://www.python.org/dev/peps/">http://www.python.org/dev/peps/</a>
+<li> [7] <a href="/lists/lua-l/2005-12/msg00115.html">LuaList:2005-12/msg00115.html</a>
+<li> [8] <a href="/lists/lua-l/2006-01/msg00130.html">LuaList:2006-01/msg00130.html</a> 
+<li> [9] <a href="http://docs.python.org/lib/module-runpy.html">http://docs.python.org/lib/module-runpy.html</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ModuleExecutionProposal" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ModuleExecutionProposal" >history</a><br>Last edited May 2, 2009 1:15 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ModuleExecutionProposal" >(diff)</a>
+</body>
+</html>

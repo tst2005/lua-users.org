@@ -1,0 +1,295 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: For Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ForTutorial&amp;body=1" title="List pages referring to ForTutorial">For Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The <code>for</code> statement comes in two different flavours. One can be used to iterate through a numeric progression and the other can be used to iterate over functions called <em>iterators</em>. The <code>for</code> statement is covered in section 2.4.5 of the Reference Manual.<a href="http://www.lua.org/manual/5.1/manual.html#2.4.5">[1]</a>
+<p>
+<H2>Numeric progression</H2>
+<p>
+The numeric progression version of <code>for</code> has the following syntax:
+<DL>
+<DL>
+<dt><dd><strong><code>for</code></strong> <em>variable</em> <strong><code>=</code></strong> <em>from_exp</em> <strong><code>,</code></strong> <em>to_exp [</em><code>,</code> <em>step_exp]</em> <strong><code>do</code></strong> <em>block</em> <strong><code>end</code></strong>
+</DL>
+</DL>
+<p>
+The statement sets the value of the <em>variable</em> to <em>from_exp</em> before entering the <code>for</code> block. The block is only entered if <em>variable</em> has not passed the last value, <em>to_exp</em>. This includes the first time the loop is iterated over. Each time the block exits <em>step_exp</em> is added to <em>variable</em>. Specifying the step expression is optional. If it is not specified the value of 1 is used. For example,
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">for</span> i = 1,3 <span class="keyword">do</span> <span class="library">print</span>(i) <span class="keyword">end</span>     <span class="comment">-- count from 1 to 3</span>
+
+1
+
+2
+
+3
+
+&gt; <span class="keyword">for</span> i = 3,1 <span class="keyword">do</span> <span class="library">print</span>(i) <span class="keyword">end</span> <span class="comment">-- count from 3 to 1 in steps of 1. zero iterations!</span>
+
+&gt; <span class="keyword">for</span> i = 3,1,-1 <span class="keyword">do</span> <span class="library">print</span>(i) <span class="keyword">end</span>  <span class="comment">-- count down from 3 to 1</span>
+
+3
+
+2
+
+1
+
+&gt; <span class="keyword">for</span> i=1,0,-0.25 <span class="keyword">do</span> <span class="library">print</span>(i) <span class="keyword">end</span> <span class="comment">-- we're not limited to integers</span>
+
+1
+
+0.75
+
+0.5
+
+0.25
+
+0
+
+</pre>
+
+</DL>
+Note the variable <code>i</code> will be local to the scope of the <code>for</code> loop. i.e.,
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">print</span>(i) <span class="comment">-- after the above code</span>
+
+<span class="keyword">nil</span>
+
+</pre>
+
+</DL>
+<p>
+<code>for i = e1,e2,e3 do myFunction(i) end</code> is equivalent to the following Lua code:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> i, limit, step = <span class="library">tonumber</span>(e1), <span class="library">tonumber</span>(e2), <span class="library">tonumber</span>(e3) <span class="keyword">or</span> 1
+
+  <span class="keyword">if</span> <span class="keyword">not</span> (i <span class="keyword">and</span> limit <span class="keyword">and</span> step) <span class="keyword">then</span> <span class="library">error</span>() <span class="keyword">end</span>
+
+  <span class="keyword">while</span> (step&gt;0 <span class="keyword">and</span> i&lt;=limit) <span class="keyword">or</span> (step&lt;=0 <span class="keyword">and</span> i&gt;=limit) <span class="keyword">do</span>
+
+    myFunction(i)
+
+    i = i + step
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Iterators</H2>
+<p>
+The second form of the <code>for</code> loop has the syntax:
+<DL>
+<DL>
+<dt><dd><strong><code>for</code></strong> <em>var {<strong>,</strong> var}</em> <strong><code>in</code></strong> <em>explist</em> <strong><code>do</code></strong> <em>block</em> <strong><code>end</code></strong>
+</DL>
+</DL>
+<p>
+<em>explist</em> is evaluated once before the loop is entered. Its results are an <em>iterator function</em> (which sets the <em>var</em> values), a <em>state</em> (from which the values can be read), and an <em>initial value</em> (from which to iterate onwards).
+<p>
+<H3>pairs(table)</H3>
+<p>
+Lua provides a <code>pairs()</code> function to create the <em>explist</em> information for us to iterate over a table. The <code>pairs()</code> function will allow iteration over <em>key-value</em> pairs. Note that the order that items are returned is not defined, not even for indexed tables.
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">for</span> key,value <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span> <span class="library">print</span>(key,value) <span class="keyword">end</span>
+
+3       10
+
+1       3
+
+4       17
+
+2       7
+
+pi      3.14159
+
+banana  yellow
+
+</pre>
+
+</DL>
+<p>
+<H3>ipairs(table)</H3>
+<p>
+The <code>ipairs()</code> function will allow iteration over <em>index-value</em> pairs. These are <em>key-value</em> pairs where the keys are indices into an array.  The order in which elements are returned is guaranteed to be in the numeric order of the indices, and non-integer keys are simply skipped.  Using the same table as in the example above:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">for</span> index,value <span class="keyword">in</span> <span class="library">ipairs</span>(t) <span class="keyword">do</span> <span class="library">print</span>(index,value) <span class="keyword">end</span>
+
+1       3
+
+2       7
+
+3       10
+
+4       17
+
+</pre>
+
+</DL>
+Notice how only the array part of the table is displayed because only these elements have index keys.
+<p>
+<H3>next()</H3>
+<p>
+The <code>next(table [,index])</code> function helps iterate over a table. When given a table and an index it returns the next <em>key-value</em> pair from the table, e.g.,
+<DL>
+<dt><dd><pre class="code">
+&gt; = <span class="library">next</span>(t) <span class="comment">-- index will be nil, the beginning</span>
+
+1       3
+
+&gt; = <span class="library">next</span>(t,4)
+
+pi      3.14159
+
+</pre>
+
+</DL>
+<p>
+As with <code>pairs()</code>, the order in which items are returned is not defined; index keys can be returned in any order, not just numerically increasing.
+The <code>pairs()</code> function returns an <em>explist</em> containing <code>next()</code> so we can iterate over tables. We can pass our own expression list to the <code>for</code> statement as follows:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">for</span> key,value <span class="keyword">in</span> <span class="library">next</span>,t,<span class="keyword">nil</span> <span class="keyword">do</span> <span class="library">print</span>(key,value) <span class="keyword">end</span>
+
+1       3
+
+2       7
+
+3       10
+
+4       17
+
+pi      3.14159
+
+banana  yellow
+
+</pre>
+
+</DL>
+We pass <code>next,table,nil</code> as the expression list to the <code>for</code> statement. We are saying here that we want to use the iterator function <code>next()</code>, on the table <code>t</code>, starting at <code>nil</code> (the beginning). The <code>for</code> statement keeps executing until the <code>next()</code> function returns <code>nil</code> (the end of the table).
+<p>
+<H3>io.lines()</H3>
+<p>
+Lua provides other useful iterators, like <code>io.lines([filename])</code> in the <code>io</code> library. We can demonstrate this by creating a custom file containing some lines of text.
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="library">io.output</span>(<span class="library">io.open</span>(<span class="string">"my.txt"</span>,<span class="string">"w"</span>))
+
+&gt; <span class="library">io.write</span>(<span class="string">"This is\nsome sample text\nfor Lua."</span>)
+
+&gt; <span class="library">io.close</span>()
+
+</pre>
+
+</DL>
+We created a file called "my.txt", wrote three lines to it and closed it. Now we can read it using the <code>io.lines</code> iterator:
+<DL>
+<dt><dd><pre class="code">
+&gt; <span class="keyword">for</span> line <span class="keyword">in</span> <span class="library">io.lines</span>(<span class="string">"my.txt"</span>) <span class="keyword">do</span> <span class="library">print</span>(line) <span class="keyword">end</span>
+
+This is
+
+some sample text
+
+<span class="keyword">for</span> Lua.
+
+</pre>
+
+</DL>
+<p>
+<H3>file:lines()</H3>
+<p>
+The <code>io</code> library provides another way to iterate over lines of a text file.
+<DL>
+<dt><dd><pre class="code">
+&gt; file = <span class="library">assert</span>(<span class="library">io.open</span>(<span class="string">"my.txt"</span>, <span class="string">"r"</span>))
+
+&gt; <span class="keyword">for</span> line <span class="keyword">in</span> file:lines() <span class="keyword">do</span> <span class="library">print</span>(line) <span class="keyword">end</span>
+
+This is
+
+some sample text
+
+<span class="keyword">for</span> Lua.
+
+&gt; file:close()
+
+</pre>
+
+</DL>
+<p>
+What are the differences with <code>io.lines()</code>?
+<p>
+You have to explicitly open and close the file. One advantage of this is that if the file cannot be opened, you can handle this failure gracefully. Here, the <code>assert</code> has the same effect as <code>io.lines</code>: the interpreter stops with an error message pointing to the faulty line; but you can test for a <code>nil</code> value of <code>file</code> and do something else.
+<p>
+Another advantage is that you can start the loop on any line:
+<DL>
+<dt><dd><pre class="code">
+file = <span class="library">assert</span>(<span class="library">io.open</span>(<span class="string">"list.txt"</span>, <span class="string">"r"</span>))
+
+<span class="keyword">local</span> line = file:read()
+
+<span class="keyword">if</span> <span class="library">string.sub</span>(line, 1, 1) ~= <span class="string">'#'</span> <span class="keyword">then</span>
+
+  ProcessLine(line) <span class="comment">-- File doesn't start with a comment, process the first line</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- We could also loop on the first lines, while they are comment</span>
+
+<span class="comment">-- Process the remainder of the file</span>
+
+<span class="keyword">for</span> line <span class="keyword">in</span> file:lines() <span class="keyword">do</span>
+
+  ProcessLine(line)
+
+<span class="keyword">end</span>
+
+file:close()
+
+</pre>
+
+</DL>
+<p>
+<H3>Custom iterators</H3>
+<p>
+We can write our own iterators, similiar to <code>next()</code>, to iterate over any data sequence. This is covered in more detail in the <a href="../wiki/IteratorsTutorial.html" >IteratorsTutorial</a>.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ForTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ForTutorial" >history</a><br>Last edited January 30, 2009 12:52 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ForTutorial" >(diff)</a>
+</body>
+</html>

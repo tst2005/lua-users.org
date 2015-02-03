@@ -1,0 +1,61 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite External File Browser</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteExternalFileBrowser&amp;body=1" title="List pages referring to SciteExternalFileBrowser">Scite External File Browser</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+SciTE hasn't its own file browser, so I'm using usually an external file browser. There is an inconvenience when I'd like to open several directories of the current editing source codes. <a href="../wiki/SciteExternalFileBrowser.html" >SciteExternalFileBrowser</a> is useful in this situation.
+<p>
+<pre class="code">
+<span class="comment">-- Open External File Browser</span>
+
+<span class="comment">-- 2013.03.31 by lee.sheen at gmail dot com</span>
+
+
+
+scite_Command {
+
+  <span class="string">'External File Browser|ExternalFileBrowser|Alt+Shift+F'</span>,
+
+}
+
+
+
+<span class="keyword">function</span> ExternalFileBrowser ()
+
+  <span class="keyword">local</span> cur_file_dir = props[<span class="string">'FileDir'</span>]
+
+  <span class="library">os.execute</span>(<span class="string">"start explorer "</span> .. cur_file_dir)
+
+<span class="keyword">end</span>
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteExternalFileBrowser" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteExternalFileBrowser" >history</a><br>Last edited March 31, 2013 2:27 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteExternalFileBrowser" >(diff)</a>
+</body>
+</html>

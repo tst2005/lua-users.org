@@ -1,0 +1,277 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Proxy Dll Two</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaProxyDllTwo&amp;body=1" title="List pages referring to LuaProxyDllTwo">Lua Proxy Dll Two</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The utility <strong>mkproxy.lua</strong> presented below is intended for building a proxy DLL which redirects its function calls to a "host" library file containing functions with the same names. The host library file can be either a DLL or an EXE, provided it has all the required exported functions.
+<p>
+The utility can build proxy DLL's for hosts of any kind, it is not restricted by Lua-related hosts.
+<p>
+The utility assumes (and requires) MinGW development system.
+<p>
+The utility contains one "public" function: <code>CreateProxyDll</code>. The function accepts one argument, a table, that must have the following fields specified:
+<DL>
+<dt><dd><pre>
+
+PROXY   : (path)name of the proxy DLL to build
+
+HOST    : (path)name of the host library file (file must exist)
+
+DEFFILE : (path)name of the definition file (file must exist)
+
+</pre>
+</DL>
+<p>
+<strong>Example 1:</strong> allow combined use of applications or libraries linked with either of lua5.1.dll and lua51.dll:
+<DL>
+<dt><dd><pre class="code">
+CreateProxyDll {
+
+  PROXY   = <span class="string">"lua51.dll"</span>,
+
+  HOST    = <span class="string">"c:\\exe\\lua5.1.dll"</span>,
+
+  DEFFILE = <span class="string">"liblua5.1.def"</span>,
+
+}
+
+</pre>
+
+</DL>
+<p>
+<strong>Example 2:</strong> make possible for a statically built Lua interpreter to safely <code>require()</code> external libraries:
+<DL>
+<dt><dd><pre class="code">
+CreateProxyDll {
+
+  PROXY   = <span class="string">"lua5.1.dll"</span>,
+
+  HOST    = <span class="string">"c:\\exe\\lua51x.exe"</span>,
+
+  DEFFILE = <span class="string">"liblua5.1.def"</span>,
+
+}
+
+</pre>
+
+</DL>
+<p>
+<strong>mkproxy.lua:</strong>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Name:       mkproxy.lua</span>
+
+<span class="comment">-- Goal:       Create a proxy DLL that redirects all calls to the "host" library</span>
+
+<span class="comment">-- Written by: Shmuel Zeigerman</span>
+
+<span class="comment">-- License:    public domain</span>
+
+
+
+<span class="keyword">local</span> CFile = <span class="string">[[
+
+#include &lt;windows.h&gt;
+
+BOOL WINAPI DllMain (HINSTANCE hinstDLL, DWORD Reason, LPVOID Reserved) {
+
+  return TRUE;
+
+}
+
+]]</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> execute(s) <span class="library">assert</span>(0 == <span class="library">os.execute</span>(s)) <span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> CreateObjectFile (objname)
+
+  <span class="library">assert</span>(objname:match(<span class="string">"%.o$"</span>))
+
+  <span class="keyword">local</span> cname = objname:gsub(<span class="string">"%.o$"</span>, <span class="string">".c"</span>)
+
+  <span class="keyword">local</span> fp = <span class="library">assert</span>(<span class="library">io.open</span>(cname, <span class="string">"w"</span>))
+
+  fp:write (CFile)
+
+  fp:close()
+
+  execute(<span class="string">"gcc -c "</span> .. cname .. <span class="string">" -o "</span> .. objname)
+
+  <span class="library">os.remove</span>(cname)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> CreateProxyDll (config)
+
+  <span class="library">assert</span>(<span class="library">type</span>(config) == <span class="string">"table"</span>, <span class="string">"argument #1: a table expected"</span>)
+
+  <span class="library">assert</span>(config.PROXY,   <span class="string">"config.PROXY not specified"</span>)
+
+  <span class="library">assert</span>(config.HOST,    <span class="string">"config.HOST not specified"</span>)
+
+  <span class="library">assert</span>(config.DEFFILE, <span class="string">"config.DEFFILE not specified"</span>)
+
+  <span class="library">assert</span>(<span class="library">io.open</span>(config.HOST)):close()
+
+  <span class="library">assert</span>(<span class="library">io.open</span>(config.DEFFILE)):close()
+
+  <span class="comment">-----------------------------------------------------------------------------</span>
+
+  <span class="keyword">local</span> hostpath, hostname = config.HOST:match (<span class="string">"^(.+)[\\/](.+)$"</span>)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> hostpath <span class="keyword">then</span> hostpath, hostname = <span class="string">"."</span>, config.HOST <span class="keyword">end</span>
+
+  <span class="keyword">local</span> temp_dll = (hostname:sub(-4):lower() ~= <span class="string">".dll"</span>) <span class="keyword">and</span> <span class="string">"temp_dll.dll"</span>
+
+  <span class="keyword">local</span> temp_obj = <span class="string">"temp_obj.o"</span>
+
+  CreateObjectFile(temp_obj)
+
+  <span class="keyword">local</span> cmdline = <span class="library">table.concat</span> ({
+
+    <span class="string">"gcc -shared -s -nostdlib"</span>,
+
+    temp_obj,
+
+    config.DEFFILE,
+
+    <span class="string">"-L"</span> .. (temp_dll <span class="keyword">and</span> <span class="string">"."</span> <span class="keyword">or</span> hostpath),
+
+    <span class="string">"-l"</span> .. (temp_dll <span class="keyword">or</span> hostname):sub(1,-5),
+
+    <span class="string">"-o"</span> .. config.PROXY,
+
+  }, <span class="string">" "</span>)
+
+  <span class="keyword">if</span> temp_dll <span class="keyword">then</span> execute(<span class="string">"copy "</span> .. config.HOST .. <span class="string">" "</span> .. temp_dll) <span class="keyword">end</span>
+
+  execute(cmdline)
+
+  <span class="library">os.remove</span>(temp_obj)
+
+  <span class="keyword">if</span> temp_dll <span class="keyword">then</span> <span class="library">os.remove</span>(temp_dll) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+-- <a href="../wiki/ShmuelZeigerman.html" >ShmuelZeigerman</a>
+<p>
+<H3>Comments</H3>
+<p>
+<DL>
+<dt><dd><em>--I've wondered why <a href="../wiki/LuaBinaries.html" >LuaBinaries</a> renames lua51.dll as lua5.1.dll, or, if this is a better approach, why Lua itself doesn't follow.  This all just makes things needlessly more complicated for new users and for module authors not familiar with the rules.  It's not a Good Thing(TM), for we come to the above.  I see <a href="../wiki/LuaBinaries.html" >LuaBinaries</a> is now distributed with such a wrapper too. --<a href="../wiki/DavidManura.html" >DavidManura</a></em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>This was already discussed on the mailing list: <a href="http://lua-users.org/lists/lua-l/2007-03/threads.html#00721">[1]</a> --<a href="../wiki/ShmuelZeigerman.html" >ShmuelZeigerman</a></em>
+</DL>
+<p>
+The following build is for MSVC2005.  It uses the "nodefaultlib" linker option.  The final proxy DLL was about 9 KB.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> DEFFILE  = <span class="string">"lua5.1.def"</span> <span class="comment">-- .def file for lua5.1.dll</span>
+
+<span class="keyword">local</span> LIBFILE  = <span class="string">"lua5.1.lib"</span> <span class="comment">-- .lib file for lua5.1.dll</span>
+
+<span class="keyword">local</span> CFILE   = <span class="string">"luaproxy.c"</span><span class="comment">-- output file</span>
+
+<span class="keyword">local</span> MAKFILE = <span class="string">"luaproxy.mak"</span>  <span class="comment">-- output file</span>
+
+<span class="comment">----------------------------------------------------------------------</span>
+
+<span class="keyword">local</span> cfile = <span class="library">assert</span>(<span class="library">io.open</span>(CFILE, <span class="string">"w"</span>))
+
+cfile:write <span class="string">[=[
+
+#include &lt;windows.h&gt;
+
+    BOOL APIENTRY
+
+DllMain(HANDLE module, DWORD reason, LPVOID reserved)
+
+    { return TRUE; }
+
+]=]</span>
+
+cfile:close()
+
+<span class="comment">----------------------------------------------------------------------</span>
+
+<span class="keyword">local</span> makfile = <span class="library">assert</span>(<span class="library">io.open</span>(MAKFILE, <span class="string">"w"</span>))
+
+makfile:write(<span class="library">string.format</span>(<span class="string">[=[
+
+lua51.dll : luaproxy.c
+
+	cl -I../lua/src /O2 /LD /GS- luaproxy.c /link /def:%s %s \
+
+	   /out:lua51.dll /nodefaultlib /entry:DllMain
+
+]=]</span>, DEFFILE, LIBFILE))
+
+makfile:close()
+
+<span class="comment">----------------------------------------------------------------------</span>
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<em>It seems that what you are doing is building an empty C file which links to the stubs in the import library, and reexposing those stubs as a dll interface. This would mean that the DLL you generate:</em>
+<DL>
+<dt><dd>1. does contain code (DllMain<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DllMain" >?</a>, and the import library)
+<dt><dd>2. add a function call overhead to each API call
+</DL>
+<em>This is not necessary. There is a mechanism in Windows DLL format that allow to make the DLL loader create aliases on the fly when the DLL is loaded. When you open the DLL in depends.exe you can clearly see these entry points marked as forwards/aliases.</em>
+<p>
+<em>Tell me if I misunderstood your code.</em>
+<p>
+<em>-- <a href="../wiki/JeromeVuarand.html" >JeromeVuarand</a></em>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaProxyDll.html" >LuaProxyDll</a> | <a href="../wiki/LuaProxyDllTwo.html" >LuaProxyDllTwo</a> | <a href="../wiki/LuaProxyDllThree.html" >LuaProxyDllThree</a> | <a href="../wiki/LuaProxyDllFour.html" >LuaProxyDllFour</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaProxyDllTwo" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaProxyDllTwo" >history</a><br>Last edited September 5, 2008 11:26 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaProxyDllTwo" >(diff)</a>
+</body>
+</html>

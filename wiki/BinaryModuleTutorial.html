@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Binary Module Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BinaryModuleTutorial&amp;body=1" title="List pages referring to BinaryModuleTutorial">Binary Module Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<strong>A simple (nondestructive) way to make a Lua-extension loadmodule-ready</strong>
+<p>
+<em><strong><a href="../wiki/VersionNotice.html" >VersionNotice</a>: This page pertains to an earlier version of Lua (4.0 and 5.0beta) using a <code>loadmodule</code> extension.  Lua 5.1 uses <code>package.loadlib</code> and <code>require</code>. Lua 5.0 uses <code>loadlib</code>.)</strong></em>
+<p>
+<em>The goal of this page is to show how easy it is to create <a href="../wiki/LuaBinaryModules.html" >LuaBinaryModules</a> from existing Lua extensions w/o changing the original source code of the extension in question</em> - <a href="../wiki/MartinSpernau.html" >MartinSpernau</a>
+<p>
+<strong>Goal:</strong>
+Compile a existing Lua-extension (that is originally statically linked to the Lua executable) as a dynamic link library ready to be loaded at runtime via the loadmodule() functionality described in <a href="../wiki/LuaBinaryModules.html" >LuaBinaryModules</a>.
+<p>
+<strong>Special objective:</strong>
+do not change the original code (which most probably was written by someone else)
+<p>
+<strong>Discussion:</strong>
+A lua extension usually consist of a number of source files and header files that implement the desired functionality. The way those functions are made accessable for the Lua interpreter is via special wrapper functions, and one 'open' function that 'registers' these functions with the current Lua state. (A discussion of this can be found in the Lua reference and under <a href="../wiki/BindingCodeToLua.html" >BindingCodeToLua</a>) 
+<p>
+The loadmodule functionality (<a href="../wiki/LuaBinaryModules.html" >LuaBinaryModules</a>) exploits the fact that there is basically one 'open'-function defined for each extension. As these functions can have varied names specific to each extension (e.g. lua_bitlibopen, lua_fooinizialize etc.), the loadmodule module wraps the libary opening code into one defined function luaLM_import. It also defines luaLM_version, which is needed to check for version-compatibility of the extension to the core Lua libaries. 
+<p>
+These two functions now act as the sole external entry point of the dynamic link library that is to be complied. When called from Lua loadmodule('modname') will try to load a dll for that extension (on Windows this would be lua<strong>modname</strong>.dll). It will then check versions by calling luaLM_version and if everything is satisfying call luaLM_import, which will in turn initialize the actual registering of functions.
+<p>
+<strong>Porting an existing extension to act as a loadmodule enabled dll</strong>
+It is generally suffice to add the two needed luaLM functions to the extension, and compile it as a dynamic link library. This is usually done by writing a simple .def file that declares the two functions.
+<p>
+<em>todo: add instructions on how to do this with common compilers</em>
+<p>
+The author would like to describe a slightly variant method, with the benefit of requiring zero change to the original code.
+<p>
+<em><a href="../wiki/ReubenThomas.html" >ReubenThomas</a> bitlib will be used as an example here, as it is rather small in itself and has no external dependencies. The steps described here work with most other extensions. Bitlib provides bitwise logical operations</em>
+<p>
+<strong>What is needed:</strong>
+<UL>
+<li> the actual exension source (here that is only <a href="/files/wiki_insecure/binary_modules/simple_tutorial/lbitlib.c">[lbitlib.c]</a>) is put in a convinient place. (bitlib usually goes into the standard lus/src/lib folder, but for a dynamic module another place might be more convinient. The author puts each module into it's own folder under the top Lua folder. That way all include paths can be relative, ../include is the most important pointing to lua.h and friends)
+<li> then a 'proxy' .c file defining the two loadmodule specific functions is created, and will later be compiled as the actual dll:
+<li> <a href="/files/wiki_insecure/binary_modules/simple_tutorial/lmdll.c">[lmdll.c]</a>
+</UL><DL>
+<dt><dd><pre>#include "lua.h"
+
+extern void lua_bitlibopen (lua_State *L);
+
+
+
+/* special functions for use with loadmodule.c */
+
+int luaLM_import( lua_State *L )
+
+{
+
+ lua_bitlibopen(L);
+
+ return 0;
+
+}
+
+
+
+const char * luaLM_version( void )
+
+{
+
+	return LUA_VERSION;
+
+}
+
+</pre>
+</DL><UL>
+<li> there is one fine point here, the 'lua_bitlibopen' needs to be declared here for it to be acceseable to our module. The original distro comes with a modified lualib.h header file with the definition added. As we don't want (or need) to modify the core Lua, it is defined here.
+<li> a simple .def file that defines the functions the dll is to export is added:
+<li> <a href="/files/wiki_insecure/binary_modules/simple_tutorial/luabitlib.def">[luabitlib.def]</a>
+</UL><DL>
+<dt><dd><pre>;  luabitlib.def: Declares the module parameters for the DLL.
+
+
+
+LIBRARY      luabitlib
+
+DESCRIPTION  'Lua bitwise operations library'
+
+
+
+EXPORTS
+
+    ; Explicit exports can go here
+
+	luaLM_version	@1
+
+	luaLM_import	@2        
+
+</pre>        
+</DL><UL>
+<li> and that's basically 'it'. Compiled this as a dynamic link libary, we have a Lua Binary Module, ready to be loaded into a Lua interpreter without any recompiling of Lua. 
+</UL>
+<p>
+Now one can simply place the luabitlib.dll in a path accesible by the Lua (loadlib enabled) executale (same folder will do) and load it like this:
+<DL>
+<dt><dd><pre>
+
+&gt;loadmodule("bitlib")
+
+using bitlib
+
+&gt;a=5
+
+&gt;b=2
+
+&gt;print(imod(a,b))     -- returns the integer remainder of a divided by b
+
+1
+
+</pre>
+</DL>
+<p>
+The complete source and VC projectfile can be downloaded <a href="/files/wiki_insecure/binary_modules/simple_tutorial/">[here]</a>
+<p>
+<em>Note: Theres another convenient way of creating a library. If you already have the .lib file, you just need an empty dll project with the that lib, the proxy file and the def files, put them together and build, that's it.</em>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BinaryModuleTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BinaryModuleTutorial" >history</a><br>Last edited January 14, 2007 12:56 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BinaryModuleTutorial" >(diff)</a>
+</body>
+</html>

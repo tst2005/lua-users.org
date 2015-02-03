@@ -1,0 +1,142 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Token Parsing</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaTokenParsing&amp;body=1" title="List pages referring to LuaTokenParsing">Lua Token Parsing</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The syntax of Lua can be altered by interrupting the token parser and modifying the output. An experimental library <em>ltokens</em> ("A library for lexical analysis of Lua code based directly on the Lua lexer.") is provided by LHF <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/">[1]</a>. The following page contains some usage cases for this code which might help with development of the concept. There may be many different solutions to these problems but some usage cases are required to ensure that solutions to practical applications are possible. 
+<p>
+No solutions are offered here as the whole token parsing concept is very experimental at the moment. Please create your own page, with a link from here, if you would like to offer solutions to these problems. Free free to add your own usage cases to this list.
+<p>
+<H2>Enumerations</H2>
+<p>
+Enumerations are useful for grouping values together. Enumeration can be done in Lua quite efficiently by
+<DL>
+<dt><dd><pre>
+
+local SHAPE_SQUARE, SHAPE_CIRCLE, SHAPE_STAR = 0, 1, 2  -- etc.
+
+
+
+foo(SHAPE_STAR)  -- usage
+
+</pre>
+</DL>
+<p>
+Issues:
+<UL>
+<li> Enumerations are constants and we can change the values in the above example. We could use a table to hold values and use metamethods to make it read only. The overhead of this can be fairly signicant in performance (given what we are actually doing).
+<li> Typos are not picked up until runtime despite us knowing the values at compile time.
+</UL>
+<p>
+<strong>Concept:</strong> Enum keyword and table of values which only lives at compile time.
+<DL>
+<dt><dd><pre>
+
+enum ShapeType { SQUARE, CIRCLE, STAR, NUM_TYPES }
+
+
+
+print(ShapeType.CIRCLE)  -- usage
+
+</pre>
+</DL>
+Notes:
+<UL>
+<li> Enums are compile-time concept. There should be compile-time warnings if enums are not found (e.g. <code>ShapeType.LINE</code>).
+<li> Enum names etc do not need to be present at runtime (at least not in the non-debug, or stripped, version) to save memory.
+</UL>
+<p>
+<p>
+<H2>C Function Calls</H2>
+<p>
+C functions can be registered with Lua (<code>int MyLuaFunc(lua_State*)</code>). This registration involves passing a function pointer and a string function name to Lua (which duplicates the string). To call the function you do a global lookup using a function string name and call the object returned. More descriptive: <a href="http://lua-users.org/lists/lua-l/2004-08/msg00521.html">[2]</a>.
+<p>
+Issues:
+<UL>
+<li> If you have hundreds of functions registered this can consume a considerable amount of memory. It would be nice to remove the string registration at runtime.
+<li> If a naming convention were introduced it would be possible to warn about function name typos at compile-time.
+</UL>
+<p>
+<strong>Concept:</strong> At Lua compile-time a list of the functions exported (much like a link library in C) could be passed to the parser. When we intercept calls to named functions we could insert the function pointer, or function enumeration in order to call the function at runtime.
+<p>
+Notes:
+<UL>
+<li> Remove existence of (duplicate) function name strings.
+<li> C registered functions would be const function pointers.
+</UL>
+<p>
+<H2>Switch statement</H2>
+<p>
+Arguably Lua doesn't need a <a href="../wiki/SwitchStatement.html" >SwitchStatement</a>, but it might be an interesting test for <em>ltokens</em>. E.g. (feel free to change the syntax)
+<DL>
+<dt><dd><pre>
+
+switch (value) do
+
+    case 1 do print('one') end
+
+    case 2 do print('two') end
+
+    default do print('default') end
+
+end
+
+</pre>
+</DL>
+<p>
+<H2>Try-except statement</H2>
+<p>
+Lua has exception support, but the interface is functional and low-level, making it cumbersome to use.  Perhaps token tinkering would be helpful here.
+<p>
+<H2>Type checking</H2>
+<p>
+When calling a C binding, or other Lua function, generally objects have to be of a certain type. Lua does not support type checking, but this would be useful for these cases. For example, if we bind a C function,
+<DL>
+<dt><dd><pre>
+
+void foo(int arg1, const char* arg2);
+
+</pre>
+</DL>
+and then we call this from Lua we'll only know if the calling arguments types are wrong at runtime. It would be nice to be able to add optional argument types so if a bound function were recognised it's parameter types could be checked.
+<p>
+Notes:
+<UL>
+<li> If an automatic binding tool is used (e.g. tolua) it could write out a metadata file containing all of the functions bound and their type information. This could be used at Lua script compilation time to check details.
+<li> With Lua being dynamic it would be difficult to catch all function invocations, what with variables being dynamically typed. The addition of a const keyword might help here. Some variable types will be able to be predicted at compile time but others may be harder to calculate or ambiguous.
+</UL>
+<p>
+<H2>See also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaMacros.html" >LuaMacros</a> - a macro facility for Lua using token filters
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaTokenParsing" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaTokenParsing" >history</a><br>Last edited March 13, 2009 11:53 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaTokenParsing" >(diff)</a>
+</body>
+</html>

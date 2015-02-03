@@ -1,0 +1,207 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Pit Lib Tablestuff</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=PitLibTablestuff&amp;body=1" title="List pages referring to PitLibTablestuff">Pit Lib Tablestuff</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+From <a href="../wiki/PetersStdLib.html" >PetersStdLib</a>, an addition to the standard table functions of Lua (tinsert, tremove):
+<p>
+<H2>Tables Library code</H2>
+<p>
+<em><strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  It does not run as is under Lua 5.</strong></em>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Lua 4</span>
+
+
+
+<span class="comment">-- table stuff: find a value in a table</span>
+
+<span class="keyword">function</span> tfind(t, s)
+
+ <span class="keyword">return</span> foreachi(t, <span class="keyword">function</span>(i, v) <span class="keyword">if</span> v==%s <span class="keyword">then</span> <span class="keyword">return</span> i <span class="keyword">end</span> <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- like tinsert for sets: only adds if not already in the table</span>
+
+<span class="keyword">function</span> tadd(t, v) 
+
+ <span class="keyword">if</span> <span class="keyword">not</span> tfind(t, v) <span class="keyword">then</span> tinsert(t, v) <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- print entire table, good for debugging</span>
+
+<span class="keyword">function</span> tdump(<span class="library">table</span>)
+
+ <span class="keyword">if</span> <span class="library">type</span>(<span class="library">table</span>) ~= <span class="string">"table"</span> <span class="keyword">then</span>
+
+  <span class="library">print</span>(<span class="library">table</span>) <span class="comment">-- dump is the same as print on non-table values</span>
+
+ <span class="keyword">else</span>
+
+  <span class="keyword">local</span> indizes = {}
+
+  foreach(<span class="library">table</span>, <span class="keyword">function</span>(i,v) tinsert(%indizes, i) <span class="keyword">end</span>)
+
+  <span class="keyword">if</span> getn(indizes) == 0 <span class="keyword">then</span>
+
+   <span class="library">print</span>(<span class="string">"&lt;empty table&gt;"</span>)
+
+  <span class="keyword">else</span>
+
+   sort(indizes)
+
+   foreachi(indizes, <span class="keyword">function</span>(_, index)
+
+    <span class="keyword">local</span> value = %<span class="library">table</span>[index]
+
+    <span class="keyword">if</span> <span class="library">type</span>(index) == <span class="string">"string"</span> <span class="keyword">then</span>
+
+     <span class="library">print</span>(index .. <span class="string">":\t"</span> .. <span class="library">tostring</span>(value))
+
+    <span class="keyword">else</span>
+
+     <span class="library">print</span>(<span class="string">"["</span> .. index .. <span class="string">"]\t"</span> .. <span class="library">tostring</span>(value))
+
+    <span class="keyword">end</span>
+
+   <span class="keyword">end</span>)
+
+  <span class="keyword">end</span>
+
+ <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- makes a deep copy of a given table (the 2nd param is optional and for internal use)</span>
+
+<span class="comment">-- circular dependencies are correctly copied.</span>
+
+<span class="keyword">function</span> tcopy(t, lookup_table)
+
+ <span class="keyword">local</span> copy = {}
+
+ <span class="keyword">for</span> i,v <span class="keyword">in</span> t <span class="keyword">do</span>
+
+  <span class="keyword">if</span> <span class="library">type</span>(v) ~= <span class="string">"table"</span> <span class="keyword">then</span>
+
+   copy[i] = v
+
+  <span class="keyword">else</span>
+
+   lookup_table = lookup_table <span class="keyword">or</span> {}
+
+   lookup_table[t] = copy
+
+   <span class="keyword">if</span> lookup_table[v] <span class="keyword">then</span>
+
+    copy[i] = lookup_table[v] <span class="comment">-- we already copied this table. reuse the copy.</span>
+
+   <span class="keyword">else</span>
+
+    copy[i] = tcopy(v,lookup_table) <span class="comment">-- not yet copied. copy it.</span>
+
+   <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+ <span class="keyword">end</span>
+
+ <span class="keyword">return</span> copy
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Examples:
+<p>
+<DL>
+<dt><dd><pre class="code">
+t = {1,2,3,{<span class="string">"a"</span>,<span class="string">"b"</span>}}
+
+<span class="keyword">if</span> tfind(t,3) <span class="keyword">then</span> 
+
+        tadd(t,4) <span class="comment">-- adds a 5th value</span>
+
+        tadd(t,1) <span class="comment">-- doesn't add again</span>
+
+        tadd(t,t) <span class="comment">-- adds a 6th value: circular reference to self</span>
+
+<span class="keyword">end</span>
+
+t2 = tcopy(t) <span class="comment">-- make a deep copy of t.</span>
+
+<span class="library">print</span>(t2)
+
+<span class="library">print</span>(t2[6]) <span class="comment">-- see? t2[6] points to t2, as expected</span>
+
+tdump(t2)
+
+</pre>
+
+</DL>
+<p>
+<H2>Comments</H2>
+<p>
+<em>not-necessarily-directed-at-<a href="../wiki/PetersStdLib.html" >PetersStdLib</a> rants:</em>
+<UL>
+<li> Lua's <code>tinsert</code> and <code>tremove</code> are badly named, as they are list operations as opposed to table operations
+<li> the Lua library function naming style (runningwordstogetherlikethis) is not scalable and should not be imitated!
+</UL>
+<p>
+<DL>
+<DL>
+<dt><dd><a href="../wiki/VersionNotice.html" >VersionNotice</a>: tinsert and tremove are Lua4 functions, which are table.insert and table.remove in Lua 5.
+</DL>
+</DL>
+<p>
+<em>I somewhat have to agree on that, but I wanted to seamlessly extend the standard libraries of lua. Perhaps it would be a better idea to completely replace the standardlibrary with a better named one, but I guess this would scare away possible users. Maybe the Lua authors will address this issue in a future version of Lua? (together with the "n-field" issue in tables) --<a href="../wiki/PeterPrade.html" >PeterPrade</a></em>
+<p>
+<DL>
+<dt><dd><a href="../wiki/VersionNotice.html" >VersionNotice</a>: The n-field issue is fixed in Lua 5. See <a href="../wiki/LuaTableSize.html" >LuaTableSize</a>.
+</DL>
+<p>
+<H3>See Also</H3>
+<p>
+<UL>
+<li> <a href="../wiki/TableSerialization.html" >TableSerialization</a> - Recursive table print/serialization
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=PitLibTablestuff" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=PitLibTablestuff" >history</a><br>Last edited September 13, 2008 4:03 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=PitLibTablestuff" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,499 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Symbolic Differentiation</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SymbolicDifferentiation&amp;body=1" title="List pages referring to SymbolicDifferentiation">Symbolic Differentiation</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This started out as a little exercise for the <a href="../wiki/PenlightLibraries.html" >PenlightLibraries</a>, but became sufficiently obsessive to warrant a more throrough implemetation.
+<p>
+The first step in symbolic algebra is defining a representation. Getting expressions into a suitable form is actually straightforward; no parsing of expressions is needed, since we have Lua to do that for us. Using the <code>pl.func</code> library does all the hard work; it redefines the arithmetic operations to work on <em>placeholder expressions</em> (PEs), which are Lua expressions involving dummy variables called placeholders. <code>pl.func</code> defines standard placeholders for arguments called <code>_1</code>,<code>_2</code>, etc but the <code>Var</code> function will create new ones of our chosing:
+<p>
+<DL>
+<dt><dd><pre class="code">
+utils.import <span class="string">'pl.func'</span>
+
+a,b,c,d = Var <span class="string">'a,b,c,d'</span>
+
+<span class="library">print</span>(a+b+c+d)
+
+</pre>
+
+</DL>
+<p>
+Which will indeed print out the expression in a readable form. PE operator expressions are stored as combinations of tables looking like <code> {op='+',x,y} </code>, which have an associated metatable which defines the metamethods like <code>__add</code> and so forth. As a tree, with the usual associativity of Lua operators we get:
+<p>
+<img src="http://penlight.luaforge.net/graph.png">
+<p>
+It is irritating to draw these diagrams, so a better notation is Lisp-style S-expressions:
+<p>
+<DL>
+<dt><dd><pre>
+
+1: (+ (+ (+ a b) c) d)
+
+</pre>
+</DL>
+<p>
+However, with the various manipulations we will perform, this canonical form is not the only possible representation of <code>a+b+c+d</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+2: (+ a (+ b (+ c d)))
+
+3: (+ (+ a b) (+ c d))
+
+</pre>
+</DL>
+<p>
+Now, experience shows that this leads to madness. Instead, it's easier to go for the canonical Lisp representation:
+<p>
+<DL>
+<dt><dd><pre>
+
+4: (+ a b c d)
+
+</pre>
+</DL>
+<p>
+Many operations become straightforward once this is in place, for instance comparing with <code>(+ a c b d)</code> is just a matter of doing a 'compare with no order' on the arguments. Displaying PEs in this form is straightforward. <code>isPE</code> simply checks the expression to see if it is a placeholder expression, by looking at the metatable.  PEs with <code>op=='X'</code> are placeholder variables, so the rest must be expression nodes.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> sexpr (e)
+
+	<span class="keyword">if</span> isPE(e) <span class="keyword">then</span>
+
+  	  <span class="keyword">if</span> e.op ~= <span class="string">'X'</span> <span class="keyword">then</span>
+
+	    <span class="keyword">local</span> args = tablex.imap(sexpr,e)
+
+	    <span class="keyword">return</span> <span class="string">'('</span>..e.op..<span class="string">' '</span>..<span class="library">table.concat</span>(args,<span class="string">' '</span>)..<span class="string">')'</span>
+
+	  <span class="keyword">else</span>
+
+	    <span class="keyword">return</span> e.repr
+
+	  <span class="keyword">end</span>
+
+	<span class="keyword">else</span>
+
+	  <span class="keyword">return</span> <span class="library">tostring</span>(e)
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+The first task is to <em>balance</em> the expressions, which converts representations 1-3 into 4.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> balance (e)
+
+	<span class="keyword">if</span> isPE(e) <span class="keyword">and</span> e.op ~= <span class="string">'X'</span> <span class="keyword">then</span>
+
+	  <span class="keyword">local</span> op,args = e.op
+
+	  <span class="keyword">if</span> op == <span class="string">'+'</span> <span class="keyword">or</span> op == <span class="string">'*'</span> <span class="keyword">then</span>
+
+		args = rcollect(e)
+
+	  <span class="keyword">else</span>
+
+		args = imap(balance,e)
+
+	  <span class="keyword">end</span>
+
+	  <span class="keyword">for</span> i = 1,#args <span class="keyword">do</span>
+
+		e[i] = args[i]
+
+	  <span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">return</span> e
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+For the non-commutative operators, the idea is just to balance all the subexpressions by mapping <code>balance</code> over the array part of the PE, which is the argument list. These are then copied back in-place. The non-trivial part is dealing with + and *, where it is necessary to collect all the arguments from expression trees looking like 1,2 or 3 and convert them into the fourth form.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> tcollect (op,e,ls)
+
+    <span class="keyword">if</span> isPE(e) <span class="keyword">and</span> e.op == op <span class="keyword">then</span>
+
+	<span class="keyword">for</span> i = 1,#e <span class="keyword">do</span>
+
+	   tcollect(op,e[i],ls)
+
+        <span class="keyword">end</span>
+
+    <span class="keyword">else</span>
+
+        ls:append(e)
+
+        <span class="keyword">return</span>
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> rcollect (e)
+
+    <span class="keyword">local</span> res = List()
+
+    tcollect(e.op,e,res)
+
+    <span class="keyword">return</span> res
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+This recursively goes down same-operator chains (the <code>(+ (+ ...)</code> mentioned earlier) and collects the arguments, flattening them into n-ary + or * expressions.
+<p>
+Here is a useful function, which follows the same recursive pattern:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- does this PE contain a reference to x?</span>
+
+<span class="keyword">function</span> references (e,x)
+
+    <span class="keyword">if</span> isPE(e) <span class="keyword">then</span>
+
+		<span class="keyword">if</span> e.op == <span class="string">'X'</span> <span class="keyword">then</span> <span class="keyword">return</span> x.repr == e.repr
+
+		<span class="keyword">else</span>
+
+			<span class="keyword">return</span> find_if(e,references,x)
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">else</span>
+
+		<span class="keyword">return</span> <span class="keyword">false</span>
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Here are functions to create n-ary products and sums:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> muli (args) <span class="keyword">return</span> PE{op=<span class="string">'*'</span>,<span class="library">unpack</span>(args)} <span class="keyword">end</span>
+
+<span class="keyword">function</span> addi (args) <span class="keyword">return</span> PE{op=<span class="string">'+'</span>,<span class="library">unpack</span>(args)} <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+With this in place, the basic differentiation rules are not difficult. Firstly, only consider subexpressions which do contain the variable:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> diff (e,x)
+
+    <span class="keyword">if</span> isPE(e) <span class="keyword">and</span> references(e,x) <span class="keyword">then</span>
+
+		<span class="keyword">local</span> op = e.op
+
+        <span class="keyword">if</span> op == <span class="string">'X'</span> <span class="keyword">then</span>
+
+            <span class="keyword">return</span> 1
+
+	<span class="keyword">else</span>
+
+   	    <span class="keyword">local</span> a,b = e[1],e[2]
+
+            <span class="keyword">if</span> op == <span class="string">'+'</span> <span class="keyword">then</span> <span class="comment">-- differentiation is linear</span>
+
+		<span class="keyword">local</span> args = imap(diff,e,x)
+
+		<span class="keyword">return</span> balance(addi(args))
+
+            <span class="keyword">elseif</span> op == <span class="string">'*'</span> <span class="keyword">then</span> <span class="comment">-- product rule</span>
+
+		<span class="keyword">local</span> res,d,ee = {}
+
+		<span class="keyword">for</span> i = 1,#e <span class="keyword">do</span>
+
+			d = fold(diff(e[i],x))
+
+			<span class="keyword">if</span> d ~= 0 <span class="keyword">then</span>
+
+	 		  ee = {<span class="library">unpack</span>(e)} <span class="comment">-- make a copy</span>
+
+			  ee[i] = d
+
+			  append(res,balance(muli(ee)))
+
+			<span class="keyword">end</span>
+
+		<span class="keyword">end</span>
+
+		<span class="keyword">if</span> #res &gt; 1 <span class="keyword">then</span> <span class="keyword">return</span> addi(res)
+
+		<span class="keyword">else</span> <span class="keyword">return</span> res[1] <span class="keyword">end</span>
+
+            <span class="keyword">elseif</span> op == <span class="string">'^'</span> <span class="keyword">and</span> isnumber(b) <span class="keyword">then</span> <span class="comment">-- power rule</span>
+
+                <span class="keyword">return</span> b*x^(b-1)
+
+            <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+	<span class="keyword">else</span>
+
+		<span class="keyword">return</span> 0
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The derivative of a sum of expressions is the sum of the derivatives. Again, <code>imap</code> does the job of applying the function recursively over the subexpressions. After constructing the result, we re-balance for luck.
+<p>
+The product rule is given here in its general form, with an explicit check for terms which work out to zero - that is the job of <code>fold</code>, which will be discussed next.
+<p>
+<DL>
+<dt><dd><pre>
+
+(uvw..)' = u'vw.. + uv'w... + uvw'... + ...
+
+</pre>
+</DL>
+<p>
+And finally, the simple power rule. Note how the result can be expressed in a straightforward fashion, since all these operators are acting on PEs.
+<p>
+In fact, all these rules are certainly clearer if you use form 1, binary + and *! But then simplification becomes unbearable. And simplification ('folding') is the tricky one to get right. <code>fold</code> is a longish function, so I will deal with it in sections:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> op = e.op
+
+<span class="keyword">local</span> addmul = op == <span class="string">'*'</span> <span class="keyword">or</span> op == <span class="string">'+'</span>
+
+<span class="comment">-- first fold all arguments</span>
+
+<span class="keyword">local</span> args = imap(fold,e)
+
+<span class="keyword">if</span> <span class="keyword">not</span> addmul <span class="keyword">and</span> <span class="keyword">not</span> find_if(args,isPE) <span class="keyword">then</span>
+
+  <span class="comment">-- no placeholders in these args, we can fold the expression.</span>
+
+  <span class="keyword">local</span> opfn = optable[op]
+
+  <span class="keyword">if</span> opfn <span class="keyword">then</span>
+
+    <span class="keyword">return</span> opfn(<span class="library">unpack</span>(args))
+
+  <span class="keyword">else</span>
+
+   <span class="keyword">return</span> <span class="string">'?'</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">elseif</span> addmul <span class="keyword">then</span>
+
+</pre>
+
+</DL>
+<p>
+The first <code>if</code> is looking for a case where a subexpression has no symbols, i.e. it is something like <code>2*5</code> or <code>10^2</code>; in this case, the constant can be completely folded. <code>optable</code> (defined in <code>pl.operator</code>) gives a mapping between the operator names and the actual function implementing them.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">elseif</span> op == <span class="string">'^'</span> <span class="keyword">then</span>
+
+  <span class="keyword">if</span> args[2] == 1 <span class="keyword">then</span> <span class="keyword">return</span> args[1] <span class="keyword">end</span> <span class="comment">-- identity</span>
+
+  <span class="keyword">if</span> args[2] == 0 <span class="keyword">then</span> <span class="keyword">return</span> 1 <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">return</span> PE{op=op,<span class="library">unpack</span>(args)}
+
+</pre>
+
+</DL>
+<p>
+This clause is clearing up expressions like <code>x^1</code> and <code>y^0</code> which naturally arise from the power rule in <code>diff</code>. Once <code>args</code> has been processed, the expression can be put together again.
+<p>
+The bulk of this routine handles the awkward twins, + and *.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- split the args into two classes, PE args and non-PE args.</span>
+
+<span class="keyword">local</span> classes = List.partition(args,isPE)
+
+<span class="keyword">local</span> pe,npe = classes[<span class="keyword">true</span>],classes[<span class="keyword">false</span>]
+
+</pre>
+
+</DL>
+<p>
+<code>List.partition</code> takes a list and a function, which takes one argument and returns a single value. The result is table where the keys are the returned values, and the values are lists of those elements where the function returned that value. So:
+<p>
+<DL>
+<dt><dd><pre class="code">
+List{1,2,3,4}:partition(<span class="keyword">function</span>(x) <span class="keyword">return</span> x &gt; 2 <span class="keyword">end</span>)
+
+<span class="comment">--&gt; {false={1,2},true={3,4}}</span>
+
+List{<span class="string">'one'</span>,<span class="library">math.sin</span>,10,20,{1,2}}:partition(<span class="library">type</span>)
+
+<span class="comment">--&gt; {function={function: 00369110},string={one},number={10,20},table={{{1,2}} }</span>
+
+</pre>
+
+</DL>
+<p>
+(Mathematically, these are referred to as <em>equivalence classes</em> and <code>partition</code> would be called the <em>quotient set</em>)
+<p>
+In this case, we want to separate the non-symbolic arguments from the symbolic arguments; order does not matter.  The non-symbolic arguments <code>npe</code> can folded into a constant. At this point, operator identity rules can kick in, so that we can drop <code>(* 0 x)</code> and simplify <code>(+ 0 x)</code> to be just <code>x</code>.
+<p>
+The final simplification is replacing repeated values, so that <code>(* x x)</code> should become <code>(^ x 2)</code> and <code>(+ x x x)</code> should become <code>(* x 3)</code>. <code>count_map</code> from <code>pl.tablex</code> will do the job. It is given a list-like table and a function which defines equivalence, and returns a map from the values to the number of their occurrences, so that <code> count_map{'a','b','a'} </code> is <code> {a=2,b=1} </code>.
+<p>
+Given this test function:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> testdiff (e)
+
+  balance(e)
+
+  e = diff(e,x)
+
+  balance(e)
+
+  <span class="library">print</span>(<span class="string">'+ '</span>,e)
+
+  e = fold(e)
+
+  <span class="library">print</span>(<span class="string">'- '</span>,e)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+and these cases:
+<p>
+<DL>
+<dt><dd><pre class="code">
+testdiff(x^2+1)
+
+testdiff(3*x^2)
+
+testdiff(x^2 + 2*x^3)
+
+testdiff(x^2 + 2*a*x^3 + x^4)
+
+testdiff(2*a*x^3)
+
+testdiff(x*x*x)
+
+</pre>
+
+</DL>
+<p>
+we get these results, showing why something like <code>fold</code> is so necessary to process the result of <code>diff</code>.
+<p>
+<DL>
+<dt><dd><pre>
+
++ 	2 * x ^ 1 + 0
+
+- 	2 * x
+
++ 	3 * 2 * x
+
+- 	6 * x
+
++ 	2 * x ^ 1 + 2 * 3 * x ^ 2
+
+- 	2 * x + 6 * x ^ 2
+
++ 	2 * x ^ 1 + 2 * a * 3 * x ^ 2 + 4 * x ^ 3
+
+- 	6 * a * x ^ 2 + 4 * x ^ 3 + 2 * x
+
++ 	2 * a * 3 * x ^ 2
+
+- 	6 * a * x ^ 2
+
++ 	1 * x * x + x * 1 * x + x * x * 1
+
+- 	x ^ 2 * 3
+
+</pre>
+</DL>
+<p>
+<a href="https://github.com/stevedonovan/Penlight/blob/master/examples/symbols.lua">https://github.com/stevedonovan/Penlight/blob/master/examples/symbols.lua</a>
+<p>
+<a href="https://github.com/stevedonovan/Penlight/blob/master/examples/test-symbols.lua">https://github.com/stevedonovan/Penlight/blob/master/examples/test-symbols.lua</a>
+<p>
+<p>
+<em><a href="../wiki/SteveDonovan.html" >SteveDonovan</a></em>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/ExpressionTemplatesInLua.html" >ExpressionTemplatesInLua</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SymbolicDifferentiation" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SymbolicDifferentiation" >history</a><br>Last edited July 4, 2012 9:41 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SymbolicDifferentiation" >(diff)</a>
+</body>
+</html>

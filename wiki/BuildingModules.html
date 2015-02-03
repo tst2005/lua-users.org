@@ -1,0 +1,636 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Building Modules</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BuildingModules&amp;body=1" title="List pages referring to BuildingModules">Building Modules</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is a list of instructions on how to build <strong>C extension modules for Lua</strong> on various operating systems and with various toolchains (IDE, compiler, linker).
+<p>
+For instructions on how to build the Lua core yourself, see <a href="../wiki/BuildingLua.html" >BuildingLua</a>.
+<p>
+For instruction on how to <em>write</em> (as opposed to build) C extension modules, see <a href="../wiki/BindingCodeToLua.html" >BindingCodeToLua</a>.
+<p>
+<H2>Introduction</H2>
+<p>
+Building a C extension module generally means that you need to create a
+<em>shared library</em> aka <em>dynamic link library</em>. This library gets loaded
+at runtime by <code>require()</code> (new module system in Lua 5.1) or by <code>loadlib()</code>
+(low-level call, available in Lua 5.0, too).
+<p>
+Static linking of modules against the core is also possible, but not
+recommended for generic Lua distributions (it makes sense for embedded
+systems, though).
+<p>
+<em>Please feel free to correct or extend this list.</em> -- <a href="../wiki/MikePall.html" >MikePall</a>
+<p>
+<H2>Build Instructions</H2>
+<p>
+Note: Typically, Lua core header files (<code>lua.h</code>, <code>lauxlib.h</code>, etc.)
+are not stored directly in the standard search path, but rather in a subdirectory.
+You'll need to specify their location
+to the compiler by adding <code>-I</code><em><code>lua_header_file_directory</code></em> to the compile
+command, which is not shown in these examples.  If your platform has <code>pkg-config</code>
+and associated Lua data installed, you can get the needed compile flags as
+follows (assuming Lua was installed under package name "lua5.1"):
+<pre>
+
+LUA_CFLAGS=`pkg-config lua5.1 --cflags`
+
+</pre>
+<p>
+<H3>Shared libraries with libtool</H3>
+<p>
+Although instructions specific to several platforms are provided below, on most
+systems <code>GNU libtool</code> is available and will do the right thing while hiding platform
+idiosyncrasies.
+<p>
+<pre>
+
+LIBTOOL="libtool --tag=CC --silent"
+
+$LIBTOOL --mode=compile cc -c module.c
+
+$LIBTOOL --mode=link cc -rpath /usr/local/lib/lua/5.1 -o libmodule.la module.lo
+
+mv .libs/libmodule.so.0.0.0 module.so
+
+</pre>
+<p>
+Note that <code>cc</code> is an alias for the "main compiler" on most systems.  Plug in a
+specific compiler and optimization setting as necessary.  The <code>-rpath</code> value is
+not critical, but the option is required to trigger a shared library build.
+<p>
+As a bonus, the above commands simultaneously produce a static version of the
+library at <code>.libs/libmodule.a</code>.  (Yes, it's compiled without <code>-fpic</code>.)
+<p>
+<H3>dlfcn shared libraries with GCC (Linux, *BSD etc.)</H3>
+<pre>
+
+gcc -O2 -fpic -c -o module.o module.c
+
+gcc -O -shared -fpic -o module.so module.o
+
+</pre>
+Unfortunately <code>-fpic</code> comes with a significant performance loss on x86.
+You can omit this option on x86 (but not on some other architectures), but
+then the shared library needs to be relocated upon loading it (basically
+making a copy for every process). It depends on your usage patterns whether
+this is really relevant (this is not a problem when you fork processes or
+use native threads or non-preemptive approaches; it is a problem when
+you exec lots of processes).
+<p>
+Add <code>-fomit-frame-pointer</code> on x86 for a significant performance gain
+(unfortunately this prevents debugging on x86, too). Note: this does
+not make any sense on other CPUs (x64 aka x86_64/AMD64/EM64T in particular).
+E.g. <code>gcc -O</code> automatically enables <code>-fomit-frame-pointer</code> on all systems
+where it does not interfere with debugging. Oh and x64 has no problems
+with <code>-fpic</code>, too.
+<p>
+Avoid <code>-fPIC</code> since it comes with a big performance penalty on some RISC
+architectures (Sparc in particular). The linker will warn you when you are
+exceeding the limits for <code>-fpic</code> and then you have to switch to <code>-fPIC</code>.
+It's very unlikely that you'll ever hit this limit with Lua modules, though.
+<p>
+Read more than you ever wanted to know about building shared libraries
+<a href="http://people.redhat.com/drepper/dsohowto.pdf">[here]</a> (PDF, ~500K).
+<p>
+<H3>dlfcn shared libraries with Sun CC (Solaris)</H3>
+<pre>
+
+cc -O -Kpic -c -o module.o module.c
+
+ld -G -o module.so module.o
+
+</pre>
+<p>
+<H3>dlfcn shared libraries with HP CC (HP-UX)</H3>
+<pre>
+
+cc +O3 +Z -c -o module.o module.c
+
+ld -b -o module.so module.o
+
+</pre>
+<p>
+<H3>dlfcn shared libraries with IBM XL C (AIX 4.2 or later)</H3>
+<pre>
+
+xlc -O2 -c -o module.o module.c
+
+xlc -G -bexpall -o module.so module.o
+
+</pre>
+<p>
+<H3>dlfcn shared libraries on some older Unix systems</H3>
+<pre>
+
+cc -O -Kpic -c -o module.o module.c
+
+ld -Bshareable -o module.so module.o
+
+</pre>
+<p>
+<H3>Mac OS X shared libraries (Lua 5.1.3 and later)</H3>
+<p>
+<strong>IMPORTANT NOTE:</strong>
+With the release of Lua 5.1.3 the module loader for Lua on Mac OS X has changed.
+It now uses the standard POSIX dlfcn API. So just follow the instructions above
+under <strong>dlfcn shared libraries with GCC</strong>.  However, unlike GCC on other
+platforms, you must still link with the option '-undefined dynamic_lookup'
+to avoid getting undefined references to liblua.  Whatever you do, don't
+link your extension against liblua.a!  (See below:
+"Do Not Link Modules to the Lua Core Libraries")
+<p>
+<em>It does not work for me (Mac OS X 10.4.9, powerpc-apple-darwin8-gcc-4.0.0). I get unrecognized option -shared. The instructions below work fine.</em> -- lhf
+<p>
+"To properly build a module on OSX you need to either set a flat namespace and suppress undefined symbols OR have undefined symbols be dynamically looked up" -- jls
+<p>
+Unix/Linux equivalent:
+<pre>
+
+gcc -bundle -flat_namespace -undefined suppress -o module.so module.o
+
+</pre>
+<p>
+OSX prefered:
+<pre>
+
+gcc -bundle -undefined dynamic_lookup -o module.so module.o
+
+</pre>
+<p>
+<H3>Mac OS X bundles (only for Lua 5.1.0 - Lua 5.1.2)</H3>
+<p>
+<strong>Compiling and Linking</strong>
+<p>
+<pre>
+
+MACOSX_DEPLOYMENT_TARGET="10.3"
+
+export MACOSX_DEPLOYMENT_TARGET
+
+gcc -O2 -fno-common -c -o module.o module.c
+
+gcc -bundle -undefined dynamic_lookup -o module.so module.o
+
+</pre>
+<p>
+It took me a long time to figure this out, but the above link line is not sufficient on (at least) OS X 10.3, and perhaps 10.4. If you have mysterious crashes in your module, attempt to run it with DYLD_BIND_AT_LAUNCH=1 set in the environment. If the module now runs correctly, you probably have a problem with "lazy" initialization of data. Instead of setting the environment variable, add -Wl,-bind_at_load after the -bundle option. In paticular, modules implemented in obj-c, or that call obj-c have this problem, though it appears it can also be an issue with C++ as well.
+<p>
+Note: do not <code>strip</code> the dynamic symbols from the Lua executable
+(use <code>strip -x</code>). liblua.a was not (and shouldn't be, see notes at end of page) linked into the module, so the bundle will need to find the lua_ API symbols in the executable when it is dynamically loaded.
+<p>
+<p>
+<strong>Loading and Unloading</strong>
+<p>
+Modules that use obj-c have another problem, they CANNOT be unloaded, which lua attempts to do during shutdown. Symptom is something like this when lua is exiting:
+<p>
+<DL>
+<dt><dd>objc: cannot unmap an image containing ObjC data
+<dt><dd>Program received signal SIGTRAP, Trace/breakpoint trap.
+</DL>
+<p>
+The only fix I have found for this so far is to remove the __gc method from the _LOADLIB metatable:
+<p>
+<DL>
+<dt><dd>static void lua_objc_kill_dlclose(lua_State* L){
+<dt><dd>luaL_getmetatable(L, "_LOADLIB");
+<dt><dd>lua_pushnil(L);
+<dt><dd>lua_setfield(L, -2, "__gc");
+<dt><dd>}
+</DL>
+<p>
+<DL>
+<dt><dd>luaopen_objc(lua_State*L) {
+<DL>
+<dt><dd>lua_objc_kill_dlclose(L);
+<dt><dd>... register my module....
+</DL>
+<dt><dd>}
+</DL>
+<p>
+or to hack loadlib.c so it never unloads C modules.
+<p>
+<strong>Module Naming Conventions</strong>
+<p>
+For consistency with other platforms the modules should be installed with the <code>.so</code> extension on Mac OS X, too, and this assumed by the default definitions of the package cpath.
+<p>
+<H3>Mac OS 9/X shared libraries (CFM)</H3>
+<p>
+You need a patched Lua, with support for oldskool CFM libraries.
+<p>
+For each module, create a matching foo.exp file with a single entry like:
+<pre>
+
+luaopen_foo
+
+</pre>
+Then compile the foo module into a shared library "foo"
+(no extension)
+<p>
+<H3>Windows DLLs with Borland C</H3>
+<p>
+A related page <a href="../wiki/CreatingBinaryExtensionModules.html" >CreatingBinaryExtensionModules</a> exists on this but is outdated.  Possibly it should be merged into here.
+<p>
+<H3>Windows DLLs with MSVC</H3>
+<p>
+<UL>
+<li> Use the IDE to create a DLL project (File, New, Projects).
+<li> Select the multithreaded DLL runtime library (C/C++, Category = Code Generation).
+<li> Add the Lua include directory to the include path (C/C++, Preprocessor).
+<li> Add the Lua directory to the library path (Link, Input).
+<li> Add the Lua import library <code>lua51.lib</code> to the input libraries (Link, Input).
+<li> Build the DLL (Build).
+</UL>
+<p>
+note : make sure your main init function is exported with __declspec(dllexport) like this : 
+<pre>
+
+int __declspec(dllexport) MyModuleName (lua_State* L) { ... }
+
+</pre>
+<p>
+<H3>Windows DLLs with GCC (MinGW, Cygwin or MinGW cross-compiler)</H3>
+<pre>
+
+gcc -O2 -c -o module.o module.c
+
+gcc -O -shared -o module.dll module.o -Llua_dir -lluaXX
+
+</pre>
+Replace <code>lua_dir</code> with the directory where the <code>luaXX.dll</code> resides.
+<code>luaXX.dll</code> is either <code>lua50.dll</code> or <code>lua51.dll</code>, depending on
+which Lua version you use.
+<p>
+Old GCC versions (pre 4.0) have problems with exception handling and stdcall's
+when using <code>-fomit-frame-pointer</code>
+(<a href="http://www.cygwin.com/ml/cygwin/2004-11/msg00962.html">[bug report]</a>).
+You can either upgrade or always use <code>-maccumulate-outgoing-args</code> with <code>-fomit-frame-pointer</code>.
+<p>
+Do not strip the relocation info from the DLL (use <code>strip --strip-unneeded</code>).
+<p>
+You may want to add <code>-Wl,--enable-auto-image-base</code> to the link command to
+reduce DLL load times when you have many extension modules.
+<p>
+For notes on using <a href="../wiki/LuaRocks.html" >LuaRocks</a> under Cygwin, see <a href="http://luaforge.net/mail/?group_id=220">[1]</a> <a href="http://lists.luaforge.net/pipermail/luarocks-developers/2008-September/000880.html">[2]</a> <a href="http://lists.luaforge.net/pipermail/luarocks-developers/2008-August/000871.html">[3]</a> <a href="http://lists.luaforge.net/pipermail/luarocks-developers/2008-August/000803.html">[4]</a> .
+<p>
+<H2>Building with Lua<code></code>Rocks</H2>
+<p>
+<a href="../wiki/LuaRocks.html" >LuaRocks</a> installs Lua modules as self-contained packages (with dependency info) called "rocks".
+<p>
+<H2>Final Notes</H2>
+<p>
+<H3>Recompile After Upgrading the Lua Core</H3>
+<p>
+Lua generally offers some level of API stability, but not necessarily
+ABI stability (binary compatibility). This means you need to recompile
+all your modules when you upgrade the Lua core even between minor versions
+(e.g. from 5.0 to 5.1). Be sure to always point your compiler to the correct
+include path (-I...) which contains the Lua core header files you want
+to compile against.
+<p>
+It's a good idea to recompile everytime when you use the development
+versions (the 'work' releases), because there are no API/ABI stability
+guarantees at all.
+<p>
+<H3>Do Not Link Modules to the Lua Core Libraries</H3>
+<p>
+Although it may be tempting to link modules against the static
+libraries containing the Lua core (<code>lua*.a</code>), this is <strong>not</strong> a good idea.
+<p>
+Essentially you are adding a <em>copy</em> of the whole Lua core (or at least
+large parts of it) to every module. Apart from being a waste of space
+this may lead to very difficult to diagnose problems. The different
+instances of the core code don't know anything about each other and
+may not necessarily be in sync.
+<p>
+In case you built a shared library containing the Lua core (*),
+please do <strong>not</strong> link any modules against it, too. I.e. do not specify the name
+of the Lua core library on the linker line (Windows DLLs are an exception).
+This makes a hard forward dependency where you really want a lazy backward
+dependency. Loading this module with a statically linked Lua interpreter would
+essentially drag in a 2nd Lua core and you get the same problems mentioned above.
+<p>
+Lua modules expect that the Lua core is already present before they are loaded.
+This works because the Lua core symbols are exported globally (e.g. with <code>-Wl,-E</code>
+for GCC on most ELF systems -- see the Lua Makefiles).
+<p>
+Related caveat: this is also why you shouldn't link an application with the dynamic
+library containing a Lua module. This usually does no harm, but doesn't do what you
+want because the <code>luaopen_foo()</code> function is never called. Modules are to be loaded
+by <code>require()</code> and not via hard dependencies in the image (package dependencies are ok).
+<p>
+(*) Compiling the Lua core with <code>-fpic</code> on x86/POSIX platforms has even more serious
+performance drawbacks than doing this just for modules (see above). The recommended
+way (shown in the Lua 5.1 Makefiles) is to link the Lua core statically and export
+all symbols (enabled with <code>-Wl,-E</code> or by default on Solaris and others).
+<p>
+<H3>Windows and luaXX.dll</H3>
+<p>
+The above build instructions for Windows assume that you have compiled
+the Lua core in a specific way:
+<p>
+<UL>
+<li> Compile all source files except <code>lua.c</code>, <code>luac.c</code>, <code>print.c</code> and build <code>luaXX.dll</code> (i.e. either <code>lua50.dll</code> or <code>lua51.dll</code>).
+<li> Compile the standalone executable <code>lua.exe</code> from <code>lua.c</code> and link it to <code>luaXX.dll</code>.
+</UL>
+<p>
+It's important to compile and link both the standalone executable and
+every module to the <strong>same</strong> lua header files and the <strong>same</strong>
+<code>luaXX.dll</code>.
+<p>
+<H3>Should I link against lua51.dll or lua5.1.dll?</H3>
+<p>
+lua51.dll is arguably preferable.  There has been some confusion here caused by Lua Binaries.  The Makefile in the original Lua 5.1 distribution builds Lua with a DLL named lua51.dll.  Lua Binaries 5.1 instead named this file lua5.1.dll.  More recent versions of Lua Binaries, following recognition of the confusion caused, include a <em>proxy DLL</em> named lua51.dll that forwards calls to lua5.1.dll (see <a href="../wiki/LuaProxyDllThree.html" >LuaProxyDllThree</a>), thereby allowing Lua Binaries to work with Lua extension DLLs that use either linkage.  Most other Lua distributions that expect lua51.dll (including <a href="../wiki/LuaJit.html" >LuaJit</a> <a href="/lists/lua-l/2008-06/msg00084.html">[12]</a>) lack a proxy back to lua5.1.dll, though you could add the proxy yourself if needed.  Therefore, Lua extension DLLs that link to lua51.dll could be considered the most compatible with all distributions.  The proper naming has been discussed a numbers of times as shown in the links below.  In Lua 5.2.0-work, <a href="../wiki/LuaBinaries.html" >LuaBinaries</a> uses lua52.dll, just as the official source tarball does <a href="http://luabinaries.sourceforge.net/configuration.html">[5]</a>.
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2008-06/msg00076.html">[lua-l: Re: Lua on Windows: lua51.dll versus lua5.1.dll]</a>
+<li> <a href="/lists/lua-l/2008-05/msg00830.html">[lua-l: Lua on Windows: lua51.dll versus lua5.1.dll]</a>
+<li> <a href="/lists/lua-l/2008-02/msg00123.html">[lua-l: Re: ANN: LuaBinaries for Lua 5.1.3]</a>
+<li> <a href="/lists/lua-l/2007-12/msg00082.html">[lua-l: Re: Calling Windows functions via 'dllimport"]</a>
+<li> <a href="/lists/lua-l/2008-01/msg00682.html">[lua-l: Re: lua modules and linking to the lua dll on windows]</a>
+<li> <a href="/lists/lua-l/2007-03/msg00735.html">[lua-l: RE: Lua DLL name (Was: ANN: LuaODE 0.3)]</a>
+<li> <a href="http://luabinaries.luaforge.net/manual.html">[Lua Binaries manual]</a>
+</UL>
+<p>
+<H3>Windows and the C runtime DLLs (msvc*.dll)</H3>
+<p>
+Almost every compiler for Windows seems to bring its own
+standard C library to link against (e.g. the <code>MSVC*.DLL</code> variants):
+<p>
+<UL>
+<li> msvcrt.dll  - MSVC++ Version 6.0 / gcc
+<li> msvcr70.dll - MSVC++ Version 7.0 (2002)
+<li> msvcr71.dll - MSVC++ Version 7.1 (2003)
+<li> msvcr80.dll - MSVC++ Version 8.0 (2005)
+<li> msvcr90.dll - MSVC++ Version 9.0 (2008)
+</UL>
+<p>
+It is strongly recommended that all executables and DLLs working together
+in a single process share the same C library.  This avoids potential problems such as crashes and difficult to diagnose behavior that can occur when passing certain data structures between different C libraries (see MSDN article below).  The Lua core carefully avoids such passing (e.g. Lua manages internally all memory and file handle allocation/deallocation), though you might still run into pitfalls if not careful (examples anyone?).
+<p>
+It's also possible that an extension DLL need not link against any C library if all it needs is available in Lua DLL, system DLLs, and statically linked code.
+<p>
+Here's some background information:
+<p>
+<UL>
+<li> <a href="http://msdn.microsoft.com/en-us/library/ms235460.aspx">[MSDN: Run-Time Library Reference: Potential Errors Passing CRT Objects Across DLL Boundaries]</a>
+<li> <a href="http://planet.jboss.org/view/post.seam;jsessionid=7DAEE574F8150631850C69069245BBB2?post=fighting_the_msvcrt_dll_hell">[Fighting the MSVCRT.DLL hell]</a>, Mladen Turk.
+<li> <a href="http://luabinaries.luaforge.net/manual.html">[Lua Binaries Manual]</a>
+<li> <a href="http://zlib.net/DLL_FAQ.txt">[Frequently Asked Questions about ZLIB1.DLL
+
+]</a> - discusses binary compatability and msvc*.dll linking standards used in zlib
+<li> <a href="http://elizabethmariesmith.com/2008/03/the-great-compile-project/">[Dreaming of Dawn Blog: The Great Compile Project]</a>
+<li> <a href="http://kobyk.wordpress.com/2008/04/12/deploying-the-visual-c-libraries-with-an-nsis-installer/">[KKs Blog: Deploying the Visual C++ libraries with an NSIS installer]</a> <a href="http://kobyk.wordpress.com/2007/07/20/dynamically-linking-with-msvcrtdll-using-visual-c-2005/">[Dynamically linking with MSVCRT.DLL using Visual C++ 2005]</a>
+<li> <a href="http://www.ddj.com/windows/184416623">[DDJ: Avoiding the Visual C++ Runtime Library]</a>
+<li> <a href="http://www.codeproject.com/KB/library/tlibc.aspx">[CodeProject: Tiny C Runtime Library]</a>
+<li> <a href="http://aspn.activestate.com/ASPN/Mail/Message/perl-mod_perl/3593967">[6]</a><a href="http://www.perlmonks.org/?node_id=621976">[7]</a> - discussions about Active<code></code>Perl using msvcrt.dll (similar problem)
+<li> <a href="/lists/lua-l/2008-07/msg00512.html">[lua-l: LuaBinaries - why so many Win32 versions?]</a>
+<li> <a href="/lists/lua-l/2007-10/msg00306.html">[lua-l: LuaBinaries executables for msvcr80.dll?]</a>
+<li> <a href="/lists/lua-l/2008-06/msg00322.html">[lua-l: Windows DLLs for LuaBinaries with GCC and MSVCR80.DLL]</a>
+<li> <a href="/lists/lua-l/2008-05/msg00681.html">[lua-l: ANN: Lua For Windows v5.1.3.3 Public Alpha2 released]</a>
+</UL>
+<p>
+<H3>Using MinGW to build against <a href="../wiki/LuaBinaries.html" >LuaBinaries</a></H3>
+<p>
+By default, MinGW builds against the old runtime (msvcrt.dll) but can be persuaded to link against msvcr80.dll using  -lmsvcr80.  However, you may have trouble with non-trivial extensions, because the import library supplied with MinGW has got some import names wrong.  For instance, _findfirst is actually exported as _findfirst32, etc. The solution is straightforward, although a bit of a hack:  link <strong>directly</strong> against the DLL and rename the offending functions.
+<p>
+Here is a makefile that can be used with MinGW with Lua for Windows:
+<p>
+Here is the simple makefile I used for rebuilding lfs; note that no import libraries are needed, only the Lua header files.
+<p>
+<pre>
+
+LUA_INCLUDE= d:\stuff\lua\src
+
+LFW= c:\Program Files\Lua\5.1
+
+LUA_LIB="$(LFW)\lua5.1.dll"
+
+RT_LIB="$(LFW)\msvcr80.dll"
+
+
+
+lfs.dll: lfs.c lfs.h
+
+       gcc -shared -I$(LUA_INCLUDE) lfs.c -o lfs.dll $(LUA_LIB) $(RT_LIB)
+
+</pre>
+<p>
+And here is the list of renamed symbols:
+<p>
+<pre>
+
+#define _ctime _ctime32
+
+#define _difftime _difftime32
+
+#define _findfirst _findfirst32
+
+#define _findnext _findnext32
+
+#define _fstat _fstat32
+
+#define _ftime _ftime32
+
+#define _futime _futime32
+
+#define _gmtime _gmtime32
+
+#define _localtime _localtime32
+
+#define _mkgmtime _mkgmtime32
+
+#define _mktime _mktime32
+
+#define _stat _stat32
+
+#define _time _time32
+
+#define _utime _utime32
+
+#define _wctime _wctime32
+
+#define _wfindfirst _wfindfirst32
+
+#define _wfindnext _wfindnext32
+
+#define _wstat _wstat32
+
+#define _wutime _wutime32
+
+</pre>
+<p>
+<p>
+(In my projects lately, I follow the above list of functions to alias with macros at compile time, and use a link line that ends with:
+<p>
+<DL>
+<dt><dd>$(LUADLL) -lgcc -lmsvcr80 $(MSVCR80)
+</DL>
+<p>
+Where LUADLL is a fully qualified name of lua.5.1.dll and MSVCR80 is the fully qualified name of MSVCR80.DLL. Since I use LfW, I find both of those DLLs in its installed tree, based off the LUA_DEV environment variable it defined. The result is a dependency tree that has two implicit loads of MSVCR80.DLL, and only loads MSVCRT.DLL due to MSVCR80's need. If I leave out libgcc.a or otherwise move it after either reference to MSVCR80, then I find unhealthy dependencies on MSVCRT.DLL. 
+<p>
+Your mileage will vary, so I strongly recommend checking DLL dependency carefully with Dependency Walker or the equivalent before releasing a binary.    --<a href="../wiki/RossBerteig.html" >RossBerteig</a>)
+<p>
+<p>
+<H3>Avoiding linking to any C run-time library (or linking to a different one)</H3>
+<p>
+Given that it is not always easy or practical to ensure that all modules in a process use the same C run-time libraries, it's noteworthy that if your C extension DLL doesn't call any ANSI C functions, it doesn't need to link to any C runtime, thereby avoiding the issue on its part.  For example, let's write a very simple module that wraps the Win32 <code>MessageBox</code><a href="http://msdn.microsoft.com/en-us/library/ms645505(VS.85).aspx">[8]</a> function:
+<p>
+<DL>
+<dt><dd><pre>
+
+#include &lt;lua.h&gt;
+
+#include &lt;lauxlib.h&gt;
+
+#include &lt;windows.h&gt;
+
+BOOL APIENTRY DllMain(HANDLE module, DWORD reason, LPVOID reserved) { return TRUE; }
+
+static int l_messagebox(lua_State * L) {
+
+  const char * s = luaL_checkstring(L, 1);
+
+  MessageBox(NULL, s, "messagebox", MB_OK);
+
+  return 0;
+
+}
+
+__declspec(dllexport) int luaopen_messagebox(lua_State * L) {
+
+  lua_pushcfunction(L, l_messagebox);
+
+  return 1;
+
+}
+
+</pre>
+</DL>
+<p>
+Since there are no ANSI C functions (but rather only Win32 and Lua functions), we can omit the C run-time from the linker options, as shown below for various compilers:
+<p>
+<DL>
+<dt><dd><pre>
+
+# GCC MinGW (under Cygwin -mno-cygwin)
+
+gcc -mno-cygwin -O2 -nostdlib -shared -I&lt;lua_include_path&gt;
+
+  -o messagebox.dll messagebox.c -luser32 &lt;lua_bin_path&gt;/lua51.dll
+
+  -Wl,-e,_DllMain@12 -Wl,--dll -nostartfiles
+
+
+
+# MSVC++ 2008
+
+cl -O2 -LD -I&lt;lua_include_path&gt; messagebox.c &lt;lua_lib_path&gt;/lua51.lib
+
+  user32.lib -link -nodefaultlib -entry:DllMain
+
+</pre>
+</DL>
+<p>
+The resultant DLLs are only about 3 KB.  You can confirm with dumpbin or objdump that the DLLs only link to user32.dll (<code>MessageBoxA</code>) and lua51.dll (<code>luaL_checklstring</code> and <code>lua_pushcclosure</code>).
+<p>
+Now, what if your C extension DLL needs to do something ANSI-C-y like allocate memory or write to a file?  One option to to use the Win32 API functions (e.g. <code>HeapAlloc</code> <a href="http://msdn.microsoft.com/en-us/library/aa366597(VS.85).aspx">[9]</a> or <code>CreateFile</code> <a href="http://msdn.microsoft.com/en-us/library/aa363858(VS.85).aspx">[10]</a>), which is what the C library itself does (you can confirm by statically linking a program to the C library and looking at the imports).  This isn't very portable if your program needs to compile on non-Windows operating systems.  Another option is to rewrite the C runtime libraries you need in terms of plain Win32 API calls (see <a href="http://www.codeproject.com/KB/library/tlibc.aspx">[tlibc - Tiny C Runtime Library]</a>).  Another alternative is to access these functions indirectly via Lua.  For example, call <a href="http://www.lua.org/manual/5.1/manual.html#lua_newuserdata">[lua_newuserdata]</a> to allocate a memory block or do <code>lua_getglobal(L, "io")</code> to obtain a reference to Lua's I/O library.
+<p>
+The third option is to use the ANSI C functions but, yes, dynamically or statically link to a C run-time that might be different from the C runtime used by other modules in the process.  This is not normally recommended because of the possible pitfalls described in the MSDN article <a href="http://msdn.microsoft.com/en-us/library/ms235460.aspx">[11]</a>.  However, it can be done by giving careful attention to those issues, so there's nothing inherently incorrect in doing it.  For example, it should be safe to do
+<p>
+<DL>
+<dt><dd><pre>
+
+...
+
+#include &lt;stdio.h&gt;
+
+static int l_messagebox(lua_State * L) {
+
+  char * s = malloc(1000);
+
+  if (s) {
+
+    sprintf(s, "%e", luaL_checknumber(L, 1));
+
+    MessageBox(NULL, s, "messagebox", MB_OK);
+
+  }
+
+  free(s);
+
+  return 0;
+
+}
+
+...
+
+
+
+# GCC MinGW (under Cygwin -mno-cygwin) - links to msvcrt.dll
+
+gcc -O2 -mno-cygwin -shared -s messagebox.c -o messagebox.dll
+
+  -I&lt;lua_include_path&gt; &lt;lua_bin_path&gt;/lua51.dll
+
+
+
+# MSVC++ 2008 - statically linking to the C runtime.
+
+# Note: The resultant binary is about 66 KB when statically linking.
+
+cl -O2 -LD messagebox.c -I&lt;lua_include_path&gt;
+
+  &lt;lua_lib_path&gt;/lua51.lib user32.lib
+
+</pre>
+</DL>
+<p>
+Both resultant binaries do work in a version of Lua compiled against msvcrt90.dll.
+<p>
+Note that the C runtime often needs to be initialized.  Typically, the C runtime defines its own entry point (e.g. <code>DllMainCRTStartup</code>), which initializes the C runtime library and in turn calls the user's entry point (e.g. <code>DllMain</code>), so this is normally taken care of for you.  However, if you override the DLL entry point, the C runtime won't get properly initialized.
+<p>
+<H3>Stripping Symbol Information</H3>
+<p>
+In general I don't recommend to strip binaries. With modern binary
+formats (such as ELF) and virtual memory systems all debugging info
+is stored in data pages that never get mapped into memory. Thus all
+debugging information only takes up space on the hard disk (which is
+usually abundant), but not in memory. The situation may be different
+for embedded systems, though. I've only added warnings for systems
+where you need to be careful with stripping.
+<p>
+<H3>Compiler Optimization Levels</H3>
+<p>
+The settings listed above are conservative defaults. Of course you can go
+crazy with <code>-O3 -march=xyz</code> and various <code>-f&lt;something&gt;</code> flags. Do it
+if your application really needs it. Don't bother, if you have no need.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BuildingModules" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BuildingModules" >history</a><br>Last edited April 24, 2014 4:12 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BuildingModules" >(diff)</a>
+</body>
+</html>

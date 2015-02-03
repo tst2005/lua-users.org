@@ -1,0 +1,167 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Make Superfluous Tokens Optional</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MakeSuperfluousTokensOptional&amp;body=1" title="List pages referring to MakeSuperfluousTokensOptional">Make Superfluous Tokens Optional</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua requires 'then' following an <code>if</code> statement, and 'do' following <code>while</code> and <code>for</code> statements. These are totally superfluous, and I propose they be made optional. They add unnecessary wear and tear on our tendons and make code harder to read (the eye is better at distinguishing beginnings and ends). Code is cleaner and easier to read without them:
+<p>
+<pre>
+
+  local n = 10
+
+  if n &gt; 5
+
+    for i=1,n
+
+      local x = n
+
+      while x &gt; i
+
+        x = x - 1
+
+        io.write(x)
+
+      end
+
+      io.write('\n')
+
+    end
+
+  end
+
+</pre>
+<p>
+It's a trivial change to the Lua code (<a href="../wiki/LuaPowerPatches.html" >LuaPowerPatches</a>), increases Lua's performance (insignificantly, but provable), and is 100% backwards compatible.
+<p>
+<em>I find it easier to read with the <code>do</code>s and <code>then</code>s. It scans more easily when you are reading it. It is easier to see where the blocks begin and end, and you know a scope is between a <code>do</code> and <code>end</code>. You don't have to evaluate the expressions to see if they are complete (i.e. because the eol ; is optional). Of course brackets can be added to ensure expressions are complete, but then these are optional and superfluous too. --NDT</em>
+<p>
+<em>I</em> don't <em>find it easier.</em> 
+<p>
+<em>First of all, recognizing blocks is hardly difficult in well-written C/Pascal/Lua/..., thanks to indentation. Python goes so far as to use indentation as the sole indicator of block scope. It works.</em> 
+<p>
+<em>Truth be told, I find it hard believe that you actually look for 'then' and 'do' keywords to see where blocks begin. My eyes scan the </em>left <em>side of the code to determine block structure, matching up the 'if', 'for' and 'while' statements with their corresponding 'end' statements, purely by indentation. Only if there was a bug, something to make me suspect that the indentation as misleading, would I begin scanning the </em>right<em> side of the code.</em>
+<p>
+<em>Of course, I don't put multiple statements per line. Perhaps if I did, I would be forced to develop the habit of ignoring indentation and scanning for delimiters to figure out the structure of my code. But I prefer to format code consistently, believing that it makes recognition easier.</em>
+<p>
+<em>So, with block structure made transparent by consistent formatting, how else can we aid rapid recognition? By putting important parts of a statement at the beginning and end of a line, where the eye can see them most readily. The same principle applies to choosing good variable names:</em>
+<pre>
+
+  foobar1
+
+  foobar2
+
+  </pre>
+<em>is better than:</em>
+<pre>
+
+  foo1bar
+
+  foo2bar
+
+  </pre>
+<em>likewise:</em>
+<pre>
+
+  if a
+
+  if e
+
+  </pre>
+<em>is better than:</em>
+<pre>
+
+  if a then
+
+  if e then
+
+  </pre>
+<em>Even if you disagree, and just want to chock it up to a matter of taste, I don't see why it shouldn't be made optional. I doesn't hurt Lua in the slightest. --<a href="../wiki/EricTetz.html" >EricTetz</a></em>
+<p>
+I don't find lua code easier to read with the "then" token either. Make it optional, there's no legitimate reason not to. --DanHollis<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DanHollis" >?</a>
+<p>
+Agree.
+And I'd be happy if I could write 'def' instead of 'function' like in Python or Ruby - it is shorter. --YuraSokolov<a href="/cgi-bin/wiki.pl?action=edit&amp;id=YuraSokolov" >?</a>
+<p>
+<em>I find <code>then</code> clean and readable when having several conditions, e.g.</em>
+<pre>
+
+  if
+
+    (cond1 == val1) and
+
+    (cond2 ~= val2) or
+
+    (cond3 &lt;= val3)
+
+  then
+
+    -- code block
+
+  end
+
+</pre>
+<em>For the sake of consitent syntax I vote for leaving it in. But on the other hand, you could say the same about optional parenthesis --SajberToffe<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SajberToffe" >?</a></em>
+<p>
+<hr><em>Although <code>then</code> was completely redundant in Lua 4, this changed when the grammar was changed to allow call and assignment statements to start with a parenthesized expression; this change made the <code>;</code> statement terminator only semi-optional. The following could not be written without <code>then</code> because <code>;</code> can only go after a statement; without the <code>then</code> it would be ambiguous:</em>
+<pre>
+
+  if x then (funcs[x] or default_func)() end
+
+</pre>
+<p>
+<em>Moreover, <code>do</code> cannot be <strong>optional</strong> in a <code>for</code> or <code>while</code> statement because the block could itself start with a <code>do</code> statement:</em>
+<p>
+<pre>
+
+  while x &gt; 100 do
+
+    do 
+
+      local y = f(x)
+
+      g(y)
+
+      h(y)
+
+    end
+
+    -- ...
+
+  end
+
+</pre>
+<p>
+<em>The above code limits the lifetime of <code>y</code> which might be useful if it were a large object and the remainder of the <code>while</code> loop was quite time-consuming.</em>
+<p>
+<em>If <code>do</code> cannot be optional, then the only unambiguous possibilities are required or forbidden; if it is forbidden, then the ambiguity noted above in the <code>if</code> statement is unresolvable.</em>
+<p>
+<em><code>C</code> gets around the ambiguity of following the conditional expression with a statement by requiring that the conditional be surrounded by <code>( )</code> and it uses <code> { </code> and <code> } </code> instead of <code>do</code>/<code>then</code> and <code>end</code>; it also requires that statements be terminated with <code>;</code>. In the end, it's pretty well a much of a muchness -- the relative appeal will depend on whether you prefer punctuation to English words or not.</em>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MakeSuperfluousTokensOptional" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MakeSuperfluousTokensOptional" >history</a><br>Last edited December 24, 2005 5:58 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MakeSuperfluousTokensOptional" >(diff)</a>
+</body>
+</html>

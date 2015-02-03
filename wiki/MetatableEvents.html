@@ -1,0 +1,207 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Metatable Events</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MetatableEvents&amp;body=1" title="List pages referring to MetatableEvents">Metatable Events</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em>A listing of all the 'special' keys in a metatable, and the metamethods which they perform.</em>
+<p>
+<UL>
+<li> <strong>__index</strong> - Control 'prototype' inheritance. When accessing "myTable[key]" and the key does not appear in the table, but the metatable has an __index property:
+<UL>
+<li> if the value is a function, the function is called, passing in the table and the key; the return value of that function is returned as the result.
+<li> if the value is another table, the value of the key in that table is asked for and returned
+<UL>
+<li> <em>(and if it doesn't exist in <strong>that</strong> table, but that table's metatable has an __index property, then it continues on up)</em>
+</UL>
+<li> <em>Use "rawget(myTable,key)" to skip this metamethod.</em>
+</UL>
+</UL>
+<p>
+<UL>
+<li> <strong>__newindex</strong> - Control property assignment. When calling "myTable[key] = value", if the metatable has a __newindex key pointing to a function, call that function, passing it the table, key, and value.
+<UL>
+<li> <em>Use "rawset(myTable,key,value)" to skip this metamethod.</em>
+<li> <em>(If the __newindex function does not set the key on the table (using rawset) then the key/value pair is not added to myTable.)</em>
+</UL>
+</UL>
+<p>
+<UL>
+<li> <strong>__mode</strong> - Control weak references. A string value with one or both of the characters 'k' and 'v' which specifies that the the <strong>k</strong>eys and/or <strong>v</strong>alues in the table are weak references.
+</UL><DL>
+<dt><dd>
+
+</DL><UL>
+<li> <strong>__call</strong> - Treat a table like a function. When a table is followed by parenthesis such as "myTable( 'foo' )" and the metatable has a __call key pointing to a function, that function is invoked (passing any specified arguments) and the return value is returned.
+</UL><DL>
+<dt><dd>
+
+</DL><UL>
+<li> <strong>__metatable</strong> - Hide the metatable. When "getmetatable( myTable )" is called, if the metatable for myTable has a __metatable key, the value of that key is returned instead of the actual metatable.
+</UL>
+<p>
+<UL>
+<li> <strong>__tostring</strong> - Control string representation. When the builtin "tostring( myTable )" function is called, if the metatable for myTable has a __tostring property set to a function, that function is invoked (passing myTable to it) and the return value is used as the string representation.
+</UL>
+<p>
+<UL>
+<li> <strong>__len</strong> - Control table length. When the table length is requested using the length operator ( '#' ), if the metatable for myTable has a __len key pointing to a function, that function is invoked (passing myTable to it) and the return value used as the value of "#myTable".
+</UL>
+<p>
+<UL>
+<li> <strong>__gc</strong> - Userdata finalizer code. When userdata is set to be garbage collected, if the metatable has a __gc field pointing to a function, that function is first invoked, passing the userdata to it. The __gc metamethod is not called for tables. (See <a href="http://lua-users.org/lists/lua-l/2006-11/msg00508.html">http://lua-users.org/lists/lua-l/2006-11/msg00508.html</a>)
+</UL>
+<p>
+<H3>Mathematic Operators</H3>
+<p>
+<UL>
+<li> <strong>__unm</strong> - Unary minus. When writing "-myTable", if the metatable has a __unm key pointing to a function, that function is invoked (passing the table), and the return value used as the value of "-myTable".
+<li> <strong>__add</strong> - Addition. When writing "myTable + object" or "object + myTable", if myTable's metatable has an __add key pointing to a function, that function is invoked (passing the left and right operators in order) and the return value used.
+<UL>
+<li> ''If both operands are tables, the left table is checked before the right table for the presence of an __add metaevent.
+</UL><DL>
+<dt><dd>
+
+</DL>
+<li> <strong>__sub</strong> - Subtraction. Similar to addition, using the '-' operator.
+<li> <strong>__mul</strong> - Multiplication. Similar to addition, using the '*' operator.
+<li> <strong>__div</strong> - Division. Similar to addition, using the '/' operator.
+<li> <strong>__mod</strong> - Modulo. Similar to addition, using the '%' operator.
+<li> <strong>__pow</strong> - Involution. Similar to addition, using the '^' operator.
+<li> <strong>__concat</strong> - Concatenation. Similar to addition, using the '..' operator.
+</UL>
+<p>
+<H3>Equivalence Comparison Operators</H3>
+<p>
+<UL>
+<li> <strong>__eq</strong> - Check for equality. This method is invoked when "myTable1 == myTable2" is evaluated, but only if both tables have the exact same metamethod for __eq.
+<UL>
+<li> For example, see the following code:
+</UL><DL>
+<dt><dd><pre>
+
+t1a = {}
+
+t1b = {}
+
+t2  = {}
+
+mt1 = { __eq = function( o1, o2 ) return 'whee' end }
+
+mt2 = { __eq = function( o1, o2 ) return 'whee' end }
+
+
+
+setmetatable( t1a, mt1 )
+
+setmetatable( t1b, mt1 )
+
+setmetatable( t2,  mt2 )
+
+
+
+print( t1a == t1b )     --&gt; true
+
+print( t1a == t2 )      --&gt; false
+
+</pre>
+</DL><UL>
+<li> <em>If the function returns nil or false, the result of the comparison is false; otherwise, the result is true.</em>
+</UL>
+</UL>
+<p>
+<UL>
+<UL>
+<li> <em>If <code>t1</code> and <code>t2</code> are referencing the same table, the <code>__eq</code> method is not invoked for <code>t1 == t2</code> :</em>
+</UL><DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> foo (o1, o2) 
+
+  <span class="library">print</span>( <span class="string">'__eq call'</span> )
+
+  <span class="keyword">return</span> <span class="keyword">false</span> 
+
+<span class="keyword">end</span>
+
+
+
+t1 = {}
+
+<span class="library">setmetatable</span>( t1, {__eq = foo} )
+
+
+
+t2 = t1
+
+<span class="library">print</span>( t1 == t2 ) <span class="comment">--&gt; true</span>
+
+        <span class="comment">-- string '__eq call' not printed (and comparison result is true, not like the return value of foo(...)), so no foo(...) call here</span>
+
+
+
+t3 = {}
+
+<span class="library">setmetatable</span>( t3, {__eq = foo} )
+
+<span class="keyword">if</span> t1 == t3 <span class="keyword">then</span> <span class="keyword">end</span>  <span class="comment">--&gt; __eq call</span>
+
+        <span class="comment">-- foo(...) was called</span>
+
+</pre>
+
+</DL>
+</UL>
+<p>
+<UL>
+<li> <strong>__lt</strong> - Check for less-than. Similar to equality, using the '&lt;' operator.
+<UL>
+<li> Greater-than is evaluated by reversing the order of the operands passed to the __lt function.
+</UL><DL>
+<dt><dd><pre>
+
+a &gt; b == b &lt; a
+
+</pre>
+</DL>
+</UL>
+<p>
+<UL>
+<li> <strong>__le</strong> - Check for less-than-or-equal. Similar to equality, using the '&lt;=' operator.
+<UL>
+<li> Greater-than-or-equal is evaluated by reversing the order of the operands passed to the __le function.
+</UL><DL>
+<dt><dd><pre>
+
+a &gt;= b == b &lt;= a
+
+</pre>
+</DL>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MetatableEvents" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MetatableEvents" >history</a><br>Last edited November 5, 2013 2:53 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MetatableEvents" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,421 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Speeding Up Strings</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SpeedingUpStrings&amp;body=1" title="List pages referring to SpeedingUpStrings">Speeding Up Strings</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>Summary</H2>
+<p>
+There have been repeated discussions on lua-l (for example <a href="http://lua-users.org/lists/lua-l/2007-03/msg00846.html">[1]</a>) about the cost of passing strings from <code>C</code> into <code>Lua</code>, with the implication that it is a major overhead. This page seeks to document an experiment in modifying Lua to reduce string creation overhead by implementing "prestrings" -- lazily interned strings. A sample API is outlined, and the results of a benchmark test of a proof-of-concept implementation of the API are presented.
+<p>
+The proposed API cannot be used safely in a threaded environment without severe restrictions which might be difficult to guarantee. In addition, the benchmark results do not indicate the potential for significant speed-up in common use cases.
+<p>
+In short, this is more of a failed experhiment than a suggestion, but it's useful to report failures as well in order to avoid reinventing flat wheels.
+<p>
+<H2>Stringing along</H2>
+<p>
+Basically, the process the Lua API follows when importing a string into Lua, either with <code>lua_pushlstring()</code> or as the result of a primitive which creates a new string, is:
+<p>
+1) A hash is computed out of a sample of no more than 32 characters of the string.
+<p>
+2) Using the hash, the string is looked up in the global interned-string hash table.
+<p>
+3) If an existing string is found, then it is used.
+<p>
+4) Otherwise, a new <code>TString</code> object is allocated and the string is copied into it.
+The new object is inserted into the intern table using the hash value computed
+at step 1.
+<p>
+This works particularly well for shortish strings which are likely to already exist in the
+intern table, such as global variable names and other table keys, since it avoids
+unnecessarily allocating or copying the provided string, although it will incur the
+cost of a full comparison of the new string with one existing string.
+<p>
+It also works reasonably well for strings which are unlikely to already exist in
+the intern table since the hash lookup will probably never compare more than
+a few characters of any existing string on the chain, although it will incur
+the cost of a memory allocation and a copy.
+<p>
+Nonetheless, there remain some use cases where these overheads seem like they
+might be excessive. Some people worry that the cost of interning is too high
+for a string which will never be used as a table key, while others focus on
+the copy in step 4, above, which may be unnecessary if the string is going to
+be constructed piecemeal or created by some other library which expects a
+fixed-length buffer (for example, <code>fread</code>.)
+<p>
+<H2>The evolution of an API</H2>
+<p>
+Since I belong to the second group, I thought it might be useful to find a
+way to allow the creation of a new string without copying. On the surface,
+this looks easy: you simply create something which looks like a string (or
+at least is the same size as a string would be) and provide the starting
+address; the API consumer can then fill the contents in as desired and then
+convert the object into a real string, by interning it.
+<p>
+That suggested a simple API:
+<DL>
+<dt><dd><pre>
+
+   lua_newprestring(L, size);
+
+   lua_tostring(L, index);
+
+   /* Note that lua_tostring is a macro which expands
+
+    * to lua_tolstring(L, index, NULL);
+
+    */
+
+</pre>
+</DL>
+The first call creates a "prestring" (i.e. something which can be converted
+to a string) of a given size, and the second one converts the prestring to a
+string. Using <code>lua_tolstring</code> for this purpose seemed clear and obvious.
+<p>
+Now, the prestring is a real Lua object, so it could theoretically be returned
+from a C function as an uninterned string. And since it is turned into a real
+string by calling <code>lua_tolstring</code> on it, and since <code>lua_tostring</code> is the API
+for extracting a string's address and length, no modification of standard
+library functions is necessary in order to use prestrings, although it turns
+out to be useful to have an API call which allows the use of the prestring
+without interning it:
+<DL>
+<dt><dd><pre>
+
+   lua_rawtolstring(L, index, &amp;len);
+
+</pre>
+</DL>
+<p>
+I could have hijacked <code>lua_topointer</code>, but <code>lua_topointer</code> doesn't return
+the string length; furthermore, it's good to know that the object at a
+stack index is actually a string, and not just anything which might
+have a pointer.
+<p>
+My first attempt to use the API was to write a <code>file</code> method <code>:buffers</code>,
+which is a fixed-length analog to <code>:lines</code>:
+<DL>
+<dt><dd><pre class="code">
+   <span class="keyword">for</span> b <span class="keyword">in</span> f:buffers(2000) <span class="keyword">do</span>
+
+     <span class="comment">-- #b is 2000 unless there are fewer than</span>
+
+     <span class="comment">-- 2000 characters to read</span>
+
+   <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<code>:buffers</code> could just return a string, but it seemed more interesting
+to return a prestring, in case the use of the return value didn't require
+interning: say, if it were just going to be sent to some output. In that
+case, <code>:buffer</code> could even reuse the same prestring on each iteration,
+provided that it hadn't been stringified. (This is not entirely safe since the
+client program could keep a reference to the buffer, even though it
+hasn't been interned, and might get surprised that the value changes.)
+<p>
+That meant that the implementation of <code>:buffer</code> needs to be able to know
+whether or not the prestring has been stringified, and that required
+another API:
+<DL>
+<dt><dd><pre>
+
+   lua_rawtoprestring(L, index, &amp;len);
+
+</pre>
+</DL>
+which returns the address of the contents of the prestring at index, if
+it is a prestring, and otherwise NULL.
+<p>
+Using <code>lua_rawtoprestring</code> and <code>lua_newprestring</code>, <code>:buffer</code> can
+decide to either recycle a prestring or create a new one, but for reasons
+which now seem hard to justify, I added yet another API which combines
+the two actions; the most semantically complicated API call in the
+implementation:
+<DL>
+<dt><dd><pre>
+
+   lua_toprestring(L, index, &amp;len);
+
+</pre>
+</DL>
+which examines the object at stack slot <code>index</code> and:
+<p>
+1) if it is a prestring, does not modify it;
+<p>
+2) if it is a string, creates a new prestring with the same length
+(without copying contents) and replaces stack slot <code>index</code> with
+the new prestring;
+<p>
+3) if it is anything else, creates a new prestring whose length is
+the value currently pointed to by the <code>&amp;len</code> argument, and
+replaces stack slot <code>index</code> with the new prestring;
+<p>
+4) finally, regardless of which of the above was performed,
+returns the address and length of the prestring at stack slot
+<code>index</code>
+<p>
+Although that's hard to explain, and maybe hard to understand, it's
+quite easy to use. For example, the implementation of :buffers is
+as follows:
+<DL>
+<dt><dd><pre>
+
+static int io_readbuf (lua_State *L) {
+
+  FILE *f = *(FILE **)lua_touserdata(L, lua_upvalueindex(1));
+
+  if (f == NULL)
+
+    luaL_error(L, "file is already closed");
+
+  else {
+
+    size_t nread;
+
+    size_t toread = lua_tointeger(L, lua_upvalueindex(2));
+
+    char *buf = lua_toprestring(L, lua_upvalueindex(3), &amp;toread);
+
+    nread = fread(buf, 1, toread, f);
+
+    if (nread == toread)
+
+      lua_pushvalue(L, lua_upvalueindex(3));
+
+    else if (nread &gt; 0)
+
+      lua_pushlstring(L, buf, nread);
+
+    else if (ferror(f))
+
+      luaL_error(L, "%s", strerror(errno));
+
+    else
+
+      lua_pushnil(L);
+
+  }
+
+  return 1;
+
+}
+
+
+
+static int f_buffers (lua_State *L) {
+
+  size_t bufsize;
+
+  tofile(L);
+
+  bufsize = luaL_optinteger(L, 2, LUAL_BUFFERSIZE);
+
+  lua_settop(L, 1);
+
+  lua_pushinteger(L, bufsize);
+
+  lua_pushnil(L);
+
+  lua_pushcclosure(L, io_readbuf, 3);
+
+  return 1;
+
+}
+
+</pre>
+</DL>
+<p>
+<H2>A prestring is just a nascent string</H2>
+<p>
+A key part of this entire process is that the prestring is converted
+<strong>in place</strong> into a string either explicitly or when needed. Prestrings
+don't have a separate type; they look at all times like ordinary strings,
+unless one of the above prestring-aware API calls is used. Existing
+C modules and Lua programs do not need to be modified in any way to take
+into account the existence of prestrings, and if you want a C module to avoid
+autointerning a prestring, one only needs to replace <code>lua_tolstring</code> with
+<code>lua_rawtolstring</code>. 
+<p>
+Since a prestring is really a lazily-interned string, it has to act as though
+it were a string the Lua environment. That means that it has to
+be interned in order to be used as a table key. (The proof-of-concept
+implementation also auto-interns prestrings which are arguments to ==.)
+<p>
+Once a prestring is interned into a string, it must not
+be changed. So it's not really safe to modify a prestring which has
+been released into the Lua environment. You must finish creating the
+contents of the prestring before letting any Lua or CFunction see
+the prestring.
+<p>
+That's fine in a non-threaded environment, and the above implementation
+of <code>:buffers</code> will work; it is careful not to modify the prestring without
+checking to make sure that it still is a prestring. But it cannot be made
+to work safely in a threaded environment; the <code>:buffers</code> iteration function
+does not run inside of the <code>lua_lock</code> and another process which had a
+reference to the buffer could stringify it while the call to <code>fread</code> were
+in progress.
+<p>
+That's unfortunate because the benchmarks I ran against the proof-of-concept
+implementation show that the only significant speed-up available is through
+recycling prestrings in a hard loop. The overhead of interning and even
+copying strings is just not enough to justify the complexity of the
+implementation (in my opinion).
+<p>
+<H2>Trying to benchmark</H2>
+<p>
+The first benchmark I tried was reading and writing file buffers, using
+a function rather similar to <code>:buffers</code> as shown above. The <code>iolib</code>
+was modified by adding the <code>:buffers</code> iterator and replacing a few
+calls to <code>lua_tolstring</code> with <code>lua_rawtostring</code>. However, all of 
+the timings were dominated by the I/O system calls, so the results
+were not conclusive, except in the sense that they demonstrate that in
+a normal usage with file I/O, the savings are not even going to be
+noticeable.
+<p>
+In order to try to measure more exactly what the benefits might be,
+I created a sort of pseudo-file, which consists of just under 16K
+random printable characters in a ringbuffer. The ring buffer is
+"read" by copying the number of requested bytes and advancing the
+internal "file" position, always modulo the ringbuffer size (which
+is a prime). Periodically, the ring buffer is rerandomized; the 
+end result is that it is extremely unlikely that a given "read"
+will result in an existing string.
+<p>
+Using the above API, there are at least four possible ways of
+returning a buffer of characters:
+<p>
+1) "recycle": Always return the same prestring, with new contents
+<p>
+2) "prestring": Return a new prestring each time, but don't intern it
+<p>
+3) "inplace": Create the new string by first creating a prestring of
+the correct size, then reading data into it, and finally turning the
+prestring into a string before returning it.
+<p>
+4) "string": The current mechanism: the file is read into a prestring
+(although it could just as well have been a preallocated buffer), and
+then <code>lua_pushlstring</code> is called to create a string in the normal way.
+<p>
+Comparing the times for these four strategies reveals the cost of
+<p>
+1) allocating memory (the difference between "prestring" and "recycle")
+<p>
+2) interning (the difference between "inplace" and "prestring"); and
+<p>
+3) copying (the difference between "string" and "inplace").
+<p>
+The benchmark was done rather unscientifically on a laptop running
+Xubuntu (I tried to avoid using the machine while the benchmark was
+running, but there were still lots of processes active). Lua was
+compiled with <code>-O2 -DLUA_USE_APICHECK</code> (it should have been
+compiled without <code>LUA_USE_APICHECK</code> although I don't think that
+affects the relative timings; obviously, the execution times reported
+are slower than they should be in a production build. The machine is
+an AMD Turion running in a 64-bit environment. For each buffer size,
+the simulated file size was set to 1,000,000 buffers and execution
+time was collected with <code>os.clock</code>, so the results can be read as
+µs per buffer. Each test was run ten times and the fastest time
+was selected for the summary; the results are summarized in
+<a href="/files/wiki_insecure/users/rici/buftest.pdf">Files:wiki_insecure/users/rici/buftest.pdf</a>. As can be seen, the
+interning time is on the order of 200-250 nanoseconds per string,
+which is only noticeable for very short strings; the copying time
+is at worst 13% of the total, with the largest buffers tested.
+<p>
+<H2>Proof of Concept</H2>
+<p>
+The implementation is not particularly polished, and since the results
+were not spectacular, I'm unlikely to continue develop it. In case
+anyone is interested, I've put a patch at <a href="/files/wiki_insecure/users/rici/prestring.diff">Files:wiki_insecure/users/rici/prestring.diff</a>
+<p>
+Some notes on the implementation:
+<p>
+<H2>Garbage Collection</H2>
+<p>
+Every garbage collectable object has a <code>next</code> member which Lua uses
+to perform the sweep phase of the garbage collection. Objects other
+than strings are kept in a singly-linked list whose head is in the
+global state. Strings, however, are kept in the string intern table,
+and the <code>next</code> member is used to link together hash chains. (In effect,
+the head of each hash chain is part of the garbage collection root.)
+<p>
+Once a prestring has been interned, it must be removed from the allocated
+object linked list and linked into the appropriate hash chain in the intern
+table. The only way I could think of doing that was to doubly-link the list
+of allocated prestrings. The back pointer is kept in a <code>union</code> with the
+<code>hash</code> member, which is not needed by prestrings. On 32-bit architectures,
+this has no cost, but on 64-bit architectures it increases the string overhead
+from 24 bytes to 32 bytes, since <code>hash</code> is an <code>int</code>. Possibly it would
+have been better to just assume that there will never be a lot of prestrings,
+and to keep them in a singly-linked list which is just searched linearly when
+a prestring is interned.
+<p>
+Other than that, I don't think there are any GC issues. Like strings,
+prestrings are always created on the stack and can be created white
+since the stack is marked atomically.
+<p>
+<H2>Locking</H2>
+<p>
+The lock mechanism offered by the <code>lua_lock</code> and <code>lua_unlock</code> macros is
+designed to avoid garbage collection or table resizing from interfering
+with API calls or VM execution. Lua does not attempt, even in theory, to
+prevent race conditions from other object mutations.
+<p>
+Prestrings introduce a new form of mutation: changing a mutable object
+(a prestring) into an immutable object (a string). As noted above, the
+<code>lua_lock</code> mechanism cannot prevent a race between changing the
+contents of a prestring and changing a prestring to a string.
+<p>
+<H2>Other notes</H2>
+<p>
+Prestrings have the same type as strings (<code>LUA_TSTRING</code>) and have the
+same memory layout other than the <code>hash</code> member. One flag was added to
+the object header to distinguish prestrings from strings.
+<p>
+When a prestring is interned, it is possible that the result will be
+an existing string. In this case, we'll end up with two objects:
+the prestring and the old string. This could result in the same prestring
+being interned multiple times. To reduce the possibility of this happening,
+the autointerning done by key lookup and the equality operator both reset
+the string pointer to the old string; implementing that required changing
+a number of internal prototypes from const to non-const, and without doing
+much to solve the problem.
+<p>
+I think it would probably better to stash a forwarding pointer in the
+prestring (using the overloaded back pointer/hash) and rewriting the
+string pointer during garbage collection. (The garbage collector could
+not rewrite pointers in the stack frame of a C call but ought to be
+able to rewrite them elsewhere. Rewriting a pointer in a C call stack
+frame could result in the prestring being freed by the garbage collector
+while the C function was using a pointer to the prestring.)
+<p>
+--<a href="../wiki/RiciLake.html" >RiciLake</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SpeedingUpStrings" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SpeedingUpStrings" >history</a><br>Last edited December 15, 2007 2:08 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SpeedingUpStrings" >(diff)</a>
+</body>
+</html>

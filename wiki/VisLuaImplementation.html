@@ -1,0 +1,182 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Vis Lua Implementation</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=VisLuaImplementation&amp;body=1" title="List pages referring to VisLuaImplementation">Vis Lua Implementation</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is some notes on various issues to do with the implementation of <a href="../wiki/VisLua.html" >VisLua</a>.
+<p>
+<H3>GUI library</H3>
+<p>
+There are hundreds of GUI libraries <a href="http://www.free-soft.org/guitool/">[1]</a>, but few good portable, well maintained ones. Here are some options :-
+<p>
+<UL>
+<li> <strong>wxWindows</strong> <a href="http://www.wxwindows.org/">[2]</a>. This is quite a big library but had lots of useful widgets and is quite portable. Platforms supported are <a href="http://www.wxwindows.org/faq.htm">[3]</a> :-
+<UL>
+<li> Windows 3.1, Windows 95/98, Windows NT, Windows 2000, Windows ME. 
+<li> Linux and other Unix platforms with GTK+. 
+<li> Unix with Motif or the free Motif clone Lesstif. 
+<li> Mac OS. 
+<li> Embedded platforms are being investigated. See the wxUniversal project. 
+<li> An OS/2 port is in progress, and you can also compile wxWindows for GTK+ or Motif on OS/2. 
+</UL>
+<li> <strong>FLTK</strong> <a href="http://www.fltk.org/">[4]</a>. Quite compact and fast, as name implies. Not particularly portable. Platforms :-
+<UL>
+<li> X - Unix.
+<li> Win32.
+<li> MAC OS port available.
+</UL>
+<li> <strong>Tcl/Tk</strong> <a href="http://dev.scriptics.com/">[5]</a>. Quite portable but limited widget set. Platforms <a href="http://dev.scriptics.com/software/tcltk/platforms.html">[6]</a> :-
+<UL>
+<li> Windows 95, 98, NT 4.0 (Intel), 2000 
+<li> Solaris 2.5, 2.6, 7 (SPARC) 
+<li> HP-UX 10.20 
+<li> Linux (Intel, Red Hat 5.0+, SuSE 6.0+) 
+<li> SGI IRIX 6.3+ 
+</UL>
+<li> <strong>IUP</strong> <a href="http://www.tecgraf.puc-rio.br/iup/">[7]</a> TeCGraf internal. "IUP uses an abstract layout model based on the boxes-and-glue paradigm from the TEX text editor. This model, combined with the dialog-specification language (LED) or with the Lua binding (IupLua) makes the dialog creation task more flexible and independent from the graphics systems resolution."
+<UL>
+<li> Motif.
+<li> Microsoft Windows 95, Microsoft Windows 98, Microsoft Windows NT, and Microsoft Windows 2000.
+</UL>
+<li> <strong>FOX</strong> <a href="http://www.fox-toolkit.org/fox.html">[8]</a>. Platforms for version 0.99.193 given below. Seems extremely portable. Don't think the widget set is as large as wxWindows, a worthy competitor! No MacOS port, although reportedly would work under X11 support with (a lot of) work.
+<UL>
+<li> Linux. Any version of Linux should work, on any hardware. FOX is being developed on LINUX. 
+<li> FreeBSD. FreeBSD is reported to work. 
+<li> SGI IRIX. SGI systems with IRIX 5.3 and up. It can be compiled with GCC or SGI's MIPS Pro C++ compiler. 
+<li> SunOS/Solaris. Either Solaris or SunOS. Compiled with GCC or Sun Workshop C++. 
+<li> HP-UX. Tested with GCC under HP-UX 9.x and 10.x. 
+<li> IBM AIX. Tested with GCC under AIX 4.2. 
+<li> DEC Alpha/COMPAQ Tru64. Tested with GCC under Digital Unix 4.0. 
+<li> Other UNIX Systems. If you have a reasonable C++ compiler, UNIX, X11, chances are very good you can get FOX to work. 
+<li> Microsoft Windows 2000, Windows NT 4.0, Windows 95, Windows 98. Compile either with Visual C++ 6.0, Borland C++ Builder, CYGWIN32, MINGWIN32, and IBM VisualAge<a href="/cgi-bin/wiki.pl?action=edit&amp;id=VisualAge" >?</a> C++ for Windows. Older versions of Visual C++ will work, but you must create your own projects in that case.
+</UL>
+<li> <strong>WideStudio</strong> <a href="http://www.asahi-net.or.jp/%7Euj3s-hrby/EE/index.html">[9]</a>. "WideStudio is an integrated development environment(IDE) to build GUI applications for [see below]. This software is free (MIT/X Consortiun Licence)." IDE environment, not natively drawn, comes with gcc included for building projects.
+<UL>
+<li> Linux
+<li> FreeBSD 
+<li> SOLARIS 
+<li> Windows 95/98/ME, Windows NT,Win2K.
+</UL>
+</UL>
+<p>
+<p>
+I propose wxWindows is used as it has a large widget set and is very portable. A binding is in progress <a href="http://www.luascript.thersgb.net/index.htm">[10]</a> using a custom binder.
+An alternative is that bindings to SWIG are supplied with wxPython <a href="http://www.wxpython.org">[11]</a>. These could be modified for use with LuaSWIG <a href="http://luagnome.free.fr/luaswig.php3">[12]</a>, and just updated as wxWindows and wxPython are updated.
+<p>
+<H3>Notes on coding style</H3>
+<p>
+All code should be as portable and well documented as possible. This needs some further discussion. Most of the code will probably be written in ANSI C, following Lua, to aid portability.
+<p>
+wxWindows has some guidelines on using C++ <a href="http://www.wxwindows.org/standard.htm">[13]</a> eg. no templates etc. It may be worth taking note of these guidelines if wxLua is to be used for the GUI and portability is a priority.
+<p>
+<H3>Syntax Highlighting</H3>
+<p>
+Syntax highlighting for (unmodified) Lua would work in wxLua through the Scintilla editor <a href="http://www.scintilla.org">[14]</a>. Any platforms that don't support Scintilla would can just use a text editor.
+<p>
+<H3>Notes on Lua issues</H3>
+<p>
+There are some problems with Lua being a language which people like to modify and embed. 
+<p>
+<UL>
+<li> <em>Changing the number type</em>, ie. from double to float.
+<li> <em>Syntax changes</em>, ie. language may have been modified.
+</UL>
+<p>
+These problems could be dealt with by recompiling the wxLua bindings and <a href="../wiki/VisLua.html" >VisLua</a> debugger bindings to suit the client application. Wrappers to these bindings could allow configuration of any syntax changes.
+<p>
+<H3>Debugger</H3>
+<p>
+<UL>
+<li> The Debug Server should be able to use the standard Lua debug library <code>ldblib.c</code> to perform any debugging actions. 
+<li> GUI is written in Lua using wxLua GUI library.
+</UL>
+<p>
+<H3>Structure</H3>
+<p>
+See <a href="../wiki/VisLuaGlossary.html" >VisLuaGlossary</a> for any confusing terms.
+<DL>
+<dt><dd><pre>
+
++--------------------------------+
+
+|  application (C/C++/Lua/etc)   |
+
+|                                |
+
++ +-------------------+ +--------+
+
+| | debug server core | | Lua VM |
+
++-+-------------------+-+--------+
+
+         |
+
+         | &lt;-- debug link
+
+         |
+
++--------------------------------+
+
+| | debug client core | | Lua VM |
+
+| +-------------------+ +--------|
+
+|                                |
+
+| debug client w/ UI             |
+
++--------------------------------+
+
+
+
+       *&gt;8^)-|=&lt;  user
+
+</pre>
+</DL>
+<p>
+<H3>Proof of concept</H3>
+<p>
+I have knocked up an application so that you can telnet into a Lua session just as though you were running a console. Please give feedback on the dev list, not here. 
+<p>
+<DL>
+<dt><dd><a href="/files/wiki_insecure/users/ntrout/vislua/vlds_test.zip">Files:wiki_insecure/users/ntrout/vislua/vlds_test.zip</a>
+</DL>
+<p>
+<H3>Comments on implementation</H3>
+<p>
+<DL>
+<dt><dd>Occasionally comments will be cleared as they are discussed on the <a href="../wiki/VisLua.html" >VisLua</a>-dev mailing list.
+</DL>
+<p>
+<UL>
+<li> <em>&lt;comments please&gt; --Name</em>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=VisLuaImplementation" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=VisLuaImplementation" >history</a><br>Last edited February 12, 2003 7:13 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=VisLuaImplementation" >(diff)</a>
+</body>
+</html>

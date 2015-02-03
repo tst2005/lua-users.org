@@ -1,0 +1,238 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Coroutines Versus Python Generators</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaCoroutinesVersusPythonGenerators&amp;body=1" title="List pages referring to LuaCoroutinesVersusPythonGenerators">Lua Coroutines Versus Python Generators</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The next version of Javascript will apparently have a feature very much like Python generators; the alternative of Lua-style coroutines was rejected after a long debate which is summarised on <a href="http://www.neilmix.com/2007/02/07/threading-in-javascript-17/">[Neil Mix's blog]</a>.
+<p>
+How do Python generators differ from Lua coroutines? The most important feature is that in Lua, <code>coroutine.yield()</code> is an ordinary function which can be invoked anywhere in the dynamic extent of a <code>coroutine.resume()</code> with the limitation that you cannot <code>yield</code> through a <code>C</code> callback (unless you use <a href="../wiki/MikePall.html" >MikePall</a> 's <a href="http://coco.luajit.org/">[Coco]</a> library.) In Python, <code>yield</code> is syntactic, and can only be in the <em>lexical body</em> of the generator function.
+<p>
+This means that Python generators must be written as generators, and cannot easily be factored into smaller functions; nor can they easily be recursive. You can achieve recursion by a form of chaining; a message on the <a href="http://mail.python.org/pipermail/python-list/2005-August/335545.html">[Python mailing list]</a> describes both the mechanism:
+<DL>
+<dt><dd><pre>!Python
+
+def inorder(t):
+
+     if t:
+
+         for x in inorder(t.left):
+
+             yield x
+
+         yield t.label
+
+         for x in inorder(t.right):
+
+             yield x
+
+</pre>
+</DL>
+<p>
+In Lua, one might write a more agnostic <code>inorder</code> function as a higher-order function:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> inorder(f, t)
+
+  <span class="keyword">if</span> t <span class="keyword">then</span>
+
+    inorder(f, t.left)
+
+    f(t.label)
+
+    <span class="keyword">return</span> inorder(f, t.right)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The Lua function could then be used either as the iterator in a <code>for</code> loop:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> label <span class="keyword">in</span> <span class="library">coroutine.wrap</span>(inorder), <span class="library">coroutine.yield</span>, t <span class="keyword">do</span>
+
+  <span class="comment">-- something with label</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+or as a sort of <code>foreach</code> function:
+<DL>
+<dt><dd><pre class="code">
+inorder(<span class="library">print</span>, t)
+
+</pre>
+
+</DL>
+<p>
+In an attempt to reduce the comparison of recursive generators to its minimum, I wrote a pair of simple programs which generate the infinite <a href="http://www.research.att.com/~njas/sequences/A001511">[Ruler function]</a>. (A more interesting page about this function is Michael Naylor's <a href="http://www.ac.wwu.edu/~mnaylor/abacaba/abacaba.html">[Abacaba-Dabacaba]</a> which includes a musical exploration.)
+<p>
+The ruler function can be generated non-recursively, but in this example it's standing in for something like a depth-first search, so we'll just look at the recursive implementation. The programs generate the first <code>2^k</code> values in the sequence and add them up as a sort of validity test, since it's easy to show that the sum of the first <code>2^k</code> elements of the ruler function is <code>2^(k+1)-1</code>. Python's built-in functions and standard library were handy here; in Lua, I had to implement the <code>sum</code> and <code>islice</code> (first <code>k</code> elements of a sequence) functions myself, but fortunately that's not difficult.
+<p>
+So here's the Lua implementation:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> ruler(put, k)
+
+  <span class="keyword">for</span> i = 1, k <span class="keyword">do</span>
+
+    put(i)
+
+    ruler(put, i-1)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+ 
+
+<span class="keyword">function</span> eachruler()
+
+  <span class="keyword">return</span> <span class="library">coroutine.wrap</span>(<span class="keyword">function</span>()
+
+    <span class="keyword">return</span> ruler(<span class="library">coroutine.yield</span>, 100)
+
+  <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+ 
+
+<span class="keyword">function</span> sumseq(k, f, o, s)
+
+  <span class="keyword">local</span> sum = 0   
+
+  <span class="keyword">for</span> v <span class="keyword">in</span> f, o, s <span class="keyword">do</span>
+
+    k, sum = k-1, sum + v
+
+    <span class="keyword">if</span> k &lt;= 0 <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>        
+
+  <span class="keyword">return</span> sum
+
+<span class="keyword">end</span>
+
+ 
+
+<span class="keyword">local</span> howmany = <span class="library">tonumber</span>(arg[1]) <span class="keyword">or</span> 24
+
+<span class="keyword">local</span> now = <span class="library">os.clock</span>()
+
+<span class="keyword">local</span> sum = sumseq(2^howmany, eachruler())
+
+<span class="keyword">local</span> took = <span class="library">os.clock</span>()-now
+
+<span class="library">print</span>((<span class="string">"%2i: %7.3f seconds  %i check %i"</span>):format(howmany, took, sum, 2^(howmany+1)-1))
+
+</pre>
+
+</DL>
+<p>
+and the very similar and somewhat shorter Python implementation:
+<DL>
+<dt><dd><pre>!Python
+
+from itertools import islice
+
+from sys import argv
+
+from time import clock
+
+ 
+
+def ruler(k):
+
+  for i in range(1, k+1):
+
+    yield i
+
+    for x in ruler(i-1): yield x
+
+ 
+
+howmany = int(argv[1])
+
+now = clock()
+
+total = sum(islice(ruler(100), 2**howmany))
+
+took = clock()-now
+
+print "%2d: %7.3f seconds %d check %d" % (howmany, took, total, 2**(howmany+1)-1)
+
+</pre>
+</DL>
+<p>
+The slightly odd formulation of the recursion is the result of manually changing the tailcall into a <code>for</code> loop, because Python doesn't do tailcalls, and the original tailcall implementation put Python at even more of a disadvantage.
+<p>
+Since both programs passed the check, I'll only paste the comparative timings here (in seconds as reported above). I don't believe this is simply a "Lua is faster than Python" benchmark; I think it shows that coroutines are inherently faster; the main difference is not having to pass the values up through a chain of yields. 
+<pre>
+
+ N      Lua   Python
+
+--    -----   ------
+
+12:   0.000    0.008
+
+13:   0.000    0.023 
+
+14:   0.008    0.055 
+
+15:   0.016    0.109 
+
+16:   0.031    0.227 
+
+17:   0.078    0.469 
+
+18:   0.148    0.961 
+
+19:   0.305    1.961 
+
+20:   0.602    4.000 
+
+21:   1.211    8.148 
+
+22:   2.430   17.211 
+
+23:   4.820   40.094 
+
+24:   9.875   94.992 
+
+</pre>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaCoroutinesVersusPythonGenerators" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaCoroutinesVersusPythonGenerators" >history</a><br>Last edited September 8, 2009 2:02 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaCoroutinesVersusPythonGenerators" >(diff)</a>
+</body>
+</html>

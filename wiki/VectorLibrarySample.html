@@ -1,0 +1,214 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Vector Library Sample</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=VectorLibrarySample&amp;body=1" title="List pages referring to VectorLibrarySample">Vector Library Sample</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Description</H3>
+<p>
+This is a very simple example of wrapping some vector code. The function <code>lua_vec3libopen()</code> uses <code>luaL_openl()</code> to add a global function <code>vector3()</code>, a vector constructor. A tag is created so that the tag methods <code>gettable()</code> and <code>settable()</code> can be used to access elements in the vector. See the test code for usage.
+<p>
+<strong>[!] <a href="../wiki/VersionNotice.html" >VersionNotice</a>: The below code pertains to an older Lua version, Lua 4.  Certain features used like tag methods (<code>settagmethod</code>) are no longer present in Lua 5 but have been replaced with metamethods.</strong>
+<p>
+<em>Caveat:</em> The code below uses a static variable TAG. This can be avoided, and should. I should have used the registry but I was lazy. I could also have used TAG local to <code>lua_vec3libopen()</code> and used it as an upvalue to <code>vec3new()</code>. I was also lazy in my treatment of field names: I only look at the first letter. --lhf
+<p>
+<em>This code is for Lua 4.0. I've updated it for Lua 5.0 <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lv3">[here]</a>. --lhf</em>
+<p>
+<H3>C code</H3>
+<p>
+<DL>
+<dt><dd><pre>
+
+/*
+
+* vec3lib.c
+
+* add 3d vectors to Lua
+
+* this code is in the public domain
+
+*/
+
+
+
+#include "lua.h"
+
+#include "lauxlib.h"
+
+
+
+LUALIB_API int lua_vec3libopen (lua_State *L);
+
+
+
+typedef struct { double a[3]; } Vector3;
+
+
+
+static int TAG; /* lazy! */
+
+
+
+static int vec3new(lua_State *L) {
+
+  Vector3* v;
+
+  lua_newuserdata(L,sizeof(Vector3));
+
+  lua_settag(L,TAG);
+
+  v=lua_touserdata(L,-1);
+
+  if (lua_gettop(L)&gt;1) {
+
+    v-&gt;a[0]=luaL_check_number(L,1);
+
+    v-&gt;a[1]=luaL_check_number(L,2);
+
+    v-&gt;a[2]=luaL_check_number(L,3);
+
+  }
+
+  else
+
+    v-&gt;a[0] = v-&gt;a[1] = v-&gt;a[2] = 0;
+
+  return 1;
+
+}
+
+
+
+static int vec3get(lua_State *L) {
+
+  Vector3* v=lua_touserdata(L,1);
+
+  const char* i=luaL_check_string(L,2);
+
+  switch (*i) { /* lazy! */
+
+    case 'x': case 'r': lua_pushnumber(L,v-&gt;a[0]); break;
+
+    case 'y': case 'g': lua_pushnumber(L,v-&gt;a[1]); break;
+
+    case 'z': case 'b': lua_pushnumber(L,v-&gt;a[2]); break;
+
+    default: lua_pushnumber(L,0.0); break;
+
+  }
+
+  return 1;
+
+}
+
+
+
+static int vec3set(lua_State *L) {
+
+  Vector3* v=lua_touserdata(L,1);
+
+  const char* i=luaL_check_string(L,2);
+
+  double t=luaL_check_number(L,3);
+
+  switch (*i) { /* lazy! */
+
+    case 'x': case 'r': v-&gt;a[0]=t; break;
+
+    case 'y': case 'g': v-&gt;a[1]=t; break;
+
+    case 'z': case 'b': v-&gt;a[2]=t; break;
+
+    default: break;
+
+  }
+
+  return 1;
+
+}
+
+
+
+static const struct luaL_reg vec3lib[] = {
+
+  {"vector3", vec3new},
+
+};
+
+
+
+int lua_vec3libopen (lua_State *L) {
+
+  luaL_openl(L,vec3lib);
+
+  TAG=lua_newtag(L);
+
+  lua_pushcfunction(L,vec3get); lua_settagmethod(L,TAG,"gettable");
+
+  lua_pushcfunction(L,vec3set); lua_settagmethod(L,TAG,"settable");
+
+  return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+<H3>Test Code</H3>
+<p>
+The following code can be used to test it:
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- a = vector3()</span>
+
+a = vector3(10,20,30)
+
+<span class="library">print</span>(a,tag(a))
+
+
+
+<span class="library">print</span>(a.x,a.y,a.z)
+
+<span class="library">print</span>(a.t,a[1])
+
+
+
+a.x,a.y,a.z=100,200,300
+
+<span class="library">print</span>(a.x,a.y,a.z)
+
+
+
+<span class="comment">-- try also a.r, a.g, a.b, if you want to use vectors to store colors...</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=VectorLibrarySample" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=VectorLibrarySample" >history</a><br>Last edited January 6, 2007 6:43 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=VectorLibrarySample" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Wiki Stats</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=WikiStats&amp;body=1" title="List pages referring to WikiStats">Wiki Stats</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Samples of the size of this wiki:
+<p>
+<DL>
+<dt><dd><pre>
+
+date            pages   content size
+
+----            -----   ------------
+
+2007-Jan        553     2096 K
+
+2006-Apr        461     1665 K
+
+2004-Jul        303     1053 K
+
+2004-Jan        270      927 K
+
+2003-Jul        244      879 K
+
+2003-Jan        163      499 K
+
+</pre>
+</DL>
+<p>
+The stats are manually collected as follows:
+<p>
+<DL>
+<dt><dd><pre>
+
+wget -r -np -D lua-users.org --html-extension http://lua-users.org/wiki/
+
+cd lua-users.org/wiki
+
+rm index.html
+
+echo "pages: `ls | wc -l`"
+
+find -name '*.html' -exec lynx -dump -nolist '{}' &gt; text_dump ';'
+
+echo "bytes: `wc -c text_dump`"
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=WikiStats" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=WikiStats" >history</a><br>Last edited January 27, 2007 10:43 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=WikiStats" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,652 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Macros</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaMacros&amp;body=1" title="List pages referring to LuaMacros">Lua Macros</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua Macro is a macro facility for Lua using token filters.
+<p>
+<H3>Source Code</H3>
+<p>
+<a href="http://luaforge.net/frs/download.php/4329/luamacro-1.5.zip">http://luaforge.net/frs/download.php/4329/luamacro-1.5.zip</a>
+<p>
+<p>
+<H3>Dependencies</H3>
+<p>
+Lua 5.1.4 with <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/">[tokenf patch]</a>.
+<p>
+There is a Lua 5.1.4 patched Windows build for the curious using Mingw  (i.e not Lua for Windows compatible) <a href="http://luaforge.net/frs/download.php/4330/lua514-tokenf-win32.zip">[here]</a>.
+<p>
+<H3>Token Filters</H3>
+<p>
+lhf's  tokenf patch (see also <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/doc/oral/luaws05.pdf">[this writeup]</a> provides a simple but powerful hook into the stream of tokens that the Lua compiler sees. (In Lua, for a given module, compilation into bytecode and execution are distinct phases.) Basically you have to provide a global function called FILTER, which will be called in two very different ways. First, it will be called with two arguments; a function which you can use to get the next token (a 'getter') and the source file. Thereafter, it will be called with no arguments, but will be expected to return three values. (This is confusing at first, and these two functions should probably be given different names.)
+<p>
+The <code>get</code> function returns three values: line, token and value. Token has a few special values like <code>'&lt;name&gt;'</code>, <code>'&lt;string&gt;'</code>, <code>'&lt;number&gt;'</code>, and <code>'&lt;eof&gt;'</code> but otherwise is the actual keyword or operator like <code>'function'</code>, <code>'+'</code>, <code>'~='</code>, <code>'...'</code>, etc. If the token is one of the special cases, then the value of the token is returned as the third value. (There is an instructive example with the tokenf distribution, called fdebug, which simply prints out these values.)
+<p>
+Token filters read and write tokens one at a time. Coroutines make it possible to maintain complex state, without having to manage a state machine. 
+<p>
+<H3>Lua<code></code>Macros</H3>
+<p>
+The macro facility described here is similar to the C preprocessor, although it works on an already predigested token stream and is not a separate program through which Lua code is passed. This has several advantages - it is faster (no separate translation phase) and macros can be tested interactively. The disadvantage is that <a href="../wiki/LuaMacro.html" >LuaMacro</a> is dependent on a patched version of Lua, and debugging macros can be sometimes a little awkward, since you do not see the result as transformed text. 
+<p>
+As always, macros need to be used carefully. They do not share Lua's concept of scoping (so should be named distinctly), and overusing them could result in code which could only be read by the original writer, which is the 'private language' problem. (See <a href="http://research.swtch.com/2008/02/bourne-shell-macros.html">http://research.swtch.com/2008/02/bourne-shell-macros.html</a> for a classic example.)
+<p>
+Even if not part of your production/released code, macros can be useful in debugging and constructing tests. If you are using Lua as a DSL (Domain Specific Language) then macros allow for easy customization of syntax.
+<p>
+<p>
+<p>
+This version (1.5) allows a simplified notation suggested by Thomas Lauer, in which simple macros look very much like their C equivalents:
+<p>
+A macro that takes two parameters:
+<p>
+<DL>
+<dt><dd><pre class="code">
+macro.define(<span class="string">'PLUS(L,C) ((L)+(C))'</span>)
+
+</pre>
+
+</DL>
+<p>
+The following is an equivalent to a C-style assert, where the actual expression is converted into a string to form the optional second argument of <code>assert()</code> using the 'stringizing' function <code>_STR()</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+macro.define(<span class="string">'ASSERT('</span>x<span class="string">') assert(x,_STR(x))'</span>)
+
+</pre>
+
+</DL>
+<p>
+An advantage of this is that assertions can be removed globally by a simple change in a header.
+<p>
+<H3>Using Macros</H3>
+<p>
+Macro definitions need to be in a separate file from the code to be preprocessed, but do not need to be loaded before your program. Instead, there is a standard macro <code>__include</code>. Assuming that the <code>PLUS</code> and <code>ASSERT</code> macros have been defined in <code>plus.lua</code>, then:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--test-macro.lua</span>
+
+__include <span class="string">'plus'</span>
+
+<span class="library">print</span>(PLUS(10,20))
+
+ASSERT(2 &gt; 4)
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua -lmacro  test-macro.lua
+
+30
+
+lua: test-macro.lua:3: 2 &gt; 4
+
+stack traceback:
+
+        [C]: in function 'assert'
+
+        test-macro.lua:3: in main chunk
+
+</pre>
+</DL>
+<p>
+It is important that the module <code>macro</code> is loaded before the program is parsed, since macros operate on the compile phase.
+<p>
+They can be tested interactively like this:
+<p>
+<DL>
+<dt><dd><pre>
+
+D:\stuff\lua\tokenf&gt;lua -lmacro -i
+
+Lua 5.1.2  Copyright (C) 1994-2007 Lua.org, PUC-Rio
+
+&gt; __include 'plus'
+
+&gt; = PLUS(10,20)
+
+30
+
+&gt; = PLUS(10)
+
+=stdin:1: PLUS expects 2 parameters, received 1
+
+&gt; ASSERT(2 &gt; 4)
+
+stdin:1: 2 &gt; 4
+
+stack traceback:
+
+        [C]: in function 'assert'
+
+        stdin:1: in main chunk
+
+        [C]: ?
+
+</pre>
+</DL>
+<p>
+The substitution may be a function - this is where things get interesting:
+<p>
+<DL>
+<dt><dd><pre class="code">
+macro.define(<span class="string">'__FILE__'</span>,<span class="keyword">nil</span>,<span class="keyword">function</span>(ls) <span class="keyword">return</span> macro.string(ls.source) <span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+The <code>nil</code> second argument indicates that we have no parameters, and the third substitution argument is a function which always receives a table containing the lexical state: source,line and get (the getter function currently being used). This function is expected to return a token list: in this case, <code> {'&lt;string&gt;',ls.source} </code>. Three convenience functions, <code>macro.string()</code>,<code>macro.number()</code> and <code>macro.name()</code>, are available. In <a href="../wiki/LuaMacro.html" >LuaMacro</a> 1.5, the function may also return a string.
+<p>
+In general, the substitution function receives all parameters passed to the macro:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> value_of = macro.value_of
+
+
+
+macro.define(<span class="string">'_CAT'</span>,{<span class="string">'x'</span>,<span class="string">'y'</span>},<span class="keyword">function</span>(ls,x,y)
+
+   <span class="keyword">return</span> macro.name(value_of(x)..value_of(y))
+
+<span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+This is also the only way to handle <em>variable length</em> parameter lists, since otherwise the number of formal and actual parameters must match. Bear in mind that the parameters always come in the form of token lists, which have a particular abbreviated format. For example, <code> {'&lt;name&gt;','A','+',false,'&lt;name&gt;','B','*',false,'&lt;number&gt;',2.3} </code>. (Here <code>false</code> is a placeholder for <code>nil</code>.)
+<p>
+Please note that macro definitions are Lua <em>modules</em> and so you are free to define local variables and functions.
+<p>
+<H3>Macro definitions can be Inline</H3>
+<p>
+The new simplified macro definition-as-string allows simple macros to be defined in the source file where they are actually used. This even works with the interactive interpreter:
+<p>
+<DL>
+<dt><dd><pre class="code">
+$ lua -lmacro
+
+Lua 5.1.4  Copyright (C) 1994-2008 Lua.org, PUC-Rio
+
+&gt; __def <span class="string">'dump(x) print(_STR(x).." = "..tostring(x))'</span>
+
+&gt; x = 10
+
+&gt; dump(x)
+
+x = 10
+
+&gt; dump(10*4.2)
+
+10 * 4.2 = 42
+
+</pre>
+
+</DL>
+<p>
+(This could be a useful tool in a debugging toolchest.)
+<p>
+Consider this shorthand for evaluating a statement for all values in an array:
+<p>
+<DL>
+<dt><dd><pre class="code">
+__def <span class="string">'for_(t,expr) for _idx,_ in ipairs(t) do expr end'</span>
+
+
+
+for_({10,20,30},<span class="library">print</span>(_))
+
+</pre>
+
+</DL>
+<p>
+See <code>functional.lua</code> for more examples of this style.
+<p>
+<H3>Using End-scanners</H3>
+<p>
+A common pattern when using anonymous functions is:
+<p>
+<DL>
+<dt><dd><pre class="code">
+set_handler(<span class="keyword">function</span>()
+
+  ...
+
+<span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+It would be cool if this could simply be expressed like this (<a href="../wiki/LeafStorm.html" >LeafStorm</a>'s <a href="../wiki/BeginEndProposal.html" >BeginEndProposal</a>):
+<p>
+<DL>
+<dt><dd><pre class="code">
+set_handler begin
+
+  ...
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+With <a href="../wiki/LuaMacro.html" >LuaMacro</a> 1.5, macros may set lexical scanners, which watch the token stream for specified tokens. A particularly useful one is an 'end-scanner'. In this case, the scanner detects the last <code>end</code> of a block, and emits <code>end)</code>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+def (<span class="string">'begin'</span>,<span class="keyword">nil</span>,<span class="keyword">function</span>()
+
+    macro.set_end_scanner <span class="string">'end)'</span>
+
+    <span class="keyword">return</span> <span class="string">'(function(...)'</span>
+
+<span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+<H3>Macros can be Arbitrary Tokens</H3>
+<p>
+Another <a href="../wiki/LuaMacro.html" >LuaMacro</a> 1.5 feature, is that any token may be used as a macro name. Consider the problem of introducing a short anonymous function form, (see <a href="http://lua-users.org/lists/lua-l/2009-12/msg00140.html">http://lua-users.org/lists/lua-l/2009-12/msg00140.html</a>). Instead of <code>function(x) return x+1 end</code> we can say <code>\x(x+1)</code>.  Many readers (although not all ;)) find this notation less noisy when specifying short functions.
+<p>
+'\' is a good choice for a token macro, since it appears nowhere else in the language. You can define a handler which provides parameters if a macro is intended to be called without a parameter list. This is the fourth argument to <code>define()</code>.
+<p>
+<pre class="code">
+<span class="comment">-- lhf-style lambda notation</span>
+
+def (<span class="string">'\\'</span>, {<span class="string">'args'</span>,<span class="string">'body'</span>;handle_parms = <span class="keyword">true</span>},
+
+    <span class="string">'function(args) return body end'</span>,
+
+    <span class="keyword">function</span>(ls) <span class="comment">-- grab the lambda</span>
+
+        <span class="comment">-- these guys return _arrays_ of token-lists. We use '' as the delim</span>
+
+        <span class="comment">-- so commas don't split the results</span>
+
+        <span class="keyword">local</span> args = macro.grab_parameters(<span class="string">'('</span>,<span class="string">''</span>)[1]
+
+        <span class="keyword">local</span> body = macro.grab_parameters(<span class="string">')'</span>,<span class="string">''</span>)[1]
+
+        <span class="keyword">return</span> args,body
+
+    <span class="keyword">end</span>
+
+)
+
+</pre>
+
+<p>
+Functions of more than one argument (like <code>\x,y(x+y</code>) and functions defining functions (like <code>\x(\y(x+y))</code>) work as expected.
+<p>
+<H3>Implementing a Try/Except Statement</H3>
+<p>
+As an actual useful example, here is how <code>try</code> and <code>except</code> can be defined as syntactical sugar around <code>pcall()</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- try.lua</span>
+
+<span class="keyword">function</span> pack (...)
+
+	<span class="keyword">return</span> {n=<span class="library">select</span>(<span class="string">'#'</span>,...),...}
+
+<span class="keyword">end</span>
+
+
+
+macro.define (<span class="string">'try'</span>,<span class="keyword">nil</span>,
+
+ <span class="string">'do local res = pack(pcall(function()'</span>
+
+  <span class="comment">-- try block goes here</span>
+
+)
+
+
+
+macro.define (<span class="string">'except'</span>,{<span class="string">'e'</span>,handle_parms=macro.grab_token},
+
+	<span class="keyword">function</span>()
+
+		<span class="comment">-- make sure that the 'end' after 'except' becomes 'end end' to close</span>
+
+		<span class="comment">-- the extra 'do' in 'try'.</span>
+
+		<span class="comment">-- we start at level 1 (before 'end))') and must ignore the first level zero.</span>
+
+		macro.set_end_scanner (<span class="string">'end end'</span>,1,<span class="keyword">true</span>)
+
+		<span class="keyword">return</span> <span class="string">[[
+
+	end))
+
+	if res[1] then
+
+		if res.n &gt; 1 then return unpack(res,2,res.n) end
+
+	else local e = res[2]
+
+	]]</span>
+
+	<span class="comment">-- except block goes here</span>
+
+    <span class="keyword">end</span>
+
+)
+
+
+
+
+
+<span class="keyword">return</span> <span class="string">'local pack,pcall,unpack = pack,pcall,unpack'</span>
+
+</pre>
+
+</DL>
+<p>
+<p>
+So, given code like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+a = <span class="keyword">nil</span>
+
+try
+
+  <span class="library">print</span>(a.x)
+
+except e
+
+  <span class="library">print</span>(<span class="string">'exception:'</span>,e)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The compiler would see the following code:
+<p>
+<DL>
+<dt><dd><pre class="code">
+a = <span class="keyword">nil</span>
+
+<span class="keyword">do</span> <span class="keyword">local</span> res = pack(<span class="library">pcall</span>(<span class="keyword">function</span>()
+
+  <span class="library">print</span>(a.x)
+
+<span class="keyword">end</span>)) 
+
+ <span class="keyword">if</span> res[1] <span class="keyword">then</span>
+
+	<span class="keyword">if</span> res.n &gt; 1 <span class="keyword">then</span> <span class="keyword">return</span> <span class="library">unpack</span>(res,2,res.n) <span class="keyword">end</span> 
+
+ <span class="keyword">else</span> <span class="keyword">local</span> e = res[2]
+
+   <span class="library">print</span>(<span class="string">'exception'</span>,e)
+
+<span class="keyword">end</span> <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The smartness of these macros (note we can handle closing the extra <code>do</code> statement) means that it is easier try out new syntax proposals with a little work, without having to patch Lua itself. And writing macros in Lua is an order of magnitude easier than writing syntax extensions in C!
+<p>
+(Please note that this is not a full solution to the problem. In particular, we cannot cope with blocks which return explicitly, but return no value.)
+<p>
+The last <code>return</code> statement requires some explanation. This macro asummes that the environment in which it is expanded cam access the functions <code>pack</code>,<code>pcall</code> and <code>unpack</code>. In general, this is not true, since a module created with <code>module(...)</code> does not by default have access to the global environment.
+<p>
+This macro should be brought into a module using <code>__include try</code> before the <code>module</code> call. <code>__include</code> uses <code>require</code> internally, and if that returns a string, then this is the actual substituted value of the <code>__include</code> macro expansion.  In that way, the necessary hidden dependencies of the macro are properly made available in the module.
+<p>
+As an example of more elaborate code generation, here is a <code>using</code> macro which works rather like the C++ statement. There is no true module scope in Lua, so a common trick is to 'unroll' a table:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> sin = <span class="library">math.sin</span>
+
+<span class="keyword">local</span> cos = <span class="library">math.cos</span>
+
+...
+
+</pre>
+
+</DL>
+<p>
+Not only do we get nice unqualified names, but accessing local function references is faster than looking up functions in a table. Here is a macro that can generate the above code automatically:
+<p>
+<DL>
+<dt><dd><pre class="code">
+macro.define(<span class="string">'using'</span>,{<span class="string">'tbl'</span>},
+
+    <span class="keyword">function</span>(ls,n)
+
+        <span class="keyword">local</span> tbl = <span class="library">_G</span>[n[2]]
+
+        <span class="keyword">local</span> subst,put = macro.subst_putter()
+
+        <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(tbl) <span class="keyword">do</span>
+
+            put(macro.replace({<span class="string">'f'</span>,<span class="string">'T'</span>},{macro.name(k),n},
+
+                <span class="string">' local f = T.f; '</span>))
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">return</span> subst
+
+    <span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+Here the substitution is a function, which is passed a name token (like {'&lt;name&gt;','math'}), assumes it refers to a globally available table, and then iterates over that table dynamically generating the required <code>local</code> assignments. <code>subst_putter()</code> gives you a token list and a <code>put</code> function; you can use the <code>put</code> function to fill the token list, which is then returned and actually substituted into the token stream. <code>replace</code> generates a new token list by replacing all occurrences of the formal parameters (first argument) with actual parameter values (second argument) in a token list. To use this, put the macro call at the start of your module:
+<p>
+<DL>
+<dt><dd><pre class="code">
+using (<span class="library">math</span>)
+
+</pre>
+
+</DL>
+<p>
+This brings in the whole contents of the table into scope, and assumes that the table does actually exist at <em>compile-time</em>.  A better idiom is <code>import(math,sin cos)</code> which expands to <code>local sin = math.sin; local cos = math.cos</code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+macro.define (<span class="string">'import'</span>,{<span class="string">'tbl'</span>,<span class="string">'names'</span>},
+
+	<span class="keyword">function</span> (ls,tbl,names)
+
+		<span class="keyword">local</span> subst,put = macro.subst_putter()
+
+		<span class="keyword">for</span> i = 1,macro.length_of(names) <span class="keyword">do</span>
+
+			<span class="keyword">local</span> name = macro.get_token(names,i)
+
+			put <span class="string">'local'</span>; put (name); put <span class="string">'='</span>; put (tbl); put <span class="string">'.'</span>; put (name); put <span class="string">';'</span>
+
+		<span class="keyword">end</span>
+
+		<span class="keyword">return</span> subst
+
+	<span class="keyword">end</span>
+
+)
+
+</pre>
+
+</DL>
+<p>
+<p>
+<H3>Implementing List Comprehensions</H3>
+<p>
+In <a href="../wiki/PythonLists.html" >PythonLists</a>, <a href="../wiki/FabienFleutot.html" >FabienFleutot</a> discusses a list comprehension syntax modelled on the Python one.
+<p>
+<DL>
+<dt><dd><pre class="code">
+x = {i <span class="keyword">for</span> i = 1,5}
+
+
+
+{1,2,3,4,5}
+
+</pre>
+
+</DL>
+<p>
+Such a statement does not actually require much transformation to be valid Lua. We use anonymous functions:
+<p>
+<DL>
+<dt><dd><pre class="code">
+x = (<span class="keyword">function</span>() <span class="keyword">local</span> ls={}; <span class="keyword">for</span> i = 1,5 <span class="keyword">do</span> ls[#ls+1] = i <span class="keyword">end</span>; <span class="keyword">return</span> ls <span class="keyword">end</span>)()
+
+</pre>
+
+</DL>
+<p>
+However, to make it work as a macro, we need to choose a name (here 'L') since we cannot look ahead to see the `for` token.
+<p>
+<DL>
+<dt><dd><pre class="code">
+macro.define(<span class="string">'L'</span>,{<span class="string">'expr'</span>,<span class="string">'loop_part'</span>,handle_parms=<span class="keyword">true</span>},
+
+    <span class="string">' ((function() local t = {}; for loop_part do t[#t+1] = expr end; return t end)()) '</span>,
+
+    <span class="keyword">function</span>(ls)
+
+        <span class="keyword">local</span> get = ls.getter
+
+        <span class="keyword">local</span> line,t = get()
+
+        <span class="keyword">if</span> t ~= <span class="string">'{'</span> <span class="keyword">then</span> macro.error(<span class="string">"syntax: L{&lt;expr&gt; for &lt;loop-part&gt;}"</span>) <span class="keyword">end</span>
+
+        <span class="keyword">local</span> expr = macro.grab_parameters(<span class="string">'for'</span>)
+
+        <span class="keyword">local</span> loop_part = macro.grab_parameters(<span class="string">'}'</span>,<span class="string">''</span>)
+
+        <span class="keyword">return</span> expr,loop_part
+
+    <span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+The substitution is pretty straightforward, but we have grab the parameters with a custom function. The first call to <code>macro.grab_parameters</code> grabs upto 'for', and the second grabs upto '}'. Here we have to be careful that commas are not treated as delimiters for this grab by setting the second argument to be the empty string.
+<p>
+Any valid for-loop part can be used:
+<p>
+<DL>
+<dt><dd><pre class="code">
+ L{{k,v} <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>{one=1,two=2}}
+
+
+
+ { <span class="string">"one"</span>, 1 }, { <span class="string">"two"</span>, 2 } }
+
+</pre>
+
+</DL>
+<p>
+Nested comprehensions work as expected:
+<p>
+<DL>
+<dt><dd><pre class="code">
+x = L{L{i+j <span class="keyword">for</span> j=1,3} <span class="keyword">for</span> i=1,3}
+
+  
+
+{ { 2, 3, 4 }, { 3, 4, 5 }, { 4, 5, 6 } }
+
+</pre>
+
+</DL>
+<p>
+A particularly cool idiom is to grab the whole of standard input as a list, in one line:
+<p>
+<DL>
+<dt><dd><pre class="code">
+lines = L{line <span class="keyword">for</span> line <span class="keyword">in</span> <span class="library">io.lines</span>()}
+
+</pre>
+
+</DL>
+<p>
+<H3>Debugging <a href="../wiki/LuaMacro.html" >LuaMacro</a> code</H3>
+<p>
+There is a variable <code>macro.verbose</code> which you can set to see the tokens read and written by <a href="../wiki/LuaMacro.html" >LuaMacro</a>. If it is 0, a debug hook is set, but no debug output appears; if it is 1, then it shows the transformed token stream which the compiler sees, and if it is 2 it will also show the input token stream.
+<p>
+Setting the verbosity level to zero (say by <code>lua -lmacro -e "macro.verbose=0" myfile.lua</code>) is useful because the <code>__dbg</code> builtin macro can then change the verbosity dynamically:
+<p>
+<DL>
+<dt><dd><pre class="code">
+__dbg 1
+
+mynewmacro(hello)
+
+__dbg 0
+
+</pre>
+
+</DL>
+<p>
+This helps you to zero in on particular problem areas without having to wade through pages of output.
+<p>
+<H3>Compiling <a href="../wiki/LuaMacro.html" >LuaMacro</a> code</H3>
+<p>
+Although <a href="../wiki/LuaMacro.html" >LuaMacro</a> depends on a token-filter patched Lua compiler, the resulting byte code can run on stock Lua 5.1.4. A very simple compiler is provided, based on <code>luac.lua</code> from the Lua distribution.
+<p>
+<DL>
+<dt><dd><pre>
+
+$ lua macro/luac.lua myfile.lua myfile.luac
+
+$ lua51 myfile.luac 
+
+&lt;runs fine&gt; 
+
+</pre>
+</DL>
+<p>
+-- <a href="../wiki/SteveDonovan.html" >SteveDonovan</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaMacros" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaMacros" >history</a><br>Last edited March 8, 2011 12:20 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaMacros" >(diff)</a>
+</body>
+</html>

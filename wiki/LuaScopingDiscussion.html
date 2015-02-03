@@ -1,0 +1,224 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Scoping Discussion</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaScopingDiscussion&amp;body=1" title="List pages referring to LuaScopingDiscussion">Lua Scoping Discussion</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em><strong>This page was an attempt to describe Lua's scoping in terms of common scoping lingo, but resulted in a debate of scoping terminology.  For a description of Lua scoping in layman terms, see <a href="../wiki/LuaScoping.html" >LuaScoping</a>.</strong></em>
+<p>
+<strong><a href="../wiki/VersionNotice.html" >VersionNotice</a>: Comments on this page refer to a quite old version of Lua (2001 era) that had more limited lexical scoping and presumably non-complete closure support.  Many of these comments don't apply on recent versions of Lua.</strong>
+<p>
+Lua is statically scoped <a href="http://www.foldoc.org/foldoc/foldoc.cgi?lexical+scope">[1]</a>.
+<p>
+<H2>Limited Static Scoping</H2>
+There is an issue about access of variables from nested functions.  A nested function cannot access variables other than globals in its surrounding scopes.  A special "upvalue" syntax is provided for read-only access to a copy (at the time of the anonymous function instantiation) of variables, but only from the immediate scope in which the nested function is defined.
+<p>
+There is some disagreement as to whether this situation should be called limited/broken static/lexical scoping.  Some computer language texts define lexical and static scoping as being the same, confusing the matter.  Lua does act as lexically scoped when the variable accessed is at the global scope:
+<DL>
+<dt><dd><pre>
+
+do
+
+    -- assume "a" is a global with value 5
+
+    local foo = function() print(a) end
+
+    a = 10
+
+    foo() -- prints "10"
+
+end
+
+</pre>
+</DL>
+<p>
+It also acts as lexically scoped when upvalues are used to access the next outer scope, as long as the variables are not rebound (either from the variable's scope or from the nested function):
+<DL>
+<dt><dd><pre>
+
+do
+
+    local a = 5
+
+    local foo = function() print(%a) end
+
+    foo() -- prints "5"
+
+end
+
+</pre>
+</DL>
+<p>
+In any case Lua is perhaps not as bad off as other scripting languages such as Perl when they were young.  Perl started with dynamic scoping.  It has slowly evolved to support lexical scoping via the <code>my</code> qualifier.  Lexical scoping may become default in Perl 6.
+<p>
+Python previously had limited static scoping similar to Lua.  Lexical scoping will become the default in 2.2 and is already an option in 2.1 <a href="http://python.sourceforge.net/peps/pep-0227.html">[2]</a>.  Python's implementation of lexical scoping does not allow rebinding of variables from inside a nested function, which is similar to Lua's upvalues.
+<p>
+For Lua, maybe all that is needed is to expand its limited subset into true lexical scoping.  It could continue the upvalue concept and not allow rebinding as in Python.  Or it may allow rebinding and eliminate the need for upvalues which are often a source of confusion for Lua programmers.  In the design document for Python's lexical scoping, the main reason cited for not allowing rebinding was Python's lack of variable declarations.  Since Lua requires <code>local</code> to qualify variables this would not be an issue.
+<p>
+<H3>Notes</H3>
+Btw, Lua <em>always</em> does lexical scoping.  There's no exception.  There are no dynamic scope rules.  The compiler decides which declaration of a name is taken and it issues an error if it cannot handle a case (locals in outer functions).  So, it's not whether Lua is sometimes lexically scoped or not; it always is.  Lua only has some limitations of what is allowed.  (Lexical/Dynamic scoping defines <em>how</em> name resolution is done, not what is allowed.)
+<p>
+-- E. Toernig
+<p>
+<DL>
+<dt><dd><em>You'll have to take that argument up with John Ramsdell, I'm staying out of it :) .  I don't disagree that Lua is statically scoped.  The confusion is due to some people making a distinction between "static scoping" and "lexical scoping".  --<a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a></em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>I am confused. I think I understand the difference between "static" and "dynamic" scoping. What is the distinction people make between "static" and "lexical"? --<a href="../wiki/JamesHearn.html" >JamesHearn</a></em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>I think the confusion comes from the fact that there are two incompatible definitions of the terms lexical and static scoping in common usage.  The functional programming community used to use these terms to mean something that included a nested scoping requirement, however, the Dragon book definition clearly implies Lua is both lexically and statically scoped. -- John D. Ramsdell</em>
+</DL>
+<p>
+From page 411 of
+"Compilers, Principles, Techniques, and Tools", by Aho, Sethi, and
+Ullman, 1986, Addison-Wesley:
+<p>
+<DL>
+<dt><dd>The scope rules of a language determine the treatment of references to non-local names.  A common rule, called the  <em>lexical-</em> or <em>static-scope rule</em>, determines the declaration that applies to a name by examining the program text alone.  Pascal, C, and Ada are among the many languages that use lexical scope, with an added "most closely nested" stipulation that is discussed below.  An alternative rule, called the <em>dynamic-scope rule</em>, determines the declaration applicable to a name at run time, by considering the current activations.  Lisp, APL, and Snobol are among the languages that use dynamic scope.
+</DL>
+<p>
+Comparing the FOLDOC entry with what's in the Dragon Book, the latter's definition seems a bit looser in that the "smallest block" stipulation is not made essential and is said only to be a property of certain languages such as C.  In other words it is enough that a given scoping rule not be dynamic (that is, not dependent on current activations) to be considered static.
+<DL>
+<dt><dd><em>I am puzzled by what is meant by terms such as "limited static scoping" and "true lexical scoping".  Languages either are, or are not, statically scoped or lexically scoped.  Placing a modifier in front of these terms is meaningless. -- John D. Ramsdell</em>
+</DL>
+<p>
+<H3>Lua Currently Lacks Static Nested Scoping</H3>
+<p>
+In the Lua language, each variable has either
+local or global scope.  Functions can be defined within functions,
+however, a nested function does not have access to variables defined
+in any of its enclosing functions.  Therefore, Lua variables lack static nested scoping.  As result, the following Lua code is illegal:
+<p>
+<DL>
+<dt><dd><pre>
+
+function addn(x)
+
+  function sum(y)
+
+    return x+y
+
+  end
+
+  return sum
+
+end
+
+print((addn(3))(1))
+
+</pre>
+</DL>
+<p>
+This example is illegal because variable x defined in addn is
+inaccessible to the sum nested function.
+<p>
+Nested functions can get access to a copy of a variable defined in its
+immediately enclosing function.  An upvalue reference to a variable
+within a function extracts this copy when the function is evaluated to
+produce a closure.  A variable reference preceded by a percent sign
+signifies an upvalue reference.  Placing a percent sign in front of
+the x reference in sum makes the above example legal Lua code.
+<p>
+This poor substitute for static nested scoping has been adopted because it
+makes it easy to produce an implementation in which all non-global
+variables are stack allocated, however, one need not give up static nested scoping to have stack allocated non-globals.
+<p>
+The Python language previous to version 2.2 had scoping rules similar
+to Lua's current rules--each variable had either local or global scope.
+As of version 2.2, Python has static nested scoping.
+In Python's implementation, non-global variables referenced from a
+nested function are immutable.  With this extra assumption, stack
+allocated non-globals is easily implemented.  
+<p>
+Python's implementation demonstrates the validity of this approach.
+They have a fast implementation as a result of using flat closures, as
+described in 1984 by Luca Cardelli in a paper called "Compiling a
+Functional Language"<a href="http://citeseer.nj.nec.com/cardelli84compiling.html">[3]</a>.
+The relevant section is 4 on "Fetching variables".
+<p>
+For those of us who hope that future versions of Lua will have variables that have static nested
+scope, I suggest we can help by finding implementation techniques
+that can be used by the core Lua implementors.  I think we should
+carefully study the relevant sections of the Python 2.2 implementation
+for ideas, and make them available. 
+<p>
+<DL>
+<dt><dd>I'm not a Python programmer but these comments let me have a look at Pythons scoping rules.  If I got something wrong please correct me.  As I got it, Python 2.0 has exactly the same problems Lua has with nested functions.  No access to outer locals and the unavailability of local recursive functions.  The method used to pass variables to local functions was done by named parameters in the form <em>name=name</em>.  The first <em>name</em> is the formal parameter name of the function, the seconds name denotes the value from the outer scope frozen at function declaration time.  So, this has the same behaviour as the upvalues in Lua.  It's just a different syntax: in Python you put a <em>foo=foo</em> in the parameter list to access outer <em>foo</em>, in Lua you write <em>%foo</em> within the function to access the outer variable.  Semantics are the same.  Especially, you are unable to change the value of the outer variable, and later changes to the outer local will not be visible to already declared functions.  Lua has a strange limitation (which can be removed easily and without backward compatibility problems) that you can only access the directly enclosing scope.  I guess Python has the same problem - you have to pass the value from function to function.
+</DL>
+<p>
+<DL>
+<dt><dd>In Python 2.2 they changed the scoping rules so that the compiler automatically generates something equivalent to the <em>name=name</em> parameters.  You are still not able to change the the value of the outer name.  But somehow they can call local functions recursively now.  (How about two local functions calling each other?  Does that work?)  Maybe it has to do with the oddity that a local declared after a local function is visible by the function.  But it's still not the kind of lexical scoping one finds in Languages like Pascal or Scheme.
+</DL>
+<p>
+<DL>
+<dt><dd>The patch (for Lua 3.2) titled "writeable upvalues" I posted to lua-l implements the outer local semantics of Python 2.2.  The only missing magic is the recursive function call.  But it seems that this is not what most people would like to see (me included - mostly because of the recursive function call problem).
+</DL>
+<p>
+<DL>
+<dt><dd>-- ET
+</DL>
+<p>
+I believe programs written in a good very high-level language should
+be easily read by people only casually familiar with the language.
+With the exception of upvalues, I think Lua excels in this respect as
+it adopts Pascal-like syntax for control structures whose meaning is
+just what one would expect.  Programs that employ upvalues are
+unlikely to be understood by casual users.  One needs a manual to
+understand when they get their value.  Most people intuitively
+understand static nested scoping.  Making variables immutable when they are
+referenced from within a nested function puts a burden on the authors
+of a Lua program, but not on readers of the program.  I think Lua
+should be designed to meet the needs of readers foremost.
+<p>
+Here is a definition of static nested scoping:
+<p>
+<DL>
+<dt><dd>In a statically nested scoped language, the scope of an identifier is fixed at compile-time to be the smallest block (begin/end or function/procedure body) containing the identifier's declaration. This means that an identifier declared in some block is only accessible within that block and from procedures declared within it.
+</DL>
+<p>
+-- John D. Ramsdell
+<p>
+<p>
+<H3>References</H3>
+From <em>How to Design Programs</em> (a Scheme-based instructional text):
+<UL>
+<li> <a href="http://www.htdp.org/2001-01-18/Book/node104.htm">[Lexical Scope and Block Structure]</a>
+<li> <a href="http://www.htdp.org/2001-01-18/Book/node176.htm">[Assignment to Variables]</a>
+</UL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaScoping.html" >LuaScoping</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaScopingDiscussion" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaScopingDiscussion" >history</a><br>Last edited March 29, 2008 10:49 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaScopingDiscussion" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Csv Utils</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CsvUtils&amp;body=1" title="List pages referring to CsvUtils">Csv Utils</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Escape CSV quotes</H3>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Used to escape "'s by toCSV</span>
+
+<span class="keyword">function</span> escapeCSV (s)
+
+  <span class="keyword">if</span> <span class="library">string.find</span>(s, <span class="string">'[,"]'</span>) <span class="keyword">then</span>
+
+    s = <span class="string">'"'</span> .. <span class="library">string.gsub</span>(s, <span class="string">'"'</span>, <span class="string">'""'</span>) .. <span class="string">'"'</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> s
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<H3>Convert from CSV string to table</H3>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Convert from CSV string to table (converts a single line of a CSV file)</span>
+
+<span class="keyword">function</span> fromCSV (s)
+
+  s = s .. <span class="string">','</span>        <span class="comment">-- ending comma</span>
+
+  <span class="keyword">local</span> t = {}        <span class="comment">-- table to collect fields</span>
+
+  <span class="keyword">local</span> fieldstart = 1
+
+  <span class="keyword">repeat</span>
+
+    <span class="comment">-- next field is quoted? (start with `"'?)</span>
+
+    <span class="keyword">if</span> <span class="library">string.find</span>(s, <span class="string">'^"'</span>, fieldstart) <span class="keyword">then</span>
+
+      <span class="keyword">local</span> a, c
+
+      <span class="keyword">local</span> i  = fieldstart
+
+      <span class="keyword">repeat</span>
+
+        <span class="comment">-- find closing quote</span>
+
+        a, i, c = <span class="library">string.find</span>(s, <span class="string">'"("?)'</span>, i+1)
+
+      <span class="keyword">until</span> c ~= <span class="string">'"'</span>    <span class="comment">-- quote not followed by quote?</span>
+
+      <span class="keyword">if</span> <span class="keyword">not</span> i <span class="keyword">then</span> <span class="library">error</span>(<span class="string">'unmatched "'</span>) <span class="keyword">end</span>
+
+      <span class="keyword">local</span> f = <span class="library">string.sub</span>(s, fieldstart+1, i-1)
+
+      <span class="library">table.insert</span>(t, (<span class="library">string.gsub</span>(f, <span class="string">'""'</span>, <span class="string">'"'</span>)))
+
+      fieldstart = <span class="library">string.find</span>(s, <span class="string">','</span>, i) + 1
+
+    <span class="keyword">else</span>                <span class="comment">-- unquoted; find next comma</span>
+
+      <span class="keyword">local</span> nexti = <span class="library">string.find</span>(s, <span class="string">','</span>, fieldstart)
+
+      <span class="library">table.insert</span>(t, <span class="library">string.sub</span>(s, fieldstart, nexti-1))
+
+      fieldstart = nexti + 1
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">until</span> fieldstart &gt; <span class="library">string.len</span>(s)
+
+  <span class="keyword">return</span> t
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<H3>Convert from table to CSV string</H3>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Convert from table to CSV string</span>
+
+<span class="keyword">function</span> toCSV (tt)
+
+  <span class="keyword">local</span> s = <span class="string">""</span>
+
+<span class="comment">-- ChM 23.02.2014: changed pairs to ipairs </span>
+
+<span class="comment">-- assumption is that fromCSV and toCSV maintain data as ordered array</span>
+
+  <span class="keyword">for</span> _,p <span class="keyword">in</span> <span class="library">ipairs</span>(tt) <span class="keyword">do</span>  
+
+    s = s .. <span class="string">","</span> .. escapeCSV(p)
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">string.sub</span>(s, 2)      <span class="comment">-- remove first comma</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CsvUtils" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CsvUtils" >history</a><br>Last edited February 23, 2014 5:32 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CsvUtils" >(diff)</a>
+</body>
+</html>

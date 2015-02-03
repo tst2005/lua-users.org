@@ -1,0 +1,233 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Carp</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaCarp&amp;body=1" title="List pages referring to LuaCarp">Lua Carp</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua's <a href="http://www.lua.org/manual/5.1/manual.html#pdf-error">[error]</a> function accepts an optional <code>level</code> parameter indicating who up the call stack is to be blamed for the error when generating the error message.  Now, this is not always scalable since keeping track of the level can be error prone (especially following refactoring), and a function that uses <code>error</code> may be called at multiple different levels.
+<p>
+<H3>Solution A</H3>
+<p>
+The solution below is based on <a href="http://search.cpan.org/~nwclark/perl-5.8.8/lib/Carp.pm">[Perl's Carp]</a> module but adapted to Lua.  This provides a <code>croak</code> function as a replacement for <code>error</code>.  <code>croak</code> calls <code>error</code> but before doing so, it determines which level to use by looking up the call stack until the current environment changes.
+<p>
+First, here's the main module:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Carp.lua</span>
+
+<span class="comment">-- This package is based on Perl Carp</span>
+
+<span class="comment">-- (http://search.cpan.org/~nwclark/perl-5.8.8/lib/Carp.pm)</span>
+
+<span class="comment">-- David Manura, 2006-09, 2007-07</span>
+
+
+
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="keyword">function</span> M.croak(message)
+
+  <span class="keyword">local</span> current_env = <span class="library">getfenv</span>(2)
+
+  <span class="keyword">local</span> level = 2
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    <span class="keyword">local</span> is_success, result = <span class="library">pcall</span>(<span class="keyword">function</span>()
+
+      <span class="keyword">return</span> <span class="library">getfenv</span>(level + 2)
+
+    <span class="keyword">end</span>)
+
+    <span class="keyword">if</span> is_success <span class="keyword">then</span>
+
+      <span class="keyword">local</span> env = result
+
+      <span class="comment">--print("DEBUG:level", level, env._NAME)</span>
+
+      <span class="keyword">if</span> env ~= current_env <span class="keyword">then</span>
+
+        <span class="comment">--print("DEBUG:found", level, env._NAME)</span>
+
+        <span class="library">error</span>(message, level)
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">elseif</span> <span class="library">string.find</span>(result, <span class="string">"(invalid level)"</span>) <span class="keyword">then</span>
+
+      <span class="keyword">break</span>
+
+    <span class="keyword">end</span>
+
+    level = level + 1
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+Now let's say you write a module:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Calculator.lua</span>
+
+
+
+<span class="comment">-- Create environment for module (needed for Carp)</span>
+
+<span class="keyword">local</span> env = <span class="library">setmetatable</span>({}, {__index = <span class="library">_G</span>})
+
+<span class="library">setfenv</span>(1, env)
+
+
+
+<span class="keyword">local</span> M = {} 
+
+<span class="keyword">local</span> Carp = <span class="library">require</span> <span class="string">"Carp"</span>
+
+
+
+<span class="keyword">function</span> M.calculate3()
+
+  Carp.croak(<span class="string">"calculation failed"</span>)
+
+  <span class="keyword">return</span> 1
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> M.calculate2()
+
+  <span class="keyword">local</span> result = M.calculate3()
+
+  <span class="keyword">return</span> result + 1
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> M.calculate()
+
+  <span class="keyword">return</span> M.calculate2()
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+And you write a program that uses the module:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- example.lua</span>
+
+<span class="comment">-- This uses the calculator module.</span>
+
+
+
+<span class="keyword">local</span> Calc = <span class="library">require</span> <span class="string">"Calculator"</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> main()
+
+  <span class="keyword">local</span> result = Calc.calculate()
+
+  <span class="library">print</span>(result)
+
+<span class="keyword">end</span>
+
+
+
+main()
+
+</pre>
+
+</DL>
+<p>
+Here's the output:
+<p>
+<DL>
+<dt><dd><pre>
+
+lua: example.lua:7: calculation failed
+
+stack traceback:
+
+        [C]: in function 'error'
+
+        ./Carp.lua:20: in function 'croak'
+
+        ./Calculator.lua:10: in function 'calculate3'
+
+        ./Calculator.lua:15: in function &lt;./Calculator.lua:14&gt;
+
+        (tail call): ?
+
+        example.lua:7: in function 'main'
+
+        example.lua:11: in main chunk
+
+        [C]: ?
+
+</pre>
+</DL>
+<p>
+Note: this might not work correctly with tail calls.  Tail calls will be skipped since Lua does not report an environment for them.
+<p>
+<H3>Alternate Solutions</H3>
+<p>
+A second, alternate approach mentioned by <a href="../wiki/RiciLake.html" >RiciLake</a> was to write a custom traceback function, the idea being that the traceback function checks the env table at each level and doesn't start producing tracebacks until it changes from the current one.
+<p>
+A third approach mentioned by <a href="../wiki/RiciLake.html" >RiciLake</a> was to simply check the object at stack index 1 in each frame, the idea being that if you were nesting method calls, you'd always have the same self, but that sometimes overshot.  There was a desire to in some way to mark the stack, but it wasn't obvious how to do that.
+<p>
+TODO--comments on the merits of these approaches, anyone?
+<p>
+Note: Code is Lua 5.1 (not 5.0) compatible.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaCarp" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaCarp" >history</a><br>Last edited August 9, 2007 2:16 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaCarp" >(diff)</a>
+</body>
+</html>

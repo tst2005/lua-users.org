@@ -1,0 +1,319 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Binding Enums To Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=BindingEnumsToLua&amp;body=1" title="List pages referring to BindingEnumsToLua">Binding Enums To Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Although there are a lot of ways to bind enums into Lua, the most Lua-like way is to simply represent each enum as a character string. This avoids issues like name pollution, and provides the scripter with a simple and easy to understand interface.
+<p>
+Here is a very simple (and incomplete) example. The goal was to create a cron-like facility, with a very simple interface:
+<p>
+<DL>
+<dt><dd><pre>
+
+-- add a task to be run on a given day of the week
+
+cron.add("Monday", task)
+
+
+
+-- return an iterator of tasks for a given day of the week
+
+cron.tasks("Wednesday")
+
+
+
+</pre>
+</DL>
+<p>
+The following code does not actually implement these functions; it simply sketches a way of introducing the enums for the days of the week. Most of it is boilerplate code.
+<p>
+<DL>
+<dt><dd><pre>
+
+
+
+/*
+
+   The auxiliary function to convert an argument to an enum
+
+   This function assumes that the weekday table is the first
+
+   upvalue, which in this case it is.
+
+ */
+
+static int get_weekday (lua_State *L, int argno)
+
+{
+
+  int weekday;
+
+  lua_pushvalue(L, argno);
+
+  lua_gettable(L, lua_upvalueindex(1));
+
+  weekday = lua_tonumber(L, -1);
+
+  lua_pop(L, 1);
+
+  if (weekday == 0) {
+
+    /* This works because there is no 0 in the weekday
+
+        table and lua_tonumber returns 0 for any non-number.
+
+        We could have used a lua_isnil() test instead, had 0
+
+        been a possible return.
+
+     */
+
+    luaL_typerror(L, argno, "weekday");
+
+  }
+
+  return weekday;
+
+}
+
+
+
+/*
+
+   These functions actually need to be implemented. All
+
+   that is illustrated here is how to get the enum value.
+
+ */ 
+
+static int cron_add (lua_State *L) 
+
+{
+
+  int weekday = get_weekday(L, 1);
+
+  // ...
+
+}
+
+
+
+static int cron_tasks (lua_State *L)
+
+{
+
+  int weekday = get_weekday(L, 1);
+
+  // ...
+
+}
+
+
+
+
+
+/* As usual, a luaL_reg of function names and functions */
+
+static const luaL_reg cron_funcs[] = {
+
+  {"add", cron_add},
+
+  {"tasks", cron_tasks}
+
+  {NULL, NULL}
+
+};
+
+ 
+
+
+
+/*
+
+   The function which creates the library; it must start by
+
+   creating the enum table. This function needs to be added
+
+   to the list of open functions called when the lua_State is
+
+   created (unless the library is going to be loaded dynamically,
+
+   of course, but that requires the same function.)
+
+ */
+
+int luaopen_cron (lua_State *L) {
+
+  /* make the weekday table */
+
+  lua_newtable(L);
+
+  lua_pushliteral(L, "Monday"); lua_pushnumber(L, 1); lua_settable(L, -3);
+
+  lua_pushliteral(L, "Tuesday"); lua_pushnumber(L, 2); lua_settable(L, -3);
+
+  lua_pushliteral(L, "Wednesday"); lua_pushnumber(L, 3); lua_settable(L, -3);
+
+  lua_pushliteral(L, "Thursday"); lua_pushnumber(L, 4); lua_settable(L, -3);
+
+  lua_pushliteral(L, "Friday"); lua_pushnumber(L, 5); lua_settable(L, -3);
+
+  lua_pushliteral(L, "Saturday"); lua_pushnumber(L, 6); lua_settable(L, -3);
+
+  lua_pushliteral(L, "Sunday"); lua_pushnumber(L, 7); lua_settable(L, -3);
+
+  /* Register the library */
+
+  luaL_openlib(L, "cron", cron_funcs, 1);
+
+  return 1;
+
+}
+
+        </pre>
+</DL>
+<p>
+The sequence of pushliteral, pushnumber, settable is a big ugly and hard to maintain. Fortunately, we can solve that with a macro.
+<p>
+<DL>
+<dt><dd><pre>
+
+#define LUA_ENUM(L, name, val) \
+
+  lua_pushlstring(L, #name, sizeof(#name)-1); \
+
+  lua_pushnumber(L, val); \
+
+  lua_settable(L, -3);
+
+
+
+</pre>
+</DL>
+<p>
+Now we can even do this:
+<p>
+<DL>
+<dt><dd><pre>
+
+  lua_newtable(L);
+
+  {
+
+    int i = 1;
+
+    LUA_ENUM(L, Monday, i++);
+
+    LUA_ENUM(L, Tuesday, i++);
+
+    LUA_ENUM(L, Wednesday, i++);
+
+    LUA_ENUM(L, Thursday, i++);
+
+    LUA_ENUM(L, Friday, i++);
+
+    LUA_ENUM(L, Saturday, i++);
+
+    LUA_ENUM(L, Sunday, i++);
+
+  }
+
+</pre>
+</DL>
+<p>
+But we can do even better than that, with a little bit of CPP magic. We could use the same data to create both a C enum and the Lua conversion table.
+<p>
+<DL>
+<dt><dd><pre>
+
+#define C_ENUM_HELPER(cname, luaname)  cname,
+
+#define LUA_ENUM_HELPER(cname, luaname) LUA_ENUM(L, luaname, cname)
+
+
+
+#define WEEKDAY \
+
+  E(WEEKDAY_MONDAY, Monday) \
+
+  E(WEEKDAY_TUESDAY, Tuesday) \
+
+  E(WEEKDAY_WEDNESDAY, Wednesday) \
+
+  E(WEEKDAY_THURSDAY, Thursday) \
+
+  E(WEEKDAY_FRIDAY, Friday) \
+
+  E(WEEKDAY_SATURDAY, Saturday) \
+
+  E(WEEKDAY_SUNDAY, Sunday)
+
+
+
+/* In the c header file: */
+
+#define E C_ENUM_HELPER
+
+
+
+enum Weekday {
+
+WEEKDAY
+
+WEEKDAY_LAST  /* Avoid the trailing comma problem */ 
+
+};
+
+
+
+#undef E
+
+
+
+/* In the Lua file: */
+
+#define E LUA_ENUM_HELPER
+
+
+
+  lua_newtable(L);
+
+  WEEKDAY
+
+
+
+#undef E
+
+
+
+</pre>
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=BindingEnumsToLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=BindingEnumsToLua" >history</a><br>Last edited January 7, 2010 9:57 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=BindingEnumsToLua" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,683 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: String Query</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=StringQuery&amp;body=1" title="List pages referring to StringQuery">String Query</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+stringquery is a string pattern matching and transformation library inspired partly by <a href="http://en.wikipedia.org/wiki/JQuery.html">[jQuery]</a>.
+<p>
+<H3>Description</H3>
+<p>
+Primary design qualities are
+<p>
+<UL>
+<li> Design inspired somewhat by <a href="http://en.wikipedia.org/wiki/JQuery.html">[jQuery]</a> but applied to raw strings
+<li> Small and written in pure Lua
+<li> Implemented in terms of the Lua pattern matching library (<code>string.*</code>)
+<li> Much more expressive than Lua pattern matching.
+</UL>
+<p>
+The semblance to jQuery is that we construct a query object containing a set of selections for the thing being studied, we then perform a series of chained method calls to refine and alter those selections (all at once as a set), and finally we perform an operation on those selections (e.g. replace or return).  See examples in the below test suite.
+<p>
+<H3>Status</H3>
+<p>
+The design of this library is preliminary and originally intended only as an experiment.  Improvements welcome.
+<p>
+<H3>Author</H3>
+<p>
+<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>test_stringquery.lua</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- test_stringquery.lua</span>
+
+<span class="comment">-- test of dmlib.stringquery.</span>
+
+
+
+<span class="keyword">local</span> SQ = <span class="library">require</span> <span class="string">"dmlib.stringquery"</span>
+
+<span class="keyword">local</span> sq = SQ.sq
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> asserteq(a,b)
+
+  <span class="keyword">if</span> a ~= b <span class="keyword">then</span>
+
+    <span class="library">error</span>(<span class="string">'['</span> .. <span class="library">tostring</span>(a) .. <span class="string">'] ~= ['</span> .. <span class="library">tostring</span>(b) .. <span class="string">']'</span>, 2)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">assert</span>(
+
+  sq(<span class="string">"this is a test"</span>):match(<span class="string">"%w+"</span>):replace(<span class="string">'_'</span>)
+
+  == <span class="string">'_ _ _ _'</span>
+
+)
+
+
+
+<span class="library">assert</span>(
+
+  sq(<span class="string">'&lt;p&gt;this is a &lt;a href="../index.html"&gt;test&lt;/a&gt; http://lua-users.org http://lua.org &lt;/p&gt;'</span>)
+
+  :match(<span class="string">"&lt;[^&gt;]*&gt;"</span>)
+
+  :invert()
+
+  :match(<span class="string">'http://[^ ]+'</span>)
+
+  :filter(<span class="string">'user'</span>)
+
+  :replace(<span class="keyword">function</span>(s) <span class="keyword">return</span> <span class="string">'&lt;a href="'</span> .. s .. <span class="string">'"&gt;'</span> .. s .. <span class="string">'&lt;/a&gt;'</span> <span class="keyword">end</span>)
+
+  == <span class="string">'&lt;p&gt;this is a &lt;a href="../index.html"&gt;test&lt;/a&gt; &lt;a href="http://lua-users.org"&gt;'</span> ..
+
+     <span class="string">'http://lua-users.org&lt;/a&gt; http://lua.org &lt;/p&gt;'</span>
+
+)
+
+
+
+<span class="library">assert</span>(
+
+  sq(<span class="string">"the red book, the green book, and the blue book"</span>)
+
+  :match(<span class="string">"%w+ book"</span>)
+
+  :filter(SQ.any(<span class="string">"^green "</span>, <span class="string">"^red"</span>))
+
+  :replace(<span class="library">string.upper</span>)
+
+  == <span class="string">'the RED BOOK, the GREEN BOOK, and the blue book'</span>
+
+)
+
+
+
+<span class="comment">-- solution to problem from http://lua-users.org/wiki/FrontierPattern</span>
+
+<span class="library">assert</span>(
+
+  sq(<span class="string">"the QUICK BROwn fox"</span>)
+
+  :match(<span class="string">"%w+"</span>)
+
+  :filter(<span class="string">"^[A-Z]*$"</span>)
+
+  :get_unpacked()
+
+  == <span class="string">'QUICK'</span>
+
+)
+
+
+
+<span class="comment">-- examples in docs</span>
+
+asserteq(
+
+  <span class="library">table.concat</span>(sq<span class="string">'Alpha BETA GammA'</span>:match<span class="string">'%w+'</span>:match<span class="string">'[A-Z]+'</span>:get(), <span class="string">','</span>),
+
+  <span class="string">'A,BETA,G,A'</span> )
+
+asserteq(
+
+  <span class="library">table.concat</span>(sq<span class="string">'this is a test'</span>:match<span class="string">'%w+'</span>:filter<span class="string">'^....$'</span>:get(), <span class="string">','</span>),
+
+  <span class="string">'this,test'</span> )
+
+asserteq(
+
+  <span class="library">table.concat</span>(sq<span class="string">'123 abc 234'</span>:match<span class="string">'%a+'</span>:invert():get(), <span class="string">','</span>),
+
+  <span class="string">'123 , 234'</span> )
+
+asserteq(
+
+  <span class="library">table.concat</span>({sq<span class="string">'this is a test'</span>:match<span class="string">'%w+'</span>:get_unpacked()}, <span class="string">','</span>),
+
+  <span class="string">'this,is,a,test'</span> )
+
+asserteq(
+
+  <span class="library">table.concat</span>(sq<span class="string">'hello'</span>:get(), <span class="string">','</span>),
+
+  <span class="string">'hello'</span> )
+
+asserteq(
+
+  SQ.any(<span class="string">'%a%d'</span>, <span class="string">'%d%a'</span>)(<span class="string">' a1 '</span>), <span class="keyword">true</span> )
+
+asserteq(
+
+  SQ.all(<span class="string">'%a%d'</span>, <span class="string">'%d%a'</span>)(<span class="string">' a1 2b '</span>), <span class="keyword">true</span> )
+
+
+
+<span class="library">print</span> <span class="string">'DONE'</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>dmlib/stringquery.lua</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- dmlib/stringquery.lua (dmlib.stringquery)</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- String matching/replacing library inspired partly by jquery</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Warning: preliminary design.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- (c) 2009 David Manura, Licensed under the same terms as Lua (MIT license).</span>
+
+
+
+<span class="keyword">local</span> M = {}
+
+
+
+
+
+<span class="comment">-- Replace array part of table dst with array part of table src.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> tioverride(dst, src)
+
+  <span class="keyword">for</span> k    <span class="keyword">in</span> <span class="library">ipairs</span>(dst) <span class="keyword">do</span> dst[k] = <span class="keyword">nil</span> <span class="keyword">end</span>
+
+  <span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="library">ipairs</span>(src) <span class="keyword">do</span> dst[k] = v <span class="keyword">end</span>
+
+  <span class="keyword">return</span> dst
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Returns array of substrings in s, paritioned</span>
+
+<span class="comment">-- by array of ranges (1-based start and end indicies).</span>
+
+<span class="comment">-- Always returns odd-number of substrings (even indexed</span>
+
+<span class="comment">-- substrings are inside the ranges).</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--   partition("abcdefg", {{1,2},{4,5}})</span>
+
+<span class="comment">--   --&gt; {'','ab', 'c','de', 'fg'}</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> partition(s, ranges)
+
+  <span class="keyword">local</span> result = {}
+
+  <span class="keyword">local</span> i = 1
+
+  <span class="keyword">for</span> _,range <span class="keyword">in</span> <span class="library">ipairs</span>(ranges) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> ia,ib = <span class="library">unpack</span>(range)
+
+    <span class="library">table.insert</span>(result, s:sub(i,ia-1))
+
+    <span class="library">table.insert</span>(result, s:sub(ia,ib))
+
+    i = ib+1
+
+  <span class="keyword">end</span>
+
+  <span class="library">table.insert</span>(result, s:sub(i))
+
+  <span class="keyword">return</span> result
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Helper function.</span>
+
+<span class="comment">-- Processes argument, allowing function or</span>
+
+<span class="comment">-- pattern matching function represented as string.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> getarg(o)
+
+  <span class="keyword">local</span> f
+
+  <span class="keyword">if</span> <span class="library">type</span>(o) == <span class="string">'string'</span> <span class="keyword">then</span>
+
+    f = <span class="keyword">function</span>(s) <span class="keyword">return</span> s:match(o) <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    f = o
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> f
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> mt = {}
+
+mt.__index = mt
+
+
+
+
+
+<span class="comment">-- Defines new selections based on matches of</span>
+
+<span class="comment">-- pattern inside current selections.</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--   sq'Alpha BETA GammA':match'%w+':match'[A-Z]+':get()</span>
+
+<span class="comment">--   --&gt; {'A', 'BETA', 'G', 'A'}</span>
+
+<span class="keyword">function</span> mt:match(pat)
+
+  <span class="keyword">local</span> results = {}
+
+  <span class="keyword">for</span> _,range <span class="keyword">in</span> <span class="library">ipairs</span>(self) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> ia0,ib0 = <span class="library">unpack</span>(range)
+
+    <span class="keyword">local</span> stmp = self.s:sub(ia0,ib0)
+
+    <span class="keyword">local</span> ia = 1
+
+    <span class="keyword">repeat</span>
+
+      <span class="keyword">local</span> ib
+
+      ia,ib = stmp:find(pat, ia)
+
+      <span class="keyword">if</span> ia <span class="keyword">then</span>
+
+        <span class="library">table.insert</span>(results, {ia+ia0-1,ib+ia0-1})
+
+        ia = ib+1
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">until</span> <span class="keyword">not</span> ia
+
+  <span class="keyword">end</span>
+
+  tioverride(self, results)
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Defines new selections based only on current selections</span>
+
+<span class="comment">-- that match object o.  o can be a function (s -&gt; b),</span>
+
+<span class="comment">-- return returns Boolean b whether string s matches.</span>
+
+<span class="comment">-- Alternately o can be a string pattern.</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--   sq'this is a test':match'%w+':filter'^....$':get()</span>
+
+<span class="comment">--   --&gt; {'this', 'test'}</span>
+
+<span class="keyword">function</span> mt:filter(o)
+
+  <span class="keyword">local</span> f = getarg(o)
+
+
+
+  <span class="keyword">local</span> result = {}
+
+  <span class="keyword">for</span> _,range <span class="keyword">in</span> <span class="library">ipairs</span>(self) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> ia,ib = <span class="library">unpack</span>(range)
+
+    <span class="keyword">local</span> si = self.s:sub(ia,ib)
+
+    <span class="keyword">if</span> f(si) <span class="keyword">then</span>
+
+      <span class="library">table.insert</span>(result, {ia,ib})
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  tioverride(self, result)
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Defines new selections that form the inverse (compliment)</span>
+
+<span class="comment">-- of the current selections.</span>
+
+<span class="comment">-- warning: might not be fully correct (e.g. would</span>
+
+<span class="comment">-- sq(s):invert():invert() == sq(s)?).</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--   sq'123 abc 234':match'%a+':invert():get()</span>
+
+<span class="comment">--   --&gt; {'123 ', ' 234'}</span>
+
+<span class="keyword">function</span> mt:invert()
+
+  <span class="keyword">local</span> result = {}
+
+  <span class="keyword">local</span> i=1
+
+  <span class="keyword">for</span> _,range <span class="keyword">in</span> <span class="library">ipairs</span>(self) <span class="keyword">do</span>
+
+    <span class="keyword">local</span> ia,ib = <span class="library">unpack</span>(range)
+
+    <span class="keyword">if</span> ia &gt; i <span class="keyword">then</span>
+
+      <span class="library">table.insert</span>(result, {i,ia-1})
+
+    <span class="keyword">end</span>
+
+    i = ib+1
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> i &lt; #self.s <span class="keyword">then</span>
+
+    <span class="library">table.insert</span>(result, {i,#self.s})
+
+  <span class="keyword">end</span>
+
+  tioverride(self, result)
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Replace selections using o and return string.</span>
+
+<span class="comment">-- o can be a function (s1 -&gt; s2) that indicates that</span>
+
+<span class="comment">-- string s1 should be replaced with string s2).</span>
+
+<span class="comment">-- Alternately, o can be a string that all selections</span>
+
+<span class="comment">-- will be replaced with.</span>
+
+<span class="keyword">function</span> mt:replace(o)
+
+  <span class="keyword">local</span> f
+
+  <span class="keyword">if</span> <span class="library">type</span>(o) == <span class="string">'string'</span> <span class="keyword">then</span>
+
+    f = <span class="keyword">function</span>(s) <span class="keyword">return</span> o <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    f = o
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> result = partition(self.s, self)
+
+  <span class="keyword">for</span> i=2,#result,2 <span class="keyword">do</span>
+
+    result[i] = f(result[i]) <span class="keyword">or</span> <span class="string">''</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> <span class="library">table.concat</span>(result, <span class="string">''</span>)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Returns all string selections as array.</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--   sq'this is a test':match'%w+':get()</span>
+
+<span class="comment">--   --&gt; {'this', 'is', 'a', 'test'}</span>
+
+<span class="keyword">function</span> mt:get()
+
+  <span class="keyword">local</span> parts = partition(self.s, self)
+
+  <span class="keyword">local</span> result = {}
+
+  <span class="keyword">for</span> i=2,#parts,2 <span class="keyword">do</span>
+
+    <span class="library">table.insert</span>(result, parts[i])
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> result 
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Returns all string selections as unpacked list.</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--   sq'this is a test':match'%w+':get()</span>
+
+<span class="comment">--   --&gt; 'this', 'is', 'a', 'test'</span>
+
+<span class="keyword">function</span> mt:get_unpacked()
+
+  <span class="keyword">return</span> <span class="library">unpack</span>(self:get())
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Prints selections.</span>
+
+<span class="comment">-- For debugging.  Requires penlight 0.6.3</span>
+
+<span class="keyword">function</span> mt:print_dump()
+
+  <span class="keyword">local</span> dump = <span class="library">require</span> <span class="string">"pl.pretty"</span> . write
+
+  <span class="library">print</span>(dump(self))
+
+  <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Constructor for string query given string s.</span>
+
+<span class="comment">-- The selection by default is the entire string.</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--   sq'hello':get() --&gt; {'hello'}</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> sq(s)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({s=s, {1,#s}}, mt)
+
+<span class="keyword">end</span>
+
+M.sq = sq
+
+
+
+
+
+<span class="comment">-- Returns a predicate function that matches</span>
+
+<span class="comment">-- *any* of the given predicate functions.</span>
+
+<span class="comment">-- Predicates can also be represented as string</span>
+
+<span class="comment">-- patterns.</span>
+
+<span class="comment">-- Useful for sq(s):filter.</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--   any('%a%d', '%d%a')(' a1 ') --&gt; true</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> any(...)
+
+  <span class="keyword">local</span> <span class="library">os</span> = {...}
+
+  <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(<span class="library">os</span>) <span class="keyword">do</span> <span class="library">os</span>[i] = getarg(v) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(s)
+
+    <span class="keyword">for</span> _,o <span class="keyword">in</span> <span class="library">ipairs</span>(<span class="library">os</span>) <span class="keyword">do</span>
+
+      <span class="keyword">if</span> o(s) <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="keyword">false</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+M.any = any
+
+
+
+
+
+<span class="comment">-- Returns a predicate function that matches</span>
+
+<span class="comment">-- *all* of the given predicate functions.</span>
+
+<span class="comment">-- Predicates can also be represented as string</span>
+
+<span class="comment">-- patterns.</span>
+
+<span class="comment">-- Useful for sq(s):filter.</span>
+
+<span class="comment">-- Example:</span>
+
+<span class="comment">--   all('%a%d', '%d%a')(' a1 2b ') --&gt; true</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> all(...)
+
+  <span class="keyword">local</span> <span class="library">os</span> = {...}
+
+  <span class="keyword">for</span> i,v <span class="keyword">in</span> <span class="library">ipairs</span>(<span class="library">os</span>) <span class="keyword">do</span> <span class="library">os</span>[i] = getarg(v) <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(s)
+
+    <span class="keyword">for</span> _,o <span class="keyword">in</span> <span class="library">ipairs</span>(<span class="library">os</span>) <span class="keyword">do</span>
+
+      <span class="keyword">if</span> <span class="keyword">not</span> o(s) <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">false</span> <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> <span class="keyword">true</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+M.all = all
+
+
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/ExPattern.html" >ExPattern</a> - another pattern matching library
+<li> <a href="../wiki/SequenceAdapters.html" >SequenceAdapters</a> - uses uses a design pattern, also used here, where chained method calls on an wrapper object are applied to all objects contained in the wrapper object.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=StringQuery" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=StringQuery" >history</a><br>Last edited October 31, 2009 6:46 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=StringQuery" >(diff)</a>
+</body>
+</html>

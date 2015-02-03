@@ -1,0 +1,179 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Expression Templates In Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ExpressionTemplatesInLua&amp;body=1" title="List pages referring to ExpressionTemplatesInLua">Expression Templates In Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<em>Expression templates</em> is a technique used in C++ for passing expressions as function arguments and manipulating those expressions. <a href="http://ubiety.uwaterloo.ca/~tveldhui/papers/Expression-Templates/exprtmpl.html">[Veldhuizen]</a>  Further background information can be found in <a href="http://www.ddj.com/cpp/184401627">[1]</a><a href="http://en.wikipedia.org/wiki/Blitz%2B%2B.html">[2]</a>.
+<p>
+Here is an example of using an expression-template-like technique in Lua.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Expression object.</span>
+
+<span class="keyword">local</span> expression_mt = {}
+
+<span class="keyword">function</span> Expression(name)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>(
+
+    {name=name, eval=<span class="keyword">function</span>(vars) <span class="keyword">return</span> vars[name] <span class="keyword">end</span>},
+
+    expression_mt)
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> eval(o, vars)
+
+  <span class="keyword">if</span> <span class="library">type</span>(o) == <span class="string">'table'</span> <span class="keyword">then</span> <span class="keyword">return</span> o(vars) <span class="keyword">else</span> <span class="keyword">return</span> o <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> expression_mt.__add(a, b)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>(
+
+    {eval=<span class="keyword">function</span>(vars) <span class="keyword">return</span> eval(a, vars) + eval(b, vars) <span class="keyword">end</span>},
+
+    expression_mt)
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> expression_mt.__pow(a, b)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>(
+
+    {eval=<span class="keyword">function</span>(vars) <span class="keyword">return</span> eval(a, vars) ^ eval(b, vars) <span class="keyword">end</span>},
+
+    expression_mt)
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> expression_mt.__call(a, vars)
+
+  <span class="keyword">return</span> a.eval(vars)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- auto-create expression objects from globals</span>
+
+<span class="keyword">local</span> G_mt = {}
+
+<span class="keyword">function</span> G_mt:__index(k)
+
+  <span class="keyword">return</span> Expression(k)
+
+<span class="keyword">end</span>
+
+<span class="library">setmetatable</span>(<span class="library">_G</span>, G_mt)
+
+
+
+<span class="comment">-- example usage:</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> sum(expr, first, last)
+
+  <span class="keyword">local</span> result = 0
+
+  <span class="keyword">for</span> x=first,last <span class="keyword">do</span>
+
+    result = result + expr{x=x}
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> result
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span>( sum(x^2 + 1, 1, 10) )  <span class="comment">--&gt; 395</span>
+
+</pre>
+
+</DL>
+<p>
+Compare:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>( sum(x^2 + 1, 1, 10) )
+
+</pre>
+
+</DL>
+<p>
+with a more conventional approach:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>( sum(<span class="keyword">function</span>(x) <span class="keyword">return</span> x^2 + 1 <span class="keyword">end</span>, 1, 10) )
+
+</pre>
+
+</DL>
+<p>
+In the latter case, the function "<code>function(x) return x^2 + 1 end</code>" is a black box to the function <code>sum</code> (bar <code>sum</code> doing <code>string.dump</code> on the function and examining bytecodes).  <code>sum</code> can merely invoke the function but cannot see the implementation inside it.  In the former case, the individual operations inside <code>x^2 + 1</code> can be made accessible to <code>sum</code>.
+<p>
+To illustrate the power of this, the example could be rewritten in order to do symbolic integration on expressions <a href="http://www.ddj.com/cpp/184401627">[1]</a>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>( integral(x^2 + 1) )  <span class="comment">--&gt; expression object representing the</span>
+
+                            <span class="comment">--- polynomial (1/3)*x^3 + x</span>
+
+
+
+<span class="library">print</span>( sum(integral(x^2 + 1), 1, 10 )  <span class="comment">--&gt; 1063.333...</span>
+
+</pre>
+
+</DL>
+<p>
+Note that Lua operations not supporting metamethods (e.g. <code>and</code>/<code>or</code>/<code>not</code>) cannot necessarily be used inside expressions in this technique.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaGenPlusPlus.html" >LuaGenPlusPlus</a> - an actual use of C++ expression templates
+<li> <a href="http://www.lua.org/slides.html#Overloading%20with%20fallbacks">[Overloading with fallbacks]</a> - contains a Lua 4 example that bears some resemblance to the above code
+<li> <a href="../wiki/SourcePreprocessing.html" >SourcePreprocessing</a> - has somewhat similar applicability
+<li> <a href="http://en.wikipedia.org/wiki/Strict_programming_language.html">[Wikipedia: Strict programming language]</a> / <a href="http://en.wikipedia.org/wiki/Lazy_evaluation.html">[Wikipedia: Lazy evaluation]</a>
+<li> <a href="../wiki/SymbolicDifferentiation.html" >SymbolicDifferentiation</a> - uses expression objects
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ExpressionTemplatesInLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ExpressionTemplatesInLua" >history</a><br>Last edited May 7, 2009 2:49 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ExpressionTemplatesInLua" >(diff)</a>
+</body>
+</html>

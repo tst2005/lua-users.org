@@ -1,0 +1,527 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Eliza Classic</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteElizaClassic&amp;body=1" title="List pages referring to SciteElizaClassic">Scite Eliza Classic</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This is Joseph Weizenbaum's classic 1966 Eliza program ported to SciTE, updated from a version dated January 2005. This new script works much better, please see the comments on how to use it in the source below.
+<p>
+<hr>Sample output:
+<p>
+<pre>
+
+WELCOME TO ANOTHER SESSION WITH
+
+YOUR COMPUTER PSYCHIATRIST, ELIZA
+
+
+
+IT SURE IS NEAT TO HAVE YOU DROP BY
+
+
+
+hi there
+
+THAT'S SO... PLEASE CONTINUE...
+
+
+
+thanks for all the fish
+
+I UNDERSTAND...
+
+</pre>
+<p>
+<hr><pre class="code">
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- Joseph Weizenbaum's classic Eliza ported to SciTE Version 2</span>
+
+<span class="comment">-- Kein-Hong Man &lt;khman@users.sf.net&gt; 20060905</span>
+
+<span class="comment">-- This program is hereby placed into PUBLIC DOMAIN</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- HOW TO USE</span>
+
+<span class="comment">-- * This program is for recreational purposes only. :-)</span>
+
+<span class="comment">-- * ClassicEliza function will open a new buffer, then type away...</span>
+
+<span class="comment">-- * Eliza recognizes one line of input only (if you are typing very</span>
+
+<span class="comment">--   long lines, please consider seeing a real person.)</span>
+
+<span class="comment">-- * Eliza will not interfere with other buffers or handlers, and is</span>
+
+<span class="comment">--   compatible with extman.</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- Original ELIZA paper:</span>
+
+<span class="comment">--   ELIZA--A Computer Program For the Study of Natural Language</span>
+
+<span class="comment">--   Communication Between Man and Machine,</span>
+
+<span class="comment">--   Joseph Weizenbaum, 1966, Communications of the ACM Volume 9,</span>
+
+<span class="comment">--   Number 1 (January 1966): 36-35.</span>
+
+<span class="comment">--   URL: http://i5.nyu.edu/~mm64/x52.9265/january1966.html</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- A copy of the original BASIC source of this Lua version of ELIZA can</span>
+
+<span class="comment">-- be found at Josep Subirana's ELIZA download page.</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- NOTES</span>
+
+<span class="comment">-- * Modifications made to fit the program into SciTE...</span>
+
+<span class="comment">-- * For historical accuracy, functionality is more-or-less identical,</span>
+
+<span class="comment">--   as is the use of an all upper-case alphabet for output.</span>
+
+<span class="comment">-- * There is really no point extending this program. Many other more</span>
+
+<span class="comment">--   advanced Eliza-type programs exist. Good candidates for porting are</span>
+
+<span class="comment">--   EMACS' doctor.el and Perl's Chatbot-Eliza.</span>
+
+<span class="comment">-- * One difference is keyword are matched by iterating through a hash</span>
+
+<span class="comment">--   array, so matching order will be different from initialization order.</span>
+
+<span class="comment">-- * In order to avoid keeping any internal state, this Eliza does not</span>
+
+<span class="comment">--   remember your name.</span>
+
+<span class="comment">-- * Input is now case-insensitive.</span>
+
+<span class="comment">-- * The original used backticks for apostrophes, this was fixed.</span>
+
+<span class="comment">-- * A couple of spelling mistakes in strings and comments fixed.</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- constants and primitives</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="keyword">local</span> SIG = <span class="string">"SciTE_ClassicEliza"</span>
+
+
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- simple check for extman, partially emulate if okay to do so</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="keyword">if</span> OnChar <span class="keyword">and</span> <span class="keyword">not</span> scite_Command <span class="keyword">then</span>
+
+  Error(<span class="string">"There is an OnChar conflict, please use extman"</span>)
+
+<span class="keyword">elseif</span> <span class="keyword">not</span> scite_OnChar <span class="keyword">then</span>
+
+  <span class="comment">-- simple way to add a handler only, can't remove like extman does</span>
+
+  <span class="keyword">local</span> _OnChar
+
+  scite_OnChar = <span class="keyword">function</span>(f) _OnChar = f <span class="keyword">end</span>
+
+  OnChar = <span class="keyword">function</span>(c) <span class="keyword">if</span> _OnChar <span class="keyword">then</span> <span class="keyword">return</span> _OnChar(c) <span class="keyword">end</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- Eliza main routine, processes user input</span>
+
+<span class="comment">-- * Input is case insensitive. No punctuation except apostrophes,</span>
+
+<span class="comment">--   as in: don't you're i'm i've you've.</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> Eliza(text)
+
+  <span class="keyword">local</span> response = <span class="string">""</span>
+
+  <span class="keyword">local</span> user = <span class="library">string.upper</span>(text)
+
+  <span class="keyword">local</span> userOrig = user
+
+
+
+  <span class="comment">-- randomly selected replies if no keywords</span>
+
+  <span class="keyword">local</span> randReplies = {
+
+    <span class="string">"WHAT DOES THAT SUGGEST TO YOU?"</span>,
+
+    <span class="string">"I SEE..."</span>,
+
+    <span class="string">"I'M NOT SURE I UNDERSTAND YOU FULLY."</span>,
+
+    <span class="string">"CAN YOU ELABORATE ON THAT?"</span>,
+
+    <span class="string">"THAT IS QUITE INTERESTING!"</span>,
+
+    <span class="string">"THAT'S SO... PLEASE CONTINUE..."</span>,
+
+    <span class="string">"I UNDERSTAND..."</span>,
+
+    <span class="string">"WELL, WELL... DO GO ON"</span>,
+
+    <span class="string">"WHY ARE YOU SAYING THAT?"</span>,
+
+    <span class="string">"PLEASE EXPLAIN THE BACKGROUND TO THAT REMARK..."</span>,
+
+    <span class="string">"COULD YOU SAY THAT AGAIN, IN A DIFFERENT WAY?"</span>,
+
+  }
+
+
+
+  <span class="comment">-- keywords, replies</span>
+
+  <span class="keyword">local</span> replies = {
+
+    [<span class="string">" CAN YOU"</span>] = <span class="string">"PERHAPS YOU WOULD LIKE TO BE ABLE TO"</span>,
+
+    [<span class="string">" DO YOU"</span>] = <span class="string">"YES, I"</span>,
+
+    [<span class="string">" CAN I"</span>] = <span class="string">"PERHAPS YOU DON'T WANT TO BE ABLE TO"</span>,
+
+    [<span class="string">" YOU ARE"</span>] = <span class="string">"WHAT MAKES YOU THINK I AM"</span>,
+
+    [<span class="string">" YOU'RE"</span>] = <span class="string">"WHAT IS YOUR REACTION TO ME BEING"</span>,
+
+    [<span class="string">" I DON'T"</span>] = <span class="string">"WHY DON'T YOU"</span>,
+
+    [<span class="string">" I FEEL"</span>] = <span class="string">"TELL ME MORE ABOUT FEELING"</span>,
+
+    [<span class="string">" WHY DON'T YOU"</span>] = <span class="string">"WHY WOULD YOU WANT ME TO"</span>,
+
+    [<span class="string">" WHY CAN'T I"</span>] = <span class="string">"WHAT MAKES YOU THINK YOU SHOULD BE ABLE TO"</span>,
+
+    [<span class="string">" ARE YOU"</span>] = <span class="string">"WHY ARE YOU INTERESTED IN WHETHER OR NOT I AM"</span>,
+
+    [<span class="string">" I CAN'T"</span>] = <span class="string">"HOW DO YOU KNOW YOU CAN'T"</span>,
+
+    [<span class="string">" SEX"</span>] = <span class="string">"I FEEL YOU SHOULD DISCUSS THIS WITH A HUMAN."</span>,
+
+    [<span class="string">" I AM"</span>] = <span class="string">"HOW LONG HAVE YOU BEEN"</span>,
+
+    [<span class="string">" I'M"</span>] = <span class="string">"WHY ARE YOU TELLING ME YOU'RE"</span>,
+
+    [<span class="string">" I WANT"</span>] = <span class="string">"WHY DO YOU WANT"</span>,
+
+    [<span class="string">" WHAT"</span>] = <span class="string">"WHAT DO YOU THINK?"</span>,
+
+    [<span class="string">" HOW"</span>] = <span class="string">"WHAT ANSWER WOULD PLEASE YOU THE MOST?"</span>,
+
+    [<span class="string">" WHO"</span>] = <span class="string">"HOW OFTEN DO YOU THINK OF SUCH QUESTIONS?"</span>,
+
+    [<span class="string">" WHERE"</span>] = <span class="string">"WHY DID YOU THINK OF THAT?"</span>,
+
+    [<span class="string">" WHEN"</span>] = <span class="string">"WHAT WOULD YOUR BEST FRIEND SAY TO THAT QUESTION?"</span>,
+
+    [<span class="string">" WHY"</span>] = <span class="string">"WHAT IS IT THAT YOU REALLY WANT TO KNOW?"</span>,
+
+    [<span class="string">" PERHAPS"</span>] = <span class="string">"YOU'RE NOT VERY FIRM ON THAT!"</span>,
+
+    [<span class="string">" DRINK"</span>] = <span class="string">"MODERATION IN ALL THINGS SHOULD BE THE RULE."</span>,
+
+    [<span class="string">" SORRY"</span>] = <span class="string">"WHY ARE YOU APOLOGIZING?"</span>,
+
+    [<span class="string">" DREAMS"</span>] = <span class="string">"WHY DID YOU BRING UP THE SUBJECT OF DREAMS?"</span>,
+
+    [<span class="string">" I LIKE"</span>] = <span class="string">"IS IT GOOD THAT YOU LIKE"</span>,
+
+    [<span class="string">" MAYBE"</span>] = <span class="string">"AREN'T YOU BEING A BIT TENTATIVE?"</span>,
+
+    [<span class="string">" NO"</span>] = <span class="string">"WHY ARE YOU BEING NEGATIVE?"</span>,
+
+    [<span class="string">" YOUR"</span>] = <span class="string">"WHY ARE YOU CONCERNED ABOUT MY"</span>,
+
+    [<span class="string">" ALWAYS"</span>] = <span class="string">"CAN YOU THINK OF A SPECIFIC EXAMPLE?"</span>,
+
+    [<span class="string">" THINK"</span>] = <span class="string">"DO YOU DOUBT"</span>,
+
+    [<span class="string">" YES"</span>] = <span class="string">"YOU SEEM QUITE CERTAIN. WHY IS THIS SO?"</span>,
+
+    [<span class="string">" FRIEND"</span>] = <span class="string">"WHY DO YOU BRING UP THE SUBJECT OF FRIENDS?"</span>,
+
+    [<span class="string">" COMPUTER"</span>] = <span class="string">"WHY DO YOU MENTION COMPUTERS?"</span>,
+
+    [<span class="string">" AM I"</span>] = <span class="string">"YOU ARE"</span>,
+
+  }
+
+
+
+  <span class="comment">-- conjugate</span>
+
+  <span class="keyword">local</span> conjugate = {
+
+    [<span class="string">" I "</span>] = <span class="string">"YOU"</span>,
+
+    [<span class="string">" ARE "</span>] = <span class="string">"AM"</span>,
+
+    [<span class="string">" WERE "</span>] = <span class="string">"WAS"</span>,
+
+    [<span class="string">" YOU "</span>] = <span class="string">"ME"</span>,
+
+    [<span class="string">" YOUR "</span>] = <span class="string">"MY"</span>,
+
+    [<span class="string">" I'VE "</span>] = <span class="string">"YOU'VE"</span>,
+
+    [<span class="string">" I'M "</span>] = <span class="string">"YOU'RE"</span>,
+
+    [<span class="string">" ME "</span>] = <span class="string">"YOU"</span>,
+
+    [<span class="string">" AM I "</span>] = <span class="string">"YOU ARE"</span>,
+
+    [<span class="string">" AM "</span>] = <span class="string">"ARE"</span>,
+
+  }
+
+
+
+  <span class="comment">-- random replies, no keyword</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> replyRandomly()
+
+    response = randReplies[<span class="library">math.random</span>(<span class="library">table.getn</span>(randReplies))]..<span class="string">"\n"</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- find keyword, phrase</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> processInput()
+
+    <span class="keyword">for</span> keyword, reply <span class="keyword">in</span> <span class="library">pairs</span>(replies) <span class="keyword">do</span>
+
+      <span class="keyword">local</span> d, e = <span class="library">string.find</span>(user, keyword, 1, 1)
+
+      <span class="keyword">if</span> d <span class="keyword">then</span>
+
+        <span class="comment">-- process keywords</span>
+
+        response = response..reply..<span class="string">" "</span>
+
+        <span class="keyword">if</span> <span class="library">string.byte</span>(<span class="library">string.sub</span>(reply, -1)) &lt; 65 <span class="keyword">then</span> <span class="comment">-- "A"</span>
+
+          response = response..<span class="string">"\n"</span>; <span class="keyword">return</span>
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">local</span> h = <span class="library">string.len</span>(user) - (d + <span class="library">string.len</span>(keyword))
+
+        <span class="keyword">if</span> h &gt; 0 <span class="keyword">then</span>
+
+          user = <span class="library">string.sub</span>(user, -h)
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">for</span> cFrom, cTo <span class="keyword">in</span> <span class="library">pairs</span>(conjugate) <span class="keyword">do</span>
+
+          <span class="keyword">local</span> f, g = <span class="library">string.find</span>(user, cFrom, 1, 1)
+
+          <span class="keyword">if</span> f <span class="keyword">then</span>
+
+            <span class="keyword">local</span> j = <span class="library">string.sub</span>(user, 1, f - 1)..<span class="string">" "</span>..cTo
+
+            <span class="keyword">local</span> z = <span class="library">string.len</span>(user) - (f - 1) - <span class="library">string.len</span>(cTo)
+
+            response = response..j..<span class="string">"\n"</span>
+
+            <span class="keyword">if</span> z &gt; 2 <span class="keyword">then</span>
+
+              <span class="keyword">local</span> l = <span class="library">string.sub</span>(user, -(z - 2))
+
+              <span class="keyword">if</span> <span class="keyword">not</span> <span class="library">string.find</span>(userOrig, l) <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+            <span class="keyword">end</span>
+
+            <span class="keyword">if</span> z &gt; 2 <span class="keyword">then</span> response = response..<span class="library">string.sub</span>(user, -(z - 2))..<span class="string">"\n"</span> <span class="keyword">end</span>
+
+            <span class="keyword">if</span> z &lt; 2 <span class="keyword">then</span> response = response..<span class="string">"\n"</span> <span class="keyword">end</span>
+
+            <span class="keyword">return</span>
+
+          <span class="keyword">end</span><span class="comment">--if f</span>
+
+        <span class="keyword">end</span><span class="comment">--for</span>
+
+        response = response..user..<span class="string">"\n"</span>
+
+        <span class="keyword">return</span>
+
+      <span class="keyword">end</span><span class="comment">--if d</span>
+
+    <span class="keyword">end</span><span class="comment">--for</span>
+
+    replyRandomly()
+
+    <span class="keyword">return</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- main()</span>
+
+  <span class="comment">-- accept user input</span>
+
+  <span class="keyword">if</span> <span class="library">string.sub</span>(user, 1, 3) == <span class="string">"BYE"</span> <span class="keyword">then</span>
+
+    response = <span class="string">"BYE, BYE FOR NOW.\nSEE YOU AGAIN SOME TIME.\n"</span>
+
+    <span class="keyword">return</span> response
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="library">string.sub</span>(user, 1, 7) == <span class="string">"BECAUSE"</span> <span class="keyword">then</span>
+
+    user = <span class="library">string.sub</span>(user, 8)
+
+  <span class="keyword">end</span>
+
+  user = <span class="string">" "</span>..user..<span class="string">" "</span>
+
+  <span class="comment">-- process input, print reply</span>
+
+  processInput()
+
+  response = response..<span class="string">"\n"</span>
+
+  <span class="keyword">return</span> response
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- OnChar handler, grabs a single line of input only upon [Enter]</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> ElizaHandler(c)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> buffer[SIG] <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>    <span class="comment">-- verify buffer signature</span>
+
+  <span class="keyword">if</span> c == <span class="string">"\n"</span> <span class="keyword">then</span>                     <span class="comment">-- user typed [Enter]</span>
+
+    <span class="keyword">local</span> lnUser = editor:LineFromPosition(editor.CurrentPos) - 1
+
+    <span class="keyword">if</span> lnUser &lt; 0 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+    <span class="comment">-- grab line without ending newlines</span>
+
+    <span class="keyword">local</span> lbeg = editor:PositionFromLine(lnUser)
+
+    <span class="keyword">local</span> lend = editor.LineEndPosition[lnUser]
+
+    <span class="keyword">local</span> text = editor:textrange(lbeg, lend)
+
+    <span class="comment">-- perform Eliza text processing</span>
+
+    <span class="keyword">if</span> text ~= <span class="string">""</span> <span class="keyword">then</span>
+
+      editor:AddText(Eliza(text))
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="keyword">true</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="comment">-- script initialization (opens a new buffer and set up handlers)</span>
+
+<span class="comment">------------------------------------------------------------------------</span>
+
+<span class="keyword">function</span> ClassicEliza()
+
+  scite_OnChar(ElizaHandler)
+
+  scite.Open(<span class="string">""</span>)
+
+  buffer[SIG] = <span class="keyword">true</span>;
+
+  editor:AddText(<span class="string">[[
+
+WELCOME TO ANOTHER SESSION WITH
+
+YOUR COMPUTER PSYCHIATRIST, ELIZA
+
+
+
+IT SURE IS NEAT TO HAVE YOU DROP BY
+
+
+
+]]</span>)
+
+  editor:DocumentEnd()
+
+  <span class="library">math.randomseed</span>(<span class="library">os.time</span>())
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- end of script</span>
+
+</pre>
+
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteElizaClassic" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteElizaClassic" >history</a><br>Last edited August 14, 2008 6:31 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteElizaClassic" >(diff)</a>
+</body>
+</html>

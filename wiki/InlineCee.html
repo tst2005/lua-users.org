@@ -1,0 +1,563 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Inline Cee</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=InlineCee&amp;body=1" title="List pages referring to InlineCee">Inline Cee</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Here's a simple module that allows C code to be embedded inline in Lua code.  The module invokes your C compiler (e.g. gcc) to turn the C code into a Lua function that can be executed in Lua.
+<p>
+Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> CC = <span class="library">require</span> <span class="string">"inlinec"</span>
+
+
+
+<span class="keyword">local</span> f = CC.compile <span class="string">[[
+
+  int start(lua_State * L) {
+
+    luaL_checkstring(L,1);
+
+    lua_pushstring(L, "hello ");
+
+    lua_pushvalue(L, 1);
+
+    lua_concat(L, 2);
+
+    return 1;
+
+  }
+
+]]</span>
+
+
+
+<span class="library">print</span>(f(<span class="string">"world"</span>))  <span class="comment">--&gt; "hello world"</span>
+
+</pre>
+
+</DL>
+<p>
+Implementation:
+<p>
+<DL>
+<dt><dd><pre>
+
+-- inlinec.lua
+
+-- (c) D.Manura, 2008.
+
+-- Licensed under the same terms as Lua itself (MIT license).
+
+local M = {}
+
+
+
+M.debug = false
+
+
+
+local preamble = [[
+
+#include &lt;lua.h&gt;
+
+#include &lt;lauxlib.h&gt;
+
+#include &lt;stdio.h&gt;
+
+#include &lt;stdlib.h&gt;
+
+]]
+
+
+
+-- Count number of lines in string.
+
+local function numlines(s)
+
+  return # s:gsub("[^\n]", "")
+
+end
+
+
+
+-- Add lines to string so that any compile errors
+
+-- properly indicate line numbers in this file.
+
+local function adjustlines(src, level, extralines)
+
+  local line = debug.getinfo(level+1,'l').currentline
+
+  return ("\n"):rep(line - numlines(src) - extralines) .. src
+
+end
+
+
+
+-- Create temporary file containing text and extension.
+
+local function make_temp_file(text, ext)
+
+  local filename = os.tmpname() .. '.' .. ext
+
+  local fh = assert(io.open(filename, 'w'))
+
+  fh:write(text)
+
+  fh:close()
+
+  return filename
+
+end
+
+
+
+-- Create temporary header file with preamble.
+
+-- The preamble is placed in a separate file so as not
+
+-- to increase line numbers in compiler errors.
+
+local pre_filename
+
+local function make_preamble()
+
+  if not pre_filename then
+
+    pre_filename = make_temp_file(preamble, 'h')
+
+  end
+
+  return pre_filename
+
+end
+
+
+
+-- Execute command.
+
+local function exec(cmd)
+
+  if M.debug then print(cmd) end
+
+  assert(os.execute(cmd) == 0, 'command failed')
+
+end
+
+
+
+-- Compile C source, returning corresponding Lua function.
+
+-- Function must be named 'start' in C.
+
+local function compile(src)
+
+  local CC = 'gcc -O2'
+
+
+
+  local pre_filename = make_preamble()
+
+  src = ('#include %q\n'):format(pre_filename) .. src
+
+  src = adjustlines(src, 2, 1)
+
+
+
+  local modname = os.tmpname() .. '.so'
+
+
+
+  local srcname = make_temp_file(src, "c")
+
+  local cmd = CC .. " -shared -o '" .. modname .. "' '" .. srcname .. "' -llua"
+
+  exec(cmd)
+
+
+
+  local func = assert(package.loadlib(modname, 'start'))
+
+  return func
+
+end
+
+M.compile = compile
+
+
+
+return M
+
+</pre>
+</DL>
+<p>
+Possible improvements:
+<p>
+<UL>
+<li> Make more robust and flexible.  This was just quickly put together for demonstration.
+<li> Cache the compiled code across executions.
+</UL>
+<p>
+Possible applications:
+<p>
+<UL>
+<li> Allow quicker, simpler calling of C code from Lua.
+<li> The compilation module could abstract away operating system and compiler dependent parts of the C compilation process, thereby allowing C code to be implemented and used readily without bothering about details of the compilation process.
+<li> Various code generation tricks (e.g. optimizing code tailored to input data).
+<li> Possibly integration with <a href="../wiki/LuaToCee.html" >LuaToCee</a> to even further reduce the boundaries between Lua and C.
+</UL>
+<p>
+<H2>Take #2</H2>
+<p>
+To avoid implementing all the platform-dependent code, we might instead reuse <a href="../wiki/LuaRocks.html" >LuaRocks</a> to do the building.  <a href="../wiki/LuaRocks.html" >LuaRocks</a> already abstracts away the platform-dependencies.  Example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Example of compiling inline C code using LuaRocks to</span>
+
+<span class="comment">-- do the compilation.</span>
+
+<span class="comment">-- Tested on LuaRocks 2008-08-16 CVS version.</span>
+
+<span class="comment">-- Warning: this was quickly put together for demonstration</span>
+
+<span class="comment">-- purposes and might not be robust.</span>
+
+<span class="comment">-- D.Manura, 2008-06. </span>
+
+
+
+<span class="keyword">local</span> build = <span class="library">require</span> <span class="string">"luarocks.build.builtin"</span>
+
+<span class="keyword">local</span> fs = <span class="library">require</span> <span class="string">"luarocks.fs"</span>
+
+<span class="keyword">local</span> type_check = <span class="library">require</span> <span class="string">"luarocks.type_check"</span>
+
+<span class="keyword">local</span> path = <span class="library">require</span> <span class="string">"luarocks.path"</span>
+
+<span class="keyword">local</span> deps = <span class="library">require</span> <span class="string">"luarocks.deps"</span>
+
+<span class="keyword">local</span> util = <span class="library">require</span> <span class="string">"luarocks.util"</span>
+
+
+
+<span class="comment">-- Create temporary file containing text and extension.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> make_temp_file(text, ext)
+
+  <span class="keyword">local</span> filename = <span class="library">os.tmpname</span>() .. <span class="string">'.'</span> .. ext
+
+  <span class="keyword">local</span> fh = <span class="library">assert</span>(<span class="library">io.open</span>(filename, <span class="string">'w'</span>))
+
+  fh:write(text)
+
+  fh:close()
+
+  <span class="keyword">return</span> filename
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- C code to compile.</span>
+
+<span class="keyword">local</span> srcfilename = make_temp_file(<span class="string">[[
+
+#include &lt;lua.h&gt;
+
+#include &lt;lauxlib.h&gt;
+
+  int hello(lua_State * L) {
+
+    luaL_checkstring(L,1);
+
+    lua_pushstring(L, "hello ");
+
+    lua_pushvalue(L, 1);
+
+    lua_concat(L, 2);
+
+    return 1;
+
+  }
+
+  int luaopen_mymodule(lua_State * L) {
+
+    lua_pushcfunction(L, hello);
+
+    return 1;
+
+  }
+
+]]</span>, <span class="string">'c'</span>)
+
+
+
+
+
+<span class="comment">-- LuaRock .rockspec definition</span>
+
+<span class="comment">-- (provides build instructions)</span>
+
+<span class="keyword">local</span> rs = {
+
+  <span class="library">package</span> = <span class="string">"MYPACKAGE"</span>,
+
+  version = <span class="string">"1.0.0-1"</span>,
+
+  source = { url = <span class="string">"unused"</span> },
+
+  build = {
+
+    <span class="library">type</span> = <span class="string">"module"</span>,
+
+    modules = {
+
+      mymodule = {
+
+        srcfilename,
+
+        libraries = {<span class="string">"lua"</span>}
+
+      }
+
+    },
+
+  }
+
+}
+
+
+
+<span class="comment">-- This long function is based on fetch.lua:load_local_rockspec</span>
+
+<span class="comment">-- but differs in that it takes a Lua table rather than a file name</span>
+
+<span class="comment">-- as input.</span>
+
+<span class="comment">-- FIX: It may be best if such a function were instead incorporated</span>
+
+<span class="comment">-- into LuaRocks fetch.lua to avoid redundancy.</span>
+
+<span class="keyword">function</span> create_rockspec(t, filename)
+
+   <span class="library">assert</span>(<span class="library">type</span>(filename) == <span class="string">"string"</span>)
+
+
+
+   <span class="keyword">local</span> rockspec, err = t
+
+   <span class="keyword">if</span> <span class="keyword">not</span> rockspec <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">"Could not load rockspec file "</span>..filename..<span class="string">" ("</span>..err..<span class="string">")"</span>
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">local</span> ok, err = type_check.type_check_rockspec(rockspec)
+
+   <span class="keyword">if</span> <span class="keyword">not</span> ok <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>, filename..<span class="string">": "</span>..err
+
+   <span class="keyword">end</span>
+
+   
+
+   <span class="keyword">if</span> rockspec.rockspec_format <span class="keyword">then</span>
+
+      <span class="keyword">if</span> deps.compare_versions(
+
+         rockspec.rockspec_format, type_check.rockspec_format)
+
+      <span class="keyword">then</span>
+
+         <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">"Rockspec format "</span>..rockspec.rockspec_format..
+
+                     <span class="string">" is not supported, please upgrade LuaRocks."</span>
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">end</span>
+
+
+
+   util.platform_overrides(rockspec.build)
+
+   util.platform_overrides(rockspec.dependencies)
+
+   util.platform_overrides(rockspec.external_dependencies)
+
+   util.platform_overrides(rockspec.source)
+
+
+
+   <span class="keyword">local</span> basename = fs.base_name(filename)
+
+   rockspec.name = basename:match(<span class="string">"(.*)-[^-]*-[0-9]*"</span>)
+
+   <span class="keyword">if</span> <span class="keyword">not</span> rockspec.name <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">"Expected filename in format 'name-version-revision.rockspec'."</span>
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">local</span> protocol, pathname = fs.split_url(rockspec.source.url)
+
+   <span class="keyword">if</span> protocol == <span class="string">"http"</span> <span class="keyword">or</span> protocol == <span class="string">"https"</span> <span class="keyword">or</span>
+
+      protocol == <span class="string">"ftp"</span> <span class="keyword">or</span> protocol == <span class="string">"file"</span>
+
+   <span class="keyword">then</span>
+
+      rockspec.source.file = rockspec.source.file <span class="keyword">or</span> fs.base_name(rockspec.source.url)
+
+   <span class="keyword">end</span>
+
+   rockspec.source.protocol, rockspec.source.pathname = protocol, pathname
+
+
+
+   <span class="comment">-- Temporary compatibility</span>
+
+   <span class="keyword">if</span> <span class="keyword">not</span> rockspec.source.module <span class="keyword">then</span>
+
+      rockspec.source.module = rockspec.source.cvs_module
+
+      rockspec.source.tag = rockspec.source.cvs_tag
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">local</span> name_version = rockspec.package:lower() .. <span class="string">"-"</span> .. rockspec.version
+
+   <span class="keyword">if</span> basename ~= name_version .. <span class="string">".rockspec"</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">"Inconsistency between rockspec filename ("</span>..
+
+          basename..<span class="string">") and its contents ("</span>..name_version..<span class="string">".rockspec)."</span>
+
+   <span class="keyword">end</span>
+
+
+
+   rockspec.local_filename = filename
+
+   <span class="keyword">local</span> filebase = rockspec.source.file <span class="keyword">or</span> rockspec.source.url
+
+   <span class="keyword">local</span> base = fs.base_name(filebase)
+
+   base = base:gsub(<span class="string">"%.[^.]*$"</span>, <span class="string">""</span>):gsub(<span class="string">"%.tar$"</span>, <span class="string">""</span>)
+
+   rockspec.source.dir = rockspec.source.dir
+
+                      <span class="keyword">or</span> rockspec.source.module
+
+                      <span class="keyword">or</span> ((filebase:match(<span class="string">".lua$"</span>) <span class="keyword">or</span> filebase:match(<span class="string">".c$"</span>)) <span class="keyword">and</span> <span class="string">"."</span>)
+
+                      <span class="keyword">or</span> base
+
+
+
+   <span class="keyword">if</span> rockspec.dependencies <span class="keyword">then</span>
+
+      <span class="keyword">for</span> i = 1, #rockspec.dependencies <span class="keyword">do</span>
+
+         <span class="keyword">local</span> parsed = deps.parse_dep(rockspec.dependencies[i])
+
+         <span class="keyword">if</span> <span class="keyword">not</span> parsed <span class="keyword">then</span>
+
+            <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">"Parse error processing dependency '"</span>..rockspec.dependencies[i]..<span class="string">"'"</span>
+
+         <span class="keyword">end</span>
+
+         rockspec.dependencies[i] = parsed
+
+      <span class="keyword">end</span>
+
+   <span class="keyword">else</span>
+
+      rockspec.dependencies = {}
+
+   <span class="keyword">end</span>
+
+   <span class="keyword">local</span> ok, err = path.configure_paths(rockspec)
+
+   <span class="keyword">if</span> err <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">"Error verifying paths: "</span>..err
+
+   <span class="keyword">end</span>
+
+
+
+   <span class="keyword">return</span> rockspec
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Build module</span>
+
+rs = <span class="library">assert</span>(create_rockspec(rs, <span class="string">"mypackage-1.0.0-1.rockspec"</span>))
+
+<span class="library">assert</span>(build.run(rs))
+
+
+
+<span class="comment">-- Load module</span>
+
+<span class="keyword">local</span> hello = <span class="library">require</span> <span class="string">"mymodule"</span>
+
+<span class="library">print</span>(hello(<span class="string">"world"</span>)) <span class="comment">--&gt; "hello world"</span>
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="http://luatcc.luaforge.net/">[Luatcc]</a> - mentioned in "Interpreted C Modules" in the LuaGems<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaGems" >?</a> book (not yet published).  This appears it may be similar but possibly is restricted to tcc only (?)  Using tcc likely has the advantage of allowing the compilation to occur entirely in-process.  However, the using an out-of-process compiler as done here can be more flexible, allowing any compiler to be used.
+<li> <a href="http://search.cpan.org/dist/Inline">[Perl Inline]</a> - This Perl module provides a similar approach.
+<li> <a href="../wiki/LuaProxyDll.html" >LuaProxyDll</a> - a related example of metaprogramming a C build from Lua.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=InlineCee" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=InlineCee" >history</a><br>Last edited August 17, 2008 3:01 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=InlineCee" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Matrix</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaMatrix&amp;body=1" title="List pages referring to LuaMatrix">Lua Matrix</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+luamatrix provides operations on matrices and vectors whose elements are real, complex, or symbolic.  It is implemented entirely in Lua as tables.  A complex number data type is also included.
+<p>
+<strong>Download/Web site:</strong>
+<p>
+<UL>
+<li> <a href="http://github.com/davidm/lua-matrix">[latest source code on github]</a>
+<li> <a href="http://luamatrix.luaforge.net">http://luamatrix.luaforge.net</a> (older)
+</UL>
+<p>
+<strong>API:</strong> A list of functions:
+<p>
+<DL>
+<dt><dd><pre class="code">
+matrix.add
+
+matrix.columns
+
+matrix.concath
+
+matrix.concatv
+
+matrix.conjugate
+
+matrix.copy
+
+matrix.cross
+
+matrix.det
+
+matrix.div
+
+matrix.divnum
+
+matrix.dogauss
+
+matrix.getelement
+
+matrix.gsub
+
+matrix.invert
+
+matrix.ipairs
+
+matrix.latex
+
+matrix.len
+
+matrix.mul
+
+matrix.mulnum
+
+matrix:new
+
+matrix.normf
+
+matrix.normmax
+
+matrix.pow
+
+matrix.print
+
+matrix.random
+
+matrix.remcomplex
+
+matrix.replace
+
+matrix.root
+
+matrix.rotl
+
+matrix.rotr
+
+matrix.round
+
+matrix.rows
+
+matrix.scalar
+
+matrix.setelement
+
+matrix.size
+
+matrix.solve
+
+matrix.sqrt
+
+matrix.sub
+
+matrix.subm
+
+matrix.tocomplex
+
+matrix.tostring
+
+matrix.tosymbol
+
+matrix.transpose
+
+matrix.type
+
+</pre>
+
+</DL>
+<p>
+<H3>User Comments / Notes</H3>
+<p>
+Square root of a matrix <a href="http://seehuhn.de/pages/matrixfn">[1]</a> <a href="http://en.wikipedia.org/wiki/Square_root_of_a_matrix.html">[2]</a><a href="http://www.mathworks.com/access/helpdesk/help/techdoc/index.html?/access/helpdesk/help/techdoc/ref/sqrtm.html">[3]</a>
+<p>
+Tensors <a href="http://documents.wolfram.com/v5/TheMathematicaBook/AdvancedMathematicsInMathematica/LinearAlgebra/3.7.11.html">[4]</a>
+<p>
+"DenmanBeavers square root iteration" <a href="http://en.wikipedia.org/wiki/Square_root_of_a_matrix.html">[2]</a>
+<p>
+Complex abs <a href="http://mathworld.wolfram.com/AbsoluteSquare.html">[5]</a>
+<p>
+B = A^(1/p) generalized for integer p &gt; 2 is noted here <a href="http://www.dm.unipi.it/~cortona04/slides/bruno.pdf">[6]</a>
+<p>
+Another approach is in "A new sqrtm for Matlab" (<a href="http://www.maths.manchester.ac.uk/~nareports/narep336.ps.gz">[7]</a>  or <a href="http://citeseer.ist.psu.edu/121684.html">[8]</a>) cited by Octave, though perhaps cannot be extended as well to M^{1/n} for n not equal to 2.
+<p>
+M^x (for matrix M and <em>complex</em> x) is in general defined as expm(logm(M)*x), just like in the real and complex cases.  logm and expm <a href="http://www.mathworks.com/access/helpdesk/help/techdoc/index.html?/access/helpdesk/help/techdoc/ref/logm.html">[9]</a> can be understood as Taylor expansions in terms of non-negative integer powers of M (again, analogous to the real and complex cases).  Evaluation is discussed in "A Schur-Parlett Algorithm for Computing Matrix Functions" <a href="http://www.maths.manchester.ac.uk/~nareports/narep404.pdf">[10]</a>.  That is all getting somewhat complicated to (re)implement robustly and perhaps outside the main scope of this module.
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="http://luaforge.net/projects/numlua/">[Numeric Lua]</a> - complex numbers, multidimensional matrices, random number generation and special functions, wrappers for Netlib (Fortran) libraries.
+<li> <a href="http://www.scipy.org/Documentation">[NumPy]</a> - Python matrix library (compare design)
+<li> Math libraries in <a href="../wiki/LibrariesAndBindings.html" >LibrariesAndBindings</a>.
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaMatrix" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaMatrix" >history</a><br>Last edited September 23, 2010 2:47 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaMatrix" >(diff)</a>
+</body>
+</html>

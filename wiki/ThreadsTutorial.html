@@ -1,0 +1,233 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Threads Tutorial</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ThreadsTutorial&amp;body=1" title="List pages referring to ThreadsTutorial">Threads Tutorial</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Pre-emptive threads and Lua</H3>
+<p>
+ANSI C, the standard to which Lua complies, has no mechanism for managing multiple threads of execution. Threads and the synchronization objects used to control them are provided by the underlying operating system. You'll need to use these in order to implement threading in Lua. You will not need to modify the Lua distribution to do this.
+<p>
+Threads are tricky to get right even in the simplest of circumstances such as a pure C application. An application which embeds or extends Lua must cope with the additional complexity of coordinating threads with the Lua library. If your multitasking needs can be met with Lua's single-threaded coroutines, you would be well-advised to choose that route. Read <a href="../wiki/CoroutinesTutorial.html" >CoroutinesTutorial</a> for more details. If you do choose to implement multiple pre-emptive threads to your Lua project, the following guidelines may help.
+<p>
+Each thread in C which interacts with Lua will need its own Lua state. Each of these states has its own runtime stack. When a new C thread is started, you can create its Lua state in one of two ways. One way is to call <code>lua_open</code>. This creates a new state which is independent of the states in other threads. In this case, you'll need to initialize the Lua state (for example, loading libraries) as if it was the state of a new program. This approach eliminates the need for mutex locks (discussed below), but will keep the threads from sharing global data. 
+<p>
+The other approach is to call <code>lua_newthread</code>. This creates a child state which has its own stack and which has access to global data. This approach is discussed here.
+<p>
+<H3>Locking by Lua</H3>
+<p>
+Your biggest concern when working with threads is to prevent them from corrupting one another's environments. Subtle or not-so-subtle problems, immediate or sometimes maddeningly delayed, await a thread which returns after pre-emption to an environment which has been left in an unexpected state by another thread. However, you generally want threads to share certain data structures, too. This is where mutex objects from the operating system come into play. An object of this type can be locked by no more than one thread at a time.
+<p>
+With some help from you, Lua will prevent its internal data structures from being corrupted. When Lua enters into an operation which must not be pre-empted, it calls <code>lua_lock</code>. When the critical operation is complete, it calls <code>lua_unlock</code>. In the default distribution these two functions do nothing. When using threads in Lua, they should be replaced with OS-dependent implementations. In a POSIX environment you'll use an object of type <code>pthread_mutex_t</code>. In Windows, you'll use either a handle which is returned from <code>CreateMutex</code>, or, more optimally, an opaque data structure of type <code>CRITICAL_SECTION</code>.
+<p>
+All coroutines within a particular lua universe must share the same mutex. Avoid the mistake of associating the mutex with a specific Lua state and then failing to find it again when a different coroutine within the same universe is locked. A simple example for Win32 follows. A custom header file <code>luauser.h</code> might contain:
+<DL>
+<dt><dd><pre>
+
+
+
+  #define lua_lock(L) LuaLock(L)
+
+  #define lua_unlock(L) LuaUnlock(L)
+
+  #define lua_userstateopen(L) LuaLockInitial(L)
+
+  #define lua_userstatethread(L,L1) LuaLockInitial(L1)  // Lua 5.1
+
+
+
+  void LuaLockInitial(lua_State * L);
+
+  void LuaLockFinal(lua_State * L);
+
+  void LuaLock(lua_State * L);
+
+  void LuaUnlock(lua_State * L);
+
+
+
+</pre>
+</DL>
+<p>
+The three preprocessor definitions will be used when Lua is compiled. As of version 5.0.2, Lua regrettably does not provide a call to destroy a lock.  (<a href="../wiki/VersionNotice.html" >VersionNotice</a>: update for Lua 5.1 ?)
+<p>
+The function <code>lua_userstateopen</code> will be called whenever a new Lua state is created, whether with a call to <code>lua_open</code> or <code>lua_newthread</code>. It is important that the mutex be created only the first time <code>lua_userstateopen</code> is called.
+<p>
+In Lua 5.1 <code>luai_userstatethread(L,L1)</code> is called for threads created with <code>lua_newthread</code>. and <code>luai_userstateopen(L)</code> is called for lua states created by <code>lua_newstate</code> (but not by <code>lua_newthread</code>).
+<code>luai_userstateclose(L)</code> is called for threads closed by <code>lua_close</code> only.
+<p>
+The associated C file, <code>luauser.c</code>, contains:
+<p>
+<DL>
+<dt><dd><pre>
+
+
+
+  #include &lt;windows.h&gt;
+
+  #include "lua.h"
+
+  #include "luauser.h"
+
+
+
+  static struct {
+
+    CRITICAL_SECTION LockSct;
+
+    BOOL Init;
+
+  } Gl;
+
+
+
+  void LuaLockInitial(lua_State * L) 
+
+  { 
+
+    if (! Gl.Init) 
+
+    {
+
+      /* Create a mutex */
+
+      InitializeCriticalSection(&amp;Gl.LockSct);
+
+      Gl.Init = TRUE;
+
+    }
+
+  }
+
+
+
+  void LuaLockFinal(lua_State * L) /* Not called by Lua. */
+
+  { 
+
+    /* Destroy a mutex. */
+
+    if (Gl.Init)
+
+    {
+
+      DeleteCriticalSection(&amp;Gl.LockSct);
+
+      Gl.Init = FALSE;
+
+    }
+
+  }
+
+
+
+  void LuaLock(lua_State * L)
+
+  {
+
+    /* Wait for control of mutex */
+
+    EnterCriticalSection(&amp;Gl.LockSct);
+
+  }
+
+
+
+  void LuaUnlock(lua_State * L)
+
+  { 
+
+    /* Release control of mutex */
+
+    LeaveCriticalSection(&amp;Gl.LockSct);
+
+  }
+
+
+
+</pre>
+</DL>
+<p>
+These two files need not reside in the Lua distribution tree, but they need to be accessible during the build. Additionally, you'll need to define <code>LUA_USER_H</code> so that your include file is used by Lua. The quotes need to be part of the definition, so that an expression something like
+<p>
+<DL>
+<dt><dd><pre>
+
+
+
+  /DLUA_USER_H="""luauser.h"""
+
+
+
+</pre>
+</DL>
+<p>
+will need to be conveyed to the compiler. Also, you may need to extend the include path so that the compiler can find your file.
+<p>
+<H3>Locking by the application</H3>
+<p>
+Lua prevents its internal data structures from becoming corrupted by means of the locking functions. It is up to the application to prevent problems with exposed data structures, whether they are global or upvalues. A mutex can be used to coordinate resource use using functions like the ones show above. However, be sure to use a different mutex than the one used by Lua in order to avoid potential deadlocks.
+<p>
+When designing multi-threaded applications, it is helpful to pay particular attention to where each thread waits. Always be aware that unguarded operations can be interrupted. If any other thread could be adversely affected by the state in which an interruption occurs, some form of mutual exclusion is called for.
+<p>
+<p>
+<H3>Global mutex and multiprocessing</H3>
+<p>
+The method above for implementing threading in Lua using a global mutex is inefficient on multiprocessor systems. As one thread holds the global mutex, other threads are waiting for it. Thus only one Lua thread may be running at a time, regardless of the number of processors in the system.
+<p>
+On some systems it might be necessary to yield the thread after unlocking the mutex, in order to prevent the same thread from locking it again, in case there are others waiting on it. This happens at least on Linux using Boost.Threads. Overriding <code>luai_threadyield</code> (which by default calls <code>lua_unlock</code>, followed immediately by <code>lua_lock</code>) to yield the thread inbetween the lock and the unlock is probably a good idea. However, luai_threadyield is called by the dojump macro in the virtual machine, hence a yield at every call of luai_threadyield might considerably degrade performance. The following alternative might be useful:
+<pre>
+
+void luai_threadyield(struct lua_State *L)
+
+{
+
+	static int count=0;
+
+	bool y=false;
+
+	if (count--&lt;=0) { y=true; count=30; }; // Try different values instead of 30.
+
+	lua_unlock(L);
+
+	if (y) thread::yield();
+
+	lua_lock(L);
+
+}
+
+</pre>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2005-08/msg00564.html">LuaList:2005-08/msg00564.html</a> - Thread Safety in Lua, part 1, by <a href="../wiki/RiciLake.html" >RiciLake</a> and <a href="../wiki/MikePall.html" >MikePall</a>
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ThreadsTutorial" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ThreadsTutorial" >history</a><br>Last edited January 1, 2011 12:41 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ThreadsTutorial" >(diff)</a>
+</body>
+</html>

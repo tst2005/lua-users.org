@@ -1,0 +1,1201 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Ordered Associative Table</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=OrderedAssociativeTable&amp;body=1" title="List pages referring to OrderedAssociativeTable">Ordered Associative Table</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following code provides a simple and efficient way to maintain a sorted index over the keys in a table and then iterate over the table using that sorted index.  We first examine the simpler case when deletions are prohibited. 
+<p>
+<H2>TAKE ONE</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--// CHILL CODE  //--</span>
+
+<span class="comment">-- table.ordered( [comp] ) </span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Lua 5.x add-on for the table library.</span>
+
+<span class="comment">-- Table using sorted index.  Uses binary table for fast Lookup.</span>
+
+<span class="comment">-- http://lua-users.org/wiki/OrderedTable by PhilippeFremy </span>
+
+
+
+<span class="comment">-- table.ordered( [comp] )</span>
+
+<span class="comment">-- Returns an ordered table. Can only take strings as index.</span>
+
+<span class="comment">-- fcomp is a comparison function behaves behaves just like</span>
+
+<span class="comment">-- fcomp in table.sort( t [, fcomp] ).</span>
+
+<span class="keyword">function</span> <span class="library">table.ordered</span>(fcomp)
+
+  <span class="keyword">local</span> newmetatable = {}
+
+  
+
+  <span class="comment">-- sort func</span>
+
+  newmetatable.fcomp = fcomp
+
+
+
+  <span class="comment">-- sorted subtable</span>
+
+  newmetatable.sorted = {}
+
+
+
+  <span class="comment">-- behavior on new index</span>
+
+  <span class="keyword">function</span> newmetatable.__newindex(t, key, value)
+
+    <span class="keyword">if</span> <span class="library">type</span>(key) == <span class="string">"string"</span> <span class="keyword">then</span>
+
+      <span class="keyword">local</span> fcomp = <span class="library">getmetatable</span>(t).fcomp
+
+      <span class="keyword">local</span> tsorted = <span class="library">getmetatable</span>(t).sorted
+
+      <span class="library">table.binsert</span>(tsorted, key , fcomp)
+
+      <span class="library">rawset</span>(t, key, value)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- behaviour on indexing</span>
+
+  <span class="keyword">function</span> newmetatable.__index(t, key)
+
+    <span class="keyword">if</span> key == <span class="string">"n"</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="library">table.getn</span>( <span class="library">getmetatable</span>(t).sorted )
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">local</span> realkey = <span class="library">getmetatable</span>(t).sorted[key]
+
+    <span class="keyword">if</span> realkey <span class="keyword">then</span>
+
+      <span class="keyword">return</span> realkey, <span class="library">rawget</span>(t, realkey)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> newtable = {}
+
+
+
+  <span class="comment">-- set metatable</span>
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>(newtable, newmetatable)
+
+<span class="keyword">end</span> 
+
+		
+
+<span class="comment">--// table.binsert( table, value [, comp] )</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- LUA 5.x add-on for the table library.</span>
+
+<span class="comment">-- Does binary insertion of a given value into the table</span>
+
+<span class="comment">-- sorted by [,fcomp]. fcomp is a comparison function</span>
+
+<span class="comment">-- that behaves like fcomp in in table.sort(table [, fcomp]).</span>
+
+<span class="comment">-- This method is faster than doing a regular</span>
+
+<span class="comment">-- table.insert(table, value) followed by a table.sort(table [, comp]).</span>
+
+<span class="keyword">function</span> <span class="library">table.binsert</span>(t, value, fcomp)
+
+  <span class="comment">-- Initialise Compare function</span>
+
+  <span class="keyword">local</span> fcomp = fcomp <span class="keyword">or</span> <span class="keyword">function</span>( a, b ) <span class="keyword">return</span> a &lt; b <span class="keyword">end</span>
+
+
+
+  <span class="comment">--  Initialise Numbers</span>
+
+  <span class="keyword">local</span> iStart, iEnd, iMid, iState =  1, <span class="library">table.getn</span>( t ), 1, 0
+
+
+
+  <span class="comment">-- Get Insertposition</span>
+
+  <span class="keyword">while</span> iStart &lt;= iEnd <span class="keyword">do</span>
+
+    <span class="comment">-- calculate middle</span>
+
+    iMid = <span class="library">math.floor</span>( ( iStart + iEnd )/2 )
+
+
+
+    <span class="comment">-- compare</span>
+
+    <span class="keyword">if</span> fcomp( value , t[iMid] ) <span class="keyword">then</span>
+
+      iEnd = iMid - 1
+
+      iState = 0
+
+    <span class="keyword">else</span>
+
+      iStart = iMid + 1
+
+      iState = 1
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> pos = iMid+iState
+
+  <span class="library">table.insert</span>( t, pos, value )
+
+  <span class="keyword">return</span> pos
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Iterate in ordered form</span>
+
+<span class="comment">-- returns 3 values i, index, value</span>
+
+<span class="comment">-- ( i = numerical index, index = tableindex, value = t[index] )</span>
+
+<span class="keyword">function</span> orderedPairs(t)
+
+  <span class="keyword">return</span> orderedNext, t
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> orderedNext(t, i)
+
+  i = i <span class="keyword">or</span> 0
+
+  i = i + 1
+
+  <span class="keyword">local</span> index = <span class="library">getmetatable</span>(t).sorted[i]
+
+  <span class="keyword">if</span> index <span class="keyword">then</span>
+
+    <span class="keyword">return</span> i, index, t[index]
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Tests:
+<p>
+<DL>
+<dt><dd><pre class="code">
+t2= <span class="library">table.ordered</span>()
+
+t2[<span class="string">"A"</span>] = 1
+
+t2.B = 2
+
+t2.C = 3
+
+t2.D = 4
+
+t2.E = 5
+
+t2.F = 6
+
+t2.G = 7
+
+t2.H = 8
+
+
+
+<span class="library">print</span>(<span class="string">"Normal iteration ordered table"</span>)
+
+<span class="comment">-- will iterate over the table by next index</span>
+
+<span class="library">table.foreach</span>( t2, <span class="library">print</span> )
+
+</pre>
+
+</DL>
+<p>
+Results:
+<p>
+<DL>
+<dt><dd><pre>
+
+Normal iteration ordered table
+
+A       1
+
+C       3
+
+B       2
+
+E       5
+
+D       4
+
+G       7
+
+F       6
+
+H       8
+
+</pre>
+</DL>
+<p>
+Tests:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(<span class="string">"Ordered Iteration"</span>)
+
+<span class="keyword">for</span> i,index,v <span class="keyword">in</span> orderedPairs(t2) <span class="keyword">do</span>
+
+  <span class="library">print</span>(index, v)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Results:
+<p>
+<DL>
+<dt><dd><pre>
+
+Ordered Iteration
+
+A       1
+
+B       2
+
+C       3
+
+D       4
+
+E       5
+
+F       6
+
+G       7
+
+H       8
+
+</pre>
+</DL>
+<p>
+Tests:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- same example but reveres ordered</span>
+
+t2= <span class="library">table.ordered</span>( <span class="keyword">function</span>(a,b) <span class="keyword">return</span> b &lt; a <span class="keyword">end</span> )
+
+t2[<span class="string">"A"</span>] = 1
+
+t2.B = 2
+
+t2.C = 3
+
+t2.D = 4
+
+t2.E = 5
+
+t2.F = 6
+
+t2.G = 7
+
+t2.H = 8
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(<span class="string">"Ordered Iteration of Reverse"</span>)
+
+<span class="keyword">for</span> i,index,v <span class="keyword">in</span> orderedPairs(t2) <span class="keyword">do</span>
+
+  <span class="library">print</span>(index, v)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Results:
+<p>
+<DL>
+<dt><dd><pre>
+
+Ordered Iteration of Reverse
+
+H       8
+
+G       7
+
+F       6
+
+E       5
+
+D       4
+
+C       3
+
+B       2
+
+A       1
+
+</pre>
+</DL>
+<p>
+<H2>TAKE TWO</H2>
+<p>
+Now due to the problem that one cannot delete any entries, another option is to totally switch to a binary table and accessing it through <code>t[index]</code>, while doing the sorting things in metatables.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">--// CHILL CODE  //--</span>
+
+<span class="comment">-- table.ordered( [sorted reverse], [type] )  v 2</span>
+
+
+
+<span class="comment">-- Lua 5.x add-on for the table library</span>
+
+<span class="comment">-- Table using sorted index, with binary table for fast lookup.</span>
+
+<span class="comment">-- http://lua-users.org/wiki/OrderedTable by PhilippeFremy </span>
+
+
+
+<span class="comment">-- table.ordered( [sorted reverse], [type] )</span>
+
+<span class="comment">-- Gives you back a ordered table, can only take entered type</span>
+
+<span class="comment">-- as index returned by type(index), by default "string"</span>
+
+<span class="comment">-- sorted reverse, sorts the table in reverse order, else normal</span>
+
+<span class="comment">-- stype is the deault index type returned by type( index ),</span>
+
+<span class="comment">-- by default "string", it is only pssible to set one type as index</span>
+
+<span class="comment">-- will effectively create a binary table, and will always lookup</span>
+
+<span class="comment">-- through binary when an index is called</span>
+
+<span class="keyword">function</span> <span class="library">table.ordered</span>(ireverse, stype)
+
+  <span class="keyword">local</span> newmetatable = {}
+
+  
+
+  <span class="comment">-- set sort function</span>
+
+  <span class="keyword">if</span> ireverse <span class="keyword">then</span>
+
+    newmetatable._ireverse = 1
+
+    <span class="keyword">function</span> newmetatable.fcomp(a, b) <span class="keyword">return</span> b[1] &lt; a[1] <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    <span class="keyword">function</span> newmetatable.fcomp(a, b) <span class="keyword">return</span> a[1] &lt; b[1] <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- set type by default "string"</span>
+
+  newmetatable.stype = stype <span class="keyword">or</span> <span class="string">"string"</span>
+
+
+
+  <span class="comment">-- fcomparevariable</span>
+
+  <span class="keyword">function</span> newmetatable.fcompvar(value)
+
+    <span class="keyword">return</span> value[1]
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- sorted subtable</span>
+
+  newmetatable._tsorted = {}
+
+
+
+  <span class="comment">-- behaviour on new index</span>
+
+  <span class="keyword">function</span> newmetatable.__newindex(t, key, value)
+
+    <span class="keyword">if</span> <span class="library">type</span>(key) == <span class="library">getmetatable</span>(t).stype <span class="keyword">then</span>
+
+      <span class="keyword">local</span> fcomp = <span class="library">getmetatable</span>(t).fcomp
+
+      <span class="keyword">local</span> fcompvar = <span class="library">getmetatable</span>(t).fcompvar
+
+      <span class="keyword">local</span> tsorted = <span class="library">getmetatable</span>(t)._tsorted
+
+      <span class="keyword">local</span> ireverse = <span class="library">getmetatable</span>(t)._ireverse
+
+      <span class="comment">-- value is given so either update or insert newly</span>
+
+      <span class="keyword">if</span> value <span class="keyword">then</span>
+
+        <span class="keyword">local</span> pos, _ = <span class="library">table.bfind</span>(tsorted, key, fcompvar, ireverse)
+
+        <span class="comment">-- if pos then update the index</span>
+
+        <span class="keyword">if</span> pos <span class="keyword">then</span>
+
+          tsorted[pos] = {key, value}
+
+        <span class="comment">-- else insert new value</span>
+
+        <span class="keyword">else</span>
+
+          <span class="library">table.binsert</span>(tsorted, {key, value}, fcomp)
+
+        <span class="keyword">end</span>
+
+      <span class="comment">-- value is nil so remove key</span>
+
+      <span class="keyword">else</span>
+
+        <span class="keyword">local</span> pos, _ = <span class="library">table.bfind</span>(tsorted, key, fcompvar, ireverse)
+
+        <span class="keyword">if</span> pos <span class="keyword">then</span>
+
+          <span class="library">table.remove</span>(tsorted, pos)
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- behavior on index</span>
+
+  <span class="keyword">function</span> newmetatable.__index(t, key)
+
+    <span class="keyword">if</span> <span class="library">type</span>(key) == <span class="library">getmetatable</span>(t).stype <span class="keyword">then</span>
+
+      <span class="keyword">local</span> fcomp = <span class="library">getmetatable</span>(t).fcomp
+
+      <span class="keyword">local</span> fcompvar = <span class="library">getmetatable</span>(t).fcompvar
+
+      <span class="keyword">local</span> tsorted = <span class="library">getmetatable</span>(t)._tsorted
+
+      <span class="keyword">local</span> ireverse = <span class="library">getmetatable</span>(t)._ireverse
+
+      <span class="comment">-- value if key exists</span>
+
+      <span class="keyword">local</span> pos, value = <span class="library">table.bfind</span>(tsorted, key, fcompvar, ireverse)
+
+      <span class="keyword">if</span> pos <span class="keyword">then</span>
+
+        <span class="keyword">return</span> value[2]
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- set metatable</span>
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({}, newmetatable)
+
+<span class="keyword">end</span>
+
+		
+
+<span class="comment">--// table.binsert( table, value [, comp] )</span>
+
+
+
+<span class="comment">-- Lua 5.x add-on for the table library</span>
+
+<span class="comment">-- Binary inserts given value into the table sorted by [,fcomp]</span>
+
+<span class="comment">-- fcomp is a comparison function that behaves just like</span>
+
+<span class="comment">-- fcomp in table.sort( table [, comp] ).</span>
+
+<span class="comment">-- This method is faster than doing a regular</span>
+
+<span class="comment">-- table.insert(table, value) followed by a table.sort(table [, comp]).</span>
+
+<span class="keyword">function</span> <span class="library">table.binsert</span>(t, value, fcomp)
+
+  <span class="comment">-- Initialize compare function</span>
+
+  <span class="keyword">local</span> fcomp = fcomp <span class="keyword">or</span> <span class="keyword">function</span>(a, b) <span class="keyword">return</span> a &lt; b <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- Initialize numbers</span>
+
+  <span class="keyword">local</span> iStart, iEnd, iMid, iState =  1, <span class="library">table.getn</span>( t ), 1, 0
+
+
+
+  <span class="comment">-- Get insert position</span>
+
+  <span class="keyword">while</span> iStart &lt;= iEnd <span class="keyword">do</span>
+
+    <span class="comment">-- calculate middle</span>
+
+    iMid = <span class="library">math.floor</span>((iStart + iEnd) / 2)
+
+
+
+    <span class="comment">-- compare</span>
+
+    <span class="keyword">if</span> fcomp(value , t[iMid]) <span class="keyword">then</span>
+
+      iEnd = iMid - 1
+
+      iState = 0
+
+    <span class="keyword">else</span>
+
+      iStart = iMid + 1
+
+      iState = 1
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> pos = iMid+iState
+
+  <span class="library">table.insert</span>(t, pos, value)
+
+  <span class="keyword">return</span> pos
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">--// table.bfind(table, value [, compvalue] [, reverse])</span>
+
+
+
+<span class="comment">-- Lua 5.x add-on for the table library.</span>
+
+<span class="comment">-- Binary searches the table for value.</span>
+
+<span class="comment">-- If the value is found it returns the index and the value of</span>
+
+<span class="comment">-- the table where it was found.</span>
+
+<span class="comment">-- fcompval, if given, is a function that takes one value and</span>
+
+<span class="comment">-- returns a second value2 to be compared with the input value,</span>
+
+<span class="comment">-- e.g. compvalue = function(value) return value[1] end</span>
+
+<span class="comment">-- If reverse is given then the search assumes that the table</span>
+
+<span class="comment">-- is sorted with the biggest value on position 1.</span>
+
+
+
+<span class="keyword">function</span> <span class="library">table.bfind</span>(t, value, fcompval, reverse)
+
+  <span class="comment">-- Initialize functions</span>
+
+  fcompval = fcompval <span class="keyword">or</span> <span class="keyword">function</span>(value) <span class="keyword">return</span> value <span class="keyword">end</span>
+
+  fcomp = <span class="keyword">function</span>(a, b) <span class="keyword">return</span> a &lt; b <span class="keyword">end</span>
+
+  <span class="keyword">if</span> reverse <span class="keyword">then</span>
+
+    fcomp = <span class="keyword">function</span>(a, b) <span class="keyword">return</span> a &gt; b <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- Initialize Numbers</span>
+
+  <span class="keyword">local</span> iStart, iEnd, iMid = 1, <span class="library">table.getn</span>(t), 1
+
+
+
+  <span class="comment">-- Binary Search</span>
+
+  <span class="keyword">while</span> (iStart &lt;= iEnd) <span class="keyword">do</span>
+
+    <span class="comment">-- calculate middle</span>
+
+    iMid = <span class="library">math.floor</span>((iStart + iEnd) / 2)
+
+
+
+    <span class="comment">-- get compare value</span>
+
+    <span class="keyword">local</span> value2 = fcompval(t[iMid])
+
+
+
+    <span class="keyword">if</span> value == value2 <span class="keyword">then</span>
+
+      <span class="keyword">return</span> iMid, t[iMid]
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">if</span> fcomp(value , value2) <span class="keyword">then</span>
+
+      iEnd = iMid - 1
+
+    <span class="keyword">else</span>
+
+      iStart = iMid + 1
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Iterate in ordered form</span>
+
+<span class="comment">-- returns 3 values i , index, value</span>
+
+<span class="comment">-- ( i = numerical index, index = tableindex, value = t[index] )</span>
+
+<span class="keyword">function</span> orderedPairs(t)
+
+  <span class="keyword">return</span> orderedNext, t
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> orderedNext(t, i)
+
+  i = i <span class="keyword">or</span> 0
+
+  i = i + 1
+
+  <span class="keyword">local</span> indexvalue = <span class="library">getmetatable</span>(t)._tsorted[i]
+
+  <span class="keyword">if</span> indexvalue <span class="keyword">then</span>
+
+    <span class="keyword">return</span> i, indexvalue[1], indexvalue[2]
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Tests:
+<p>
+<DL>
+<dt><dd><pre class="code">
+t2 = <span class="library">table.ordered</span>()
+
+<span class="keyword">if</span> t2 <span class="keyword">then</span>
+
+  <span class="library">print</span>( t2 )
+
+<span class="keyword">end</span>
+
+t2[<span class="string">"A"</span>] = 1
+
+t2.B = 2
+
+t2.C = 3
+
+t2.D = 4
+
+t2.E = 5
+
+t2.F = 6
+
+t2.G = 7
+
+t2.H = 8
+
+
+
+<span class="library">print</span>(<span class="string">"Ordered Iteration"</span>)
+
+<span class="keyword">for</span> i,index,v <span class="keyword">in</span> orderedPairs(t2) <span class="keyword">do</span>
+
+  <span class="library">print</span>( index, v )
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Results:
+<p>
+<DL>
+<dt><dd><pre>
+
+table: 07864640
+
+Ordered Iteration
+
+A       1
+
+B       2
+
+C       3
+
+D       4
+
+E       5
+
+F       6
+
+G       7
+
+H       8
+
+</pre>
+</DL>
+<p>
+Tests:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- same example but reveres ordered</span>
+
+t2= <span class="library">table.ordered</span>( <span class="string">"reverse"</span> )
+
+t2[<span class="string">"A"</span>] = 1
+
+t2.B = 2
+
+t2.C = 3
+
+t2.D = 4
+
+t2.E = 5
+
+t2.F = 6
+
+t2.G = 7
+
+t2.H = 8
+
+
+
+<span class="library">print</span>(<span class="string">"Ordered Iteration of Reverse"</span>)
+
+<span class="keyword">for</span> i,index,v <span class="keyword">in</span> orderedPairs(t2) <span class="keyword">do</span>
+
+  <span class="library">print</span>(index, v)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Results:
+<p>
+<DL>
+<dt><dd><pre>
+
+Ordered Iteration of Reverse
+
+H       8
+
+G       7
+
+F       6
+
+E       5
+
+D       4
+
+C       3
+
+B       2
+
+A       1
+
+</pre>
+</DL>
+<p>
+Tests:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(<span class="string">"Set one Letter nil"</span>)
+
+t2.E = <span class="keyword">nil</span>
+
+<span class="library">print</span>(<span class="string">"Ordered Iteration of Reverse"</span>)
+
+<span class="keyword">for</span> i,index,v <span class="keyword">in</span> orderedPairs(t2) <span class="keyword">do</span>
+
+  <span class="library">print</span>(index, v)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Results:
+<p>
+<DL>
+<dt><dd><pre>
+
+Set one Letter nil
+
+Ordered Iteration of Reverse
+
+H       8
+
+G       7
+
+F       6
+
+D       4
+
+C       3
+
+B       2
+
+A       1
+
+</pre>
+</DL>
+<p>
+Tests:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(<span class="string">"Update one value"</span>)
+
+t2.F = <span class="string">"updated"</span>
+
+<span class="library">print</span>(<span class="string">"Ordered Iteration of Reverse"</span>)
+
+<span class="keyword">for</span> i,index,v <span class="keyword">in</span> orderedPairs(t2) <span class="keyword">do</span>
+
+  <span class="library">print</span>(index, v)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Results:
+<p>
+<DL>
+<dt><dd><pre>
+
+Update one value
+
+Ordered Iteration of Reverse
+
+H       8
+
+G       7
+
+F       updated
+
+D       4
+
+C       3
+
+B       2
+
+A       1
+
+</pre>
+</DL>
+<p>
+Tests:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">print</span>(<span class="string">"Add with a no confirm key"</span>)
+
+<span class="comment">-- will simply be not added</span>
+
+t2[6] = <span class="string">"add"</span>
+
+
+
+<span class="library">print</span>( <span class="string">"Add a key"</span> )
+
+t2.a = <span class="string">"new key1"</span>
+
+t2.Z = <span class="string">"new key 2"</span>
+
+t2.d = <span class="string">"??"</span>
+
+
+
+<span class="library">print</span>( <span class="string">"Ordered Iteration of Reverse"</span> )
+
+<span class="keyword">for</span> i,index,v <span class="keyword">in</span> orderedPairs( t2 ) <span class="keyword">do</span>
+
+	<span class="library">print</span>( index, v )
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- get a key</span>
+
+<span class="library">print</span>( t2.Z )
+
+</pre>
+
+</DL>
+<p>
+Results:
+<p>
+<DL>
+<dt><dd><pre>
+
+Add with a no confirm key
+
+Add a key
+
+Ordered Iteration of Reverse
+
+d       ??
+
+a       new key1
+
+Z       new key 2
+
+H       8
+
+G       7
+
+F       updated
+
+D       4
+
+C       3
+
+B       2
+
+A       1
+
+new key 2
+
+</pre>
+</DL>
+<p>
+Tests:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Speed testing</span>
+
+<span class="comment">-- build a n big inassociative table</span>
+
+<span class="comment">-- search it n2 times by hash clac used tim</span>
+
+n1 = 100000
+
+n2 = 100000
+
+
+
+t = {}
+
+i0 = <span class="library">os.clock</span>()
+
+<span class="keyword">for</span> i = 1, n1 <span class="keyword">do</span>
+
+  t[<span class="library">tostring</span>(i)] = i
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> i1 = <span class="library">os.clock</span>()
+
+<span class="keyword">for</span> i = 1, n2 <span class="keyword">do</span>
+
+  <span class="keyword">local</span> v = i, t[<span class="library">tostring</span>(i)]
+
+  <span class="comment">--print(v , i)</span>
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>(<span class="string">"Normal test of inassociative table"</span>)
+
+<span class="library">print</span>(<span class="string">"Time to add  "</span>..n2..<span class="string">" Items: "</span>..(i1-i0))
+
+<span class="library">print</span>(<span class="library">os.clock</span>())
+
+<span class="library">print</span>(i1)
+
+<span class="library">print</span>(<span class="library">os.clock</span>() - i1)
+
+<span class="library">print</span>(<span class="string">"Time to search  "</span>..n1..<span class="string">" Items: "</span>..(<span class="library">os.clock</span>() - i1))
+
+<span class="comment">-- do one sort</span>
+
+i0 = <span class="library">os.clock</span>()
+
+<span class="keyword">local</span> ts = {}
+
+<span class="library">table.foreach</span>(t, <span class="keyword">function</span>(i,v) <span class="library">table.insert</span>(ts, {i,i}) <span class="keyword">end</span>)
+
+<span class="library">table.sort</span>(ts, <span class="keyword">function</span>(a, b) <span class="keyword">return</span> b[1] &lt; a[1] <span class="keyword">end</span> )
+
+<span class="library">print</span>(<span class="string">"Normalsort time: "</span>..(<span class="library">os.clock</span>()-i0))
+
+
+
+<span class="comment">-- Speed test with a ordered table</span>
+
+t = <span class="library">table.ordered</span>()
+
+i0 = <span class="library">os.clock</span>()
+
+<span class="keyword">for</span> i = 1, n1 <span class="keyword">do</span>
+
+  t[<span class="library">tostring</span>(i)] = i
+
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> i1 = <span class="library">os.clock</span>()
+
+<span class="keyword">for</span> i = 1, n2 <span class="keyword">do</span>
+
+  <span class="keyword">local</span> v = i, t[<span class="library">tostring</span>(i)]
+
+  <span class="comment">--print(v , i)</span>
+
+<span class="keyword">end</span>
+
+<span class="library">print</span>(<span class="string">"Normal test of Ordered inassociative table"</span>)
+
+<span class="library">print</span>(<span class="string">"Time to add  "</span>..n2..<span class="string">" Items: "</span>..(i1-i0))
+
+<span class="library">print</span>(<span class="library">os.clock</span>())
+
+<span class="library">print</span>(i1)
+
+<span class="library">print</span>(<span class="string">"Time to search  "</span>..n1..<span class="string">" Items: "</span>..(<span class="library">os.clock</span>() - i1))
+
+</pre>
+
+</DL>
+<p>
+Results:
+<p>
+<DL>
+<dt><dd><pre>
+
+Normal test of inassociative table
+
+Time to add  100000 Items: 1.6409999999996
+
+19960.765
+
+19960.125
+
+0.63999999999942
+
+Time to search  100000 Items: 0.63999999999942
+
+Normalsort time: 2.8280000000013
+
+Normal test of Ordered inassociative table
+
+Time to add  100000 Items: 52.281999999999
+
+20021.593
+
+20015.875
+
+Time to search  100000 Items: 5.7180000000008
+
+</pre>
+</DL>
+<p>
+As shown, the code become very slow when adding new keys compared to the normal adding by index, around 100 times, and we are around 10 times slower when searching for a index, that is acceptable I think.  Then I created a sorted array of the index from the normal table, and the result was again faster than the number of searches on the binary table. That brings me back to <a href="../wiki/SortedIteration.html" >SortedIteration</a>, which is the best way of doing what we want unless you need to run through your table more often than you check or add a value.  Only in that specific case would this method be faster.  Well, at least good to know :)
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=OrderedAssociativeTable" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=OrderedAssociativeTable" >history</a><br>Last edited February 22, 2007 3:47 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=OrderedAssociativeTable" >(diff)</a>
+</body>
+</html>

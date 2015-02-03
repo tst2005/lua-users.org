@@ -1,0 +1,146 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Adrian Perez</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=AdrianPerez&amp;body=1" title="List pages referring to AdrianPerez">Adrian Perez</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Lua user and programmer. Lover of the "small things are beautiful" philosophy.
+<p>
+Currently developing an adventure game engine that will be using Lua as scripting engine: <a href="http://lixoo.sourceforge.net/">[Lixoo]</a>.
+<p>
+<H3>STUFF I MADE:</H3>
+<UL>
+<li> <strong><a href="../wiki/LuaModuleShelve.html" >LuaModuleShelve</a></strong>, a LGPL'ed Lua module that acts like Python's module of same name. This module is included in <a href="../wiki/LuaCheia.html" >LuaCheia</a>, too.
+</UL>
+<p>
+<UL>
+<li> <strong><a href="../wiki/LuaModuleLzo.html" >LuaModuleLzo</a></strong>, a GPL'ed Lua module that wraps around the <a href="http://lzo.sf.net">[miniLZO]</a> compression library, making it available in Lua scripts. 
+</UL>
+<p>
+<UL>
+<li> <strong>Syntax coloring scheme</strong> for MC-Cooledit. I tested it under Linux, with the internal editor of the <a href="http://www.ibiblio.org/mc/">[GNU Midnight Commander]</a>, should work with Cooledit, too. A Lua script that installs the appropiate files is included in <a href="http://free.hostdepartment.com/m/moebius/files/lua-cedit.tar.gz">[the package]</a>. See <a href="../wiki/LuaEditorSupport.html" >LuaEditorSupport</a>, too.
+</UL>
+<p>
+<UL>
+<li> <strong>Simple script to demonstrate Lua capabilities:</strong> I like to get my colleagues frightened with the Jedi powers of Lua by showing them this filter script that puts line numbers in the standard input. Once they saw the script of <strong>only</strong> five lines, I always ask to them: "How many lines do you need to do the same in C?" Here it is (requires Lua 5.0):
+</UL>
+<pre>
+
+        i = 1;
+
+        for line in io.readlines() do
+
+           print(i .. ": ", line);
+
+           i = i+1;
+
+        end
+
+</pre>
+<p>
+<DL>
+<dt><dd><em>You could do this in one line in C :o) e.g.,</em>
+<dt><dd><pre>
+
+for (int i=1, b[100];;i++) printf("%d: %s\n",i,gets((char*)b));
+
+</pre>
+<dt><dd><em>Or one line in Lua: --NDT</em>
+<dt><dd><pre>
+
+while 1 do i=(i or 0)+1 print(""..i..": "..io.read()) end
+
+  or
+
+for i,ln in function(s,i) return i+1,""..i..": "..io.read() end,nil,1 do print(ln) end
+
+</pre>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Yeah, you'll right ;), but the C code will crash if you use the program over a file with lines longer than the size of the buffer, and you need to declare the <code>main()</code> function and include <code>stdio.h</code>... Maybe I often worry too much about code correctness and maybe that script was not a good example after all :P -- Adrian</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Well.. I don't think any of the last examples given may pass as one line of code. Going like that you can collapse a whole file onto i single line.. Don't get me wrong, I still find it very neat and I like Lua alot :o)</em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Of course, if terseness is your goal, Perl will win every time: -- ET</em>
+<dt><dd><pre>
+
+while(&lt;&gt;) {print(++$i.": ".$_)}
+
+</pre>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Heavens! I can't stand Perl, nearly anything I've seen written in Perl seems to me like a bunch of impossible-to-understand-mixed-style-code. But I recognize that your example is unbeatable ;) --  <a href="../wiki/AdrianPerez.html" >AdrianPerez</a></em>
+</DL>
+<p>
+<DL>
+<dt><dd><em>Sorry by my interference, but for this problem awk is near invincible (reading from stdin):</em>
+<dt><dd><pre>
+
+awk '{print NR, $0}' -
+
+</pre>
+<dt><dd><em> -- <a href="../wiki/JulioFernandez.html" >JulioFernandez</a></em>
+</DL>
+<H3>STUFF I'M MAKING:</H3>
+These are Lua-related projects I'm currently working on:
+<UL>
+<li> <strong>Lixoo:</strong> the "Lightweight Interpreter eXtensible and Object Oriented", an Open Source 2D adventure game engine. I'm really making a great effort with this. Will be using Lua 5.0 as scripting engine. <a href="http://lixoo.sourceforge.net/">[Official site]</a>.
+</UL>
+<p>
+<UL>
+<li> <strong><a href="../wiki/LuaCheia.html" >LuaCheia</a>:</strong> I'm working on the MacOS X port of this modular and expansible Lua distribution.
+</UL>
+<p>
+<UL>
+<li> <strong>MoonSoon<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MoonSoon" >?</a>:</strong> a simple WikiWikiEngine<a href="/cgi-bin/wiki.pl?action=edit&amp;id=WikiWikiEngine" >?</a> written in Lua, can run in nearly any webserver with CGI support and a standard Lua 5.0 interpreter. In the near future the sources of a standalone version with some C code mixed with Lua code will be available. More info at <a href="http://sourceforge.net/projects/moonsoon">[SourceForge]</a>.
+</UL>
+<p>
+<p>
+<H3>STUFF I DIDN'T MAKE YET:</H3>
+Ideas, ideas: ideas I had but they didn't work, or didn't implement them, or... as I want to work on Lixoo I don't have spare time to these.
+<p>
+<UL>
+<li> <strong>Build system:</strong> I agree with <a href="../wiki/JohnBelmonte.html" >JohnBelmonte</a> that a Lua-based build system could be very cool stuff. I had this idea without knowing that he had it too. I coded some time ago a bunch scripts and called it SBS (Scriptable Build System), but I never released it as it had lots of obscure things and didn't work well. I think that the building system can be done by coding a library to do certain system calls (especially those related to knowing modification dates of files) from Lua and packaging them with a custom Lua interpreter especially designed to perform builds of software.
+</UL><DL>
+<DL>
+<dt><dd>I had a go at this one: <a href="http://github.com/xlq/moonmake">[moonmake]</a> (documentation: <a href="http://github.com/xlq/moonmake/blob/master/moonmake.txt">[moonmake.txt]</a>) -- xlq
+</DL>
+</DL>
+<p>
+<UL>
+<li> <strong>Some kind of mod_lua for <a href="http://www.apache.org">[Apache]</a>:</strong> I know there's one from <a href="http://www.xtgsystems.com/linux/lua/mod_lua.php">[XTG-Systems]</a> floating around there, but it's fairly simple. I know there's CGILua and I recognize it's great... but I'd like to see CGILua running on the Apache included in MacOS X, and there's no binary distribution for Macs. I think also that using an Apache module is faster that using a CGI program; at least this is what happens with <a href="http://www.modpython.org">[mod_python]</a> and <a href="http://perl.apache.org">[mod_perl]</a>. It should be nice if it had support for Apache2. Update: I have seen some different mod_lua implementations around there, even for Apache2, great!
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=AdrianPerez" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=AdrianPerez" >history</a><br>Last edited August 3, 2010 10:18 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=AdrianPerez" >(diff)</a>
+</body>
+</html>

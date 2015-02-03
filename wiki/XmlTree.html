@@ -1,0 +1,167 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Xml Tree</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=XmlTree&amp;body=1" title="List pages referring to XmlTree">Xml Tree</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H2>xmltree: a mid-level structure for XML</H2>
+<p>
+(This document was originally part of <a href="../wiki/LazyKit.html" >LazyKit</a>.)
+<p>
+This document describes a mid-level representation of XML as
+trees in Lua. It is intended to be saved into the lua-users
+wiki as a place to remember discussion on this subject.
+<p>
+<p>
+<p>
+The representation is intended to describe data from the XML
+Infoset, yet remain simple to work with in idiomatic Lua code.
+The representation is an interface, allowing fancy
+implementations to use metatables to provide the same interface
+as bare tables.
+<p>
+<a href="../wiki/LxpTree.html" >LxpTree</a> and <a href="../wiki/LazyTree.html" >LazyTree</a> implement this.
+<p>
+<H2>Spec by example</H2>
+<DL>
+<dt><dd><pre>&lt;paragraph justify='centered'&gt;first child&lt;b&gt;bold&lt;/b&gt;second child&lt;/paragraph&gt; </pre>
+<dt><dd><pre>lz = {name="paragraph", attr={justify="centered"}, 
+
+  "first child",
+
+  {name="b", "bold", n=1}
+
+  "second child",
+
+  n=3
+
+} </pre>
+</DL>
+<H2>Strawman spec</H2>
+<p>
+A <em>tree</em> is a Lua table representation of an element
+and its contents. The table must have a <code>name</code> key,
+giving the element name.
+<p>
+<p>
+<p>
+The tree may have a <code>attr</code> key, which gives a table
+of all of the attributes of the element. Only string keys are
+relevant. (LuaExpat<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaExpat" >?</a> uses numeric keys to mark attributes that
+were defaulted from the DTD.) A convenience iterator like
+<code>xattrpairs(tree)</code> should be provided.
+<p>
+<p>
+<p>
+If the element is not empty, each child node is contained in
+<code>tree[1]</code>, <code>tree[2]</code>, etc. Child nodes
+may be either strings, denoting character data content, or other
+trees. 
+<p>
+<p>
+<p>
+Parsers should try to merge adjacent character data content. That is, they should avoid producing something like:
+<p>
+<p>
+<DL>
+<dt><dd><pre>{name="p", "Hello w", "orld"} </pre>
+</DL>
+<p>
+Parsers should include an <code>n</code> key, giving the number
+of child nodes. However, to be tolerant of tree literals in
+code, general-purpose processing code should use code like
+<p>
+<p>
+<DL>
+<dt><dd><pre>tree.n or table.getn(tree) </pre>
+</DL>
+<p>
+(found as <code>xmliter.getn(tree)</code>), in the same way they
+would use <code>table.getn(list)</code> on normal lists instead
+of <code>list.n</code>.
+<p>
+<p>
+<p>
+(Why a separate <code>getn</code>? This is necessary because
+<code>table.getn(tree)</code> does not explicitly call for
+<code>tree.n</code>, instead using <code>rawget(tree, "n")</code>. Fancy tree implementations may need to use a
+metatable call to find the number of children.)
+<p>
+<p>
+<H2>Things explicitly not modeled</H2>
+<p>
+Syntactic details of XML source files are out of scope. To wit:
+<p>
+<p>
+<p>
+The order of attributes on elements is unimportant.
+<p>
+<p>
+<p>
+The presence of a CDATA section is not interesting; it is just
+another way to write character data.
+<p>
+<p>
+<p>
+Comments are not interesting.
+<p>
+<p>
+<p>
+The source of attributes, whether explicit or specified in a DTD
+is not interesting.
+<p>
+<p>
+<H2>Things explicitly modeled</H2>
+<p>
+All elements, regardless of duplicates.
+<p>
+<p>
+<p>
+All character data. That includes mixed content.
+<p>
+<p>
+<p>
+The order of the above.
+<p>
+<p>
+<H2>Things that should be modeled</H2>
+<p>
+DTD. This could go in <code>root.dtd</code>.
+<p>
+<p>
+<p>
+Encoding. However, declaring everything to be in UTF-8 might
+not be so bad---especially for USASCII users....
+<p>
+<p>
+<p>
+Namespaces. I don't have enough experience with them to propose
+a design.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=XmlTree" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=XmlTree" >history</a><br>Last edited February 28, 2004 11:28 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=XmlTree" >(diff)</a>
+</body>
+</html>

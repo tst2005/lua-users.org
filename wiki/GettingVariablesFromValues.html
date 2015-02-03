@@ -1,0 +1,324 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Getting Variables From Values</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=GettingVariablesFromValues&amp;body=1" title="List pages referring to GettingVariablesFromValues">Getting Variables From Values</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+If we have a value, can we obtain its variable?  For example, can a function return the names of the variables passed to it?
+<p>
+<DL>
+<dt><dd><pre class="code">
+f(x,y) <span class="comment">--&gt; 'x', 'y'</span>
+
+</pre>
+
+</DL>
+<p>
+Or can Lua support "pass-by-reference" (or maybe even "pass-by-name") calling semantics?
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> a = 10; <span class="keyword">local</span> b = 11
+
+<span class="library">print</span>(a,b) <span class="comment">--&gt; 10,11</span>
+
+swap(a,b)
+
+<span class="library">print</span>(a,b) <span class="comment">--&gt; 11,10</span>
+
+</pre>
+
+</DL>
+<p>
+The answer is not normally.  However, with some byte code inspection (using the lbci library <a href="http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/#lbci">[1]</a>) and Lua debug library hackery, it may be possible...
+<p>
+Note first the bytecode in a typical function call:
+<p>
+<DL>
+<dt><dd><pre>
+
+$ echo -e 'local x = {2,3};\n local y = 4;\n f(x,y,z)' | luac -p -l -
+
+main &lt;stdin:0,0&gt; (11 instructions, 44 bytes at 0x6d0ea8)
+
+0+ params, 6 slots, 0 upvalues, 2 locals, 5 constants, 0 functions
+
+        1       [1]     NEWTABLE        0 2 0
+
+        2       [1]     LOADK           1 -1    ; 2
+
+        3       [1]     LOADK           2 -2    ; 3
+
+        4       [1]     SETLIST         0 2 1   ; 1
+
+        5       [2]     LOADK           1 -3    ; 4
+
+        6       [3]     GETGLOBAL       2 -4    ; f
+
+        7       [3]     MOVE            3 0
+
+        8       [3]     MOVE            4 1
+
+        9       [3]     GETGLOBAL       5 -5    ; z
+
+        10      [3]     CALL            2 4 1
+
+        11      [3]     RETURN          0 1
+
+</pre>
+</DL>
+<p>
+The instructions prior to the CALL move the variables into place.  Here's how we might make use of that:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- D.Manura, 2009-10. Public domain.</span>
+
+
+
+<span class="library">require</span> <span class="string">"bci"</span>
+
+
+
+<span class="comment">-- Returns list of variables passed to function at given</span>
+
+<span class="comment">-- stack level number `level`.  `level` defaults to 1, the calling</span>
+
+<span class="comment">-- function, if omitted. If confused, returns nothing.</span>
+
+<span class="comment">-- See code for format of variables.</span>
+
+<span class="comment">-- WARNING: This code is experimental.  Not intended for production use.</span>
+
+<span class="keyword">local</span> mt
+
+<span class="keyword">local</span> <span class="keyword">function</span> getargvariables(level)
+
+  mt = mt <span class="keyword">or</span> {__tostring = <span class="keyword">function</span>(t)
+
+    <span class="keyword">local</span> s = <span class="string">'{'</span>
+
+    <span class="keyword">for</span> i=1,#t <span class="keyword">do</span>
+
+      s = s .. (i==1 <span class="keyword">and</span> <span class="string">''</span> <span class="keyword">or</span> <span class="string">','</span>) .. <span class="library">tostring</span>(t[i])
+
+    <span class="keyword">end</span>
+
+    s = s .. <span class="string">'}'</span>
+
+    <span class="keyword">return</span> s
+
+  <span class="keyword">end</span>}
+
+
+
+  <span class="comment">-- Get function info.</span>
+
+  level = (level <span class="keyword">or</span> 1) + 2
+
+  <span class="keyword">local</span> f = <span class="library">debug.getinfo</span>(level,<span class="string">'f'</span>).func
+
+  <span class="keyword">if</span> <span class="keyword">not</span> f <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span> <span class="comment">-- could be a tail call</span>
+
+  <span class="keyword">local</span> currentline = <span class="library">debug.getinfo</span>(level,<span class="string">'l'</span>).currentline
+
+  <span class="keyword">local</span> F = inspector.getheader(f)
+
+
+
+  <span class="comment">-- Get instruction pointer of call.</span>
+
+  <span class="comment">-- Unfortunately, we only have the line number from which to infer the</span>
+
+  <span class="comment">-- instruction pointer.  So, we can only do this unambiguously when the</span>
+
+  <span class="comment">-- call is the only call on its line.  Perhaps bci or debug.getinfo</span>
+
+  <span class="comment">-- could be patched to return the exact instruction pointer.</span>
+
+  <span class="keyword">local</span> count = 0
+
+  <span class="keyword">local</span> currentip
+
+  <span class="keyword">for</span> i=1,F.instructions <span class="keyword">do</span>
+
+    <span class="keyword">local</span> line, opcode, a, b, c = inspector.getinstruction(f,i)
+
+    <span class="keyword">if</span> line == currentline <span class="keyword">and</span> opcode == <span class="string">"CALL"</span> <span class="keyword">then</span>
+
+      currentip = i
+
+      count = count + 1
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> count ~= 1 <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span> <span class="comment">-- ambiguous, return nothing</span>
+
+
+
+  <span class="comment">-- Get CALL opcode data</span>
+
+  <span class="keyword">local</span> _,_,idxfunc,nparamsp,_ = inspector.getinstruction(f,currentip)
+
+
+
+  <span class="comment">-- Get arguments.</span>
+
+  <span class="keyword">local</span> names = {}
+
+  <span class="keyword">for</span> i=1,nparamsp-1 <span class="keyword">do</span>
+
+    <span class="keyword">local</span> _,opcode,a,b,c = inspector.getinstruction(f,currentip-i)
+
+    <span class="keyword">if</span> opcode == <span class="string">'MOVE'</span> <span class="keyword">and</span> a == idxfunc + nparamsp - i <span class="keyword">then</span> <span class="comment">-- local</span>
+
+      <span class="keyword">local</span> varname,_,_ = inspector.getlocal(f,b+1)
+
+      names[nparamsp - i] = <span class="library">setmetatable</span>({<span class="string">'local'</span>, varname, b+1}, mt)
+
+    <span class="keyword">elseif</span> opcode == <span class="string">'GETGLOBAL'</span> <span class="keyword">and</span> b &lt; 0 <span class="keyword">then</span> <span class="comment">-- global</span>
+
+      <span class="keyword">local</span> varname = inspector.getconstant(f,-b)
+
+      names[nparamsp - i] = <span class="library">setmetatable</span>({<span class="string">'global'</span>, varname}, mt)
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">return</span> <span class="comment">-- other possibilities not currently implemented</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">return</span> <span class="library">unpack</span>(names, 1, nparamsp-1)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Set variable `var` (as returned by `getargvariables`) in context of</span>
+
+<span class="comment">-- stack level number `level` to value `value`.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> setvariable(level, var, value)
+
+  level = (level <span class="keyword">or</span> 1) + 1
+
+  <span class="keyword">if</span> var[1] == <span class="string">'local'</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> varname, idx = var[2], var[3]
+
+    <span class="library">debug.setlocal</span>(level, idx, value)
+
+  <span class="keyword">elseif</span> var[1] == <span class="string">'global'</span> <span class="keyword">then</span>
+
+    <span class="keyword">local</span> varname = var[2]
+
+    <span class="library">getfenv</span>(2)[varname] = value
+
+  <span class="keyword">else</span>
+
+    <span class="library">assert</span>(<span class="keyword">false</span>)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- TESTS</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> f(a,b)
+
+  <span class="library">print</span>(getargvariables()) <span class="comment">--&gt; {local,y,5} {local,z,6} {global,w}</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> y=1
+
+  <span class="keyword">local</span> z=2
+
+  f(y,z,w)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> swap(x,y)
+
+  <span class="keyword">local</span> xvar, yvar = getargvariables()
+
+  <span class="library">assert</span>(xvar <span class="keyword">and</span> yvar)
+
+  setvariable(2, xvar, y)
+
+  setvariable(2, yvar, x)
+
+<span class="keyword">end</span>
+
+
+
+a = 10
+
+<span class="keyword">local</span> b = 11
+
+<span class="library">print</span>(a,b) <span class="comment">--&gt; 10,11</span>
+
+swap(a,b)
+
+<span class="library">print</span>(a,b) <span class="comment">--&gt; 11,10</span>
+
+
+
+<span class="library">print</span> <span class="string">'DONE'</span>
+
+</pre>
+
+</DL>
+<p>
+As is, the above is not intended for production use.  The above could be generalized further.  Please do so if you are so inclined.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="http://article.gmane.org/gmane.comp.lang.lua.general/57971">[2]</a> - Lua list discussion
+<li> <a href="../wiki/LuaHacks.html" >LuaHacks</a>, <a href="../wiki/StringInterpolation.html" >StringInterpolation</a>, and <a href="../wiki/ModuleDefinition.html" >ModuleDefinition</a> contains some more debug.getlocal/setlocal hacks
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=GettingVariablesFromValues" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=GettingVariablesFromValues" >history</a><br>Last edited October 9, 2009 4:56 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=GettingVariablesFromValues" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,891 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Output Lua Table To Html File</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=OutputLuaTableToHtmlFile&amp;body=1" title="List pages referring to OutputLuaTableToHtmlFile">Output Lua Table To Html File</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The following sample code converts a Lua table into an HTML file that can be viewed by a web browser. Different levels of the table nesting are rendered with different colors.  The maximum level of nesting is set to 10, but this can be easily tweaked for higher levels.
+<p>
+-- dontspamme_samlie@yahoo.com
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Converts Lua table to HTML output in table.html file</span>
+
+<span class="keyword">function</span> tohtml(x)
+
+  ret = tohtml_table(x,1)
+
+  writefile(<span class="string">"table.html"</span>, ret)
+
+  <span class="library">os.execute</span>(<span class="string">"table.html"</span>)
+
+  <span class="keyword">return</span>(ret)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Saves a string to file</span>
+
+<span class="keyword">function</span> writefile(filename, value)
+
+  <span class="keyword">if</span> (value) <span class="keyword">then</span>
+
+    <span class="keyword">local</span> file = <span class="library">io.open</span>(filename,<span class="string">"w+"</span>)
+
+    file:write(value)
+
+    file:close()
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Flattens a table to html output</span>
+
+<span class="keyword">function</span> tohtml_table(x, table_level)
+
+  <span class="keyword">local</span> k, s,  tcolor
+
+  <span class="keyword">local</span> html_colors = {
+
+    <span class="string">"#339900"</span>,<span class="string">"#33CC00"</span>,<span class="string">"#669900"</span>,<span class="string">"#666600"</span>,<span class="string">"#FF3300"</span>,
+
+    <span class="string">"#FFCC00"</span>,<span class="string">"#FFFF00"</span>,<span class="string">"#CCFFCC"</span>,<span class="string">"#CCCCFF"</span>,<span class="string">"#CC66FF"</span>,
+
+    <span class="string">"#339900"</span>,<span class="string">"#33CC00"</span>,<span class="string">"#669900"</span>,<span class="string">"#666600"</span>,<span class="string">"#FF3300"</span>,
+
+    <span class="string">"#FFCC00"</span>,<span class="string">"#FFFF00"</span>,<span class="string">"#CCFFCC"</span>,<span class="string">"#CCCCFF"</span>,<span class="string">"#CC66FF"</span>
+
+  }
+
+  <span class="keyword">local</span> lineout = {}
+
+  <span class="keyword">local</span> tablefound = <span class="keyword">false</span>
+
+    <span class="keyword">if</span> <span class="library">type</span>(x) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+    s = <span class="string">""</span>
+
+    k = 1
+
+    <span class="keyword">local</span> i, v = <span class="library">next</span>(x)
+
+    <span class="keyword">while</span> i <span class="keyword">do</span>
+
+      <span class="keyword">if</span> (<span class="library">type</span>(v) == <span class="string">"table"</span>) <span class="keyword">then</span>
+
+        <span class="keyword">if</span> (table_level&lt;10) <span class="keyword">then</span>
+
+          lineout[k] =  <span class="string">"&lt;b&gt;"</span> .. flat(i) .. <span class="string">"&lt;/b&gt;"</span>.. tohtml_table(v, table_level + 1)   
+
+        <span class="keyword">else</span>
+
+          lineout[k] = <span class="string">"&lt;b&gt;MAXIMUM LEVEL BREACHED&lt;/b&gt;"</span>
+
+        <span class="keyword">end</span>
+
+        tablefound = <span class="keyword">true</span>
+
+      <span class="keyword">else</span>
+
+        lineout[k] = flat(i) .. <span class="string">"="</span> .. tohtml_table(v)
+
+      <span class="keyword">end</span>
+
+      k = k + 1
+
+      i, v = <span class="library">next</span>(x, i)
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">for</span> k,line <span class="keyword">in</span> <span class="library">ipairs</span>(lineout) <span class="keyword">do</span>
+
+      <span class="keyword">if</span> (tablefound) <span class="keyword">then</span>
+
+        s = s .. <span class="string">"&lt;tr&gt;&lt;td&gt;"</span> .. line .. <span class="string">"&lt;/td&gt;&lt;/tr&gt;\n"</span>
+
+      <span class="keyword">else</span>
+
+        s = s .. <span class="string">"&lt;td&gt;"</span> .. line .. <span class="string">"&lt;/td&gt;\n"</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> <span class="keyword">not</span> (tablefound) <span class="keyword">then</span>
+
+      s = <span class="string">"&lt;table border='1' bgcolor='#FFFFCC' cellpadding='5' cellspacing='0'&gt;"</span> ..
+
+        <span class="string">"&lt;tr&gt;"</span> .. s .. <span class="string">"&lt;/tr&gt;&lt;/table&gt;\n"</span>
+
+    <span class="keyword">else</span>
+
+      tcolor = html_colors[table_level]
+
+      s = <span class="string">"&lt;table border='3' bgcolor='"</span>..tcolor..<span class="string">"' cellpadding='10' cellspacing='0'&gt;"</span> ..
+
+          s ..  <span class="string">"&lt;/table&gt;\n"</span>
+
+    <span class="keyword">end</span>
+
+
+
+    <span class="keyword">return</span> s 
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="library">type</span>(x) == <span class="string">"function"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="string">"FUNC"</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="library">type</span>(x) == <span class="string">"file"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="string">"FILE"</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> <span class="library">tostring</span>(x) 
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Flattens a table to string</span>
+
+<span class="keyword">function</span> flat(x)  
+
+  <span class="keyword">return</span> toflat(x,1)
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- Flattens a table to string</span>
+
+<span class="keyword">function</span> toflat(x, tlevel)
+
+  <span class="keyword">local</span> s
+
+  tlevel = tlevel + 1
+
+
+
+  <span class="keyword">if</span> <span class="library">type</span>(x) == <span class="string">"table"</span> <span class="keyword">then</span>
+
+    s = <span class="string">"{"</span>
+
+    <span class="keyword">local</span> i, v = <span class="library">next</span>(x)
+
+    <span class="keyword">while</span> i <span class="keyword">do</span>
+
+      <span class="keyword">if</span> (tlevel &lt; 15) <span class="keyword">then</span>
+
+        s = s .. i .. <span class="string">"="</span> .. toflat(v, tlevel) 
+
+      <span class="keyword">else</span>
+
+        s = s .. i .. <span class="string">"={#}"</span> 
+
+      <span class="keyword">end</span>
+
+
+
+      i, v = <span class="library">next</span>(x, i)
+
+      <span class="keyword">if</span> i <span class="keyword">then</span>
+
+        s = s .. <span class="string">", "</span> 
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    <span class="keyword">return</span> s .. <span class="string">"}\n"</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="library">type</span>(x) == <span class="string">"function"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="string">"FUNC"</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="library">type</span>(x) == <span class="string">"file"</span> <span class="keyword">then</span>
+
+    <span class="keyword">return</span> <span class="string">"FILE"</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> <span class="library">tostring</span>(x) 
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>Take #2</H2>
+<p>
+Here is a more advanced implementation, with expand/collapsing and handling cycles.  (See warning in comments before use.)
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- Example dumping Lua tables to HTML for debugging.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- Warning: not complete or well tested.  This is only intended</span>
+
+<span class="comment">-- as an example/starting point.  Clean it up if used in production.</span>
+
+<span class="comment">--</span>
+
+<span class="comment">-- (c) 2008 David Manura (2008-12)</span>
+
+<span class="comment">-- Licensed under the same terms as Lua (MIT license).</span>
+
+
+
+<span class="keyword">local</span> <span class="library">coroutine</span> = <span class="library">coroutine</span>
+
+<span class="keyword">local</span> <span class="library">next</span> = <span class="library">next</span>
+
+<span class="keyword">local</span> <span class="library">pairs</span> = <span class="library">pairs</span>
+
+<span class="keyword">local</span> <span class="library">string</span> = <span class="library">string</span>
+
+<span class="keyword">local</span> <span class="library">tostring</span> = <span class="library">tostring</span>
+
+<span class="keyword">local</span> <span class="library">type</span> = <span class="library">type</span>
+
+<span class="keyword">local</span> <span class="library">_G</span> = <span class="library">_G</span>
+
+
+
+<span class="keyword">local</span> format = <span class="library">string.format</span>
+
+
+
+
+
+<span class="comment">-- Escape string to make suitable for embedding in HTML.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> htmlize(s)
+
+  s = s:gsub(<span class="string">'&amp;'</span>, <span class="string">'&amp;amp;'</span>)
+
+  s = s:gsub(<span class="string">'&lt;'</span>, <span class="string">'&amp;lt;'</span>)
+
+  s = s:gsub(<span class="string">'&gt;'</span>, <span class="string">'&amp;gt;'</span>)
+
+  <span class="keyword">return</span> s
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- iterator function for table pairs.</span>
+
+<span class="comment">-- hash part, then array part.</span>
+
+<span class="comment">-- used for display.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> table_pairs(t)
+
+  <span class="keyword">local</span> keys = {}
+
+  <span class="keyword">for</span> k <span class="keyword">in</span> <span class="library">pairs</span>(t) <span class="keyword">do</span> keys[#keys+1] = k <span class="keyword">end</span>
+
+  <span class="library">table.sort</span>(keys, <span class="keyword">function</span>(a,b)
+
+    <span class="keyword">if</span> <span class="library">type</span>(a) == <span class="string">'number'</span> <span class="keyword">and</span> <span class="library">type</span>(b) == <span class="string">'string'</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">false</span>
+
+    <span class="keyword">elseif</span> <span class="library">type</span>(a) == <span class="string">'string'</span> <span class="keyword">and</span> <span class="library">type</span>(b) == <span class="string">'number'</span> <span class="keyword">then</span>
+
+      <span class="keyword">return</span> <span class="keyword">true</span>
+
+    <span class="keyword">else</span>
+
+      <span class="keyword">return</span> a &lt; b
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>)
+
+  <span class="keyword">local</span> i = 0
+
+  <span class="keyword">return</span> <span class="keyword">function</span>()
+
+    i = i + 1
+
+    <span class="keyword">local</span> k = keys[i]
+
+    <span class="keyword">if</span> k <span class="keyword">then</span> <span class="keyword">return</span> k, t[k] <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Serialize object o.  Writes one or more substrings to function append.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> obj_serialize(o, append)
+
+  <span class="keyword">if</span> <span class="library">type</span>(o) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+    append(<span class="string">'{'</span>)
+
+    <span class="keyword">for</span> k,v <span class="keyword">in</span> table_pairs(o) <span class="keyword">do</span>
+
+      append(<span class="string">'['</span>)
+
+      obj_serialize(k, append)
+
+      append(<span class="string">']=['</span>)
+
+      obj_serialize(v, append)
+
+      append(<span class="string">'];'</span>)
+
+    <span class="keyword">end</span>
+
+    append(<span class="string">'}'</span>)
+
+  <span class="keyword">elseif</span> <span class="library">type</span>(o) == <span class="string">'string'</span> <span class="keyword">then</span>
+
+    append(<span class="library">string.format</span>(<span class="string">'%q'</span>, o))
+
+  <span class="keyword">else</span>
+
+    append(<span class="library">tostring</span>(o))
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- Returns serialization of o, not exceeding maxlen characters.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> obj_tostring_short(o, maxlen)
+
+  <span class="keyword">local</span> s = <span class="string">''</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> append(ss)
+
+    s = s .. ss
+
+    <span class="keyword">if</span> #s &gt; maxlen <span class="keyword">then</span>
+
+      s = s:sub(1,maxlen) .. <span class="string">'...'</span>
+
+      <span class="library">coroutine.yield</span>()
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">local</span> f = <span class="library">coroutine.wrap</span>(obj_serialize)
+
+  f(o, append)
+
+  <span class="keyword">return</span> s
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> analyze_tree(o)
+
+  <span class="keyword">local</span> ids = {}
+
+  <span class="keyword">local</span> current_id = 0
+
+  <span class="keyword">local</span> count = {}
+
+  <span class="keyword">local</span> from = {}
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> analyze_tree_helper(o)
+
+    <span class="keyword">if</span> <span class="library">type</span>(o) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+      <span class="keyword">if</span> count[o] <span class="keyword">then</span>
+
+        count[o] = count[o] + 1
+
+      <span class="keyword">else</span>
+
+        count[o] = 1
+
+        current_id = current_id + 1
+
+        ids[o] = current_id
+
+  
+
+        <span class="keyword">local</span> this_id = current_id
+
+        <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(o) <span class="keyword">do</span>
+
+          analyze_tree_helper(k)
+
+          analyze_tree_helper(v)
+
+          <span class="keyword">if</span> <span class="library">type</span>(k) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+            from[k] = from[k] <span class="keyword">or</span> {}; from[k][o] = this_id .. <span class="string">'.'</span> .. ids[k]
+
+          <span class="keyword">end</span>
+
+          <span class="keyword">if</span> <span class="library">type</span>(v) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+            from[v] = from[v] <span class="keyword">or</span> {};
+
+            from[v][o] = this_id .. <span class="string">'.'</span> .. (ids[k] <span class="keyword">or</span> <span class="library">tostring</span>(k))
+
+          <span class="keyword">end</span>
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+  analyze_tree_helper(o)
+
+
+
+  <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(count) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> v == 1 <span class="keyword">then</span> count[k] = <span class="keyword">nil</span> <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">return</span> ids, count, from
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">local</span> header = <span class="string">[[
+
+&lt;!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"&gt;
+
+&lt;html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"&gt;
+
+&lt;head&gt;
+
+&lt;title&gt;FIX&lt;/title&gt;
+
+&lt;style type="text/css"&gt;
+
+.table {margin-left:1em; border: 1px solid black}
+
+.table_row {border: 1px solid black}
+
+&lt;/style&gt;
+
+&lt;script type="text/javascript"&gt;&lt;!--
+
+function toggle(id) {
+
+  if (document.getElementById) {
+
+    var ele = document.getElementById(id);
+
+    if (ele &amp;&amp; ele.style) {
+
+      ele.style.display = ele.style.display == 'none' ? '' : 'none';
+
+    }
+
+  }
+
+}
+
+function show_node(ele) {
+
+  if (ele.style) {
+
+    ele.style.display = '';
+
+    if (ele.parentNode) show_node(ele.parentNode);
+
+  }
+
+}
+
+function show(id) {
+
+  if (document.getElementById) {
+
+    var ele = document.getElementById(id);
+
+    if (ele) show_node(ele);
+
+  }
+
+}
+
+//--&gt;&lt;/script&gt;
+
+&lt;/head&gt;
+
+&lt;body&gt;
+
+]]</span>
+
+<span class="keyword">local</span> footer = <span class="string">[[&lt;/body&gt;&lt;/html&gt;]]</span>
+
+
+
+
+
+<span class="comment">-- Writes HTML representations of object o as one or more strings to</span>
+
+<span class="comment">-- function output.</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> object_to_html(o, output)
+
+  <span class="keyword">local</span> ids, count, from = analyze_tree(o)
+
+
+
+  <span class="keyword">local</span> output_html
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> output_header_html(o)
+
+    <span class="keyword">if</span> <span class="library">type</span>(o) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+      output(format(<span class="string">'&lt;a name="id%s"&gt;&lt;/a&gt;'</span>, ids[o]))
+
+
+
+      <span class="keyword">local</span> is_empty = <span class="library">next</span>(o) == <span class="keyword">nil</span>
+
+      output(is_empty <span class="keyword">and</span> <span class="string">'(empty)'</span> <span class="keyword">or</span>
+
+             <span class="string">'&lt;a href="javascript:toggle(\'id'</span> .. ids[o] .. <span class="string">'\')"&gt;[+]&lt;/a&gt;'</span>)
+
+      output(format(<span class="string">[[Table ID %s]]</span>, ids[o]))
+
+      output(<span class="library">type</span>(o.tag) == <span class="string">'string'</span> <span class="keyword">and</span> <span class="string">' [Tag='</span> .. o.tag .. <span class="string">']'</span> <span class="keyword">or</span> <span class="string">''</span>)
+
+      output(<span class="string">' '</span>)
+
+      output(htmlize(obj_tostring_short(o, 40)))
+
+    <span class="keyword">elseif</span> <span class="library">type</span>(o) == <span class="string">'string'</span> <span class="keyword">then</span>
+
+      output(htmlize(<span class="library">string.format</span>(<span class="string">'%q'</span>, o)))
+
+    <span class="keyword">else</span>
+
+      output(htmlize(<span class="library">tostring</span>(o)))
+
+    <span class="keyword">end</span>  
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> output_body_html(o)
+
+    <span class="keyword">if</span> <span class="library">type</span>(o) == <span class="string">'table'</span> <span class="keyword">then</span>
+
+      output(format(<span class="string">'&lt;div class="table" style="display:none" id="id%s"&gt;\n'</span>, ids[o]))
+
+
+
+      <span class="comment">-- xref</span>
+
+      <span class="keyword">if</span> from[o] <span class="keyword">and</span> <span class="library">next</span>(from[o]) <span class="keyword">and</span> <span class="library">next</span>(from[o], <span class="library">next</span>(from[o])) <span class="keyword">then</span>
+
+        output(<span class="string">'&lt;div&gt;Referenced from: '</span>)
+
+        <span class="keyword">for</span> _,from_id <span class="keyword">in</span> <span class="library">pairs</span>(from[o]) <span class="keyword">do</span>
+
+          output(format(<span class="string">[[ &lt;a onclick="show('id%s')" href="#id%s"&gt;%s&lt;/a&gt; ]]</span>,
+
+                 from_id, from_id, from_id))
+
+        <span class="keyword">end</span>
+
+        output(<span class="string">'&lt;/div&gt;'</span>)
+
+      <span class="keyword">end</span>
+
+
+
+      <span class="comment">-- key/values</span>
+
+      <span class="keyword">for</span> k,v <span class="keyword">in</span> table_pairs(o) <span class="keyword">do</span>
+
+        <span class="keyword">local</span> <span class="keyword">function</span> prepare_output(oo)
+
+          <span class="keyword">local</span> f, is_long
+
+          <span class="keyword">if</span> count[oo] <span class="keyword">then</span>
+
+            f = <span class="keyword">function</span>()
+
+              output(format(<span class="string">[[&lt;a onclick="show('id%s')" href="#id%s"&gt;(see %s)&lt;/a&gt;]]</span>,
+
+                            ids[oo],ids[oo],ids[oo]))
+
+            <span class="keyword">end</span>
+
+          <span class="keyword">elseif</span> <span class="library">type</span>(oo) ~= <span class="string">'table'</span> <span class="keyword">then</span>
+
+            f = <span class="keyword">function</span>() output_header_html(oo) <span class="keyword">end</span>
+
+          <span class="keyword">else</span>
+
+            f = <span class="keyword">function</span>() output_header_html(oo) <span class="keyword">end</span>
+
+            is_long = <span class="keyword">true</span>
+
+          <span class="keyword">end</span>
+
+          <span class="keyword">return</span> f, is_long
+
+        <span class="keyword">end</span>
+
+        <span class="keyword">local</span> kf, klong = prepare_output(k)
+
+        <span class="keyword">local</span> vf, vlong = prepare_output(v)
+
+
+
+        <span class="keyword">local</span> field_id = ids[o] .. <span class="string">'.'</span> .. (ids[k] <span class="keyword">or</span> <span class="library">tostring</span>(k))
+
+        output(format(<span class="string">[[&lt;a name="id%s"&gt;&lt;/a&gt;]]</span>, field_id))
+
+
+
+        output(format(<span class="string">'&lt;div class="table_row" id="id%s"&gt;\n'</span>, field_id))
+
+        kf()
+
+        output(<span class="string">'='</span>)
+
+        vf()
+
+        <span class="keyword">if</span> vlong <span class="keyword">then</span> output_body_html(v) <span class="keyword">end</span>
+
+        output(<span class="string">'&lt;/div&gt;'</span>)
+
+      <span class="keyword">end</span>
+
+
+
+      output(<span class="string">'&lt;/div&gt;\n'</span>)
+
+
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">--local</span>
+
+  <span class="keyword">function</span> output_html(o)
+
+    output(<span class="string">'&lt;div&gt;'</span>)
+
+    output_header_html(o)
+
+    output(<span class="string">'&lt;/div&gt;'</span>)
+
+    output_body_html(o)
+
+  <span class="keyword">end</span>
+
+
+
+  output(header)
+
+
+
+  output_html(o)
+
+  <span class="keyword">for</span> oo <span class="keyword">in</span> <span class="library">pairs</span>(count) <span class="keyword">do</span>
+
+    <span class="keyword">if</span> oo ~= o <span class="keyword">then</span>
+
+      output_html(oo)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  output(footer)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="comment">-- example usage</span>
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> dump(obj)
+
+  object_to_html(obj, <span class="keyword">function</span>(s) <span class="library">io.stdout</span>:write(s) <span class="keyword">end</span>)
+
+<span class="keyword">end</span>
+
+
+
+dump(<span class="library">_G</span>)
+
+
+
+<span class="comment">-- metalua example</span>
+
+<span class="comment">--[[
+
+package.path = package.path .. ';/luaanalyze/lib/?.lua'
+
+require "lexer"
+
+require "gg"
+
+require "mlp_lexer"
+
+require "mlp_misc"
+
+require "mlp_table"
+
+require "mlp_meta"
+
+require "mlp_expr"
+
+require "mlp_stat"
+
+require "mlp_ext"
+
+mlc = {} -- make gg happy
+
+local mlp = assert(_G.mlp)
+
+local function string_to_ast(src, filename)
+
+  filename = filename or '(string)'
+
+  local  lx  = mlp.lexer:newstream (src, filename)
+
+  local  ast = mlp.chunk(lx)
+
+  return ast
+
+end
+
+local src_file = assert(io.open ('mydump.lua', 'r'))
+
+local src = src_file:read '*a'; src_file:close()
+
+local ast = string_to_ast(src, src_filename)
+
+local function remove_lineinfo(o)
+
+  if type(o) == 'table' then
+
+    o.lineinfo = nil
+
+    for k,v in pairs(o) do
+
+      remove_lineinfo(k)
+
+      remove_lineinfo(v)
+
+    end
+
+  end
+
+end
+
+remove_lineinfo(ast)
+
+dump(ast)
+
+--]]</span>
+
+</pre>
+
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/TableSerialization.html" >TableSerialization</a> - Recursive table print/serialization
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=OutputLuaTableToHtmlFile" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=OutputLuaTableToHtmlFile" >history</a><br>Last edited August 5, 2012 6:54 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=OutputLuaTableToHtmlFile" >(diff)</a>
+</body>
+</html>

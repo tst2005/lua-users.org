@@ -1,0 +1,284 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Meta Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=MetaLua&amp;body=1" title="List pages referring to MetaLua">Meta Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Metalua is an alternative Lua compiler supporting compile-time metaprogramming and syntax
+extensions.  It also contains a pure Lua library for parsing Lua source into ASTs.
+<p>
+<H2>Description</H2>
+<p>
+Metalua is backward compatible with Lua 5.1.  You can dynamically add new idioms in the
+language, and provide metaprograms, i.e. programs which are run while the
+compiler is compiling another file and can read / modify /write /
+manipulate the program being compiled.
+<p>
+<H3>Usefulness</H3>
+<p>
+The practical interest is that you can extend the language, typically
+by importing a concept from other languages: you define a new syntax,
+and a manipulating function that turns this new idiom into a valid
+(although probably longer, harder to read and maintain) Lua
+program. Examples include proper support for various OO styles,
+ML-style structural pattern matching, design by contract, static or runtime type
+checking, lazy evaluation, list generation by comprehension...
+<p>
+<H3>Status</H3>
+<p>
+Metalua development is still in alpha stage).
+<p>
+<H3>Abstract syntax trees</H3>
+<p>
+The secret for efficient manipulation of any data is to represent it
+at the right abstraction level. Programs can be represented in many
+ways: as ASCII source files, token streams, abstract syntax trees,
+bytecode, compiled binary files... However, the consensus is that the
+most practical representation for automated program manipulation is
+the abstract syntax tree (AST). Since human users prefer plain text
+sources, Metalua lets you work with AST as well as plain text, mix
+them as you see fit, and offers facilities to translate from a format
+to another.
+<p>
+<H3>Learning curve</H3>
+<p>
+Writing extensions in metalua is not trivial: you need to know AST
+structure, to have a clear understanding of what metalevels are, and
+to be at ease shifting from one metalevel to another without getting
+confused. Obviously, mastering Lua is a must.
+<p>
+However, it's important to realize that if designing an extension is
+often not easy, using a <em>well designed</em> one should be easy.
+<p>
+This design is consistent with Lua's: it's easy, even for
+non-developers, to write basic programs. But if you want to do
+advanced things, you'll need to master non-trivial notions such as
+coroutines, environments, metatables, weak tables, higher order
+functions, etc. Rather than avoiding at all cost the need to look
+under the hood, Lua keeps it clean under that hood, so that advanced
+users can hack it with confidence. Notice that if it's not so easy to
+write, say, a proper API around a userdatum, using it should be be
+easy if it's properly designed.
+<p>
+This "shamelessly easier to use than write" approach is also similar
+to C++'s templates, although pretending that C++ is easy to use is a
+bit of a stretch: if you really think so, mastering metalua will
+really feel like a stroll in the park.
+<p>
+If you feel like metalua's idiosyncrasies are the hardest part of your
+extension design, it might mean that you're underestimating the
+complexity of implementing a correct extension, including the one
+you're writing.
+<p>
+<H3>Metalua vs. Lisp</H3>
+<p>
+Although Metalua technically allows to write programs with lots of
+small ad-hoc macros, as one often does in Lisp, it's not the intended
+purpose, and is not encouraged. Although macros can be very handy,
+especially in single coder projects developing everything from
+scratch, the price to pay in terms of readability and interoperability
+is often not worth it.
+<p>
+Lisp values freedom at all costs, and lets users write pretty much
+what they want without much guidance. It can become an issue if you
+ever have to work with some code not written by an outstanding hacker.
+At the other extreme, some extremely dull languages are a pain to work
+with, but grow a wealth of useful, robust and well maintained
+libraries. The aims with metalua are to:
+<UL>
+<li> support macros when they're worth it: to embrace new paradygms.
+<li> make it possible, yet clearly cumbersome, to write frivolous macros: programmers are allowed to write poor code, but they should be made aware of how poor it is.
+<li> have a "proper" syntax: syntax is important, it decides what's idiomatic and what isn't. It gives programmers the Knowledge of Good and Evil.
+<li> Let extension designers decide what's Good and what isn't, by giving them some latitude in syntactical support.
+<li> Yet encourage them to use sensible syntaxes, by providing standard extension entrypoints in the grammar, which make it easier to respect the spirit of Lua's syntax.
+</UL>
+<p>
+<H2>Examples</H2>
+<p>
+Since Metalua manipulates a lot of trees, having pattern matching as
+in ML is very convinient. Such an extension is available in the
+language, and lets write things like below. Notice the presence of
+<code>-{ extension 'foobar'</code>} statements in the source: it loads
+extensions in the compiler, and by listing them you know which exact
+dialect of the language is used. You also don't need to remember how
+to compile each individual source file: this information is stored in
+it.
+<p>
+<pre class="code">
+<span class="comment">----------------------------------------------------</span>
+
+<span class="comment">-- Lambda-Calculus evaluator (weak head normal form)</span>
+
+<span class="comment">----------------------------------------------------</span>
+
+-{ extension <span class="string">"match"</span> }
+
+
+
+<span class="keyword">function</span> replace(var, newval, term)
+
+   match term with
+
+   | `Var{ v } <span class="keyword">if</span> v==var       -&gt; <span class="keyword">return</span> newval
+
+   | `Var{ _ }                 -&gt; <span class="keyword">return</span> term
+
+   | `Lambda{ v, _ } <span class="keyword">if</span> v==var -&gt; <span class="keyword">return</span> term
+
+   | `Lambda{ v, b }           -&gt; <span class="keyword">return</span> Lambda{ v, replace(var, newval, b) }
+
+   | `Apply{ f, x }            -&gt; <span class="keyword">return</span> `Apply{ replace(var, newval, f), replace(var, newval, x) }
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> reduce_whnf(term)
+
+   match term with
+
+   | `Apply{ `Lambda { param, body }, arg } -&gt;
+
+      <span class="keyword">local</span> x = replace (param, arg, body)
+
+      <span class="keyword">return</span> reduce_whnf(x)
+
+   | _ -&gt; <span class="keyword">return</span> term
+
+   <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+<p>
+What's interesting to see is how close the example above is from
+OCaml, the language from which the pattern matching idiom has been
+borrowed:
+<p>
+<pre>
+
+(* Type declaration: OCaml is a statically typed language! *)
+
+type term =
+
+| Var    of string
+
+| Apply  of term * term
+
+| Lambda of string * term
+
+
+
+let rec replace var newval term =
+
+   match term with
+
+   | Var(v) when v==var       -&gt; newval
+
+   | Var(_)                   -&gt; term
+
+   | Lambda(v, _) when v==var -&gt; term
+
+   | Lambda(v, b)             -&gt; Lambda(v, replace var newval b)
+
+   | Apply(f, x)              -&gt; Apply(replace var newval f, replace var newval x)
+
+
+
+let rec reduce_whnf term =
+
+   match term with
+
+   | Apply(Lambda(param, body), arg) -&gt;
+
+     let x = replace param arg body in
+
+     reduce_whnf x
+
+   | _ -&gt; term
+
+</pre>
+<p>
+A last example will show how an extension implementation looks
+like. We'll introduce the often begged for ternary choice operator,
+a.k.a. C's "?:" conditional. Since ":" is already used by Lua for
+method invocation, we'll make it "<code>bool ? foo, bar</code>" rather than
+"<code>bool ? foo : bar</code>". A correct (although inefficient) way to encode it
+is to put it in a function: "<code>(function() if bool then return foo else return bar end end)()</code>".
+This is implemented as:
+<p>
+<pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> t_builder(bool, suffix)
+
+   <span class="keyword">local</span> foo, bar = <span class="library">unpack</span> (suffix)
+
+   <span class="keyword">return</span> +{ (<span class="keyword">function</span>() <span class="keyword">if</span> -{bool} <span class="keyword">then</span> -{foo} <span class="keyword">else</span> -{bar} <span class="keyword">end</span> <span class="keyword">end</span>)() }
+
+<span class="keyword">end</span>
+
+
+
+mlp.expr.suffix:add{ <span class="string">"?"</span>, mlp.expr, <span class="string">","</span> mlp.expr, builder=t_builder }
+
+</pre>
+
+<p>
+(For the record, a more flexible and much more efficient
+implementation is available
+<a href="http://metalua.luaforge.net/src/lib/ext-syntax/ternary.lua.html">[with
+
+the compiler]</a>).
+<p>
+<H2>Author</H2>
+<p>
+<a href="../wiki/FabienFleutot.html" >FabienFleutot</a>
+<p>
+<H2>Related Projects that use Metalua</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaToCee.html" >LuaToCee</a> - compiles Lua source to C API code (uses Metalua libraries only)
+<li> <a href="../wiki/SourceOptimizer.html" >SourceOptimizer</a> - Lua source optimizer via function inlining (uses Metalua libraries only)
+<li> <a href="http://luaforge.net/projects/multimethods/">[multimethods]</a> - an implementation of multimethods both for Lua (in OO style) and Metalua (by syntax extension).
+<li> luaanalyze (under <a href="../wiki/LuaFish.html" >LuaFish</a>) - Lua source analysis (uses Metalua libraries only)
+</UL>
+<p>
+<H2>Links</H2>
+<p>
+<UL>
+<li> <a href="http://metalua.luaforge.net">[Metalua]</a>
+<li> <a href="http://metalua.blogspot.com">[Metalua blog]</a>
+<li> <a href="http://repo.or.cz/w/metalua.git">[Metalua browsable sources]</a>
+<li> <a href="http://luaforwindows.luaforge.net/">[Lua for Windows]</a> now includes Metalua
+<li> <a href="../wiki/MetaLuaRecipes.html" >MetaLuaRecipes</a> - more examples
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=MetaLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=MetaLua" >history</a><br>Last edited October 31, 2009 6:42 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=MetaLua" >(diff)</a>
+</body>
+</html>

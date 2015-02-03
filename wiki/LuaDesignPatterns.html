@@ -1,0 +1,445 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Design Patterns</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaDesignPatterns&amp;body=1" title="List pages referring to LuaDesignPatterns">Lua Design Patterns</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page is intended for Lua design patterns.  See <a href="http://en.wikipedia.org/wiki/Design_pattern_(computer_science).html">[Wikipedia: design pattern]</a> for background.
+<p>
+<H3>Design Patterns on Other Pages</H3>
+<p>
+<UL>
+<li> <a href="../wiki/CurriedLua.html" >CurriedLua</a> - currying functions in Lua
+<li> <a href="../wiki/AutomagicTables.html" >AutomagicTables</a> - Perl-style automagic (autovivified) tables
+<li> <a href="../wiki/FuncTables.html" >FuncTables</a> - Using tables to implement functions through lazy evaluation
+<li> <a href="../wiki/RandomSample.html" >RandomSample</a> - A simple illustration of lazy evaluation
+<li> <a href="../wiki/StoringNilsInTables.html" >StoringNilsInTables</a> - storing <code>nil</code> (or <code>NAN=0/0</code> keys) in a table.
+<li> "Stored Expressions" in <a href="../wiki/StatementsInExpressions.html" >StatementsInExpressions</a>
+<li> <a href="../wiki/VarargTheSecondClassCitizen.html" >VarargTheSecondClassCitizen</a> - includes saving and recalling varargs <code>...</code>.
+<li> <a href="../wiki/ShortAnonymousFunctions.html" >ShortAnonymousFunctions</a> - expressing anonymous functions more tersely than <code>function() return ... end</code>
+<li> Local Namespaces for Data Definition - moved into <a href="../wiki/TableScope.html" >TableScope</a>.
+<li> <a href="../wiki/DecoratorsAndDocstrings.html" >DecoratorsAndDocstrings</a> - associating metadata and help on objects
+<li> <a href="../wiki/MethodChainingWrapper.html" >MethodChainingWrapper</a> - cooperatively add custom methods to built-in types like strings and functions, particularly when using method chaining
+</UL>
+<p>
+<H3>Pattern: Global Collector</H3>
+<p>
+Traditionally, if we want a define a table of variables, or key-value pairs, we use table construction syntax <code> {...} </code>:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- traditional method.</span>
+
+<span class="keyword">local</span> squares = {}; <span class="keyword">for</span> n=1,10 <span class="keyword">do</span> squares[n] = n^2 <span class="keyword">end</span>
+
+<span class="keyword">local</span> v = {
+
+  x = 50,
+
+  squares = squares,
+
+  hello = <span class="keyword">function</span>() <span class="library">print</span>(<span class="string">"hello?"</span>) <span class="keyword">end</span>
+
+}
+
+</pre>
+
+</DL>
+<p>
+However, by appropriate definition of a function <code>collect</code>, we may alternately construct as follows:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> v = collect(<span class="keyword">function</span>()
+
+  <span class="keyword">if</span> <span class="keyword">true</span> <span class="keyword">then</span> x = 50 <span class="keyword">end</span>
+
+  squares = {}; <span class="keyword">for</span> n=1,10 <span class="keyword">do</span> squares[n] = n^2 <span class="keyword">end</span>
+
+  <span class="keyword">function</span> hello() <span class="keyword">return</span> <span class="string">"hello?"</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>)
+
+</pre>
+
+</DL>
+<p>
+Note one potential benefit is that statements of code can be interspersed with and build the key-value definitions.  It does impose a bit more overhead though.
+<p>
+<code>collect</code> is defined as follows:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> collect(f)
+
+  <span class="comment">-- This collects globals defined in the given function.</span>
+
+  <span class="keyword">local</span> collector = <span class="library">setmetatable</span>({}, {__index = <span class="library">_G</span>})
+
+  <span class="comment">-- Call function in collector environment</span>
+
+  <span class="library">setfenv</span>(f, collector)()
+
+  <span class="comment">-- Extract collected variables.</span>
+
+  <span class="keyword">local</span> result = {}; <span class="keyword">for</span> k,v <span class="keyword">in</span> <span class="library">pairs</span>(collector) <span class="keyword">do</span> result[k] = v <span class="keyword">end</span>
+
+  <span class="keyword">return</span> result
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Test suite:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">assert</span>(v.x == 50)
+
+<span class="library">assert</span>(#v.squares == 10)
+
+<span class="library">assert</span>(v.hello() == <span class="string">"hello?"</span>)
+
+<span class="library">assert</span>(v.print == <span class="keyword">nil</span>) <span class="comment">-- ensure _G not included.</span>
+
+<span class="library">print</span>(<span class="string">"done"</span>)
+
+</pre>
+
+</DL>
+<p>
+This type of mechanism is used in the Lua 5.1 module system, where the collecting function is given in a file and the <code>require</code>/<code>module</code> functions implement the collect mechanism (as well as other things).  See Chapter 15 of <a href="http://www.inf.puc-rio.br/~roberto/pil2/">[Programming in Lua 2nd Edition]</a>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">module</span>(<span class="string">"mymodule"</span>)
+
+x = 50
+
+color = <span class="string">"blue"</span>
+
+<span class="keyword">function</span> hello() <span class="keyword">return</span> <span class="string">"hello?"</span> <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>, 2006-10, Lua 5.1
+<p>
+<H3>Pattern: Function chains / hooks</H3>
+<p>
+There are a bunch of interesting ways to execute a series of actions on a given event. One way that I've seen that was somewhat less than efficient looked like this:
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> _,v <span class="keyword">in</span> <span class="library">pairs</span>(files_in_directory) <span class="keyword">do</span>
+
+  <span class="library">dofile</span>(v)
+
+  <span class="keyword">if</span> action <span class="keyword">then</span>
+
+    action(args)
+
+  <span class="keyword">end</span>
+
+  action = <span class="keyword">nil</span>
+
+<span class="keyword">end</span>
+
+</pre>
+ where a file in the directory might look like this:
+<dt><dd><pre class="code">
+<span class="keyword">function</span> action(something)
+
+  <span class="library">print</span>(something)
+
+<span class="keyword">end</span>
+
+</pre>
+ This is inefficient; it requires everything to be reparsed each call, and it smashes the global called "action". It doen't provide for effcetive weighting, either. In naim, we use a hook system that's done in C that creates a bunch of chains, to which we can register C and Lua actions.
+</DL>
+<p>
+I wrote a system that allows one to create their own hook chains in Lua that can be executed like functions. The syntax seems fairly logical to me:
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span><span class="string">"hooks"</span>
+
+myhooks = {}
+
+myhooks.test = hooks:new()
+
+myhooks.ref1 = myhooks.test:insert(<span class="keyword">function</span> (foo, bar) <span class="library">print</span>(<span class="string">"Test 1"</span>, foo, bar) <span class="keyword">end</span>, 100)
+
+myhooks.ref2 = myhooks.test:insert(<span class="keyword">function</span> (foo, bar) <span class="library">print</span>(<span class="string">"Test 2"</span>, foo, bar) <span class="keyword">end</span>, 50)
+
+myhooks.ref3 = myhooks.test:insert(<span class="keyword">function</span> (foo, bar) <span class="library">print</span>(<span class="string">"Test 3"</span>, foo, bar) <span class="keyword">end</span>, 150)
+
+<span class="library">print</span><span class="string">"--"</span>
+
+myhooks.test(<span class="string">"Hello"</span>, <span class="string">"world"</span>)
+
+myhooks.test:remove(myhooks.ref1)
+
+<span class="library">print</span><span class="string">"--"</span>
+
+myhooks.test(<span class="string">"Hello"</span>, <span class="string">"world"</span>)
+
+</pre>
+
+</DL>
+<p>
+Running this would produce output like:
+<DL>
+<dt><dd><pre>
+
+--
+
+Test 2  Hello   World
+
+Test 1  Hello   World
+
+Test 3  Hello   World
+
+--
+
+Test 2  Hello   World
+
+Test 3  Hello   World
+
+</pre>
+</DL>
+<p>
+The code that drives this is available at <a href="http://joshuawise.com/hooks.lua">[1]</a>. Still to do: support for writable arguments. This is necessary in naim if one wishes to modify a string that gets passed through; i.e., a filter module might want to substitute all instances of "lol" to "&lt;grin&gt;" in the input string, and then pass the modified string through to further hooks in the chain. Patches thoughtfully accepted.
+<p>
+-- <a href="../wiki/JoshuaWise.html" >JoshuaWise</a>, 2007-02-01
+<p>
+<H3>Pattern: Static Local Variables</H3>
+<p>
+One sometimes runs into a conflict where a variable should be lexically scoped to a particular function but should also have a lifetime longer than the function call.  In the below case, the <code>sounds</code> table is used only by the function <code>soundit</code>, which would suggest bringing it inside the <code>soundit</code> function, but it would be wasteful to reconstruct <code>sounds</code> on each function call, so often the programmer will keep <code>sounds</code> outside:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> sounds = {
+
+  a = <span class="string">"ay"</span>,
+
+  b = <span class="string">"bee"</span>,
+
+  c = <span class="string">"see"</span>,
+
+  ....
+
+}
+
+<span class="keyword">local</span> <span class="keyword">function</span> soundit(x)
+
+  <span class="library">assert</span>(<span class="library">type</span>(x) == <span class="string">"string"</span>)
+
+  <span class="keyword">return</span> sounds[x]
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+In the C language, we might make <code>sounds</code> a static variable inside <code>soundit</code>.  In Lua, the usual suggestion here, if one wants to limit the scope of <code>sounds</code>, is to surround <code>sounds</code> and <code>soundit</code> with a <code>do</code> block:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> soundit; <span class="keyword">do</span>
+
+  <span class="keyword">local</span> sounds = {
+
+    a = <span class="string">"ay"</span>,
+
+    b = <span class="string">"bee"</span>,
+
+    c = <span class="string">"see"</span>,
+
+    ....
+
+  }
+
+  <span class="keyword">function</span> soundit(x)
+
+    <span class="library">assert</span>(<span class="library">type</span>(x) == <span class="string">"string"</span>)
+
+    <span class="keyword">return</span> sounds[x]
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">-- note: sounds not visible outside the do-block.</span>
+
+</pre>
+
+</DL>
+<p>
+One complaint is that now the implementation of the function is spread outside the function, the name <code>soundit</code> is duplicated, and the code is further indented/ugly, appearing less like a function definition.  Furthermore, <code>sounds</code> will get initialized regardless whether <code>soundit</code> ever gets called (thereby imposing a load-time overhead).  The following approach keeps <code>sounds</code> outside the function but moves its initialization inside the function.  Due to the short-circuiting behavior of <code>or</code>, it will generally impose little additional overhead at call-time:
+<p>
+<DL>
+<dt><dd><pre class="code">
+  <span class="keyword">local</span> soundit; <span class="keyword">do</span> <span class="keyword">local</span> sounds; <span class="keyword">function</span>
+
+soundit(x)
+
+  sounds = sounds <span class="keyword">or</span> {
+
+    a = <span class="string">"ay"</span>,
+
+    b = <span class="string">"bee"</span>,
+
+    c = <span class="string">"see"</span>,
+
+    ....
+
+  }  
+
+  <span class="library">assert</span>(<span class="library">type</span>(x) == <span class="string">"string"</span>)
+
+  <span class="keyword">return</span> sounds[x]
+
+<span class="keyword">end</span> <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+In fact, we may just give up perfection and let the lexical scope spill over for enhanced readability:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> sounds
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> soundit(x)
+
+  sounds = sounds <span class="keyword">or</span> {
+
+    a = <span class="string">"ay"</span>,
+
+    b = <span class="string">"bee"</span>,
+
+    c = <span class="string">"see"</span>,
+
+    ....
+
+  }  
+
+  <span class="library">assert</span>(<span class="library">type</span>(x) == <span class="string">"string"</span>)
+
+  <span class="keyword">return</span> sounds[x]
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Here are two variations involving the construction of closures.  These are a bit more tidy than the <code>do</code> block approach but do impose the load-time overhead of at least constructing a temporary function.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> soundit = (<span class="keyword">function</span>()
+
+  <span class="keyword">local</span> sounds = {
+
+    a = <span class="string">"ay"</span>,
+
+    b = <span class="string">"bee"</span>,
+
+    c = <span class="string">"see"</span>,
+
+    ....
+
+  }  
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(x)
+
+    <span class="library">assert</span>(<span class="library">type</span>(x) == <span class="string">"string"</span>)
+
+    <span class="keyword">return</span> sounds[x]
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>)()
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> soundit = (<span class="keyword">function</span>()
+
+  <span class="keyword">local</span> sounds
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(x)
+
+    sounds = sounds <span class="keyword">or</span> {
+
+      a = <span class="string">"ay"</span>,
+
+      b = <span class="string">"bee"</span>,
+
+      c = <span class="string">"see"</span>,
+
+      ....
+
+    }  
+
+    <span class="library">assert</span>(<span class="library">type</span>(x) == <span class="string">"string"</span>)
+
+    <span class="keyword">return</span> sounds[x]
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>)()
+
+</pre>
+
+</DL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>, 2007-03
+<p>
+<H3>Pattern: &lt;Pattern Name&gt;</H3>
+<p>
+&lt;Pattern description&gt; (Add more patterns here)
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/LuaHacks.html" >LuaHacks</a> - more unconventional patterns
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaDesignPatterns" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaDesignPatterns" >history</a><br>Last edited May 2, 2009 1:25 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaDesignPatterns" >(diff)</a>
+</body>
+</html>

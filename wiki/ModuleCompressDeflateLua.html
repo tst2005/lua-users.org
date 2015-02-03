@@ -1,0 +1,81 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Module Compress Deflate Lua</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=ModuleCompressDeflateLua&amp;body=1" title="List pages referring to ModuleCompressDeflateLua">Module Compress Deflate Lua</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This module <code>compress.deflatelua</code> implements DEFLATE <a href="http://en.wikipedia.org/wiki/DEFLATE.html">[1]</a> and gzip/zlib decompression in pure Lua.
+<p>
+Download:
+<p>
+<UL>
+<li> <a href="http://github.com/davidm/lua-compress-deflatelua">[compress.deflatelua]</a> (github page) <a href="https://github.com/davidm/lua-compress-deflatelua/blob/master/lmod/compress/deflatelua.lua">[documentation]</a>
+<li> Dependencies:
+<UL>
+<li> Lua 5.1, Lua 5.2, or <a href="../wiki/LuaJit.html" >LuaJit</a>
+<li> One of the following modules for <a href="../wiki/BitwiseOperators.html" >BitwiseOperators</a>:
+<UL>
+<li> <a href="http://github.com/davidm/lua-bit-numberlua">[bit.numberlua]</a> - bitwise operations implemented in pure Lua as numbers (<a href="https://github.com/davidm/lua-bit-numberlua/blob/master/lmod/bit/numberlua.lua">[documentation]</a>)
+<li> <a href="http://bitop.luajit.org/">[LuaBitOp]</a> 'bit' library (included in <a href="../wiki/LuaJit.html" >LuaJit</a>).
+<li> Lua 5.2 'bit32' library <a href="http://www.lua.org/manual/5.2">[documentation]</a>
+</UL>
+<li> <a href="http://github.com/davidm/lua-digest-crc32lua">[digest.crc32lua]</a> - CRC-32 checksum implemented in pure Lua (optional; CRC calculations can be omitted) <a href="https://github.com/davidm/lua-digest-crc32lua/blob/master/lmod/digest/crc32lua.lua">[documentation]</a>
+<li> <a href="http://github.com/davidm/lua-pythonic-optparse">[github]</a> - Command-line processing resembling Python optparse module - (optional; command-line tool can be omitted) <a href="https://github.com/davidm/lua-pythonic-optparse/blob/master/lmod/pythonic/optparse.lua">[documentation]</a>
+</UL>
+</UL>
+<p>
+Example:
+<p>
+<DL>
+<dt><dd>./gunziplua lua-5.1.4.tar.gz
+</DL>
+<p>
+It's somewhat slow (as expected).  To decompress lua-5.1.4.tar.gz using bit.numberlua, it takes about 9 seconds with CRC-checking enabled (4 with LuaJIT 1.x) or 3 seconds with CRC checking disabled (2 with LuaJIT 1.x).  It's faster when using native bitop libraries, particularly under <a href="../wiki/LuaJit.html" >LuaJit</a>.
+<p>
+Why?  Possible reasons include these: (1) for pedagogical reasons, (2) to benchmark Lua, (3) to bootstrap applications like <a href="../wiki/LuaRocks.html" >LuaRocks</a>/<a href="../wiki/LuaDist.html" >LuaDist</a> that might not have a precompiled copy of gunzip, and (4) because DEFLATE has been implemented in other languages too <a href="http://en.wikipedia.org/wiki/DEFLATE.html">[1]</a> (including Python, Perl, and Lisp).
+<p>
+The modules above follow a somewhat Perl CPAN-like naming convention.  Compare to <a href="http://search.cpan.org/~nwclark/Compress-Zlib-Perl/Perl.pm">[Compress::Zlib::Perl]</a>, <a href="http://search.cpan.org/~fays/Digest-Crc32/Crc32.pm">[Digest::CRC32]</a>, and the Bit:: modules.
+<p>
+The modules are being packaged to be usable in <a href="../wiki/LuaRocks.html" >LuaRocks</a> and <a href="../wiki/LuaDist.html" >LuaDist</a>.  (I'm still working on the <a href="../wiki/LuaRocks.html" >LuaRocks</a> and <a href="../wiki/LuaDist.html" >LuaDist</a> packaging.)
+<p>
+More notes here are expected later.  See <a href="http://github.com/davidm/lua-compress-deflatelua">[compress.deflatelua github page]</a>.  Comments welcome.
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/PortableNetworkGraphicsParser.html" >PortableNetworkGraphicsParser</a> - This Lua implementation of a PNG image reader could use this module.
+<li> This module is used by <a href="http://matthewwild.co.uk/projects/squish/home">[squish]</a><a href="/lists/lua-l/2009-07/msg00392.html">[2]</a> - packs Lua code (compression and archiving)
+</UL>
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>Comments</H2>
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=ModuleCompressDeflateLua" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=ModuleCompressDeflateLua" >history</a><br>Last edited March 23, 2014 4:10 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=ModuleCompressDeflateLua" >(diff)</a>
+</body>
+</html>

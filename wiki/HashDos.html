@@ -1,0 +1,308 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Hash Dos</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=HashDos&amp;body=1" title="List pages referring to HashDos">Hash Dos</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The string hashing algorithms used in Lua 5.1, Lua 5.2.0 and <a href="../wiki/LuaJit.html" >LuaJit</a> 2.0.0-beta9 are vulnerable to hashing DoS(denial-of-service) attack (See thread <a href="/lists/lua-l/2012-01/msg00497.html">[1]</a> on Lua mailing list).
+<p>
+<H3>Hashing attack benchmark</H3>
+In the benchmarks below all strings have the same length, "Good" strings have very few hash collision, "Bad" strings all have the same hash value.  A string length of 32 bytes is used since it is easy to attack the hashing algorithms used in all the tested VM implementations (except Lua 5.2.1-work1, since it will hash the full string).  LuaJIT 2.0.0-beta9 is vulnerable to hashing DoS with strings of length 15.
+<p>
+<pre>
+
+--------- Simulated HTTP POST attack
+
+-- 40000 unique Strings, length 32, estimated POST data length 1.328Mbytes
+
+==============================================================
+
+                               Good strings,       Bad strings
+
+--------------------------------------------------------------
+
+Lua 5.1                        0.430 secs          29.753 secs
+
+Lua 5.1 (second hash fix)      0.452 secs           0.515 secs
+
+Lua 5.2.0                      0.450 secs          29.850 secs
+
+Lua 5.2.1-work1                0.450 secs           0.380 secs
+
+LuaJit 2.0.0-beta9             0.086 secs          11.988 secs
+
+</pre>
+<p>
+<H3>Hash algorithm analysis</H3>
+<p>
+<pre>
+
+-- number of bytes not used in hash function
+
+==============================================================
+
+String length                  &lt; 15,  15-20 ,  20-32 , 32-64  
+
+--------------------------------------------------------------
+
+Lua 5.1                        0   ,    0   ,    0   , len/2
+
+Lua 5.2.0                      0   ,    0   ,    0   , len/2
+
+LuaJit 2.0.0-beta9             0-1 ,   2-4  , len-16 , len-16
+
+
+
+</pre>
+<p>
+An attacker only needs 3 bytes that are not used in the hash function to be able to generate over 16 million strings with the same hash value (all string need to be the same length).  For Lua 5.1 &amp; 5.2.0 the minimum string length needed is 32 bytes, for <a href="../wiki/LuaJit.html" >LuaJit</a> 2.0 a min. length of only 17 bytes is needed.
+<p>
+<H2>Second Hash fix for Lua 5.1</H2>
+<a href="/files/wiki_insecure/power_patches/5.1/lua_5.1_second_hash_fix.patch">[Download second hash fix patch for Lua 5.1]</a>
+<p>
+<strong>Features</strong>
+<UL>
+<li> Backport per Lua state random seed.
+<li> Use <a href="http://www.isthe.com/chongo/tech/comp/fnv/index.html">[FNV1 hash function]</a> as second hash when needed.
+</UL>
+<p>
+<strong>How it works</strong>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- pseudo code, This is not true Lua code</span>
+
+
+
+<span class="keyword">function</span> NewStringMarker(state, hash)
+
+  <span class="keyword">local</span> marker = {len = 0, is_marker = <span class="keyword">true</span>, hash = hash, refcount = 0}
+
+
+
+  <span class="keyword">local</span> bucket = GetBucketHead(state, hash) <span class="comment">-- get bucket</span>
+
+  Append(bucket, marker)
+
+  <span class="keyword">return</span> marker
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> NewString(state, str, len, hash, has_marker)
+
+  <span class="keyword">local</span> elem = { len = len, has_marker = has_marker, hash = hash, str = str }
+
+
+
+  <span class="keyword">local</span> bucket = GetBucketHead(state, hash) <span class="comment">-- get bucket</span>
+
+  Append(bucket, elem)
+
+  <span class="keyword">return</span> elem
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> ReleaseStringMarker(state, str, len)
+
+  <span class="comment">-- rehash string with first hash function to find marker.</span>
+
+  <span class="keyword">local</span> hash1 = FirstHashFunc(str, len, state.seed)
+
+  <span class="keyword">local</span> bucket = GetBucketHead(state, hash1)
+
+  foreach(elem <span class="keyword">in</span> bucket) <span class="keyword">do</span>
+
+    <span class="comment">-- check if hash matches</span>
+
+    <span class="keyword">if</span> (elem.hash == hash) <span class="keyword">then</span>
+
+      <span class="comment">-- check if this is a marker</span>
+
+      <span class="keyword">if</span> (elem.is_marker) <span class="keyword">then</span>
+
+        <span class="keyword">if</span> (<span class="comment">--(elem.refcount) == 0) then</span>
+
+          <span class="comment">-- free unused marker and remove from bucket</span>
+
+          Remove(bucket, elem)
+
+          <span class="keyword">return</span> <span class="comment">-- done</span>
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="comment">-- called by GC</span>
+
+<span class="keyword">function</span> FreeString(state, elem)
+
+  <span class="keyword">if</span> (elem.has_marker) <span class="keyword">then</span>
+
+    <span class="comment">-- find marker using first hash function</span>
+
+    ReleaseStringMarker(state, elem.str, elem.len)
+
+  <span class="keyword">end</span>
+
+  <span class="library">assert</span>(<span class="keyword">not</span> elem.is_marker)
+
+  <span class="comment">-- free string element.</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> LuaNewInternString(state, str, len)
+
+  <span class="keyword">local</span> first_hash = <span class="keyword">true</span>
+
+  <span class="keyword">local</span> depth = 0
+
+  <span class="keyword">local</span> marker = <span class="keyword">nil</span>
+
+  <span class="keyword">local</span> has_marker = <span class="keyword">false</span>
+
+  <span class="keyword">local</span> hash1 = 0
+
+  <span class="keyword">local</span> hash = 0 <span class="comment">-- current hash</span>
+
+  <span class="keyword">local</span> bucket = <span class="keyword">nil</span>
+
+
+
+  hash1 = FirstHashFunc(str, len, state.seed)
+
+  hash = hash1
+
+rehashed:
+
+  bucket = GetBucketHead(state, hash) <span class="comment">-- get bucket using current hash value.</span>
+
+
+
+  foreach(elem <span class="keyword">in</span> bucket) <span class="keyword">do</span>
+
+    <span class="comment">-- check if hash matches</span>
+
+    <span class="keyword">if</span> (elem.hash == hash) <span class="keyword">then</span>
+
+      <span class="comment">-- check if this is a marker</span>
+
+      <span class="keyword">if</span> (elem.is_marker) <span class="keyword">then</span>
+
+        marker = elem
+
+      <span class="keyword">else</span>
+
+        <span class="comment">-- check if this is the string we are looking for.</span>
+
+        <span class="keyword">if</span> (elem.len == len <span class="keyword">and</span> elem.str == str) <span class="keyword">then</span>
+
+          <span class="comment">-- found string</span>
+
+          <span class="keyword">return</span> elem
+
+        <span class="keyword">end</span>
+
+      <span class="keyword">end</span>
+
+    <span class="keyword">end</span>
+
+    depth++
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- string not found</span>
+
+  <span class="keyword">if</span> (first_hash) <span class="keyword">then</span>
+
+    <span class="comment">-- check if there is already a marker for the first hash</span>
+
+    <span class="keyword">if</span> (marker) <span class="keyword">then</span>
+
+      <span class="comment">-- we need to search for the string using second hash function.</span>
+
+      has_marker = <span class="keyword">true</span>
+
+      hash = SecondHashFunc(str, len, hash1) <span class="comment">-- seed second hash with first hash value</span>
+
+      depth = 0
+
+      first_hash = <span class="keyword">false</span>
+
+      goto rehashed
+
+    <span class="keyword">end</span>
+
+    <span class="comment">-- if bucket is over limit</span>
+
+    <span class="keyword">if</span> (depth &gt; DEPTH_LIMIT) <span class="keyword">then</span>
+
+      hash = SecondHashFunc(str, len, hash1) <span class="comment">-- seed second hash with first hash value</span>
+
+      <span class="comment">-- create marker</span>
+
+      marker = NewStringMarker(state, hash1)
+
+      marker.refcount++
+
+      has_marker = <span class="keyword">true</span>
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">else</span>
+
+    <span class="comment">-- second hash function was used, inc. reference counter of marker.</span>
+
+    marker.refcount++
+
+  <span class="keyword">end</span>
+
+  <span class="comment">-- create new string</span>
+
+  <span class="keyword">return</span> NewString(state, str, len, hash, has_marker)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=HashDos" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=HashDos" >history</a><br>Last edited May 1, 2012 9:01 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=HashDos" >(diff)</a>
+</body>
+</html>

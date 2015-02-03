@@ -1,0 +1,469 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Auto Expansion</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteAutoExpansion&amp;body=1" title="List pages referring to SciteAutoExpansion">Scite Auto Expansion</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+Expands words such as "if" and "for" to a correctly indented clause as you type. I find this very useful since it saves me from typing the parentheses and braces, and then taking time to format them correctly.
+<p>
+Typing
+<p>
+if |
+<p>
+becomes
+<p>
+if (|) {
+<DL>
+<dt><dd>
+
+</DL>
+}
+<p>
+and
+<p>
+for |
+<p>
+becomes
+<p>
+for (|; ; ) {
+<DL>
+<dt><dd>
+
+</DL>
+}
+<p>
+The "|" indicates cursor position before and after the expansion.
+<p>
+Expansion only occurs when the open file has a c or header file extension. The script also recognizes when you are typing in a commented section and will not auto-expand.
+<p>
+<DL>
+<dt><dd><pre class="code">
+
+
+
+
+<span class="keyword">local</span> in_word,current_word, substituting
+
+<span class="keyword">local</span> find = <span class="library">string.find</span>   
+
+
+
+
+
+<span class="comment">-- Expand "if " to</span>
+
+<span class="comment">-- if () {</span>
+
+<span class="comment">--     </span>
+
+<span class="comment">-- }</span>
+
+<span class="comment">-- And set the cursor between the ()</span>
+
+<span class="comment">-- Also works for "while "</span>
+
+<span class="keyword">function</span> expandIf()
+
+	<span class="comment">-- The text is "if "</span>
+
+	editor:AddText(<span class="string">"("</span>)
+
+	<span class="comment">-- "if ("</span>
+
+	<span class="comment">-- Remember where to bring the cursor to</span>
+
+	<span class="keyword">local</span> tmp = editor.CurrentPos
+
+	editor:AddText(<span class="string">") {"</span>)
+
+	<span class="keyword">local</span> line = editor:LineFromPosition(editor.CurrentPos)
+
+	<span class="keyword">local</span> tmpi = editor.LineIndentation[line]
+
+
+
+	editor:AddText(<span class="string">"\n"</span>)
+
+	<span class="keyword">while</span> tmpi &gt;= 0 <span class="keyword">do</span>
+
+		editor:AddText(<span class="string">"\t"</span>)
+
+		tmpi = tmpi - 4
+
+	<span class="keyword">end</span>
+
+	editor:AddText(<span class="string">"\n"</span>)
+
+	tmpi = editor.LineIndentation[line]
+
+	<span class="keyword">while</span> tmpi &gt; 0 <span class="keyword">do</span>
+
+		editor:AddText(<span class="string">"\t"</span>)
+
+		tmpi = tmpi - 4
+
+	<span class="keyword">end</span>
+
+	editor:AddText(<span class="string">"}"</span>)
+
+	
+
+	<span class="comment">-- Bring the cursor into the "()"</span>
+
+	editor:GotoPos(tmp)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">function</span> expandElse()
+
+	<span class="keyword">local</span> line = editor:LineFromPosition(editor.CurrentPos)
+
+	<span class="keyword">local</span> tmpi = editor.LineIndentation[line]
+
+
+
+	editor:AddText(<span class="string">"{\n"</span>)
+
+	<span class="keyword">while</span> tmpi &gt;= 0 <span class="keyword">do</span>
+
+		editor:AddText(<span class="string">"\t"</span>)
+
+		tmpi = tmpi - 4
+
+	<span class="keyword">end</span>
+
+	<span class="keyword">local</span> tmp = editor.CurrentPos
+
+	editor:AddText(<span class="string">"\n"</span>)
+
+	tmpi = editor.LineIndentation[line]
+
+	<span class="keyword">while</span> tmpi &gt; 0 <span class="keyword">do</span>
+
+		editor:AddText(<span class="string">"\t"</span>)
+
+		tmpi = tmpi - 4
+
+	<span class="keyword">end</span>
+
+	editor:AddText(<span class="string">"}"</span>)
+
+	editor:GotoPos(tmp)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">function</span> expandFor()
+
+	<span class="keyword">local</span> line = editor:LineFromPosition(editor.CurrentPos)
+
+	<span class="keyword">local</span> tmpi = editor.LineIndentation[line]
+
+
+
+	editor:AddText(<span class="string">"("</span>)
+
+	<span class="keyword">local</span> tmp = editor.CurrentPos
+
+	editor:AddText(<span class="string">"; ; ) {\n"</span>)
+
+	<span class="keyword">while</span> tmpi &gt;= 0 <span class="keyword">do</span>
+
+		editor:AddText(<span class="string">"\t"</span>)
+
+		tmpi = tmpi - 4
+
+	<span class="keyword">end</span>
+
+	editor:AddText(<span class="string">"\n"</span>)
+
+	tmpi = editor.LineIndentation[line]
+
+	<span class="keyword">while</span> tmpi &gt; 0 <span class="keyword">do</span>
+
+		editor:AddText(<span class="string">"\t"</span>)
+
+		tmpi = tmpi - 4
+
+	<span class="keyword">end</span>
+
+	editor:AddText(<span class="string">"}"</span>)
+
+	editor:GotoPos(tmp)
+
+<span class="keyword">end</span>
+
+
+
+
+
+<span class="keyword">function</span> expandDo()
+
+	<span class="keyword">local</span> line = editor:LineFromPosition(editor.CurrentPos)
+
+	<span class="keyword">local</span> tmpi = editor.LineIndentation[line]
+
+
+
+	editor:AddText(<span class="string">"{\n"</span>)
+
+	<span class="keyword">while</span> tmpi &gt;= 0 <span class="keyword">do</span>
+
+		editor:AddText(<span class="string">"\t"</span>)
+
+		tmpi = tmpi - 4
+
+	<span class="keyword">end</span>
+
+	editor:AddText(<span class="string">"\n"</span>)
+
+	tmpi = editor.LineIndentation[line]
+
+	<span class="keyword">while</span> tmpi &gt; 0 <span class="keyword">do</span>
+
+		editor:AddText(<span class="string">"\t"</span>)
+
+		tmpi = tmpi - 4
+
+	<span class="keyword">end</span>
+
+	editor:AddText(<span class="string">"} while ("</span>)
+
+	<span class="keyword">local</span> tmp = editor.CurrentPos
+
+	editor:AddText(<span class="string">");"</span>)
+
+	editor:GotoPos(tmp)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> expandCout()
+
+	editor:AddText(<span class="string">" &lt;&lt; \""</span>)
+
+	<span class="keyword">local</span> tmp = editor.CurrentPos
+
+	editor:AddText(<span class="string">"\" &lt;&lt; endl;"</span>)
+
+	editor:GotoPos(tmp)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> OnChar(c)
+
+	<span class="keyword">if</span> <span class="keyword">not</span> substituting <span class="keyword">then</span>
+
+		<span class="keyword">return</span> <span class="keyword">false</span>
+
+	<span class="keyword">end</span>
+
+	
+
+	<span class="comment">-- Only activate on the space character</span>
+
+	<span class="keyword">if</span> c == <span class="string">' '</span> <span class="keyword">then</span>
+
+		<span class="comment">-- The currentPos is the character after the cursor</span>
+
+		<span class="comment">-- Get the style of the word that was just typed</span>
+
+		<span class="comment">-- That is, the style of the character before the space</span>
+
+		cstyle = editor.StyleAt[editor.CurrentPos-2]
+
+		
+
+		<span class="comment">-- If the typed word is a part of code</span>
+
+		<span class="comment">-- Rather than a part of comments</span>
+
+		<span class="keyword">if</span> cstyle == 0 <span class="keyword">or</span> cstyle == 32 <span class="keyword">or</span> cstyle == 4 <span class="keyword">or</span> cstyle == 5 <span class="keyword">or</span> cstyle == 10 <span class="keyword">or</span> cstyle == 11 <span class="keyword">or</span> cstyle == 16 <span class="keyword">then</span>
+
+			
+
+			<span class="comment">-- Get the word that was just typed</span>
+
+				<span class="keyword">local</span> p, original_pos
+
+				<span class="keyword">local</span> lineStart
+
+				
+
+				<span class="comment">-- get the current position and the start of the current line</span>
+
+				lineStart = editor:PositionFromLine(editor:LineFromPosition(editor.CurrentPos))
+
+				original_pos = editor.CurrentPos
+
+				
+
+				<span class="comment">-- Find the beginning of the current word</span>
+
+				p = editor.CurrentPos-2
+
+				<span class="comment">-- Stop on the space/tab/newline character</span>
+
+				<span class="keyword">while</span> (p &gt;= lineStart) <span class="keyword">and</span> (find(<span class="library">string.char</span>(editor.CharAt[p]), <span class="string">'%w'</span>)) <span class="keyword">do</span>
+
+					p = p - 1
+
+				<span class="keyword">end</span>
+
+				<span class="comment">-- Increment 1 to get the first character of the current word</span>
+
+				p = p + 1
+
+				
+
+				<span class="comment">-- Select the word and get it</span>
+
+				editor:SetSel(p, editor.CurrentPos-1)
+
+				current_word = editor:GetSelText()
+
+				<span class="comment">-- Clear the selection</span>
+
+				editor:SetSel(original_pos, original_pos)
+
+			
+
+			<span class="comment">-- Got the word, now expand</span>
+
+				<span class="keyword">if</span> current_word == <span class="string">"elseif"</span> <span class="keyword">then</span>
+
+					editor:GotoPos(editor.CurrentPos - 3)
+
+					editor:AddText(<span class="string">" "</span>)
+
+					editor:GotoPos(editor.CurrentPos + 3)
+
+					expandIf()
+
+				<span class="comment">-- if and while have the same expansion</span>
+
+				<span class="keyword">elseif</span> current_word == <span class="string">"if"</span> <span class="keyword">or</span> current_word == <span class="string">"while"</span>  <span class="keyword">then</span>
+
+					expandIf()
+
+				<span class="keyword">elseif</span> current_word == <span class="string">"else"</span> <span class="keyword">then</span>
+
+					expandElse()
+
+				<span class="keyword">elseif</span> current_word == <span class="string">"for"</span> <span class="keyword">then</span>
+
+					expandFor()
+
+				<span class="keyword">elseif</span> current_word == <span class="string">"do"</span> <span class="keyword">then</span>
+
+					expandDo()
+
+				<span class="keyword">elseif</span> current_word == <span class="string">"cout"</span> <span class="keyword">then</span>
+
+					expandCout()
+
+				<span class="keyword">end</span>
+
+			<span class="comment">-- Expansion complete</span>
+
+		<span class="keyword">end</span>
+
+	<span class="keyword">end</span>
+
+
+
+
+
+	<span class="comment">-- don't interfere with usual processing!</span>
+
+	<span class="keyword">return</span> <span class="keyword">false</span>
+
+<span class="keyword">end</span>  
+
+
+
+
+
+
+
+<span class="keyword">function</span> OnOpen(f)
+
+	<span class="keyword">local</span> ext = props[<span class="string">'FileExt'</span>]
+
+	<span class="keyword">if</span> ext == <span class="string">'h'</span> <span class="keyword">or</span> ext == <span class="string">'c'</span> <span class="keyword">or</span> ext == <span class="string">'hpp'</span> <span class="keyword">or</span> ext == <span class="string">'cpp'</span> <span class="keyword">or</span> ext == <span class="string">'cxx'</span> <span class="keyword">or</span> ext == <span class="string">'cs'</span> <span class="keyword">then</span> 
+
+		substituting = <span class="keyword">true</span>
+
+	<span class="keyword">else</span>
+
+		substituting = <span class="keyword">false</span>
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> OnSwitchFile(f)
+
+	<span class="keyword">local</span> ext = props[<span class="string">'FileExt'</span>]
+
+	<span class="keyword">if</span> ext == <span class="string">'h'</span> <span class="keyword">or</span> ext == <span class="string">'c'</span> <span class="keyword">or</span> ext == <span class="string">'hpp'</span> <span class="keyword">or</span> ext == <span class="string">'cpp'</span> <span class="keyword">or</span> ext == <span class="string">'cxx'</span> <span class="keyword">or</span> ext == <span class="string">'cs'</span> <span class="keyword">then</span> 
+
+		substituting = <span class="keyword">true</span>
+
+	<span class="keyword">else</span>
+
+		substituting = <span class="keyword">false</span>
+
+	<span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+</pre>
+
+</DL>
+<p>
+<p>
+<p>
+Originally based off of <a href="../wiki/SteveDonovan.html" >SteveDonovan</a>'s code for word substitution.
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteAutoExpansion" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteAutoExpansion" >history</a><br>Last edited December 9, 2008 9:15 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteAutoExpansion" >(diff)</a>
+</body>
+</html>

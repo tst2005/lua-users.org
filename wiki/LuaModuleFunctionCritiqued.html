@@ -1,0 +1,1129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Lua Module Function Critiqued</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=LuaModuleFunctionCritiqued&amp;body=1" title="List pages referring to LuaModuleFunctionCritiqued">Lua Module Function Critiqued</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+The argument presented here is that the Lua 5.1 <code>module</code> function <a href="http://www.lua.org/manual/5.1/manual.html#pdf-module">[1]</a>
+has design flaws that encourage poor practices in module design,
+potentially leading to code bugs and ambiguities through side-effects in global
+variables, and this function should be avoided.  It is the hope that
+this article will further deter the use of the <code>module</code> function
+and that this function would be either removed or improved upon in a
+future version of Lua.
+<p>
+(It is acknowledged that there are proponents of this view, as well as detractors and those indifferent -- e.g. in the thread <a href="/lists/lua-l/2011-10/threads.html#00481">[15]</a>.)
+<p>
+Before detailing the perils of the <code>module</code> function, we'll note that the choice of whether or not to use the <code>module</code> function is more than just a personal choice, but it affects other authors.  It is quite easy for a Lua module author to avoid writing <code>module</code> calls.  Indeed, this function is never required for defining modules, as it is just a simple helper function that wraps common behaviors that themselves are
+required by neither Lua nor the other much more useful parts of the Lua 5.1
+module system such as <code>require</code>. [*A]  However, since modules often use other modules written by other authors who themselves might have used the <code>module</code> function, and the <code>module</code> function causes global side-effects, its effects are not entirely avoidable by choice and without modifying the implementation of those other modules.  In practice, the use of the <code>module</code> function is somewhat common, likely because the <code>module</code> function is included in the Lua standard libraries,
+presumably as a convenience and standardized best practice for module
+definition, and a number of official or reputable Lua sources, such as
+the Lua Reference Manual <a href="http://www.lua.org/manual/5.1/manual.html">[2]</a> and Programming in Lua (PiL) <a href="http://www.lua.org/pil/">[3]</a> encourage the
+use of the <code>module</code> function and even suggest it is a good one.
+Therefore, new users quickly become accustomed to using the <code>module</code>
+function.
+<p>
+The usual way to define a module with the <code>module</code> function is like
+this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- hello/world.lua</span>
+
+<span class="library">module</span>(..., <span class="library">package.seeall</span>)
+
+<span class="keyword">local</span> <span class="keyword">function</span> test(n) <span class="library">print</span>(n) <span class="keyword">end</span>
+
+<span class="keyword">function</span> test1() test(123) <span class="keyword">end</span>
+
+<span class="keyword">function</span> test2() test1(); test1() <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+and it is used like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">require</span> <span class="string">"hello.world"</span>
+
+<span class="library">require</span> <span class="string">"anothermodule"</span>
+
+hello.world.test2()
+
+</pre>
+
+</DL>
+<p>
+There are two main complaints presented on the <code>module</code> function, which are both seen if <code>anothermodule</code> is defined like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- anothermodule.lua</span>
+
+<span class="library">module</span>(..., <span class="library">package.seeall</span>)
+
+<span class="library">assert</span>(hello.world.hello.world.print == <span class="library">_G</span>.print)  <span class="comment">-- weird</span>
+
+<span class="library">assert</span>(hello ~= <span class="keyword">nil</span>) <span class="comment">-- where'd this come from anyway?</span>
+
+</pre>
+
+</DL>
+<p>
+First, the global namespace is accessible by indexing the module table; second, <code>hello</code> is visible in this module even though it was not requested by it.
+<p>
+The first complaint it is less inherent
+to the <code>module</code> function but rather due only to the
+<code>package.seeall</code> option.  <code>package.seeall</code> allows a module to see
+global variables, which are normally hidden since the <code>module</code>
+function replaces the current environment of the module with a local
+one.  What <code>package.seeall</code> does is muck with the metatable of the
+module's environment to fallback to <code>_G</code>.  This allows not only the
+module itself it access <code>_G</code>, but the variables in <code>_G</code> also become part
+of the module's interface.  Among various things, the behavior of
+exposing the global environment through the module table could be
+detrimental to sandboxing (see <a href="../wiki/SandBoxes.html" >SandBoxes</a>), and these variables might be used
+accidentally, but more glaringly it's just plain weird.
+<p>
+Luckily, <code>package.seeall</code> is only a convenience option and can
+be avoided as such:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- hello/world.lua</span>
+
+<span class="keyword">local</span> <span class="library">_G</span> = <span class="library">_G</span>
+
+<span class="library">module</span>(...)
+
+<span class="keyword">function</span> test() <span class="library">_G</span>.print(123) <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+or
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- hello/world.lua</span>
+
+<span class="keyword">local</span> <span class="library">print</span> = <span class="library">print</span>
+
+<span class="library">module</span>(...)
+
+<span class="keyword">function</span> test() <span class="library">print</span>(123) <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+Those are a bit awkward, but there may be other more syntactically
+pleasing ways to avoid it, such as by recognizing that the module table
+and the module environment table need not be the same (e.g. see
+<a href="../wiki/ModuleDefinition.html" >ModuleDefinition</a> -- "Module System with Public/Private Namespaces").
+We won't go into further detail on this first point.
+<p>
+The second points is that the <code>module</code> function has the side
+effect of creating global variables named in ways the programmer
+doesn't fully control.  On executing <code>module("hello.world")</code>, the
+function creates a table named <code>"hello"</code> in the global environment (the
+initial global environment, not the current environment set through
+<code>setfenv</code>), and stores the module table under the key <code>"world"</code> in that
+table.  However, if any of those variables already exist (e.g. someone
+else placed them there), the function raises and error, which at least
+provides some level of safety.  The behavior of the module function
+can best be understood with the following representation of it in Lua
+taken from Lua<code></code>Compat <a href="http://www.keplerproject.org/compat/">[4]</a> (the real
+version is in <code>loadlib.c</code>).
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> _LOADED = <span class="library">package.loaded</span>
+
+<span class="keyword">function</span> <span class="library">_G</span>.module (modname, ...)
+
+  <span class="keyword">local</span> ns = _LOADED[modname]
+
+  <span class="keyword">if</span> <span class="library">type</span>(ns) ~= <span class="string">"table"</span> <span class="keyword">then</span>
+
+    ns = findtable (<span class="library">_G</span>, modname)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> ns <span class="keyword">then</span>
+
+      <span class="library">error</span> (<span class="library">string.format</span> (<span class="string">"name conflict for module '%s'"</span>, modname))
+
+    <span class="keyword">end</span>
+
+    _LOADED[modname] = ns
+
+  <span class="keyword">end</span>
+
+  <span class="keyword">if</span> <span class="keyword">not</span> ns._NAME <span class="keyword">then</span>
+
+    ns._NAME = modname
+
+    ns._M = ns
+
+    ns._PACKAGE = gsub (modname, <span class="string">"[^.]*$"</span>, <span class="string">""</span>)
+
+  <span class="keyword">end</span>
+
+  <span class="library">setfenv</span> (2, ns)
+
+  <span class="keyword">for</span> i, f <span class="keyword">in</span> <span class="library">ipairs</span> (arg) <span class="keyword">do</span>
+
+    f (ns)
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The problem results since we have different modules maintained by
+different people writing to the global environment.  Furthermore, an
+application using those modules may be writing to the global
+environment as well.  Due to information
+hiding, <a href="http://en.wikipedia.org/wiki/Information_hiding.html">[5]</a> the modules
+and the application should have no knowledge of the internal workings
+/ implementation of those modules--nor, possibly, even the names of
+the modules those modules require.  The result is that a program lacks
+control over which global variables get set.  Various types of this
+problem that result from this are illustrated below.
+<p>
+In the following examples, we will as a convenience define modules
+inline rather than in separate files.  For example, rather than
+creating two files like such
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- mymodule.lua</span>
+
+<span class="library">module</span>(...)
+
+<span class="keyword">function</span> test() <span class="keyword">return</span> 1+2 <span class="keyword">end</span>
+
+
+
+<span class="comment">-- mymodule_test.lua</span>
+
+<span class="library">require</span> <span class="string">"mymodule"</span>
+
+<span class="library">print</span>(mymodule.test())
+
+</pre>
+
+</DL>
+<p>
+we will simply write
+<p>
+<DL>
+<dt><dd><pre class="code">
+(<span class="keyword">function</span>()
+
+  <span class="library">module</span>(<span class="string">"mymodule"</span>)
+
+  <span class="keyword">function</span> test() <span class="keyword">return</span> 1+2 <span class="keyword">end</span>
+
+<span class="keyword">end</span>)();
+
+<span class="library">print</span>(mymodule.test())
+
+</pre>
+
+</DL>
+<p>
+Here is the first example:
+<p>
+<DL>
+<dt><dd><pre class="code">
+(<span class="keyword">function</span>()
+
+  <span class="keyword">local</span> <span class="library">require</span> = <span class="library">require</span>
+
+  <span class="keyword">local</span> <span class="library">print</span> = <span class="library">print</span>
+
+  <span class="keyword">local</span> <span class="library">module</span> = <span class="library">module</span>
+
+  <span class="library">module</span>(<span class="string">"yourmodule"</span>);
+
+
+
+  (<span class="keyword">function</span>() <span class="library">module</span>(<span class="string">"mymodule"</span>) <span class="keyword">end</span>)()
+
+
+
+  <span class="library">print</span>(mymodule ~= <span class="keyword">nil</span>) <span class="comment">-- prints false (where is it?)</span>
+
+<span class="keyword">end</span>)();
+
+
+
+<span class="library">print</span>(mymodule ~= <span class="keyword">nil</span>) <span class="comment">-- prints true (where did this come from?)</span>
+
+</pre>
+
+</DL>
+<p>
+As shown, loading modules like "mymodule" always populates the global environment rather than the current environment where the module is used.  This is the reverse of what is needed.  Many such module loads can fill the global environment with variables intended to be private.
+<p>
+Another problem is as Mark Hamburg notes <a href="/lists/lua-l/2006-04/msg00547.html">[16]</a>,
+putting modules into the global namespace hides dependencies.  Assume your
+program loads <code>module "bar"</code> and loading <code> module "bar"</code> also loads
+<code>module "foo"</code>.  Now <code>module "foo"</code> will also be available in the global
+namespace.  In your program you start using <code>module "foo"</code> from the global
+namespace.  If <code>module "bar"</code> now removes the dependency on
+<code>module "foo"</code>, it will also no longer be available in the global namespace
+and break your program.  It is not immediately apparent where <code>foo</code> in the
+global namespace came from, nor that it is actually a module (that used to be
+a dependency of <code>module "bar"</code>).
+<p>
+<p>
+<p>
+The following two examples are related to each other:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> test() <span class="keyword">return</span> 1+2 <span class="keyword">end</span>
+
+
+
+(<span class="keyword">function</span>()
+
+  <span class="library">module</span>(<span class="string">"mymodule"</span>, <span class="library">package.seeall</span>);
+
+
+
+  (<span class="keyword">function</span>()
+
+    <span class="library">module</span>(<span class="string">"test.more"</span>) <span class="comment">-- fails: name conflict for module 'test.more'</span>
+
+    <span class="keyword">function</span> hello() <span class="keyword">return</span> 1+2 <span class="keyword">end</span>
+
+  <span class="keyword">end</span>)()
+
+<span class="keyword">end</span>)()
+
+</pre>
+
+</DL>
+<p>
+and
+<p>
+<DL>
+<dt><dd><pre class="code">
+(<span class="keyword">function</span>()
+
+  <span class="library">module</span>(<span class="string">"test"</span>)
+
+  <span class="keyword">function</span> check() <span class="keyword">return</span> <span class="keyword">true</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>)();
+
+
+
+(<span class="keyword">function</span>()
+
+  <span class="library">module</span>(<span class="string">"test.check"</span>) <span class="comment">-- fails: name conflict for module 'test.check'</span>
+
+  <span class="keyword">function</span> hello() <span class="keyword">return</span> 1+2 <span class="keyword">end</span>
+
+<span class="keyword">end</span>)();
+
+</pre>
+
+</DL>
+<p>
+As seen, package names and regular variable names conflict.
+The <code>module</code> function does detect and raise an error if a global
+variable it's overwriting already exists.  That's what we want, right?
+Well, this also means that it's particularly indeterminant whether
+loading a module will succeed since the module may load other modules
+whose names (and names of its members) we might not know and that
+conflict with global variables.
+<p>
+As a side note, in some other languages (e.g. Perl), variables and package
+names are maintained in separate namespaces and so are prevented from conflicting. [*3]
+It's also noteworthy, that the module naming conventions affect if and how names conflict.  For example, Java package names <a href="http://en.wikipedia.org/wiki/Java_package.html">[6]</a> are conventionally prefixed by a (unique) domain name under the author's control, which is verbose but provides a mechanism to avoid conflict.  In Perl, CPAN provides a central naming registry to prevent conflicts, and modules with the same prefix indicate a common function rather than a common maintainer (e.g. "CGI" <a href="http://search.cpan.org/dist/CGI.pm/">[7]</a> and "CGI::Minimal" <a href="http://search.cpan.org/dist/CGI-Minimal/">[8]</a> are maintained independently by different authors, and "CGI::Minimial" is <em>not</em> stored inside the "CGI" table).
+<p>
+<DL>
+<dt><dd><pre class="code">
+(<span class="keyword">function</span>()
+
+  <span class="library">module</span>(<span class="string">"mymodule"</span>, <span class="library">package.seeall</span>);
+
+
+
+  (<span class="keyword">function</span>()
+
+    <span class="library">module</span>(<span class="string">"test.more"</span>)
+
+    <span class="keyword">function</span> hello() <span class="keyword">return</span> 1+2 <span class="keyword">end</span>
+
+  <span class="keyword">end</span>)()
+
+
+
+  <span class="keyword">function</span> greet()
+
+    test.more.hello()  <span class="comment">-- fails -- attempt to index global 'test' (a function value)</span>
+
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>)();
+
+
+
+<span class="keyword">function</span> test()
+
+  mymodule.greet()
+
+<span class="keyword">end</span>
+
+
+
+test()
+
+</pre>
+
+</DL>
+<p>
+Here, the program inadvertently overwrites a global variable set by
+the module function.  The module function does not detect this.
+Rather, there is program failure (possibly a silent one) when a
+module that depends on this global variable attempts to access this
+variable.
+<p>
+<DL>
+<dt><dd><pre class="code">
+(<span class="keyword">function</span>()
+
+  <span class="keyword">local</span> <span class="library">require</span> = <span class="library">require</span>
+
+  <span class="keyword">local</span> <span class="library">module</span> = <span class="library">module</span>
+
+  <span class="keyword">local</span> <span class="library">print</span> = <span class="library">print</span>
+
+  <span class="keyword">local</span> _P = <span class="library">package.loaded</span>
+
+  <span class="library">module</span>(<span class="string">'yourmodule.two'</span>);
+
+
+
+  (<span class="keyword">function</span>()
+
+    <span class="library">module</span>(<span class="string">'mymodule.one'</span>)
+
+  <span class="keyword">end</span>)()
+
+
+
+  <span class="library">print</span>(_P[<span class="string">'mymodule.one'</span>] ~= <span class="keyword">nil</span>) <span class="comment">-- prints true</span>
+
+<span class="keyword">end</span>)();
+
+
+
+<span class="keyword">local</span> _P = <span class="library">package.loaded</span>
+
+<span class="library">print</span>(_P[<span class="string">'mymodule.one'</span>] ~= <span class="keyword">nil</span>) <span class="comment">-- prints true</span>
+
+</pre>
+
+</DL>
+<p>
+Storing modules in the global environment is in fact somewhat redundant
+since they are also stored in <code>package.loaded</code> (though without
+creating nested tables for the periods in the module name).
+<p>
+~~~
+<p>
+The problems above can be avoided by not using the <code>module</code> function
+but instead defining modules in the following simple way: [*1][*2]
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- hello/world.lua</span>
+
+<span class="keyword">local</span> M = {}
+
+
+
+<span class="keyword">local</span> <span class="keyword">function</span> test(n) <span class="library">print</span>(n) <span class="keyword">end</span>
+
+<span class="keyword">function</span> M.test1() test(123) <span class="keyword">end</span>
+
+<span class="keyword">function</span> M.test2() M.test1(); M.test1() <span class="keyword">end</span>
+
+
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+and importing modules this way:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> MT = <span class="library">require</span> <span class="string">"hello.world"</span>
+
+MT.test2()
+
+</pre>
+
+</DL>
+<p>
+Note that the public functions are clearly indicated with the <code>M.</code>
+prefix.  Unlike when using <code>module</code>, the global environment is not
+visible though the <code>MT</code> table (i.e. <code>MT.print == nil</code>), the
+<code>hello.world</code> table has not been exported (or polluted) to the
+global environment but is rather a lexical, and modules with the same prefix
+(e.g. <code>hello.world.again</code>) would not alter the <code>hello.world</code> table.
+In the client code, the module <code>hello.world</code> can be given a short
+abbreviation <em>local</em> to that module (e.g. <code>MT</code>).  The approach
+also works well with <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>.  This is great.  The
+one complaint is that public functions need to be prefixed with <code>M.</code>
+in the module itself, but then the other solutions are often proposed
+introducing their own problems and complexities, such as
+<code>package.seeall</code> noted above.  It does not
+particularly hurt to be explicit with <code>M.</code> (two characters),
+especially when code size gets larger.
+<p>
+A related note on C code: The <code>luaL_register</code> <a href="http://www.lua.org/manual/5.1/manual.html#luaL_register">[9]</a> function in C is somewhat analogous to the <code>module</code> function in Lua, so <code>luaL_register</code> shares similar problems, at least when a non-NULL <code>libname</code> is used.  Furthermore, the <code>luaL_newmetatable</code>/<code>luaL_getmetatable</code>/<code>luaL_checkudata</code> functions use a C string as a key into the global registry.  This poses some potential for name conflicts--either because the modules were written by different people or because they are different versions of the same module loaded simultaneously.  To address this, one may instead use a lightuserdata (pointer to variable of static linkage to ensure global uniqueness) for this key or store the metatable as an upvalue--either way is a bit more efficient and less error prone.
+<p>
+The <code>module</code> function (and its ilk) may introduce more problems than it solves.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>
+<p>
+<H2>Footnotes</H2>
+<p>
+[*1] (Advocates of the above style include <a href="../wiki/RiciLake.html" >RiciLake</a>, <a href="../wiki/DavidManura.html" >DavidManura</a>,
+others who have mentioned it on IRC, <a href="../wiki/MikePall.html" >MikePall</a> <a href="/lists/lua-l/2006-04/msg00519.html">[17]</a><a href="/lists/lua-l/2005-07/msg00113.html">[18]</a><a href="/lists/lua-l/2011-10/msg00578.html">[19]</a>, ... (add your name here))
+<p>
+[*2] There has also been the suggestion to move the standard libraries in this direction <a href="/lists/lua-l/2005-08/msg00432.html">[20]</a>.
+<p>
+[*3] Example in Perl where modules and variables of the same name do not conflict:
+<p>
+<DL>
+<dt><dd><pre>
+
+package One;
+
+our $Two = 2;
+
+package One::Two;
+
+our $Three = 3;
+
+package main;
+
+print "$One::Two,$One::Two::Three" # prints 2,3
+
+</pre>
+</DL>
+<p>
+<H2>Additional Points</H2>
+<p>
+Many of the additional points below were taken from the Oct 2011 discussion on module <a href="/lists/lua-l/2011-10/msg00450.html">[21]</a><a href="/lists/lua-l/2011-10/msg00481.html">[22]</a>.
+<p>
+<H3>Bundling</H3>
+<p>
+With modules defined using the <code>module</code> function, we can sometimes just concatenate them (<code>cat *.lua &gt; bundle.lua</code>) if it's desired to bundle them into a single file <a href="/lists/lua-l/2011-10/msg00450.html">[21]</a>.  However, this does not work in the general case:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">module</span>(<span class="string">"one"</span>, <span class="library">package.seeall</span>)
+
+<span class="library">require</span> <span class="string">"two"</span>  <span class="comment">-- This fails unless you sort the modules according to their dependency graph</span>
+
+               <span class="comment">-- (assuming, as is best design, it has no cycles and can be computed statically)</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> foo() <span class="library">print</span> <span class="string">'one.foo'</span> <span class="keyword">end</span>
+
+<span class="keyword">function</span> bar() foo() two.foo() <span class="keyword">end</span>
+
+
+
+<span class="library">module</span>(<span class="string">"two"</span>, <span class="library">package.seeall</span>)
+
+<span class="keyword">function</span> foo() <span class="library">print</span> <span class="string">'two.foo'</span> <span class="keyword">end</span>  <span class="comment">-- This overwrite a previous local</span>
+
+
+
+<span class="library">module</span>(<span class="string">"main"</span>, <span class="library">package.seeall</span>)
+
+<span class="library">require</span> <span class="string">"one"</span>
+
+one.bar()
+
+</pre>
+
+</DL>
+<p>
+A general solution, which works for modules both with and without <code>module</code> involves <code>package.preload</code> as follows:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">package.preload</span>[<span class="string">'one'</span>] = <span class="keyword">function</span>()
+
+  <span class="library">module</span>(<span class="string">"one"</span>, <span class="library">package.seeall</span>)
+
+  <span class="library">require</span> <span class="string">"two"</span>
+
+  <span class="keyword">local</span> <span class="keyword">function</span> foo() <span class="library">print</span> <span class="string">'one.foo'</span> <span class="keyword">end</span>
+
+  <span class="keyword">function</span> bar() foo() two.foo() <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">package.preload</span>[<span class="string">'two'</span>] = <span class="keyword">function</span>()
+
+  <span class="library">module</span>(<span class="string">"two"</span>, <span class="library">package.seeall</span>)
+
+  <span class="keyword">function</span> foo() <span class="library">print</span> <span class="string">'two.foo'</span> <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">package.preload</span>[<span class="string">'main'</span>] = <span class="keyword">function</span>()
+
+  <span class="library">module</span>(<span class="string">"main"</span>, <span class="library">package.seeall</span>)
+
+  <span class="library">require</span> <span class="string">"one"</span>
+
+  one.bar()
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">require</span> <span class="string">'main'</span>
+
+</pre>
+
+</DL>
+<p>
+A number of bundling utilities listed on the bottom of <a href="../wiki/BinToCee.html" >BinToCee</a> utilize approaches like this.
+<p>
+<H3>Switching between private and public</H3>
+<p>
+One criticism placed on the "M" table style of module definition is that if a function definition in the module is changed from public to private then all references to that function must be renamed (e.g. <code>M.foo</code> to <code>foo</code>) <a href="/lists/lua-l/2011-10/msg00926.html">[23]</a>.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> M.foo() <span class="keyword">end</span>          <span class="comment">-- change to "local function foo() end"</span>
+
+<span class="keyword">function</span> M.bar() M.foo() <span class="keyword">end</span>  <span class="comment">-- and also change "M.foo()" to "foo()"</span>
+
+</pre>
+
+</DL>
+<p>
+A mitigating factor is that references to <code>M.foo()</code> are localized to the current module and may typically be relatively few in number.  The refactoring operation required here is also the same for when you want to rename a function, which you'll need anyway.  Text editors can assist in this refactoring, and some editors with knowledge of the Lua language can also rename variables quite robustly.  In some languages, e.g. Python, private variables are informally differentiated from public variables with leading underscores, so the same criticism would apply.  
+<p>
+One technique to avoid renaming is to keep all functions local, and insert any functions that should be public into the public table right after their definition:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="keyword">function</span> foo() <span class="keyword">end</span>; M.foo = foo
+
+</pre>
+
+</DL>
+<p>
+Some performance critical code does that anyway for the small performance advantage.  The triplicate use of <code>foo</code> in the definition is unfortunate, and workarounds to avoid this (such as localmodule in <a href="../wiki/ModuleDefinition.html" >ModuleDefinition</a> or token filters) are likely not worth it.
+<p>
+Finally, note that changing a function from public (table or global variable) to private (local variable) may also require moving the function definition.  local variables, unlike table or global variables, are lexically scoped, so they must be declared (or forward declared) prior to use.  New users not versed in lexical scoping can be confused by this.  We can avoid this by declaring all variables (public and private) uniformly with either locals (as in the example above) or table/global variables (as will be shown below).  The latter can involve a Python-like technique of prefixing private variables with underscores or using two tables:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> M = {}
+
+<span class="keyword">function</span> M._foo() <span class="library">print</span> <span class="string">'foo'</span> <span class="keyword">end</span>
+
+<span class="keyword">function</span> M.bar() M._foo() <span class="keyword">end</span>
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> M = {} <span class="comment">-- public</span>
+
+<span class="keyword">local</span> V = {} <span class="comment">-- private</span>
+
+<span class="keyword">function</span> V.foo() <span class="library">print</span> <span class="string">'foo'</span> <span class="keyword">end</span>
+
+<span class="keyword">function</span> M.bar() V.foo() <span class="keyword">end</span>
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+Neither of those addresses the problem, however, of needing to replace references when a function is changed from public to/from private.  We may also solve that problem by using a technique like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> M = {} <span class="comment">-- public</span>
+
+<span class="keyword">local</span> V = <span class="library">setmetatable</span>({}, {__index = M}) <span class="comment">-- private and public</span>
+
+<span class="keyword">function</span> V.foo() <span class="library">print</span> <span class="string">'foo'</span> <span class="keyword">end</span>
+
+<span class="keyword">function</span> M.bar() V.foo() <span class="keyword">end</span>
+
+<span class="keyword">return</span> M
+
+</pre>
+
+</DL>
+<p>
+Now, we can always safely change a function from public to/from private by changing only one character in the file.  If we wanted to avoid some of the cruft, we could move some of it into the module loader so that modules need only be written as
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> V.foo() <span class="library">print</span> <span class="string">'foo'</span> <span class="keyword">end</span>
+
+<span class="keyword">function</span> M.bar() V.foo() <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+It may not be the tersest, but the differentiation between public and private scopes (V/M) is explicit.
+<p>
+<H3>Mechanism not Policy</H3>
+<p>
+"Despite our mechanisms, not policy rule  which we have found valuable in guiding the evolution of Lua  we should have provided a precise set of policies for modules and packages earlier. The lack of a common policy for building modules and installing packages prevents different groups from sharing code and discourages the development of a community code base. Lua 5.1 provides a set of policies for modules and packages that we hope will remedy this situation."  -- The Evolution of Lua, <a href="http://www.lua.org/doc/hopl.pdf">http://www.lua.org/doc/hopl.pdf</a>
+<p>
+"Usually, Lua does not set policies. Instead, Lua provides mechanisms that are powerful enough for groups of developers to implement the policies that best suit them. However, this approach does not work well for modules. One of the main goals of a module system is to allow different groups to share code. The lack of a common policy impedes
+this sharing." -- <a href="http://www.inf.puc-rio.br/~roberto/pil2/chapter15.pdf">http://www.inf.puc-rio.br/~roberto/pil2/chapter15.pdf</a>
+<p>
+<DL>
+<dt><dd>More recent clarification: <a href="/lists/lua-l/2011-10/msg00485.html">LuaList:2011-10/msg00485.html</a>
+</DL>
+<p>
+See also <a href="../wiki/MechanismNotPolicy.html" >MechanismNotPolicy</a>.
+<p>
+<H3>Prevalence of the use of the module function</H3>
+<p>
+The majority of pure-Lua modules in repositories currently use the <code>module</code> function:
+<p>
+<UL>
+<li> <a href="/lists/lua-l/2011-10/msg00558.html">LuaList:2011-10/msg00558.html</a> - in LuaforWindows<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaforWindows" >?</a> and <a href="../wiki/LuaDist.html" >LuaDist</a> packages
+<li> <a href="/lists/lua-l/2011-10/msg00686.html">LuaList:2011-10/msg00686.html</a> - in <a href="../wiki/LuaRocks.html" >LuaRocks</a>
+</UL>
+<p>
+<H3>Use of "..." in the module function</H3>
+<p>
+<a href="/lists/lua-l/2011-10/msg00686.html">LuaList:2011-10/msg00686.html</a> argues that it's preferable for the name of the module to be explicitly specified in the module text so that it's clear how to load it:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">module</span>(<span class="string">"foo.bar"</span>)    <span class="comment">-- encouraged</span>
+
+<span class="library">module</span>(...)          <span class="comment">-- discouraged</span>
+
+<span class="comment">-- module: foo.bar   -- name in informal comment better than nothing</span>
+
+<span class="keyword">local</span> M = {} <span class="keyword">return</span> M                        <span class="comment">-- anonymous and likewise discouraged</span>
+
+<span class="keyword">local</span> M = {}; M._NAME = <span class="string">"foo.bar"</span>; <span class="keyword">return</span> M  <span class="comment">-- better than above</span>
+
+</pre>
+
+</DL>
+<p>
+On the other hand, this doesn't make the package as easily relocatable.
+<p>
+<H3>Lua version compatibility</H3>
+<p>
+The Lua 5.1 <code>module</code> function can be used in Lua 5.0 via <a href="http://www.keplerproject.org/compat/">[LuaCompat]</a>.  Lua 5.2.0-beta has a compatibility mode, and furthermore "It is quite easy to write a 'module' function in 5.2, using the debug library. (But it will not allow multiple modules in a single file, which is a kind of hack anyway)" (Roberto, <a href="/lists/lua-l/2011-10/msg00488.html">LuaList:2011-10/msg00488.html</a>).
+<p>
+The "M" table style of module definition is also compatible in 5.0, 5.1, and 5.2.0-beta.
+<p>
+<code>_ENV</code> is not supported directly in 5.1, so its use can prevent a module from remaining compatible with 5.1.  Maybe you can simulate <code>_ENV</code> with <code>setfenv</code> and trapping gets/sets to it via <code>__index</code>/<code>__newindex</code> metamethods, or just avoid <code>_ENV</code>.
+<p>
+<H3>Lua 5.2 module definition</H3>
+<p>
+In 5.2.0-beta, you can just continue to use the "M" table style of module definition, and there are those that recommend it <a href="/lists/lua-l/2011-10/msg00533.html">[24]</a>.  On the other hand, some have suggested that in Lua 5.2, modules will be written like this, using the new <code>_ENV</code> variable (which largely supplants <code>setfenv</code>):
+<p>
+<DL>
+<dt><dd><pre>
+
+_ENV = module(...)
+
+function foo() end
+
+</pre>
+</DL>
+<p>
+Some argue against new users needing to be aware of the obscure looking <code>_ENV</code>.  Although that might be avoided by having someone else set up <code>_ENV</code> when the chunk is loaded (e.g. by <code>require</code> or the searcher function), others continue to argue that the module's private environment and public tables should not be mixed, and there is no need for <code>_ENV</code> at all.
+<p>
+<H3>Fostering module development</H3>
+<p>
+The argument in <a href="../wiki/LuaModuleFunctionCritiqued.html" >LuaModuleFunctionCritiqued</a> was that <code>module</code> has technical defects (side-effects and obscure corner cases), which hinder a core property of modularity: composability.  In practice, this means that an application loading two different modules written by two different authors should not experience any surprising interactions between the two modules.  On the other hand, the "M" table style (if properly used) does not have these defects, due to its very simple semantics without side-effects (formally, the module loader can often be thought of as a <a href="http://en.wikipedia.org/wiki/Pure_function.html">[pure function]</a> in the functional programming sense).
+<p>
+Hisham has argued <a href="/lists/lua-l/2011-10/msg00686.html">[25]</a> that even though <code>module</code> has technical defects, these can largely be fixed and they are minor compared to its success in module promoting a more standard policy for module definition (absent in 5.0).  This success appears to be on a sociological rather than technical level.  <code>module</code> is said to have fostered code sharing and development of a community code base, and most modules in <a href="../wiki/LuaRocks.html" >LuaRocks</a> use <code>module</code>.  Moreover, the use of <code>module</code> (which is a built-in keyword in some other languages) has a concern self-documenting property, announcing the intention of the code (I am a module, this is my name, and here are my public functions) with minimal boilerplate.  We also all seem to agree than obscure boilerplate (<code>setfenv</code>/<code>_ENV</code> things) in modules is a negative for readability.
+<p>
+It can be argued, however, that some years after the introduction of the 5.1 module system, complaints are still heard with some frequency about the quantity, quality, and consistency of Lua modules, even for the basics like <a href="../wiki/StandardLibraries.html" >StandardLibraries</a>.  There are other facts in play, and efforts like <a href="../wiki/LuaRocks.html" >LuaRocks</a> are addressing some of these areas, but the more difficult question is separating out whether <code>module</code> has helped or hurt and whether changes in 5.2 will help.
+<p>
+Given that a "standard library" like penlight <a href="https://github.com/stevedonovan/Penlight">[10]</a> has removed <code>module</code> calls from its implementation <a href="/lists/lua-l/2011-10/msg00577.html">[26]</a>, it's not apparent this has negatively affected anyone.  However, the fact that Lua 5.2.0-beta has deprecated <code>module</code>, suggesting existing modules using it might no longer work without loading a compatibility function or rewriting has caused some concern <a href="/lists/lua-l/2011-10/msg00932.html">[27]</a>.
+<p>
+<H3>Mixing global and module namespaces</H3>
+<p>
+In putting globals (e.g. <code>print</code>) and module functions (e.g. <code>foo.print</code>) in the same namespace, as <code>package.seeall</code> does, the module function may overshadow a global of the same name.  This is one reason some prefer to be explicit by giving module functions a unique prefix (e.g. <code>M.print</code>).  This may also help readability in that it's obvious that <code>M.print</code> is a public variable exported from the current module and not a local, global, or imported package name.  Sometimes this type of prefixing is needed anyway in other parts of the code (e.g. "<code>self.</code>" or "<code>ClassName:</code>")  This explicitness also avoids any issues or overhead with merging the two namespaces with a metatable.  This practice does, however, introduce some repetition (see "Switching between private and public" above).
+<p>
+A similar debate has occurred in the C++ community concerning things like "<code>using std;</code>"
+<a href="http://stackoverflow.com/questions/1265039/using-std-namespace">[11]</a>, which imports possibly conflicting names into the current namespace and therefore is safest to avoid.  Moreover, in C, there's a common practice of prepending "<code>g_</code>" or "<code>s_</code>" to global or static variables (and similarly to "<code>m_</code>" for members in C++), although intelligent IDE's can mitigate some of the need for this.
+<p>
+<H3>Python and Perl name leakage</H3>
+<p>
+Python has an issue similar to <code>package.seeall</code> <a href="/lists/lua-l/2011-10/msg00926.html">[23]</a>:
+<p>
+<DL>
+<dt><dd><pre>
+
+-- bar.py
+
+import logging # logging is now available as bar.logging
+
+</pre>
+</DL>
+<p>
+Perl can also have this issue:
+<p>
+<DL>
+<dt><dd><pre>
+
+package One;
+
+use Carp qw(carp);  # carp is now available via One::carp
+
+carp("test");
+
+1
+
+</pre>
+</DL>
+<p>
+unless you avoid symbol imports (and instead fully qualify names):
+<p>
+<DL>
+<dt><dd><pre>
+
+package One;
+
+use Carp qw();  # carp is now available via One::carp
+
+Carp::carp("test");
+
+1
+
+</pre>
+</DL>
+<p>
+or use <a href="http://search.cpan.org/perldoc?namespace::clean">[namespace::clean]</a>, <a href="http://search.cpan.org/perldoc?namespace::autoclean">[namespace::autoclean]</a>, or <a href="http://search.cpan.org/perldoc?namespace::sweep">[namespace::sweep]</a> modules.
+<p>
+<p>
+Python (like Lua <code>module</code>) imposes a relationship between the modules <code>foo</code> and <code>foo.baz</code>.  If your module loads <code>foo</code> and another module loads <code>foo.baz</code>, then <code>baz</code> will then be placed inside your module.  This likely accounts for why the Hitchhiker's Guide to Packaging <a href="http://guide.python-distribute.org/creation.html">[12]</a> suggests that the first part of the module name ("<code>foo.</code>") be globally unique, and it seems that Python packages tend to share the same prefix only if they are managed by the same entity (e.g. numerous, but not all, Zope packages/modules are under a "zope." prefix).  The same guideline should apply to Lua in its current state.
+<p>
+Perl is not quite the same since you can have a package <code>Foo</code> with variable <code>$Foo::Baz</code> and another package <code>Foo::Bar</code>, and these do not conflict since packages exist in their own namespace.  Perl does, however, share the following issue with Lua <code>module</code>:
+<p>
+<DL>
+<dt><dd><pre>
+
+# One.pm
+
+package One; sub test { }; 1
+
+
+
+# Two.pm
+
+package Two; One::test(); 1
+
+
+
+# main.pl
+
+use One;
+
+use Two;   # This succeeds as written but fails if the lines are later reversed
+
+</pre>
+</DL>
+<p>
+<H3>Global variables through package.loaded</H3>
+<p>
+Require globally registers modules in <code>package.loaded</code>.  So, regardless how modules are defined, you still have global access to loaded modules if you want it:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> L = <span class="library">package.loaded</span>
+
+.....
+
+L[<span class="string">'foo.bar'</span>].baz()
+
+L.foo.bar.baz()  <span class="comment">-- if require'foo'.bar == require 'foo.bar'</span>
+
+</pre>
+
+</DL>
+<p>
+Doing this may be considered laborious:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> FBAR = <span class="library">require</span> <span class="string">'foo.bar'</span>
+
+<span class="keyword">local</span> FBAZ = <span class="library">require</span> <span class="string">'foo.baz'</span>
+
+<span class="keyword">local</span> FBUZ = <span class="library">require</span> <span class="string">'foo.buz'</span>
+
+...
+
+</pre>
+
+</DL>
+<p>
+You may just accept it, or you could find ways to simplify it:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- foo.lua</span>
+
+<span class="keyword">return</span> {
+
+  bar = <span class="library">require</span> <span class="string">'foo.bar'</span>,
+
+  baz = <span class="library">require</span> <span class="string">'foo.baz'</span>,
+
+  buz = <span class="library">require</span> <span class="string">'foo.buz'</span>
+
+}
+
+</pre>
+
+</DL>
+<p>
+or ways to automate it:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> <span class="library">_G</span> = <span class="library">require</span> <span class="string">'autoload'</span> <span class="comment">-- under appropriate definition of autoload</span>
+
+<span class="library">_G</span>.foo.bar.qux()
+
+<span class="comment">-- note: penlight offers something like this</span>
+
+</pre>
+
+</DL>
+<p>
+The latter does not have problems with missing hidden dependencies since modules are always loaded on demand if needed.  On the other hand, module loading it not localized to the module loader function but rather can occur later wherever the module functions are used, which means that error detection may be delayed and usages of these functions may be more prone to fail (e.g. module loading failure due to module not installed), complicating error handling.  There are ways this might be addressed though.
+<p>
+<H3>Defining Classes</H3>
+<p>
+A concern similar to standardizing module definition is standardizing class definition (<a href="../wiki/ObjectOrientedProgramming.html" >ObjectOrientedProgramming</a>).  Moreover, some modules are also classes.
+<p>
+As an example, ratchet's code <a href="https://github.com/icgood/ratchet/blob/master/src/http/server.lua">[13]</a> does something like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+.....
+
+<span class="library">module</span>(<span class="string">"ratchet.http.server"</span>, <span class="library">package.seeall</span>)
+
+<span class="keyword">local</span> class = <span class="library">getfenv</span>()  <span class="comment">-- why not _M?</span>
+
+__index = class
+
+
+
+<span class="keyword">function</span> new(socket, from, handlers, send_size)
+
+    <span class="keyword">local</span> self = {}
+
+    <span class="library">setmetatable</span>(self, class)
+
+    .....
+
+    <span class="keyword">return</span> self
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> handle(self) ..... <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+If modules should utilize <code>module</code>, then we should ask if this is how class modules should be defined. 
+<p>
+<H3>lua -l switch</H3>
+<p>
+The <code>lua -l</code> command line switch is not useful if it doesn't have some side-effect.  With <code>M</code>-style modules in 5.1, <code>-l</code> will at least create a variable in <code>package.loaded</code>, but accessing that is long-winded, and the purpose of <code>-l</code> is typically for short-hand on invoking the interpreter (after all, the same can be achieved via <code>-e "require....."</code>).  In 5.2.0-beta, <code>-l</code> will create a global table using <code>lua_pushglobaltable</code> even for <code>M</code>-style modules.  The global variable created via <code>lua_pushglobaltable</code> may be longer than desired though, and you might instead want the effect of <code>-e 'FB = "require 'mypackage.foo.bar'"</code>.  See the discussion <a href="/lists/lua-l/2011-11/msg00016.html">LuaList:2011-11/msg00016.html</a> .
+<p>
+If <code>-l</code> is used to create a global variable, should this be added to <code>_G</code>? or somehow limited to just the main program chunk (e.g. the effect of <code>-lfoo</code> would be to add <code>local foo = require 'foo'</code> or <code>_ENV = setmetatable({foo = require 'foo'}, {__index = _G})</code> to the top of the main chunk)?  The latter is cleaner.
+<p>
+There was also a suggestion that <code>-l</code> should accept parameters <a href="http://www.mail-archive.com/luarocks-developers@lists.sourceforge.net/msg00196.html">[14]</a><a href="/lists/lua-l/2011-10/msg00578.html">[19]</a>.
+<p>
+<H3>Static Analysis</H3>
+<p>
+Modules defined with "M" tables, at least without metatables, even though they may have some variation in form, can be statically analyzed from first principles (e.g. behavior of lexical variables and tables), as <a href="../wiki/LuaInspect.html" >LuaInspect</a> does <a href="/lists/lua-l/2011-10/msg00849.html">[28]</a>.
+<p>
+The 5.1 <code>module</code> function has more complicated semantics (side-effects and metatable behavior).  Nevertheless, we can still infer meaning on a higher level, particularly if conventions are followed, as tools like <a href="http://keplerproject.github.com/luadoc/">[LuaDoc]</a> have done.  Changes in 5.2 and suggestions for improving the <code>module</code> function may also affect this area.
+<p>
+<H3>Improving "module"</H3>
+<p>
+Some proposals for making <code>module</code> better rather than tossing it out are in the thread <a href="http://lua-users.org/lists/lua-l/2011-10/threads.html#00481">http://lua-users.org/lists/lua-l/2011-10/threads.html#00481</a> . (TODO: post best recommendations here)
+<p>
+<H2>Other User Comments</H2>
+<p>
+Not using the module function means that by omitting the local keyword, it could be very easy to pollute the global environment (which is bad, that's the purpose of that article). So we can improve the module function by changing the environment to something private (that can inherit from _G) and define in it the _M table (as now) that will contains the module public interface.
+I also was concerned about these issues, and there is a tricky way to use the module function and not clutter the global environment. There it is:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">package.loaded</span>[...]={}
+
+<span class="library">module</span>(...) <span class="comment">-- you might want to add package.seeall</span>
+
+</pre>
+
+</DL>
+<p>
+However this is not a solution to solve the global namespace being accessed through the module. For that we would need a modified module function. Hopefully in the next Lua release.
+<p>
+--<a href="../wiki/MildredKiLya.html" >MildredKiLya</a>
+<p>
+<DL>
+<dt><dd>"Not using the module function means that by omitting the local keyword, it could be very easy to pollute the global environment (which is bad,...)" -- True, but unwanted global accesses are detectable prior to run-time using a method in <a href="../wiki/DetectingUndefinedVariables.html" >DetectingUndefinedVariables</a>, and I consider them errors that should be fixed.
+</DL>
+<p>
+<DL>
+<dt><dd>Your approach using the module function might be done as follows, though this is going out of its way to circumvent the current behavior of the module function:
+</DL>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="comment">-- mod.lua</span>
+
+<span class="keyword">local</span> _E = <span class="library">setmetatable</span>({}, {__index=<span class="library">_G</span>})
+
+<span class="keyword">local</span> _M = {}
+
+<span class="library">package.loaded</span>[...] = _M
+
+<span class="library">module</span>(...)
+
+_E.setfenv(1, _E)
+
+<span class="keyword">function</span> _M.test()
+
+  <span class="keyword">return</span> <span class="library">math.sqrt</span>(9)
+
+<span class="keyword">end</span>
+
+test2 = 1
+
+
+
+<span class="comment">--modtest.lua</span>
+
+<span class="keyword">local</span> m = <span class="library">require</span> <span class="string">"mod"</span>
+
+<span class="library">assert</span>(<span class="keyword">not</span> mod)
+
+<span class="library">assert</span>(m.test() == 3)
+
+<span class="library">assert</span>(<span class="keyword">not</span> test)
+
+<span class="library">assert</span>(<span class="keyword">not</span> test2)
+
+<span class="library">assert</span>(<span class="keyword">not</span> m.print)
+
+<span class="library">print</span> <span class="string">'done'</span>
+
+
+
+$ luac -p -l mod.lua | lua /usr/<span class="keyword">local</span>/lua-5.1.3/test/globals.lua
+
+<span class="library">setmetatable</span>    1
+
+<span class="library">_G</span>      1
+
+<span class="library">package</span> 3
+
+<span class="library">module</span>  4
+
+test2   9*
+
+<span class="library">math</span>    7
+
+</pre>
+
+<dt><dd>--<a href="../wiki/DavidManura.html" >DavidManura</a>
+</DL>
+<p>
+<H2>See Also</H2>
+<p>
+<UL>
+<li> <a href="../wiki/ModuleDefinition.html" >ModuleDefinition</a>
+<li> [*A] <a href="../wiki/TheEssenceOfLoadingCode.html" >TheEssenceOfLoadingCode</a>
+<li> <a href="../wiki/LuaStyleGuide.html" >LuaStyleGuide</a>
+<li> <a href="/lists/lua-l/2006-04/msg00506.html">LuaList:2006-04/msg00506.html</a> - "Conceptual problem with module"
+<li> <a href="/lists/lua-l/2006-04/msg00296.html">LuaList:2006-04/msg00296.html</a> - '"module" tutorial'
+<li> <a href="/lists/lua-l/2004-06/msg00115.html">LuaList:2004-06/msg00115.html</a> - "More about packaging"
+<li> <a href="/lists/lua-l/2005-01/msg00134.html">LuaList:2005-01/msg00134.html</a> - "package proposal"
+<li> <a href="/lists/lua-l/2005-08/msg00389.html">LuaList:2005-08/msg00389.html</a> - "Packaging and importing"
+<li> <a href="/lists/lua-l/2005-08/msg00418.html">LuaList:2005-08/msg00418.html</a> - "Packaging and importing"
+</UL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=LuaModuleFunctionCritiqued" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=LuaModuleFunctionCritiqued" >history</a><br>Last edited January 10, 2012 2:05 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=LuaModuleFunctionCritiqued" >(diff)</a>
+</body>
+</html>

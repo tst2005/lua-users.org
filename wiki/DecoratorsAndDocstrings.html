@@ -1,0 +1,160 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Decorators And Docstrings</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=DecoratorsAndDocstrings&amp;body=1" title="List pages referring to DecoratorsAndDocstrings">Decorators And Docstrings</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Pattern: Decorators, Annotators and Docstrings</H3>
+<p>
+At times we want to associate some metadata with an object, such as the documentation or type information on the object.  It may be possible to store this in a field inside the object, thereby modifying the implementation of the object, but that may be something to avoid, especially if the object belongs to someone else (information hiding).  In fact, it might not be possible to modify the object if the object is a function or a read-only table.
+<p>
+One solution is basically to create a global table that maps objects (as keys) to their annotations (as values).  By definition, objects have unique identities and therefore can serve as unique keys in a table.  In this way, the objects themselves are not modified.  This interferes a bit with garbage collection since the global table holds references to the objects, but we can use a "weak table" in Lua for this purpose (see the book <em>Programming in Lua</em> in <a href="../wiki/LuaBooks.html" >LuaBooks</a>).
+<p>
+Here's a way to apply docstrings <a href="http://en.wikipedia.org/wiki/Docstring.html">[1]</a> to Lua objects.
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">local</span> docstrings = <span class="library">setmetatable</span>({}, {__mode = <span class="string">"kv"</span>})
+
+ 
+
+<span class="keyword">function</span> document(str)
+
+  <span class="keyword">return</span> <span class="keyword">function</span>(obj) docstrings[obj] = str; <span class="keyword">return</span> obj <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+ 
+
+<span class="keyword">function</span> help(obj)
+
+  <span class="library">print</span>(docstrings[obj])
+
+<span class="keyword">end</span>
+
+ 
+
+document<span class="string">[[Print the documentation for a given object]]</span>(help)
+
+document<span class="string">[[Add a string as documentation for an object]]</span>(document)
+
+ 
+
+f = document<span class="string">[[Print a hello message]]</span>(
+
+  <span class="keyword">function</span>()
+
+    <span class="library">print</span>(<span class="string">"hello"</span>)
+
+  <span class="keyword">end</span>
+
+)
+
+f()
+
+help(f)
+
+</pre>
+
+</DL>
+<p>
+Note: garbage collection can fail if the annotation is an object that refers back to the object it annotates (see <a href="../wiki/GarbageCollectingWeakTables.html" >GarbageCollectingWeakTables</a>).
+<p>
+A somewhat similar pattern is applied in Perl "inside out objects".
+<p>
+This pattern can be applied to other situations in which you wish to apply metadata to objects without making any change to those objects.  
+These include function decorators as used in Python <a href="http://www.python.org/dev/peps/pep-0318/">[2]</a> <a href="http://www.ddj.com/184406073">[3]</a>.
+<p>
+The following alternative syntax for applying function decorators to functions could be preferable:
+<p>
+<DL>
+<dt><dd><pre class="code">
+random =
+
+  docstring<span class="string">[[Compute random number.]]</span> ..
+
+  typecheck(<span class="string">"number"</span>, <span class="string">'-&gt;'</span>, <span class="string">"number"</span>) ..
+
+  <span class="keyword">function</span>(n)
+
+    <span class="keyword">return</span> <span class="library">math.random</span>(n)
+
+  <span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The function decorators can be implemented basically in this way:
+<p>
+<DL>
+<dt><dd><pre class="code">
+mt = {__concat =
+
+  <span class="keyword">function</span>(a,f)
+
+    <span class="keyword">return</span> <span class="keyword">function</span>(...)
+
+      <span class="library">print</span>(<span class="string">"decorator"</span>, <span class="library">table.concat</span>(a, <span class="string">","</span>), ...)
+
+      <span class="keyword">return</span> f(...)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+}
+
+
+
+<span class="keyword">function</span> typecheck(...)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({...}, mt)
+
+<span class="keyword">end</span>
+
+
+
+<span class="keyword">function</span> docstring(...)
+
+  <span class="keyword">return</span> <span class="library">setmetatable</span>({...}, mt)
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+The use of an operator (<code>..</code>) here between the function decorator and the function avoids the parenthesis around the function and makes chaining decorators nicer.  We want this operator to have right associativity, so the only choices for this operator are <code>..</code> and <code>^</code>.
+<p>
+See also <a href="../wiki/LuaTypeChecking.html" >LuaTypeChecking</a> for specific use of decorators for expressing function parameter and return types.
+<p>
+--<a href="../wiki/DavidManura.html" >DavidManura</a>, 2007-02
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=DecoratorsAndDocstrings" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=DecoratorsAndDocstrings" >history</a><br>Last edited May 2, 2009 1:26 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=DecoratorsAndDocstrings" >(diff)</a>
+</body>
+</html>

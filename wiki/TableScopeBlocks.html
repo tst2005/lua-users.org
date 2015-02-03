@@ -1,0 +1,118 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Table Scope Blocks</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=TableScopeBlocks&amp;body=1" title="List pages referring to TableScopeBlocks">Table Scope Blocks</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+In Pascal there is a technique to put the data members in a record into scope. I propose we do the same, with a structure like this:
+<p>
+<DL>
+<dt><dd><pre class="code">
+A = {}
+
+
+
+using A <span class="keyword">in</span>
+
+    foo = 5;
+
+    bar = <span class="string">"Hello World"</span>;
+
+<span class="keyword">end</span>
+
+
+
+write(A.foo, A.bar) <span class="comment">-- Will print out "5Hello World"</span>
+
+</pre>
+
+</DL>
+<p>
+The basic method for doing this is replacing the global scope with a table scope while in the block. Since this is a block, it guarantees that global scope will never be lost.
+<p>
+This could be useful in OO implementation in Lua, to make better use of self. If you put self in scope, then it would be more "C" like again:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">function</span> A:foo(x)
+
+    <span class="keyword">local</span> y
+
+    bar = x <span class="comment">-- Sets self.bar to x  [and where comes x from? --ET]</span>
+
+    y = x <span class="comment">-- Sets local variable y</span>
+
+    self.y = x <span class="comment">-- Sets self.y</span>
+
+<span class="keyword">end</span>
+
+</pre>
+
+</DL>
+<p>
+<em>Could probably complete this example to show exactly how to set the tags</em>
+<p>
+This would require the use of the function tag, where a using block is placed around the actual function call.
+<p>
+This may also help when creating Lua packages. In python, if a module uses global scope, it actually accesses variables in the module dictionary. With a little work, the same effect could be created with a "using..in" block.  
+<p>
+<em>There's also the question of how this will work with the above recommendation that variables be assumed local.</em>
+<p>
+<hr>1.  How do you access the global scope when 'using' is active?  In typed languages like C++ or Pascal the compiler knows which identifiers are globals or class/structure members and generates appropriate code.  Lua does not know...
+<p>
+2.  I find it pretty annoying in i.e. C++ that you cannot see whether an identifier is class member or a global.  You have to look up the class definition.  Writing self.x makes it clear that a field instead of a global is accessed. <em>I have to agree here. Many C++ Programmers even use the convention to declare all member variables beginning with m_... to make it clear that when it is used, a membervariable is accessed. --<a href="../wiki/PeterPrade.html" >PeterPrade</a></em>
+<p>
+--ET
+<p>
+<hr>The first example can be done using :
+<p>
+<DL>
+<dt><dd><pre class="code">
+tab = { tab2={ x=3 } }
+
+<span class="keyword">do</span> <span class="keyword">local</span> t = tab.tab2
+
+  <span class="library">print</span> (t.x)
+
+  t.x = 4
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">print</span> (t) <span class="comment">-- nil as out of scope now</span>
+
+</pre>
+
+</DL>
+<p>
+--NDT
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=TableScopeBlocks" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=TableScopeBlocks" >history</a><br>Last edited July 7, 2007 7:22 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=TableScopeBlocks" >(diff)</a>
+</body>
+</html>

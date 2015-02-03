@@ -1,0 +1,144 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Fun With Coroutines</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=FunWithCoroutines&amp;body=1" title="List pages referring to FunWithCoroutines">Fun With Coroutines</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This page shows some tricks using coroutines.
+<p>
+<H3>Print a string in reverse using coroutines</H3>
+<p>
+The following example reverses a string.  It is implemented with coroutines and recursion (no table).
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">do</span>
+
+  <span class="keyword">local</span> wrap, yield = <span class="library">coroutine.wrap</span>, <span class="library">coroutine.yield</span>
+
+
+
+  <span class="keyword">local</span> <span class="keyword">function</span> putrev(w)
+
+    <span class="keyword">if</span> w <span class="keyword">then</span>
+
+      putrev(yield())
+
+      <span class="library">io.write</span>(w)
+
+    <span class="keyword">end</span>
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="keyword">function</span> prevchar(s)
+
+    <span class="keyword">local</span> p = wrap(putrev)
+
+    p<span class="string">"\n"</span>
+
+    <span class="library">string.gsub</span>(s, <span class="string">"."</span>, p)
+
+    p()
+
+  <span class="keyword">end</span>
+
+
+
+  <span class="comment">-- don't look at this one until you understand the first one</span>
+
+  <span class="keyword">function</span> prevword(s)
+
+    <span class="keyword">local</span> p = wrap(putrev)
+
+    <span class="keyword">local</span> <span class="keyword">function</span> q(a, b) p(a) p(b) <span class="keyword">end</span>
+
+    p<span class="string">"\n"</span>
+
+    <span class="library">string.gsub</span>(s, <span class="string">"(%S+)(%s*)"</span>, q)
+
+    p()
+
+  <span class="keyword">end</span>
+
+
+
+<span class="keyword">end</span>
+
+
+
+&gt; prevchar <span class="string">"This is a test"</span> 
+
+tset a si sihT
+
+&gt; prevword <span class="string">"This is a test"</span>
+
+test a is This
+
+&gt; 
+
+</pre>
+
+</DL>
+<p>
+-- <em><a href="../wiki/RiciLake.html" >RiciLake</a></em>
+<p>
+<H3>Control Inversion</H3>
+<p>
+Here are two different approaches at control inversion by use of coroutines:
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="keyword">for</span> k <span class="keyword">in</span> <span class="library">coroutine.wrap</span>(<span class="keyword">function</span>() <span class="library">table.foreach</span>(<span class="library">_G</span>, <span class="library">coroutine.yield</span>) <span class="keyword">end</span>) <span class="keyword">do</span>
+
+  <span class="library">print</span>(k)
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">table.foreach</span>(<span class="library">_G</span>, <span class="library">coroutine.wrap</span>(<span class="keyword">function</span>(k)
+
+  <span class="library">print</span>(k)
+
+  <span class="keyword">for</span> k <span class="keyword">in</span> <span class="library">coroutine.yield</span> <span class="keyword">do</span> <span class="library">print</span>(k) <span class="keyword">end</span>
+
+<span class="keyword">end</span>))
+
+</pre>
+
+</DL>
+<p>
+Alas, both don't work with stock Lua. Find out the true reasons
+why and you will be enlightened. Or just fetch the Coco or RVM
+extensions and they'll run just fine (see the mailing list for
+current availability).
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=FunWithCoroutines" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=FunWithCoroutines" >history</a><br>Last edited September 17, 2008 11:47 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=FunWithCoroutines" >(diff)</a>
+</body>
+</html>

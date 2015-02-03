@@ -1,0 +1,299 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Cpp Lua Data Passing</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=CppLuaDataPassing&amp;body=1" title="List pages referring to CppLuaDataPassing">Cpp Lua Data Passing</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This example code illustrates how to pass data between a C++ and a lua script.
+Read the comments and text output (cout and print statements) in the following two pieces of code.
+<p>
+<H2>After Running the Program</H2>
+This is the output after running the code listed below.
+<DL>
+<dt><dd><pre>
+
+[C++] Passing 'arg' array to script
+
+[C++] Running script
+
+[lua] These args were passed into the script from C
+
+1       45
+
+2       99
+
+[lua] Script returning data back to C
+
+[C++] These values were returned from the script
+
+script returned 1
+
+script returned 9
+
+script returned a table
+
+</pre>
+</DL>
+<p>
+<H2>The C++ code</H2>
+<p>
+<DL>
+<dt><dd><pre>
+
+extern "C"
+
+{
+
+   #include &lt;lua.h&gt;
+
+   #include &lt;lauxlib.h&gt;
+
+   #include &lt;lualib.h&gt;
+
+}
+
+#include &lt;iostream&gt;
+
+
+
+// a list of libs to expose for use in scripts
+
+static const luaL_reg lualibs[] = 
+
+{
+
+  {"base", luaopen_base},
+
+  {"table", luaopen_table},
+
+  {"io", luaopen_io},
+
+  {"string", luaopen_string},
+
+  {"math", luaopen_math},
+
+  {"debug", luaopen_debug},
+
+  {"loadlib", luaopen_loadlib}, 
+
+  /* add your libraries here */
+
+  {NULL, NULL}
+
+};
+
+
+
+// load the list of libs
+
+static void openstdlibs( lua_State *l ) 
+
+{
+
+  const luaL_reg *lib = lualibs;
+
+  for (; lib-&gt;func; lib++) 
+
+  {
+
+    lib-&gt;func(l);  /* open library */
+
+    lua_settop(l, 0);  /* discard any results */
+
+  }
+
+}
+
+
+
+int main()
+
+{
+
+   int status;
+
+   lua_State* state = lua_open();
+
+
+
+  
+
+   openstdlibs( state );
+
+   status = luaL_loadfile( state, "args.lua" );
+
+
+
+   std::cout &lt;&lt; "[C++] Passing 'arg' array to script" &lt;&lt; std::endl;
+
+
+
+   // start array structure
+
+   lua_newtable( state );
+
+
+
+   // set first element "1" to value 45
+
+   lua_pushnumber( state, 1 );
+
+   lua_pushnumber( state, 45 );
+
+   lua_rawset( state, -3 );
+
+
+
+   // set second element "2" to value 99
+
+   lua_pushnumber( state, 2 );
+
+   lua_pushnumber( state, 99 );
+
+   lua_rawset( state, -3 );
+
+  
+
+   // set the number of elements (index to the last array element)
+
+   lua_pushliteral( state, "n" );
+
+   lua_pushnumber( state, 2 );
+
+   lua_rawset( state, -3 );
+
+
+
+   // set the name of the array that the script will access
+
+   lua_setglobal( state, "arg" );
+
+
+
+
+
+   std::cout &lt;&lt; "[C++] Running script" &lt;&lt; std::endl;
+
+   
+
+   int result = 0;
+
+   if (status == 0)
+
+      result = lua_pcall( state, 0, LUA_MULTRET, 0 );
+
+   else
+
+      std::cout &lt;&lt; "bad" &lt;&lt; std::endl;
+
+   
+
+   if (result != 0)
+
+      std::cerr &lt;&lt; "[C++] script failed" &lt;&lt; std::endl;
+
+
+
+   std::cout &lt;&lt; "[C++] These values were returned from the script" &lt;&lt; std::endl;
+
+   while (lua_gettop( state ))
+
+   {
+
+      switch (lua_type( state, lua_gettop( state ) ))
+
+      {
+
+         case LUA_TNUMBER: std::cout &lt;&lt; "script returned " &lt;&lt; lua_tonumber( state, lua_gettop( state ) ) &lt;&lt; std::endl; break;
+
+         case LUA_TTABLE:  std::cout &lt;&lt; "script returned a table" &lt;&lt; std::endl; break;
+
+         case LUA_TSTRING: std::cout &lt;&lt; "script returned " &lt;&lt; lua_tostring( state, lua_gettop( state ) ) &lt;&lt; std::endl; break;
+
+         case LUA_TBOOLEAN:std::cout &lt;&lt; "script returned " &lt;&lt; lua_toboolean( state, lua_gettop( state ) ) &lt;&lt; std::endl; break;
+
+         default: std::cout &lt;&lt; "script returned unknown param" &lt;&lt; std::endl; break;
+
+      }
+
+      lua_pop( state, 1 );
+
+   }
+
+   lua_close( state );
+
+   return 0;
+
+}
+
+</pre>
+</DL>
+<p>
+<p>
+<H2>The Lua Script "args.lua"</H2>
+<p>
+<DL>
+<dt><dd><pre class="code">
+<span class="library">io.write</span>( <span class="string">"[lua] These args were passed into the script from C\n"</span> );
+
+
+
+<span class="keyword">for</span> i=1,<span class="library">table.getn</span>(arg) <span class="keyword">do</span>
+
+   <span class="library">print</span>(i,arg[i])
+
+<span class="keyword">end</span>
+
+
+
+<span class="library">io.write</span>(<span class="string">"[lua] Script returning data back to C\n"</span>)
+
+
+
+<span class="keyword">local</span> temp = {}
+
+temp[1]=9
+
+temp[2]=8
+
+temp[3]=7
+
+temp[4]=6
+
+temp[5]=5
+
+
+
+<span class="keyword">return</span> temp,9,1
+
+</pre>
+
+</DL>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=CppLuaDataPassing" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=CppLuaDataPassing" >history</a><br>Last edited January 6, 2007 6:35 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=CppLuaDataPassing" >(diff)</a>
+</body>
+</html>

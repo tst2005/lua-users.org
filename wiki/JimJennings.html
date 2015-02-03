@@ -1,0 +1,170 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Jim Jennings</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=JimJennings&amp;body=1" title="List pages referring to JimJennings">Jim Jennings</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+<H3>Interest</H3>
+<p>
+My interest in Lua stems from a general interest in programming language design and implementation.  For me, this is a diversion, a hobby, and an opportunity to stay connected with programming since I do not code at work.
+<p>
+<H3>The Darwin module system</H3>
+<p>
+During a summer vacation in June/July 2009, I wrote a first draft of the <em>Darwin module system for Lua</em>, which is an extension to the native Lua module system.  Back in the early 1990's, I worked for a few years with <a href="http://mumble.net/~jar/">[Jonathan Rees]</a>.  I had been programming in Lisp, and was fortunate enough to learn Scheme from Jonathan.  The module system of <a href="http://s48.org/">[Scheme48]</a> is tremendously useful because it provides a number of security guarantees.  The Darwin module system is my own attempt to obtain some of the same guarantees in Lua.  In particular:
+<p>
+<UL>
+<li> A module should have its own environment.  Access to the objects (functions, data) of a module is granted via access to an environment.
+<li> Therefore, you can control the privileges given to a piece of code by controlling the environments which that code can access.
+<li> A simple declarative language for describing modules is the only tool that a user needs in order to "administer" the module system, i.e. to create the appropriate environment in which the user's code should run.  (See examples below.)
+</UL>
+<p>
+Since I'm interested in Lua as an embedded language, I want strong guarantees about what capabilities are granted to user code, because the users will not be the developers of my projects; the users will be customizing my projects by injecting their own Lua code.
+<p>
+<H3>Relationship to the Lua module system</H3>
+<p>
+The Lua module system is extraordinarily flexible.  Like Lua itself, the module implementation is fairly "exposed" and therefore can be extended to do all manner of strange and wonderous things.  To obtain security guarantees, I wrote Darwin as a layer on top of (next to?) the Lua module system.  The Lua module system is fully functioning when you use Darwin.  Darwin merely adds an additional power:  the power to create a run-time environment that has read-only access to an explicit set of modules and no more.
+<p>
+With Darwin, it is possible to do some things that are awkward (or impossible) without it, e.g.
+<p>
+<UL>
+<li> Ensure that user code cannot modify module code on purpose or by accident... <em>without requiring the module author to follow any particular guidelines or rules.</em>
+<li> Guarantee that user code cannot obtain privileges (capabilities) that it has not been explicitly granted.  <em>Note: Darwin needs additional work in this area.</em>
+<li> Calculate module dependencies both statically (from declarations) and dynamically (at run-time)... <em>without requiring the module author to follow any particular guidelines or rules.</em>
+<li> Expose more than one view of the same module code, e.g. a limited-privilege view for production use and a fully-exposed view for development and debugging... <em>without modifying the module source code.</em>
+<li> Rename module functions and/or place them in a table whose name you can choose, regardless of whether the module source code was written to allow this... <em>without modifying the module source code.</em>
+</UL>
+<p>
+<H3>Due credit</H3>
+<p>
+The main ideas in Darwin came from Scheme48, which in turn was influenced by ML.  Having just now read Jonathan Rees's <a href="http://mumble.net/~jar/pubs/secureos/">[PhD thesis]</a> after writing Darwin, it seems that I've implemented in Lua a fair portion of his <em>security kernel</em> design.  There are a few things I have yet to do to round out the features that I think are needed in Darwin, including:
+<p>
+<UL>
+<li> Isolate the <code>getfenv</code> and <code>setfenv</code> functions into a separate module to make it easy to deny access to them (because they leak privileges); and
+<li> Explore adding "type authentication" for Lua objects so that a function cannot be spoofed into accepting a forged object just because the forged object has the same structure as an authentic object.  This is also a topic covered in Rees's <a href="http://mumble.net/~jar/pubs/secureos/">[PhD thesis]</a>.
+</UL>
+<p>
+<H3>Code and examples</H3>
+<p>
+<p>
+Attached below is a tar/gzip file containing the source code and some tests. I've written some documentation, which is an informal paper describing the design, plus a short reference section:
+<p>
+<UL>
+<li> <a href="/files/wiki_insecure/users/JimJennings/Darwin/darwin-1.0.3.tgz">[Darwin source code (tar/gzip format)]</a>
+<li> <a href="/files/wiki_insecure/users/JimJennings/Darwin/design.html">[Darwin documentation and reference (html format)]</a> - Please excuse the lack of internal document links for navigation.  This page was generated (mostly) automatically.
+<li> <a href="/files/wiki_insecure/users/JimJennings/Darwin/design.rtf">[Darwin documentation and reference (rtf format)]</a>
+</UL>
+<p>
+Darwin is (C) 2009, James S. Jennings, and will be released under the MIT open source license.  
+<p>
+Darwin is pure Lua, and works with Lua 5.1.4.  I don't know if it works with older versions.
+<p>
+Here is a file that I load every time I start Lua (after Darwin loads).  It defines a set of structures for modules I use often.  The way I have Darwin configured (which is the default), Darwin puts entries into <code>package.preload</code> for each declared structure.  That way, my code can simply call <code>require</code>, e.g. <code>require "list"</code> or <code>require "lanes"</code>.  Darwin works fairly smoothly with the existing Lua package system.
+<p>
+<pre class="code">
+structure.declare { name=<span class="string">"list"</span>; 
+
+		    location=<span class="string">"."</span>; 
+
+		    open={<span class="string">"_G"</span>};
+
+		    objects={<span class="string">"null"</span>};
+
+		    files=<span class="string">"list.lua"</span>;
+
+		 }
+
+
+
+<span class="comment">-- Just for demonstration purposes</span>
+
+structure.declare { name=<span class="string">"pair"</span>; 
+
+		    signature={<span class="string">"cons"</span>, <span class="string">"car"</span>, <span class="string">"cdr"</span>, <span class="string">"isnull"</span>, <span class="string">"null"</span>};
+
+		    open={<span class="string">"_G"</span>};
+
+		    objects={<span class="string">"null"</span>};
+
+		    files=<span class="string">"list.lua"</span>;
+
+		 }
+
+
+
+structure.declare { name=<span class="string">"recordtype"</span>;
+
+		    <span class="comment">-- debug package is only needed because recordtype uses "strict"</span>
+
+		    open={<span class="string">"_G"</span>, <span class="string">"package"</span>; <span class="string">"table"</span>, <span class="string">"string"</span>, <span class="string">"debug"</span>};
+
+		    environment=<span class="string">[[ require("recordtype"); return recordtype ]]</span>;
+
+		 }
+
+
+
+structure.declare { name=<span class="string">"lprocess"</span>;
+
+		    open={<span class="string">"package"</span>};
+
+		    environment=<span class="string">[[ require "lprocess"; return lprocess ]]</span>;
+
+		 }
+
+
+
+structure.declare { name=<span class="string">"queuestack"</span>;
+
+		    location=<span class="string">"."</span>;
+
+		    files=<span class="string">"queuestack.lua"</span>;
+
+		 }
+
+
+
+structure.declare { name=<span class="string">"points"</span>;
+
+		    location=<span class="string">"."</span>;
+
+		    open={<span class="string">"_G"</span>, <span class="string">"math"</span>};
+
+		    objects={<span class="string">"point"</span>, <span class="string">"points"</span>};
+
+		    files=<span class="string">"points.lua"</span>
+
+		 }
+
+</pre>
+
+<p>
+Note to MacOS and Windows users:  You <em>might</em> need a small edit to _darwinpackage.lua_ in order for Darwin to load native (C/C++) libraries correctly.  The change, and the reason for it, are explained in the documentation, under "Limitations".  I'll create a work-around at some point.
+<p>
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=JimJennings" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=JimJennings" >history</a><br>Last edited October 14, 2009 8:01 pm GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=JimJennings" >(diff)</a>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>lua-users wiki: Scite Backup File</TITLE>
+<LINK TYPE="text/css" REL="stylesheet" HREF="../styles/main.css">
+</HEAD>
+<BODY ><table width="100%" border="0"> <tr><td align=left width="100%"><h1><a href="/cgi-bin/wiki.pl?action=search&amp;string=SciteBackupFile&amp;body=1" title="List pages referring to SciteBackupFile">Scite Backup File</a></h1></td><td align=right>
+    <table cellpadding="0" cellspacing="0" border="0" width="1%">
+      <tbody>
+        <tr>
+            <td><a href="../index.html">
+            <img src="../images/nav-logo.png" alt="lua-users home" width="177" height="40" border="0"></a></td>
+        </tr>
+        <tr>
+            <td>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tbody>
+                <tr>
+                    <td><img src="../images/nav-elbow.png" alt="" width="48" height="40"></td>
+                    <td nowrap valign="middle" width="100%">
+                        <a href="../wiki/index.html" class="nav">wiki</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </td>
+        </tr>
+      </tbody>
+    </table>
+<form method="post" action="../wiki/FindPage.html" enctype="application/x-www-form-urlencoded" style="display:inline; margin:0;">
+<input type="hidden" name="action" value="search"  /><input type="text" name="string"  size="20" style="" id="search_query1" /><input type="hidden" name="title" value="1"  /><input type="submit" name=".submit" value="Search" /><input type="hidden" name="body" value="on"  /></form></td></tr> </table>
+<br clear=all>
+This simple script hooks onto <code>OnBeforeSave</code> and creates backups of the old
+version of the file that is being saved. Instead of calling an external
+command to copy the original file perfectly, the script uses a simple loop to
+copy the file's content, but losing custom attributes and other metadata. If
+you require exact backup, consider executing an external command to make the
+exact copy.
+<p>
+This script uses <a href="../wiki/SciteExtMan.html" >SciteExtMan</a>.
+<p>
+<pre class="code">
+<span class="comment">-- NOTE: uses extman.lua</span>
+
+<span class="comment">-- Limitations: silently fails, does not copy metadata</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> backupDeFile(fname)
+
+  <span class="keyword">local</span> BLK = 1024 * 64
+
+  bkname = fname..<span class="string">"~"</span>
+
+  <span class="keyword">local</span> inf = <span class="library">io.open</span>(fname, <span class="string">"rb"</span>)
+
+  <span class="keyword">local</span> outf = <span class="library">io.open</span>(bkname, <span class="string">"wb"</span>)
+
+  <span class="keyword">if</span> <span class="keyword">not</span> inf <span class="keyword">or</span> <span class="keyword">not</span> outf <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">end</span>
+
+  <span class="keyword">while</span> <span class="keyword">true</span> <span class="keyword">do</span>
+
+    <span class="keyword">local</span> dat = inf:read(BLK)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> dat <span class="keyword">then</span> <span class="keyword">break</span> <span class="keyword">end</span>
+
+    outf:write(dat)
+
+  <span class="keyword">end</span>
+
+  inf:close()
+
+  outf:close()
+
+<span class="keyword">end</span>
+
+scite_OnBeforeSave(backupDeFile)
+
+</pre>
+
+<p>
+-- <em><a href="../wiki/KeinHongMan.html" >KeinHongMan</a></em>
+<p>
+<p>
+<p>
+You can also add the following to your SciTEGlobal.properties if all you want is a simple way to create backups of the current file.
+<p>
+<pre class="code">
+command.name.1.*=Backup this file
+
+command.1.*=dostring <span class="library">os.execute</span>(<span class="string">"cmd /C copy $(FileNameExt?) $(FileName?)_"</span>..<span class="library">os.date</span>(<span class="string">"%y%m%d%H%M"</span>)..<span class="string">".$(FileExt?)"</span>)
+
+command.mode.1.*=subsystem:lua,savebefore:no
+
+</pre>
+
+<p>
+-- Alan MN
+<hr>
+<a href="../wiki/RecentChanges.html" >RecentChanges</a> &middot; <a href="/cgi-bin/wiki.pl?action=editprefs" >preferences</a><br>
+<a href="/cgi-bin/wiki.pl?action=edit&amp;id=SciteBackupFile" >edit</a> &middot; <a href="/cgi-bin/wiki.pl?action=history&amp;id=SciteBackupFile" >history</a><br>Last edited June 1, 2010 7:56 am GMT <a href="/cgi-bin/wiki.pl?action=browse&amp;diff=1&amp;id=SciteBackupFile" >(diff)</a>
+</body>
+</html>
